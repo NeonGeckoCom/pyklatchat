@@ -1,2 +1,2 @@
-# pyklatchat
+# PyKlatchat
 Pythonic Version of Klatchat
