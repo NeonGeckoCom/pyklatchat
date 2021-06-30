@@ -27,9 +27,20 @@ class ConsumerThread(threading.Thread):
 
     def run(self):
         """Creating new channel in input connection with specified attributes"""
-        self.channel.start_consuming()
-        self.channel.connection.close()
-        self.channel.close()
+        super(ConsumerThread, self).run()
+        try:
+            self.channel.start_consuming()
+        except pika.exceptions.StreamLostError as e:
+            print(e)
+
+    def join(self, timeout: Optional[float] = ...) -> None:
+        try:
+            self.channel.close()
+            self.connection.close()
+        except pika.exceptions.StreamLostError as e:
+            print(e)
+        finally:
+            super(ConsumerThread, self).join()
 
 
 class MQConnector(ABC):
