@@ -81,7 +81,6 @@ class MQConnector(ABC):
     def create_mq_connection(self, vhost: str = '/', **kwargs):
         """
             Creates MQ Connection on the specified virtual host
-            and adds it to active connection pool indexed by the name of virtual host.
             Note: In order to customize behavior, additional parameters can be defined via kwargs.
 
             :param vhost: address for desired virtual host
