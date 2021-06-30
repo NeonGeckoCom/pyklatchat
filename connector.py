@@ -45,7 +45,7 @@ class ConsumerThread(threading.Thread):
                                    auto_ack=False)
 
     def run(self):
-        """Creating new channel in input connection with specified attributes"""
+        """Creating consumer channel"""
         super(ConsumerThread, self).run()
         try:
             self.channel.start_consuming()
@@ -53,6 +53,7 @@ class ConsumerThread(threading.Thread):
             print(e)
 
     def join(self, timeout: Optional[float] = ...) -> None:
+        """Terminating consumer channel"""
         try:
             self.channel.close()
             self.connection.close()
