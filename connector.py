@@ -33,7 +33,7 @@ class ConsumerThread(threading.Thread):
             :param queue: Desired consuming queue
             :param callback_func: logic on message receiving
         """
-        threading.Thread.__init__(self)
+        threading.Thread.__init__(self, *args, **kwargs)
         self.connection = connection
         self.callback_func = callback_func
         self.queue = queue
