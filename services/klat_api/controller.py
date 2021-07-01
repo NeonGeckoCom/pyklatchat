@@ -18,11 +18,14 @@
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
 
 from mycroft_bus_client import MessageBusClient, Message
+from neon_utils import LOG
 from connector import MQConnector
 
 
 class NeonMQConnector(MQConnector):
+    """Adapter for establishing connection between Neon MessageBus and Klatchat Message Broker"""
     def __init__(self, config: dict):
+        """Additionally accepts message bus connection properties"""
         super().__init__(config)
 
         self.message_bus = MessageBusClient(host=self.config['MESSAGEBUS'].get('host', '0.0.0.0'),
@@ -32,9 +35,15 @@ class NeonMQConnector(MQConnector):
 
     @staticmethod
     def print_utterance(message):
-        print('Mycroft said "{}"'.format(message.data.get('utterance')))
+        """Default method for testing message bus channel correctness"""
+        LOG.debug('Mycroft said "{}"'.format(message.data.get('utterance')))
 
     def _setup_bus_listeners(self):
+        """
+            Sets up neon message bus listeners according to agreed specifications
+        """
+        #  TODO: setup specification document
+
         self.message_bus.on('neon.get_profile', self.print_utterance)
         self.message_bus.on('neon.get_klat_data', self.print_utterance)
         self.message_bus.on('neon.ai_response', self.print_utterance)
