@@ -1,0 +1,2 @@
+pika==1.2.0
+neon_utils @ git+https://github.com/neongeckocom/neon-skill-utils
