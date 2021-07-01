@@ -16,12 +16,13 @@
 # Specialized conversational reconveyance options from Conversation Processing Intelligence Corp.
 # US Patents 2008-2021: US7424516, US20140161250, US20140177813, US8638908, US8068604, US8553852, US10530923, US10530924
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
+from mycroft_bus_client import Message
 from config import Configuration
 from services.klat_api.controller import NeonMQConnector
 
 if __name__ == '__main__':
     klat_connector = NeonMQConnector(config=Configuration(file_path='config.json').config_data)
-    klat_connector.message_bus.run_forever()
+    klat_connector.run()
     klat_connector.message_bus.emit(Message('klat.shout', data={'data': {'nick': 'test',
                                                                          'audio_file': None,
                                                                          'cid_nicks': [],
@@ -32,4 +33,3 @@ if __name__ == '__main__':
                                                                          'socketIdEncrypted': False,
                                                                          'title': 'Test'},
                                                                 'type': "klat.shout"}))
-    # TODO: valid channels bindings here
