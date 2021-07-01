@@ -1,3 +1,5 @@
+# Configuration file
 /config.json
-/bridge_mq.bat
-/bridge_mq_admin.bat
+
+# Collection of helper scripts
+/scripts/
