@@ -28,6 +28,7 @@ from config import Configuration
 from connector import MQConnector, ConsumerThread
 from neon_utils import LOG
 
+
 class MQConnectorChild(MQConnector):
 
     def callback_func_1(self, channel, method, properties, body):
@@ -56,7 +57,11 @@ class MQConnectorChild(MQConnector):
 class MQConnectorChildTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        cls.connector_instance = MQConnectorChild(config=Configuration(file_path='config.json').config_data)
+        if os.environ.get('GITHUB_CI', False):
+            cls.file_path = "~/.local/share/neon/credentials.json"
+        else:
+            cls.file_path = 'config.json'
+        cls.connector_instance = MQConnectorChild(config=Configuration(file_path=cls.file_path).config_data)
         cls.connector_instance.run_consumers(names=('test1', 'test2'))
 
     @pytest.mark.timeout(30)
@@ -92,4 +97,3 @@ class MQConnectorChildTest(unittest.TestCase):
             cls.connector_instance.connection.close()
         except pika.exceptions.StreamLostError as e:
             LOG.error(f'Consuming error: {e}')
-

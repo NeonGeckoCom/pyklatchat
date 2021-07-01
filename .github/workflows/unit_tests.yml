@@ -1,0 +1,31 @@
+name: Run Unit Tests
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  unit_tests:
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_CI: true
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up python 3.6
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.6
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r test_requirements.txt
+      - name: Get Credential
+        run: |
+          mkdir -p ~/.local/share/neon
+          echo $CONNECTOR_CONFIG > ~/.local/share/neon/credentials.json
+        shell: bash
+        env:
+          CONNECTOR_CONFIG: ${{secrets.CONNECTOR_CONFIG}}
+      - name: Run Unit Tests
+        run: |
+          python -m unittest
