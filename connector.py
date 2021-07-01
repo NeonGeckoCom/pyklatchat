@@ -17,11 +17,12 @@
 # US Patents 2008-2021: US7424516, US20140161250, US20140177813, US8638908, US8068604, US8553852, US10530923, US10530924
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
 
-from abc import ABC, abstractmethod
-from typing import Optional
-
 import pika
 import threading
+
+from abc import ABC, abstractmethod
+from typing import Optional
+from neon_utils import LOG
 
 
 class ConsumerThread(threading.Thread):
@@ -50,7 +51,7 @@ class ConsumerThread(threading.Thread):
         try:
             self.channel.start_consuming()
         except pika.exceptions.StreamLostError as e:
-            print(e)
+            LOG.error(f'Consuming error: {e}')
 
     def join(self, timeout: Optional[float] = ...) -> None:
         """Terminating consumer channel"""
@@ -58,7 +59,7 @@ class ConsumerThread(threading.Thread):
             self.channel.close()
             self.connection.close()
         except pika.exceptions.StreamLostError as e:
-            print(e)
+            LOG.error(f'Consuming error: {e}')
         finally:
             super(ConsumerThread, self).join()
 

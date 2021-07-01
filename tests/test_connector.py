@@ -26,7 +26,7 @@ import pika
 
 from config import Configuration
 from connector import MQConnector, ConsumerThread
-
+from neon_utils import LOG
 
 class MQConnectorChild(MQConnector):
 
@@ -91,4 +91,5 @@ class MQConnectorChildTest(unittest.TestCase):
         try:
             cls.connector_instance.connection.close()
         except pika.exceptions.StreamLostError as e:
-            print(e)
+            LOG.error(f'Consuming error: {e}')
+
