@@ -68,8 +68,13 @@ class MQConnector(ABC):
     """Abstract method for attaching services to MQ cluster"""
 
     @abstractmethod
-    def __init__(self, config: dict):
+    def __init__(self, config: dict, service_name: str):
+        """
+            :param config: dictionary with current configurations
+            :param service_name: name of current service
+       """
         self.config = config
+        self.service_name = service_name
         self.consumers = dict()
 
     @property
@@ -77,7 +82,8 @@ class MQConnector(ABC):
         """Returns MQ Credentials object based on username and password in configuration"""
         if not self.config:
             raise Exception('Configuration is not set')
-        return pika.PlainCredentials(self.config['MQ'].get('user', 'guest'), self.config['MQ'].get('password', 'guest'))
+        return pika.PlainCredentials(self.config['MQ']['users'][self.service_name].get('user', 'guest'),
+                                     self.config['MQ']['users'][self.service_name].get('password', 'guest'))
 
     def create_mq_connection(self, vhost: str = '/', **kwargs):
         """

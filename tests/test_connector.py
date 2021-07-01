@@ -39,8 +39,8 @@ class MQConnectorChild(MQConnector):
         self.func_2_ok = True
         channel.basic_ack(delivery_tag=method.delivery_tag)
 
-    def __init__(self, config: dict):
-        super().__init__(config=config)
+    def __init__(self, config: dict, service_name: str):
+        super().__init__(config=config, service_name=service_name)
         self.vhost = '/test'
         self.func_1_ok = False
         self.func_2_ok = False
@@ -61,7 +61,8 @@ class MQConnectorChildTest(unittest.TestCase):
             cls.file_path = "~/.local/share/neon/credentials.json"
         else:
             cls.file_path = 'config.json'
-        cls.connector_instance = MQConnectorChild(config=Configuration(file_path=cls.file_path).config_data)
+        cls.connector_instance = MQConnectorChild(config=Configuration(file_path=cls.file_path).config_data,
+                                                  service_name='test')
         cls.connector_instance.run_consumers(names=('test1', 'test2'))
 
     @pytest.mark.timeout(30)

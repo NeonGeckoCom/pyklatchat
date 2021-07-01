@@ -24,9 +24,9 @@ from connector import MQConnector
 
 class NeonMQConnector(MQConnector):
     """Adapter for establishing connection between Neon MessageBus and Klatchat Message Broker"""
-    def __init__(self, config: dict):
+    def __init__(self, config: dict, service_name: str):
         """Additionally accepts message bus connection properties"""
-        super().__init__(config)
+        super().__init__(config, service_name)
 
         self.message_bus = MessageBusClient(host=self.config['MESSAGEBUS'].get('host', '0.0.0.0'),
                                             port=int(self.config['MESSAGEBUS'].get('port', '8181')),

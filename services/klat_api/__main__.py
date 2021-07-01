@@ -21,7 +21,8 @@ from config import Configuration
 from services.klat_api.controller import NeonMQConnector
 
 if __name__ == '__main__':
-    klat_connector = NeonMQConnector(config=Configuration(file_path='config.json').config_data)
+    klat_connector = NeonMQConnector(config=Configuration(file_path='config.json').config_data,
+                                     service_name='klat')
     klat_connector.run()
     klat_connector.message_bus.emit(Message('klat.shout', data={'data': {'nick': 'test',
                                                                          'audio_file': None,
