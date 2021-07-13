@@ -19,7 +19,7 @@
 
 from mycroft_bus_client import MessageBusClient, Message
 from neon_utils import LOG
-from connector import MQConnector
+from neon_mq_connector.connector import MQConnector
 
 
 class NeonMQConnector(MQConnector):
