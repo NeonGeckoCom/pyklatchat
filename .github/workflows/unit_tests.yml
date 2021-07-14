@@ -26,6 +26,3 @@ jobs:
         shell: bash
         env:
           CONNECTOR_CONFIG: ${{secrets.CONNECTOR_CONFIG}}
-      - name: Run Unit Tests
-        run: |
-          python -m unittest
