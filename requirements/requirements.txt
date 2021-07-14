@@ -1,3 +1,3 @@
 pika==1.2.0
 neon_utils @ git+https://github.com/neongeckocom/neon-skill-utils
-neon_mq_connector @ git+https://github.com/neongeckocom/neon_mq_connector.git
+git+https://github.com/neongeckocom/neon_mq_connector.git#egg=neon_mq_connector
