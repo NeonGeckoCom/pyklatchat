@@ -16,19 +16,48 @@
 # Specialized conversational reconveyance options from Conversation Processing Intelligence Corp.
 # US Patents 2008-2021: US7424516, US20140161250, US20140177813, US8638908, US8068604, US8553852, US10530923, US10530924
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
+import socket
 
 from neon_utils import LOG
-from neon_mq_connector.connector import MQConnector
+from neon_utils.socket_utils import get_packet_data
+from neon_mq_connector.connector import MQConnector, ConsumerThread
 
 
 class NeonAPIMQConnector(MQConnector):
     """Adapter for establishing connection between Neon API and MQ broker"""
+
     def __init__(self, config: dict, service_name: str):
         """Additionally accepts message bus connection properties"""
         super().__init__(config, service_name)
 
+        self.vhost = '/neon_api'
         self.tcp_credentials = (self.config['NEON_API_PROXY']['HOST'],
-                                self.config['NEON_API_PROXY']['PORT'])
+                                int(self.config['NEON_API_PROXY']['PORT']))
+        self.consumers = dict(neon_api_consumer=ConsumerThread(connection=self.create_mq_connection(vhost=self.vhost),
+                                                               queue='neon_api_input',
+                                                               callback_func=self.handle_api_input))
+
+    def handle_api_input(self, channel, method, properties, body):
+        """
+            Handles input requests from MQ to Neon API
+
+            :param channel: MQ channel object (pika.channel.Channel)
+            :param method: MQ return method (pika.spec.Basic.Return)
+            :param properties: MQ properties (pika.spec.BasicProperties)
+            :param body: request body (bytes)
+
+        """
+        if body and isinstance(body, bytes):
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.connect(self.tcp_credentials)
+                s.sendall(body)
+                data = get_packet_data(socket=s, sequentially=False)
+                # queue declare is idempotent, just making sure queue exists
+                channel.queue_declare(queue='neon_api_output')
+
+                channel.basic_publish(exchange='',
+                                      routing_key='neon_api_output',
+                                      body=data)
 
     def run(self):
         self.run_consumers()
