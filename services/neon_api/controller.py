@@ -17,6 +17,7 @@
 # US Patents 2008-2021: US7424516, US20140161250, US20140177813, US8638908, US8068604, US8553852, US10530923, US10530924
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
 import socket
+import pika
 
 from neon_utils import LOG
 from neon_utils.socket_utils import get_packet_data
@@ -57,7 +58,9 @@ class NeonAPIMQConnector(MQConnector):
 
                 channel.basic_publish(exchange='',
                                       routing_key='neon_api_output',
-                                      body=data)
+                                      body=data,
+                                      properties=pika.BasicProperties(expiration='1000')
+                                      )
 
     def run(self):
         self.run_consumers()
