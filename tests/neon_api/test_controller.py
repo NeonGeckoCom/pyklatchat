@@ -23,6 +23,7 @@ import json
 import pika
 import time
 
+from threading import Event
 from neon_mq_connector.connector import ConsumerThread
 from tests.mock import MQConnectorChild
 from neon_utils import LOG
@@ -55,12 +56,14 @@ OWM_QUERY = {
 
 
 class TestNeonAPIController(unittest.TestCase):
-    neon_api_output_received = True
+
+    api_output = None
 
     @classmethod
     def neon_api_output_callback(cls, channel, method, properties, body):
-        LOG.debug(f'Received message on neon_api_output: {b64_to_dict(body)}')
-        cls.neon_api_output_received = True
+        cls.api_output = b64_to_dict(body)
+        LOG.debug(f'Received message on neon_api_output: {cls.api_output}')
+        cls.response_event.set()
 
     @classmethod
     def setUpClass(cls) -> None:
@@ -75,6 +78,7 @@ class TestNeonAPIController(unittest.TestCase):
         cls.main_thread = threading.Thread(target=main, args=(cls.config_data,))
         cls.main_thread.start()
         LOG.debug('Main Thread Started...')
+        cls.response_event = Event()
         cls.test_connector = MQConnectorChild(config=cls.config_data)
         cls.test_mq_connection = cls.test_connector.create_mq_connection(NEON_API_VHOST)
         cls.test_connector.consumers = dict(neon_api_listener=ConsumerThread(connection=cls.test_mq_connection,
@@ -83,7 +87,8 @@ class TestNeonAPIController(unittest.TestCase):
         cls.test_connector.run_consumers()
 
     def setUp(self) -> None:
-        self.__class__.neon_api_output_received = False
+        self.api_output = None
+        self.response_event.clear()
         self.test_mq_connection = self.test_connector.create_mq_connection(NEON_API_VHOST)
         self.channel = self.test_mq_connection.channel()
 
@@ -100,8 +105,8 @@ class TestNeonAPIController(unittest.TestCase):
                                    )
         if self.channel.is_open:
             self.channel.close()
-        time.sleep(15)
-        self.assertTrue(self.__class__.neon_api_output_received)
+        self.response_event.wait(15)
+        self.assertIsNotNone(self.__class__.api_output)
 
     def test_owm_service(self):
         self.channel.basic_publish(exchange='',
@@ -109,8 +114,8 @@ class TestNeonAPIController(unittest.TestCase):
                                    body=dict_to_b64(OWM_QUERY),
                                    properties=pika.BasicProperties(expiration='1000')
                                    )
-        time.sleep(5)
-        self.assertTrue(self.__class__.neon_api_output_received)
+        self.response_event.wait(5)
+        self.assertIsNotNone(self.__class__.api_output)
 
     def test_alpha_vantage_service(self):
         self.channel.basic_publish(exchange='',
@@ -118,8 +123,8 @@ class TestNeonAPIController(unittest.TestCase):
                                    body=dict_to_b64(ALPHA_VANTAGE_QUERY),
                                    properties=pika.BasicProperties(expiration='1000')
                                    )
-        time.sleep(5)
-        self.assertTrue(self.__class__.neon_api_output_received)
+        self.response_event.wait(5)
+        self.assertIsNotNone(self.__class__.api_output)
 
     @classmethod
     def tearDownClass(cls) -> None:
