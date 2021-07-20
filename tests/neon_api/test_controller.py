@@ -22,6 +22,7 @@ import threading
 import json
 import pika
 import time
+import socket
 
 from threading import Event
 from neon_mq_connector.connector import ConsumerThread
@@ -56,7 +57,6 @@ OWM_QUERY = {
 
 
 class TestNeonAPIController(unittest.TestCase):
-
     api_output = None
 
     @classmethod
@@ -65,15 +65,29 @@ class TestNeonAPIController(unittest.TestCase):
         LOG.debug(f'Received message on neon_api_output: {cls.api_output}')
         cls.response_event.set()
 
+    @staticmethod
+    def ping_socket(address: str, port: int):
+        """
+            Pings socket server on specified address.
+
+            :param address: connection address
+            :param port: connection port
+
+            :raises LookupError: In case requested address is invalid
+        """
+
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        connection_status = sock.connect_ex((address, port))
+        sock.close()
+        if connection_status != 0:
+            raise LookupError(f'Requested Address {(address, port)} is invalid')
+
     @classmethod
     def setUpClass(cls) -> None:
-
-        try:
-            file_path = os.environ.get('NEON_API_CONNECTOR_CONFIG', 'config.json')
-            cls.config_data = Configuration(file_path=file_path).config_data
-        except Exception as e:
-            LOG.error(e)
-            cls.config_data = None
+        file_path = os.environ.get('NEON_API_CONNECTOR_CONFIG', '~/.local/share/neon/credentials.json')
+        cls.config_data = Configuration(file_path=file_path).config_data
+        cls.ping_socket(address=cls.config_data['NEON_API_PROXY']['HOST'],
+                        port=int(cls.config_data['NEON_API_PROXY']['PORT']))
         LOG.debug('Starting Main Thread...')
         cls.main_thread = threading.Thread(target=main, args=(cls.config_data,))
         cls.main_thread.start()
@@ -129,3 +143,7 @@ class TestNeonAPIController(unittest.TestCase):
     @classmethod
     def tearDownClass(cls) -> None:
         cls.main_thread.join()
+
+
+if __name__ == '__main__':
+    unittest.main()
