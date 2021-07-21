@@ -28,7 +28,18 @@ class NeonAPIMQConnector(MQConnector):
     """Adapter for establishing connection between Neon API and MQ broker"""
 
     def __init__(self, config: dict, service_name: str):
-        """Additionally accepts message bus connection properties"""
+        """
+            Additionally accepts message bus connection properties
+
+            :param config: dictionary containing configuration data, required body:
+            {
+                NEON_API_PROXY:{
+                    HOST:(socket address),
+                    PORT: (socket port)
+                }
+            }
+            :param service_name: name of the service instance
+        """
         super().__init__(config, service_name)
 
         self.vhost = '/neon_api'
@@ -38,7 +49,11 @@ class NeonAPIMQConnector(MQConnector):
                                                                queue='neon_api_input',
                                                                callback_func=self.handle_api_input))
 
-    def handle_api_input(self, channel, method, properties, body):
+    def handle_api_input(self,
+                         channel: pika.channel.Channel,
+                         method: pika.spec.Basic.Return,
+                         properties: pika.spec.BasicProperties,
+                         body: bytes):
         """
             Handles input requests from MQ to Neon API
 
@@ -61,6 +76,8 @@ class NeonAPIMQConnector(MQConnector):
                                       body=data,
                                       properties=pika.BasicProperties(expiration='1000')
                                       )
+        else:
+            raise TypeError(f'Invalid body received, expected: bytes string; got: {type(body)}')
 
     def run(self):
         self.run_consumers()

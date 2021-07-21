@@ -18,12 +18,13 @@
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
 import os
 
+from typing import Optional
 from neon_utils import LOG
 from config import Configuration
 from services.neon_api.controller import NeonAPIMQConnector
 
 
-def main(config: dict = None):
+def main(config: Optional[dict] = None):
     connector = NeonAPIMQConnector(config=config, service_name='neon_api_connector')
     connector.run_consumers()
 
@@ -33,5 +34,5 @@ if __name__ == '__main__':
         config_data = Configuration(file_path=os.environ.get('NEON_API_CONNECTOR_CONFIG', 'config.json')).config_data
     except Exception as e:
         LOG.error(e)
-        config_data = None
+        config_data = dict()
     main(config=config_data)
