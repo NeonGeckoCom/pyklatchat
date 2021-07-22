@@ -16,3 +16,23 @@
 # Specialized conversational reconveyance options from Conversation Processing Intelligence Corp.
 # US Patents 2008-2021: US7424516, US20140161250, US20140177813, US8638908, US8068604, US8553852, US10530923, US10530924
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
+import os
+
+from typing import Optional
+from neon_utils import LOG
+from config import Configuration
+from services.neon_api.controller import NeonAPIMQConnector
+
+
+def main(config: Optional[dict] = None):
+    connector = NeonAPIMQConnector(config=config, service_name='neon_api_connector')
+    connector.run_consumers()
+
+
+if __name__ == '__main__':
+    try:
+        config_data = Configuration(file_path=os.environ.get('NEON_API_CONNECTOR_CONFIG', 'config.json')).config_data
+    except Exception as e:
+        LOG.error(e)
+        config_data = dict()
+    main(config=config_data)

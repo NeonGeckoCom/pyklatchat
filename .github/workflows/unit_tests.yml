@@ -25,7 +25,7 @@ jobs:
       - name: Get Credential
         run: |
           mkdir -p ~/.local/share/neon
-          echo $CONNECTOR_CONFIG > ~/.local/share/neon/credentials.json
+          echo $PYKLATCHAT_CONFIG > ~/.local/share/neon/credentials.json
         shell: bash
         env:
-          CONNECTOR_CONFIG: ${{secrets.CONNECTOR_CONFIG}}
+          CONNECTOR_CONFIG: ${{secrets.PYKLATCHAT_CONFIG}}
