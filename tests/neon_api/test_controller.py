@@ -90,7 +90,7 @@ class TestNeonAPIController(unittest.TestCase):
         cls.ping_socket(address=cls.config_data['NEON_API_PROXY']['HOST'],
                         port=int(cls.config_data['NEON_API_PROXY']['PORT']))
         LOG.debug('Starting Main Thread...')
-        cls.main_thread = threading.Thread(target=main, args=(cls.config_data,))
+        cls.main_thread = threading.Thread(target=main, args=(cls.config_data, True,))
         cls.main_thread.start()
         LOG.debug('Main Thread Started...')
         cls.response_event = Event()
