@@ -1,4 +1,4 @@
-import mysql.connector
+from mysql.connector import MySQLConnection
 
 from typing import Optional
 from neon_utils import LOG
@@ -14,7 +14,7 @@ class MySQLConnector(DatabaseConnector):
         return DatabaseTypes.RELATIONAL
 
     def create_connection(self):
-        self._cnx = mysql.connector.connect(**self.config_data)
+        self._cnx = MySQLConnection(**self.config_data['connection_properties'])
 
     def abort_connection(self):
         self._cnx.close()

@@ -14,7 +14,7 @@ class MongoDBConnector(DatabaseConnector):
         return DatabaseTypes.NOSQL
 
     def create_connection(self):
-        self._cnx = MongoClient(**self.config_data)
+        self._cnx = MongoClient(**self.config_data['connection_properties'])
 
     def abort_connection(self):
         self._cnx.close()
