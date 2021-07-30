@@ -8,7 +8,7 @@ from chat_server.utils.auth import get_current_user, secret_key, jwt_encryption_
 
 router = APIRouter(
     prefix="/auth",
-    responses={404: {"description": "Unknown authorization endpoint"}},
+    responses={'404': {"description": "Unknown authorization endpoint"}},
 )
 
 
@@ -38,15 +38,15 @@ def login(response: Response, username: str = Form(...), password: str = Form(..
         )
     token = jwt.encode(payload={"sub": username}, key=secret_key, algorithm=jwt_encryption_algo)
     response.set_cookie("session", token)
-    return {"ok": True}
+    return {"login": True}
 
 
 @router.get("/logout")
-def login(response: Response):
+def logout(response: Response):
     response.delete_cookie("session")
-    return {"ok": True}
+    return {"logout": True}
 
 
-@router.get("/private")
+@router.get("/test")
 def read_private(username: str = Depends(get_current_user)):
-    return {"username": username, "private": "get some private data"}
+    return {"received_user_id:": username}

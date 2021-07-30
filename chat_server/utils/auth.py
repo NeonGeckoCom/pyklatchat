@@ -1,4 +1,5 @@
 import os
+import hashlib
 
 from time import time
 from uuid import uuid4
@@ -19,6 +20,10 @@ LOG.set_level('DEBUG')
 
 def generate_uuid(length=10):
     return uuid4().hex[:length]
+
+
+def hash_password(password: str):
+    return hashlib.sha512(password).hexdigest()
 
 
 def get_cookie_from_request(request: Request, cookie_name: str) -> dict:
