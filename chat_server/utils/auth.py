@@ -47,8 +47,7 @@ def create_unauthorized_user(response: Response, authorize: bool = True) -> str:
 
         :returns: uuid of the new user
     """
-    new_user = {'uuid': generate_uuid(),
-                'first_name': 'Unauthorized',
+    new_user = {'first_name': 'Unauthorized',
                 'last_name': 'User',
                 'password': ''}
     # TODO: actual database User instance creation

@@ -29,7 +29,7 @@ def login_page():
 def login(response: Response, username: str = Form(...), password: str = Form(...)):
     if username not in users:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="Invalid user or password"
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid user or password"
         )
     db_password = users[username]["password"]
     if not password == db_password:
@@ -37,7 +37,7 @@ def login(response: Response, username: str = Form(...), password: str = Form(..
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid user or password"
         )
     token = jwt.encode(payload={"sub": username}, key=secret_key, algorithm=jwt_encryption_algo)
-    response.set_cookie("session", token)
+    response.set_cookie("session", token, httponly=True)
     return {"login": True}
 
 

@@ -16,8 +16,8 @@ class DatabaseConnector(ABC):
         self.config_data = config_data
         self._cnx = None
 
-    @abstractmethod
     @property
+    @abstractmethod
     def database_type(self) -> DatabaseTypes:
         pass
 
@@ -36,10 +36,10 @@ class DatabaseConnector(ABC):
         pass
 
     @abstractmethod
-    def exec_raw_query(self, query_str: str, *args) -> Optional[list]:
+    def exec_raw_query(self, query: str, *args) -> Optional[object]:
         """
             Executes raw query returns result if needed
-            :param query_str: query string to execute
+            :param query: query to execute
             :param args: query args (if needed)
         """
         pass

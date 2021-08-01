@@ -19,7 +19,13 @@ class MySQLConnector(DatabaseConnector):
     def abort_connection(self):
         self._cnx.close()
 
-    def exec_raw_query(self, query_str: str, *args) -> Optional[list]:
+    def exec_raw_query(self, query: str, *args) -> Optional[list]:
+        """Executes raw string query and returns its results
+
+            :param query: valid SQL query string
+
+            :returns query result if any
+        """
         cursor = self.connection.cursor()
         cursor.execute(query_str, args=args)
         result = None
