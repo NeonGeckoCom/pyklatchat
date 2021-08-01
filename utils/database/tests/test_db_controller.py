@@ -15,13 +15,12 @@ class TestDBController(unittest.TestCase):
         file_path = os.path.expanduser(os.environ.get('DATABASE_CONNECTOR_CONFIG',
                                                       '~/.local/share/neon/credentials.json'))
         cls.configuration = Configuration(file_path=file_path)
-        cls.config_data = cls.configuration.config_data['CHAT_SERVER'][os.environ.get('ENV')]
         cls.db_controller = cls.configuration.get_db_controller(dialect='mongo')
 
     @unittest.skip('Relational database is skipped for now')
     def test_simple_interaction_mysql(self):
         simple_query = """SELECT name, created, last_updated_cid,value from shoutbox_cache;"""
-        result = self.db_controller.exec_query(query_str=simple_query)
+        result = self.db_controller.exec_query(query=simple_query)
         self.assertIsNotNone(result)
 
     def test_simple_interaction_mongo(self):

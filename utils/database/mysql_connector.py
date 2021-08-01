@@ -6,8 +6,6 @@ from utils.database.base_connector import DatabaseConnector, DatabaseTypes
 
 
 class MySQLConnector(DatabaseConnector):
-    def __init__(self, config_data: dict):
-        super().__init__(config_data)
 
     @property
     def database_type(self):

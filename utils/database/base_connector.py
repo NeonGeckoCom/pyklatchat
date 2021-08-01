@@ -11,7 +11,6 @@ class DatabaseTypes(Enum):
 class DatabaseConnector(ABC):
     """Base class for database"""
 
-    @abstractmethod
     def __init__(self, config_data: dict):
         self.config_data = config_data
         self._cnx = None
