@@ -9,7 +9,7 @@ from fastapi.security import APIKeyCookie
 from starlette import status
 from neon_utils import LOG
 
-from chat_server.utils import db_connector
+from chat_server.config import db_connector
 
 cookie_lifetime = 60 * 60  # lifetime for JWT token session
 cookie_refresh_rate = 5 * 60  # frequency for JWT token refresh
@@ -17,6 +17,13 @@ secret_key = os.environ.get('AUTH_SECRET')
 jwt_encryption_algo = os.environ.get('JWT_ALGO')
 
 LOG.set_level('DEBUG')
+
+
+def check_password_strength(password: str) -> str:
+    if len(password) < 8:
+        return 'Password should be longer than 8 symbols'
+    else:
+        return 'OK'
 
 
 def generate_uuid(length=10):
