@@ -4,7 +4,8 @@ from fastapi import APIRouter, Depends, Form, Response, status
 from fastapi.responses import HTMLResponse
 from fastapi.exceptions import HTTPException
 
-from chat_server.utils.auth import get_current_user, secret_key, jwt_encryption_algo, users
+from chat_server.utils import db_connector
+from chat_server.utils.auth import get_current_user, secret_key, jwt_encryption_algo, hash_password
 
 router = APIRouter(
     prefix="/auth",
@@ -27,16 +28,23 @@ def login_page():
 
 @router.post("/login")
 def login(response: Response, username: str = Form(...), password: str = Form(...)):
-    if username not in users:
+    users = db_connector.exec_query(query={'command': 'find_one',
+                                           'document': 'users',
+                                           'data': {}})
+    filtered_records = list(filter(lambda user: user['nickname'] == username, users))
+    matching_user = None
+    if filtered_records:
+        matching_user = filtered_records.pop()
+    if not matching_user or matching_user['is_tmp']:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid user or password"
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid username or password"
         )
-    db_password = users[username]["password"]
-    if not password == db_password:
+    db_password = matching_user["password"]
+    if hash_password(password) != db_password:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid user or password"
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid username or password"
         )
-    token = jwt.encode(payload={"sub": username}, key=secret_key, algorithm=jwt_encryption_algo)
+    token = jwt.encode(payload={"sub": matching_user['_id']}, key=secret_key, algorithm=jwt_encryption_algo)
     response.set_cookie("session", token, httponly=True)
     return {"login": True}
 

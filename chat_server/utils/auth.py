@@ -1,19 +1,20 @@
 import os
 import hashlib
+import jwt
 
 from time import time
 from uuid import uuid4
 from fastapi import Response, Depends, Request
 from fastapi.security import APIKeyCookie
 from starlette import status
-import jwt
 from neon_utils import LOG
+
+from chat_server.utils import db_connector
 
 cookie_lifetime = 60 * 60  # lifetime for JWT token session
 cookie_refresh_rate = 5 * 60  # frequency for JWT token refresh
 secret_key = os.environ.get('AUTH_SECRET')
 jwt_encryption_algo = os.environ.get('JWT_ALGO')
-users = {"test": {"password": "test"}, "test2": {"password": "test2"}}
 
 LOG.set_level('DEBUG')
 
@@ -23,7 +24,7 @@ def generate_uuid(length=10):
 
 
 def hash_password(password: str):
-    return hashlib.sha512(password).hexdigest()
+    return hashlib.sha512(password.encode('utf-8')).hexdigest()
 
 
 def get_cookie_from_request(request: Request, cookie_name: str) -> dict:
@@ -47,17 +48,22 @@ def create_unauthorized_user(response: Response, authorize: bool = True) -> str:
 
         :returns: uuid of the new user
     """
-    new_user = {'first_name': 'Unauthorized',
-                'last_name': 'User',
-                'password': ''}
-    # TODO: actual database User instance creation
-    users[new_user['uuid']] = new_user
+    new_user = {'_id': generate_uuid(),
+                'first_name': 'The',
+                'last_name': 'Guest',
+                'nickname': f'guest_{generate_uuid(length=8)}',
+                'password': hash_password(generate_uuid()),
+                'date_created': int(time()),
+                'is_tmp': True}
+    db_connector.exec_query(query={'document': 'users',
+                                   'command': 'insert_one',
+                                   'data': new_user})
     if authorize:
-        token = jwt.encode({"sub": new_user['uuid'],
+        token = jwt.encode({"sub": new_user['_id'],
                             'creation_time': time(),
                             'last_refresh_time': time()}, secret_key)
         response.set_cookie('session', token, httponly=True)
-    return new_user['uuid']
+    return new_user['_id']
 
 
 def get_current_user(request: Request, response: Response, force_tmp: bool = False) -> str:
@@ -78,13 +84,17 @@ def get_current_user(request: Request, response: Response, force_tmp: bool = Fal
             current_timestamp = time()
             if (int(current_timestamp) - int(payload.get('creation_time', 0))) <= cookie_lifetime:
                 try:
-                    user_record = users[payload["sub"]]
-                    user_id = user_record['uuid']
+                    user = db_connector.exec_query(query={'command': 'find_one',
+                                                          'document': 'users',
+                                                          'data': {'_id': payload['sub']}})
+                    if not user:
+                        raise KeyError(f'{payload["sub"]} is not found among users, setting temporal user credentials')
+                    user_id = user['_id']
                     if (int(current_timestamp) - int(payload.get('last_refresh_time', 0))) >= cookie_refresh_rate:
                         refresh_cookie(payload=payload, response=response)
                         LOG.info('Cookie was refreshed')
-                except KeyError:
-                    LOG.warning(f'{payload["sub"]} is not found among users, setting temporal user credentials')
+                except KeyError as err:
+                    LOG.warning(f'{err}')
     if not user_id:
         user_id = create_unauthorized_user(response=response)
     return user_id
