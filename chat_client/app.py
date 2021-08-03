@@ -18,12 +18,23 @@
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
 
 import os
+import sys
+
+from typing import Optional
+from fastapi import FastAPI
+
+sys.path.append(os.path.pardir)
+
 from config import Configuration
+from chat_client.blueprints import chat as chat_blueprint
 
-config_file_path = os.environ.get('CHATSERVER_CONFIG', '~/.local/share/neon/credentials_server.json')
-server_env = os.environ.get('SERVER_ENV', 'LOCALHOST')
 
-config = Configuration(file_path=config_file_path)
+def create_asgi_app() -> FastAPI:
+    """
+        Application factory for the Klatchat Server
+    """
+    chat_app = FastAPI(title="Klatchat Client Server",
+                       version='0.0.1')
+    chat_app.include_router(chat_blueprint.router)
 
-app_config = config.config_data.get('CHAT_SERVER', {}).get('SERVER_ENV', 'LOCALHOST')
-db_connector = config.get_db_controller('mongo')
+    return chat_app

@@ -3,3 +3,5 @@
 
 # Collection of helper scripts
 /scripts/
+/chat_client/client_config.json
+/chat_server/server_config.json

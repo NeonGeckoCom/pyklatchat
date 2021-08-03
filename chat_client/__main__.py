@@ -17,13 +17,16 @@
 # US Patents 2008-2021: US7424516, US20140161250, US20140177813, US8638908, US8068604, US8553852, US10530923, US10530924
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
 
-import os
-from config import Configuration
+import socketio
+import uvicorn
 
-config_file_path = os.environ.get('CHATSERVER_CONFIG', '~/.local/share/neon/credentials_server.json')
-server_env = os.environ.get('SERVER_ENV', 'LOCALHOST')
+from typing import Optional
+from chat_client.app import create_asgi_app
 
-config = Configuration(file_path=config_file_path)
 
-app_config = config.config_data.get('CHAT_SERVER', {}).get('SERVER_ENV', 'LOCALHOST')
-db_connector = config.get_db_controller('mongo')
+def create_chat_client(config_data: Optional[dict]):
+    return create_asgi_app()
+
+
+if __name__ == '__main__':
+    uvicorn.run(app=create_chat_client(config_data=None))
