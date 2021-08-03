@@ -29,12 +29,21 @@ from config import Configuration
 from chat_server.blueprints import auth as auth_blueprint
 
 
-def create_asgi_app() -> FastAPI:
+def create_asgi_app(app_version: str = None) -> FastAPI:
     """
         Application factory for the Klatchat Server
+
+        :param app_version: application version
     """
+    version = None
+    with open('chat_server/version.py') as f:
+        lines = f.readlines()
+        for line in lines:
+            if line.startswith('__version__'):
+                version = line.split('=')[1].strip().strip('"').strip("'")
+                break
     chat_app = FastAPI(title="Klatchat Server API",
-                       version='0.0.1')
+                       version=version)
     chat_app.include_router(auth_blueprint.router)
 
     return chat_app

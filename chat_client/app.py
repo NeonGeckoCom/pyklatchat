@@ -22,19 +22,21 @@ import sys
 
 from typing import Optional
 from fastapi import FastAPI
-
-sys.path.append(os.path.pardir)
+from neon_utils import LOG
 
 from config import Configuration
 from chat_client.blueprints import chat as chat_blueprint
 
 
-def create_asgi_app() -> FastAPI:
+def create_asgi_app(app_version: str = None) -> FastAPI:
     """
         Application factory for the Klatchat Server
+
+        :param app_version: application version
     """
+    LOG.info(f'Starting Klatchat Client Server v{app_version}')
     chat_app = FastAPI(title="Klatchat Client Server",
-                       version='0.0.1')
+                       version=app_version)
     chat_app.include_router(chat_blueprint.router)
 
     return chat_app

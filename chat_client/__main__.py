@@ -24,9 +24,16 @@ from typing import Optional
 from chat_client.app import create_asgi_app
 
 
-def create_chat_client(config_data: Optional[dict]):
-    return create_asgi_app()
+def create_chat_client(config_data: Optional[dict], app_version: str = None):
+    return create_asgi_app(app_version=app_version)
 
 
 if __name__ == '__main__':
-    uvicorn.run(app=create_chat_client(config_data=None))
+    version = None
+    with open('chat_client/version.py') as f:
+        lines = f.readlines()
+        for line in lines:
+            if line.startswith('__version__'):
+                version = line.split('=')[1].strip().strip('"').strip("'")
+                break
+    uvicorn.run(app=create_chat_client(config_data=None, app_version=version), port=8001)
