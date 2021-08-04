@@ -30,12 +30,12 @@ from chat_client.blueprints import chat as chat_blueprint
 
 def create_asgi_app(app_version: str = None) -> FastAPI:
     """
-        Application factory for the Klatchat Server
+        Application factory for the Klatchat Client
 
         :param app_version: application version
     """
-    LOG.info(f'Starting Klatchat Client Server v{app_version}')
-    chat_app = FastAPI(title="Klatchat Client Server",
+    LOG.info(f'Starting Klatchat Client v{app_version}')
+    chat_app = FastAPI(title="Klatchat Client",
                        version=app_version)
     chat_app.include_router(chat_blueprint.router)
 
