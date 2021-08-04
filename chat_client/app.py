@@ -24,7 +24,6 @@ from typing import Optional
 from fastapi import FastAPI
 from neon_utils import LOG
 
-from config import Configuration
 from chat_client.blueprints import chat as chat_blueprint
 
 
