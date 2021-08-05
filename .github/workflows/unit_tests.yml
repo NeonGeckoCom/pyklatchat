@@ -26,6 +26,13 @@ jobs:
         run: |
           mkdir -p ~/.local/share/neon
           echo $PYKLATCHAT_CONFIG > ~/.local/share/neon/credentials.json
-        shell: bash
-        env:
-          CONNECTOR_CONFIG: ${{secrets.PYKLATCHAT_CONFIG}}
+          echo $CHATSERVER_CONFIG > ~/.local/share/neon/chatserver_credentials.json
+      - name: Test DB Controller
+        run: |
+          pytest utils/database/tests/test_db_controller.py --doctest-modules --junitxml=tests/db-controller-test-results.xml
+      - name: Upload DB Controller test results
+        uses: actions/upload-artifact@v2
+        with:
+          name: db-controller-test-results
+          path: tests/db-controller-test-results.xml
+
