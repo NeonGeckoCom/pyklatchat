@@ -45,7 +45,12 @@ def check_password_strength(password: str) -> str:
         return 'OK'
 
 
-def generate_uuid(length=10):
+def generate_uuid(length=10) -> str:
+    """
+        Generates UUID of desired length
+
+        :param length: length of output UUID string
+    """
     return uuid4().hex[:length]
 
 
