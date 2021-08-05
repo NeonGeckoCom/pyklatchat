@@ -25,7 +25,7 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from neon_utils import LOG
 
-from chat_client.blueprints import chat as chat_blueprint
+from chat_client.blueprints import chat as chat_blueprint, users as users_blueprint
 
 
 def create_asgi_app(app_version: str = None) -> FastAPI:
@@ -39,5 +39,6 @@ def create_asgi_app(app_version: str = None) -> FastAPI:
                        version=app_version)
     chat_app.mount("/static", StaticFiles(directory="chat_client/static"), name="static")
     chat_app.include_router(chat_blueprint.router)
+    chat_app.include_router(users_blueprint.router)
 
     return chat_app

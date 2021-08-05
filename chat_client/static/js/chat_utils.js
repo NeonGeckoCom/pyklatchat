@@ -1,12 +1,17 @@
 const avatarPath = '../../static/img/';
-const currentUser = get_user_data();
 
-function addMessage(cid, userID, messageText, timeCreated,attachments={}, isMine=true){
+async function addMessage(cid, userID=null, messageText, timeCreated,attachments={}){
     const cidElem = document.getElementById(cid);
     if(cidElem){
         const cidList = cidElem.getElementsByClassName('card-body')[0].getElementsByClassName('chat-list')[0]
         if(cidList){
-            const userData = get_user_data(userID);
+            let userData;
+            const isMine = userID === currentUser['_id']
+            if(isMine) {
+                userData = currentUser;
+            }else{
+                userData = await get_user_data(userID);
+            }
             let messageHTML = buildUserMessage(userData, messageText, timeCreated, isMine);
             messageHTML = addMessageAttachments(messageHTML, attachments);
             const blankChat = cidList.getElementsByClassName('blank_chat');
@@ -29,7 +34,7 @@ function buildUserMessage(userData, messageText, timeCreated, isMine){
             "</div>"
     html +=` <div class="chat-body">
                 <div class="chat-message">
-                    <h5>${userData['first_name']} ${userData['last_name']}</h5>
+                    <h5>${userData['nickname']}</h5>
                     <p>${messageText}</p>
                 </div>
              </div>`
@@ -51,10 +56,11 @@ function getTimeFromTimestamp(timeCreated){
 
 function emitUserMessage(textInputElem, cid){
     if(textInputElem && textInputElem.value){
-        const timeCreated = Math.floor(Date.now() / 1000)
-        addMessage(cid, currentUser['_id'], textInputElem.value, timeCreated,{}, true);
-        socket.emit('user_message', {'cid':cid,'userID':currentUser['_id'],'messageText':textInputElem.value,'timeCreated':timeCreated});
-        textInputElem.value = "";
+        const timeCreated = Math.floor(Date.now() / 1000);
+        addMessage(cid, currentUser['_id'], textInputElem.value, timeCreated,{}, true).then(_=>{
+            socket.emit('user_message', {'cid':cid,'userID':currentUser['_id'],'messageText':textInputElem.value,'timeCreated':timeCreated});
+            textInputElem.value = "";
+        });
     }
 }
 

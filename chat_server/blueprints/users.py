@@ -14,17 +14,17 @@ from chat_server.utils.auth import get_current_user, secret_key, jwt_encryption_
     check_password_strength, generate_uuid
 
 router = APIRouter(
-    prefix="/users",
+    prefix="/users_api",
     responses={'404': {"description": "Unknown user"}},
 )
 
 
 @router.get("/")
 def get_user(response: Response, request: Request):
-    return get_current_user(request=request, response=response)
+    return dict(data=get_current_user(request=request, response=response))
 
 
-@router.post("/{user_id}")
+@router.get("/{user_id}")
 def get_user(user_id: str):
     user = db_connector.exec_query(query={'document': 'users',
                                           'command': 'find_one',
