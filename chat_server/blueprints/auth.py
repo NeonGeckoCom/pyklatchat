@@ -70,7 +70,7 @@ def signup(response: Response,
 def login(response: Response, username: str = Form(...), password: str = Form(...)):
     matching_user = db_connector.exec_query(query={'command': 'find_one',
                                                    'document': 'users',
-                                                   'data': {}})
+                                                   'data': {'nickname': username}})
     if not matching_user or matching_user['is_tmp']:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid username or password"

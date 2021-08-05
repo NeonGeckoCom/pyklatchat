@@ -41,7 +41,7 @@ def new_conversation(response: Response, request_data: NewConversationData):
 
 
 @router.get("/get/{cid}")
-def new_conversation(response: Response, cid: str):
+def new_conversation(response: Response, cid: str, username: str = Depends(get_current_user)):
     conversation_data = db_connector.exec_query(query={'command': 'find_one',
                                                        'document': 'chats',
                                                        'data': {'_id': ObjectId(cid)}})
@@ -51,4 +51,4 @@ def new_conversation(response: Response, cid: str):
         )
     conversation_data['_id'] = str(conversation_data['_id'])
 
-    return {"conversation_data": conversation_data}
+    return {"conversation_data": conversation_data, "current_user": username}
