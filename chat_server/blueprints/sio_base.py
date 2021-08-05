@@ -17,6 +17,8 @@
 # US Patents 2008-2021: US7424516, US20140161250, US20140177813, US8638908, US8068604, US8553852, US10530923, US10530924
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
 
+import json
+
 from chat_server.sio import sio
 
 
@@ -28,3 +30,9 @@ def connect(sid, environ, auth):
 @sio.event
 def disconnect(sid):
     print(f'{sid} disconnected')
+
+
+@sio.event
+async def user_message(sid, data):
+    print(f'Got new user message from {sid}: {data}')
+    await sio.emit('new_message', data=json.dumps(data), skip_sid=[sid])

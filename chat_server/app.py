@@ -22,11 +22,14 @@ import sys
 
 from typing import Optional
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
 
 sys.path.append(os.path.pardir)
 
 from config import Configuration
-from chat_server.blueprints import auth as auth_blueprint, chat as chat_blueprint
+from chat_server.blueprints import auth as auth_blueprint, chat as chat_blueprint, users as users_blueprint
+from neon_utils import LOG
 
 
 def create_asgi_app(app_version: str = None) -> FastAPI:
@@ -42,9 +45,19 @@ def create_asgi_app(app_version: str = None) -> FastAPI:
             if line.startswith('__version__'):
                 version = line.split('=')[1].strip().strip('"').strip("'")
                 break
+    LOG.info(f'Starting Klatchat Server v{version}')
     chat_app = FastAPI(title="Klatchat Server API",
                        version=version)
     chat_app.include_router(auth_blueprint.router)
     chat_app.include_router(chat_blueprint.router)
+    chat_app.include_router(users_blueprint.router)
+
+    chat_app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
     return chat_app

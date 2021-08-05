@@ -1,7 +1,11 @@
-function get_user_data(userID){
+function get_user_data(userID=null){
     let userData = {}
-    fetch(`http://127.0.0.1:8000/users/${userID}`)
+    let query_url = `http://127.0.0.1:8000/users/`
+    if(userID){
+        query_url+=userID;
+    }
+    fetch(query_url)
         .then(response => response.ok?response.json():{})
-        .then(data => userData = data);
+        .then(data => userData = data['data']);
     return userData;
 }

@@ -77,6 +77,7 @@ def create_unauthorized_user(response: Response, authorize: bool = True) -> str:
     new_user = {'_id': generate_uuid(),
                 'first_name': 'The',
                 'last_name': 'Guest',
+                'avatar': 'default_avatar.png',
                 'nickname': f'guest_{generate_uuid(length=8)}',
                 'password': hash_password(generate_uuid()),
                 'date_created': int(time()),
@@ -89,7 +90,7 @@ def create_unauthorized_user(response: Response, authorize: bool = True) -> str:
                             'creation_time': time(),
                             'last_refresh_time': time()}, secret_key)
         response.set_cookie('session', token, httponly=True)
-    return new_user['_id']
+    return new_user
 
 
 def get_current_user(request: Request, response: Response, force_tmp: bool = False) -> str:
@@ -103,6 +104,7 @@ def get_current_user(request: Request, response: Response, force_tmp: bool = Fal
         :returns user id based on received cookies or sets temporal user cookies if not found
     """
     user_id = None
+    user = {}
     if not force_tmp:
         session = get_cookie_from_request(request, 'session')
         if session:
@@ -121,9 +123,9 @@ def get_current_user(request: Request, response: Response, force_tmp: bool = Fal
                         LOG.info('Cookie was refreshed')
                 except KeyError as err:
                     LOG.warning(f'{err}')
-    if not user_id:
-        user_id = create_unauthorized_user(response=response)
-    return user_id
+    if not user_id or force_tmp:
+        user = create_unauthorized_user(response=response)
+    return user
 
 
 def refresh_cookie(payload: dict, response: Response):

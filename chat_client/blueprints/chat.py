@@ -8,7 +8,6 @@ from fastapi.responses import HTMLResponse
 from fastapi.exceptions import HTTPException
 from fastapi.templating import Jinja2Templates
 
-
 router = APIRouter(
     prefix="/chats",
     responses={'404': {"description": "Unknown endpoint"}},
@@ -53,6 +52,8 @@ async def get_chat(request: Request, cid: str):
         )
     else:
         conversation_data = get_response.json()
-    return conversation_templates.TemplateResponse("get_conversation.html", {"request": request,
-                                                                             "current_user_id": conversation_data['current_user'],
-                                                                             "conversation": conversation_data['conversation_data']})
+    conversation_data['current_user'].pop('password')
+    return conversation_templates.TemplateResponse("get_conversation.html",
+                                                   {"request": request,
+                                                    "current_user": conversation_data['current_user'],
+                                                    "conversation": conversation_data['conversation_data']})

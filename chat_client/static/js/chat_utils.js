@@ -1,4 +1,5 @@
-const avatarPath = '../../static/img/'
+const avatarPath = '../../static/img/';
+const currentUser = get_user_data();
 
 function addMessage(cid, userID, messageText, timeCreated,attachments={}, isMine=true){
     const cidElem = document.getElementById(cid);
@@ -8,6 +9,10 @@ function addMessage(cid, userID, messageText, timeCreated,attachments={}, isMine
             const userData = get_user_data(userID);
             let messageHTML = buildUserMessage(userData, messageText, timeCreated, isMine);
             messageHTML = addMessageAttachments(messageHTML, attachments);
+            const blankChat = cidList.getElementsByClassName('blank_chat');
+            if(blankChat.length>0){
+                cidList.removeChild(blankChat[0]);
+            }
             cidList.insertAdjacentHTML('beforeend', messageHTML);
         }
     }
@@ -43,3 +48,24 @@ function getTimeFromTimestamp(timeCreated){
     const minutes = "0" + date.getMinutes();
     return hours + ':' + minutes.substr(-2);
 }
+
+function emitUserMessage(textInputElem, cid){
+    if(textInputElem && textInputElem.value){
+        const timeCreated = Math.floor(Date.now() / 1000)
+        addMessage(cid, currentUser['_id'], textInputElem.value, timeCreated,{}, true);
+        socket.emit('user_message', {'cid':cid,'userID':currentUser['_id'],'messageText':textInputElem.value,'timeCreated':timeCreated});
+        textInputElem.value = "";
+    }
+}
+
+document.addEventListener('DOMContentLoaded', (e)=>{
+   const chatInputButtons = document.getElementsByClassName('send_user_input');
+   Array.from(chatInputButtons).forEach(btn=>{
+        if(btn.hasAttribute('data-target-cid')) {
+            btn.addEventListener('click', (e)=>{
+                const textInputElem = btn.parentElement.getElementsByClassName('user_input')[0];
+                emitUserMessage(textInputElem, btn.getAttribute('data-target-cid'));
+            });
+        }
+   });
+});

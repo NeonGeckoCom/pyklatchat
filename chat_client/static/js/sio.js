@@ -4,7 +4,8 @@ socket.on('connect', () => {
      console.info('Connected to Server')
 });
 
-socket.on('user_message', (msg) => {
-    const msgData = JSON.parse(msg);
+socket.on('new_message', data => {
+    console.log(data);
+    const msgData = JSON.parse(data);
     addMessage(msgData['cid'], msgData['userID'], msgData['messageText'], msgData['timeCreated'], {}, false);
 });
