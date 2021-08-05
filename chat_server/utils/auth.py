@@ -39,6 +39,13 @@ LOG.set_level('DEBUG')
 
 
 def check_password_strength(password: str) -> str:
+    """
+        Checks if input string is a strong password
+
+        :param password: input string
+
+        :returns: 'OK' if input string is strong enough, reason for not otherwise
+    """
     if len(password) < 8:
         return 'Password should be longer than 8 symbols'
     else:
