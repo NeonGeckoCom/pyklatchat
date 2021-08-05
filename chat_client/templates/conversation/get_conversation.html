@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>Klatchat|Conversations|{{ conversation['_id'] }}</title>
-    <link rel="stylesheet" href="{{ url_for('static','css/chat.css') }}">
+    <link rel="stylesheet" href="../../static/css/chat.css">
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css"
           integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T"
           crossorigin="anonymous">
@@ -12,54 +12,27 @@
     <div class="container content">
         <div class="row">
             <div class="conversationContainer col-xl-6 col-lg-6 col-md-6 col-sm-12 col-12">
-                <div class="card">
-                    <div class="card-header">{{ conversation['name'] }}</div>
+                <div class="card" id="{{ conversation['_id'] }}">
+                    <div class="card-header">{{ conversation['conversation_name'] }}</div>
                     <div class="card-body height3">
                         <ul class="chat-list">
-                            <li class="in">
-                                <div class="chat-img">
-                                    <img alt="Avtar" src="https://bootdey.com/img/Content/avatar/avatar2.png">
-                                </div>
-                                <div class="chat-body">
-                                    <div class="chat-message">
-                                        <h5>Jimmy Willams</h5>
-                                        <p>Raw denim heard of them tofu master cleanse</p>
-                                    </div>
-                                </div>
-                            </li>
-                            <li class="out">
-                                <div class="chat-img">
-                                    <img alt="Avtar" src="https://bootdey.com/img/Content/avatar/avatar3.png">
-                                </div>
-                                <div class="chat-body">
-                                    <div class="chat-message">
-                                        <h5>Serena</h5>
-                                        <p>Next level veard</p>
-                                    </div>
-                                </div>
-                            </li>
-                            <li class="in">
-                                <div class="chat-img">
-                                    <img alt="Avtar" src="https://bootdey.com/img/Content/avatar/avatar2.png">
-                                </div>
-                                <div class="chat-body">
-                                    <div class="chat-message">
-                                        <h5 class="name">Jimmy Willams</h5>
-                                        <p>Will stumptown scenes coffee viral.</p>
-                                    </div>
-                                </div>
-                            </li>
-                            <li class="out">
-                                <div class="chat-img">
-                                    <img alt="Avtar" src="https://bootdey.com/img/Content/avatar/avatar3.png">
-                                </div>
-                                <div class="chat-body">
-                                    <div class="chat-message">
-                                        <h5>Serena</h5>
-                                        <p>Tofu master best deal</p>
-                                    </div>
-                                </div>
-                            </li>
+                            {% if 'message_flow' in conversation %}
+                                {% for message in conversation['message_flow'] %}
+                                    <li class="{% if message['user_id'] == current_user_id %}in{% else %}out{% endif %}">
+                                        <div class="chat-img">
+                                            <img alt="Avatar" src="{{ message['user_avatar'] }}">
+                                        </div>
+                                        <div class="chat-body">
+                                            <div class="chat-message">
+                                                <h5>{{ message['user_first_name'] }} {{ message['user_last_name'] }}</h5>
+                                                <p>{{ message['message_text'] }}</p>
+                                            </div>
+                                        </div>
+                                    </li>
+                                {% endfor %}
+                            {% else %}
+                                <div>No messages in this chat yet...</div>
+                            {% endif %}
                         </ul>
                     </div>
                 </div>
@@ -75,7 +48,8 @@
     <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js" integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1" crossorigin="anonymous"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js" integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM" crossorigin="anonymous"></script>
-    <script src="{{ url_for('static','js/chat_utils.js') }}"></script>
     <script src="https://cdn.socket.io/4.1.1/socket.io.min.js"></script>
-    <script src="{{ url_for('static','js/sio.js') }}"></script>
+    <script src="../../static/js/chat_utils.js"></script>
+    <script src="../../static/js/chat_utils.js"></script>
+    <script src="../../static/js/chat_utils.js"></script>
 </html>

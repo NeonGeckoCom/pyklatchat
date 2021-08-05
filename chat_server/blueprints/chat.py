@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, Form, Response, status
 from fastapi.responses import HTMLResponse
 from fastapi.exceptions import HTTPException
 from pydantic import BaseModel
+from bson.objectid import ObjectId
 
 from chat_server.config import db_connector
 from chat_server.utils.auth import get_current_user, secret_key, jwt_encryption_algo, hash_password, \
@@ -37,3 +38,17 @@ def new_conversation(response: Response, request_data: NewConversationData):
             )
     db_connector.exec_query(query=dict(document='chats', command='insert_one', data=request_data.__dict__))
     return {"success": True}
+
+
+@router.get("/get/{cid}")
+def new_conversation(response: Response, cid: str):
+    conversation_data = db_connector.exec_query(query={'command': 'find_one',
+                                                       'document': 'chats',
+                                                       'data': {'_id': ObjectId(cid)}})
+    if not conversation_data:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail=f"Unable to get a chat with id: {cid}"
+        )
+    conversation_data['_id'] = str(conversation_data['_id'])
+
+    return {"conversation_data": conversation_data}

@@ -22,6 +22,7 @@ import sys
 
 from typing import Optional
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 from neon_utils import LOG
 
 from chat_client.blueprints import chat as chat_blueprint
@@ -36,6 +37,7 @@ def create_asgi_app(app_version: str = None) -> FastAPI:
     LOG.info(f'Starting Klatchat Client v{app_version}')
     chat_app = FastAPI(title="Klatchat Client",
                        version=app_version)
+    chat_app.mount("/static", StaticFiles(directory="chat_client/static"), name="static")
     chat_app.include_router(chat_blueprint.router)
 
     return chat_app

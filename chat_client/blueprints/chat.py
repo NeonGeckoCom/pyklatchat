@@ -37,22 +37,21 @@ async def create_chat(request: Request,
     post_response = requests.post(f'http://127.0.0.1:8000/chat_api/new', json=new_conversation)
 
     if post_response.status_code != 200:
-        alert = post_response.text
-        print(alert)
+        pass
 
-    print(post_response)
+    alert = post_response.json()['success']
 
     return conversation_templates.TemplateResponse("new_conversation.html", {"request": request, "alert": alert})
 
 
 @router.get("/{cid}", response_class=HTMLResponse)
 async def get_chat(request: Request, cid: str):
-    conversation_data = db_connector.exec_query(query={'command': 'find_one',
-                                                       'document': 'chats',
-                                                       'data': {'_id': cid}})
-    if not conversation_data:
+    get_response = requests.get(f'http://127.0.0.1:8000/chat_api/get/{cid}')
+    if get_response.status_code != 200:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail=f"Unable to get a chat with id: {cid} "
+            status_code=status.HTTP_401_UNAUTHORIZED, detail=f"{get_response.json()['detail']} "
         )
+    else:
+        conversation_data = get_response.json()
     return conversation_templates.TemplateResponse("get_conversation.html", {"request": request,
-                                                                             "conversation": conversation_data})
+                                                                             "conversation": conversation_data['conversation_data']})
