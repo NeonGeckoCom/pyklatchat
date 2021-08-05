@@ -22,6 +22,5 @@ def get_user(response: Response, request: Request, user_id: Optional[str] = None
     else:
         for cookie in get_user_response.cookies:
             response.set_cookie(key=cookie.name, value=cookie.value, httponly=True)
-        print(get_user_response.cookies)
         return get_user_response.json()
 

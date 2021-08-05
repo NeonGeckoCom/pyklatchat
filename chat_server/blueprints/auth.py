@@ -90,7 +90,3 @@ def logout(response: Response):
     response.delete_cookie("session")
     return {"logout": True}
 
-
-@router.get("/test")
-async def read_private(username: str = Depends(get_current_user)):
-    return {"received_user_id:": username}
