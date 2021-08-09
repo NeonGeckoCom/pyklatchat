@@ -9,6 +9,9 @@ jobs:
       matrix:
         python-version: [ 3.6, 3.7, 3.8, 3.9 ]
     runs-on: ubuntu-latest
+    env:
+      ENV: ${{ secrets.ENV }}
+      DATABASE_CONNECTOR: ${{ secrets.DATABASE_CONNECTOR_CONFIG }}
     steps:
       - uses: actions/checkout@v2
       - name: Set up python ${{ matrix.python-version }}
@@ -23,8 +26,7 @@ jobs:
       - name: Get Credential
         run: |
           mkdir -p ~/.local/share/neon
-          echo $PYKLATCHAT_CONFIG > ~/.local/share/neon/credentials.json
-          echo $CHATSERVER_CONFIG > ~/.local/share/neon/chatserver_credentials.json
+          echo $DATABASE_CONNECTOR > ~/.local/share/neon/credentials.json
       - name: Test DB Controller
         run: |
           pytest utils/database/tests/test_db_controller.py --doctest-modules --junitxml=tests/db-controller-test-results.xml
