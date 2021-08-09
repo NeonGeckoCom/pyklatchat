@@ -18,9 +18,12 @@
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
 
 import os
+import sys
 import unittest
 
 from neon_utils import LOG
+
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))))
 
 from config import Configuration
 from utils.database.db_controller import DatabaseController
