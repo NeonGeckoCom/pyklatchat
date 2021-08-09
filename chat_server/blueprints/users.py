@@ -29,6 +29,10 @@ def get_user(user_id: str):
     user = db_connector.exec_query(query={'document': 'users',
                                           'command': 'find_one',
                                           'data': {'_id': user_id}})
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail='User not found'
+        )
     user.pop('password')
     user.pop('is_tmp')
     return {"data": user}

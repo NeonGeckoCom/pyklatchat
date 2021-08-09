@@ -45,7 +45,7 @@ async def create_chat(request: Request,
 
 @router.get("/{cid}", response_class=HTMLResponse)
 async def get_chat(request: Request, cid: str):
-    get_response = requests.get(f'http://127.0.0.1:8000/chat_api/get/{cid}')
+    get_response = requests.get(f'http://127.0.0.1:8000/chat_api/get/{cid}', cookies=request.cookies)
     if get_response.status_code != 200:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail=f"{get_response.json()['detail']} "

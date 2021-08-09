@@ -19,22 +19,29 @@
 
 import json
 
+from bson.objectid import ObjectId
+from neon_utils import LOG
+
 from chat_server.sio import sio
 from chat_server.config import db_connector
 
 
 @sio.event
 def connect(sid, environ, auth):
-    print(f'{sid} connected')
+    LOG.info(f'{sid} connected')
 
 
 @sio.event
 def disconnect(sid):
-    print(f'{sid} disconnected')
+    LOG.info(f'{sid} disconnected')
 
 
 @sio.event
 async def user_message(sid, data):
-    print(f'Got new user message from {sid}: {data}')
-    # db_connector.exec_query({'command': 'insert'})
+    LOG.debug(f'Got new user message from {sid}: {data}')
+    filter_expression = dict(_id=ObjectId(data['cid']))
+    push_expression = {'$push': {'chat_flow': {'user_id': data['userID'],
+                                               'message_text': data['messageText'],
+                                               'created_on': data['timeCreated']}}}
+    db_connector.exec_query({'command': 'update', 'document': 'chats', 'data': (filter_expression, push_expression,)})
     await sio.emit('new_message', data=json.dumps(data), skip_sid=[sid])

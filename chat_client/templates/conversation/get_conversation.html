@@ -16,15 +16,15 @@
                     <div class="card-header">{{ conversation['conversation_name'] }}</div>
                     <div class="card-body height3">
                         <ul class="chat-list">
-                            {% if 'message_flow' in conversation %}
-                                {% for message in conversation['message_flow'] %}
-                                    <li class="{% if message['user_id'] == current_user['_id'] %}in{% else %}out{% endif %}">
+                            {% if 'chat_flow' in conversation %}
+                                {% for message in conversation['chat_flow'] %}
+                                    <li class="{% if message['user_nickname'] == current_user['nickname'] %}in{% else %}out{% endif %}">
                                         <div class="chat-img">
                                             <img alt="Avatar" src="../../static/img/{{ message['user_avatar'] }}">
                                         </div>
                                         <div class="chat-body">
                                             <div class="chat-message">
-                                                <h5>{{ message['user_first_name'] }} {{ message['user_last_name'] }}</h5>
+                                                <h5>{{ message['user_nickname'] }}</h5>
                                                 <p>{{ message['message_text'] }}</p>
                                             </div>
                                         </div>
