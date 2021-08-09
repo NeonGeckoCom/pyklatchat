@@ -45,7 +45,7 @@ neon-utils==0.5.7
 netifaces==0.10.9
 nltk==3.6.2
 nodeenv==1.6.0
-numpy==1.21.0
+numpy==1.19.5
 ovos-utils==0.0.11
 packaging==20.9
 pendulum==2.1.2
