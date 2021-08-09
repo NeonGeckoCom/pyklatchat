@@ -39,13 +39,25 @@ LOG.set_level('DEBUG')
 
 
 def check_password_strength(password: str) -> str:
+    """
+        Checks if input string is a strong password
+
+        :param password: input string
+
+        :returns: 'OK' if input string is strong enough, reason for not otherwise
+    """
     if len(password) < 8:
         return 'Password should be longer than 8 symbols'
     else:
         return 'OK'
 
 
-def generate_uuid(length=10):
+def generate_uuid(length=10) -> str:
+    """
+        Generates UUID of desired length
+
+        :param length: length of output UUID string
+    """
     return uuid4().hex[:length]
 
 
