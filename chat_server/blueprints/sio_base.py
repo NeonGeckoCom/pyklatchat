@@ -20,6 +20,7 @@
 import json
 
 from chat_server.sio import sio
+from chat_server.config import db_connector
 
 
 @sio.event
@@ -35,4 +36,5 @@ def disconnect(sid):
 @sio.event
 async def user_message(sid, data):
     print(f'Got new user message from {sid}: {data}')
+    # db_connector.exec_query({'command': 'insert'})
     await sio.emit('new_message', data=json.dumps(data), skip_sid=[sid])

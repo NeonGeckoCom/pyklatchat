@@ -31,12 +31,12 @@ def new_conversation(response: Response, request_data: NewConversationData):
     if request_data.__dict__.get('_id', None):
         matching_conversation_id = db_connector.exec_query(query={'command': 'find_one',
                                                                   'document': 'chats',
-                                                                  'data': {'_id': getattr(request_data, '_id')}})
+                                                                  'data': ({'_id': getattr(request_data, '_id')})})
         if matching_conversation_id:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED, detail='Provided conversation id already exists'
             )
-    db_connector.exec_query(query=dict(document='chats', command='insert_one', data=request_data.__dict__))
+    db_connector.exec_query(query=dict(document='chats', command='insert_one', data=(request_data.__dict__,)))
     return {"success": True}
 
 

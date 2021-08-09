@@ -96,7 +96,7 @@ def create_unauthorized_user(response: Response, authorize: bool = True) -> str:
                 'is_tmp': True}
     db_connector.exec_query(query={'document': 'users',
                                    'command': 'insert_one',
-                                   'data': new_user})
+                                   'data': (new_user, )})
     if authorize:
         token = jwt.encode({"sub": new_user['_id'],
                             'creation_time': time(),
@@ -126,7 +126,7 @@ def get_current_user(request: Request, response: Response, force_tmp: bool = Fal
                 try:
                     user = db_connector.exec_query(query={'command': 'find_one',
                                                           'document': 'users',
-                                                          'data': {'_id': payload['sub']}})
+                                                          'data': ({'_id': payload['sub']})})
                     if not user:
                         raise KeyError(f'{payload["sub"]} is not found among users, setting temporal user credentials')
                     user_id = user['_id']
