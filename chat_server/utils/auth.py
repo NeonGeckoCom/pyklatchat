@@ -44,7 +44,7 @@ def check_password_strength(password: str) -> str:
 
         :param password: input string
 
-        :returns: 'OK' if input string is strong enough, reason for not otherwise
+        :returns: 'OK' if input string is strong enough, unfulfilled condition otherwise
     """
     if len(password) < 8:
         return 'Password should be longer than 8 symbols'
@@ -54,15 +54,28 @@ def check_password_strength(password: str) -> str:
 
 def generate_uuid(length=10) -> str:
     """
-        Generates UUID of desired length
+        Generates UUID string of desired length
 
-        :param length: length of output UUID string
+        :param length: length of the output UUID string
+
+        :returns UUID string of the desired length
     """
     return uuid4().hex[:length]
 
 
-def hash_password(password: str):
-    return hashlib.sha512(password.encode('utf-8')).hexdigest()
+def get_hash(input_str: str, encoding='utf-8', algo='sha512') -> str:
+    """
+        Returns hashed version of input string corresponding to specified algorithm
+
+        :param input_str: input string to hash
+        :param encoding: encoding for string to be conformed to (defaults to UTF-8)
+        :param algo: hashing algorithm to use (defaults to SHA-512),
+                     should correspond to hashlib hashing methods,
+                     refer to: https://docs.python.org/3/library/hashlib.html
+
+        :returns hashed string from the provided input
+    """
+    return getattr(hashlib, algo)(input_str.encode(encoding)).hexdigest()
 
 
 def get_cookie_from_request(request: Request, cookie_name: str) -> dict:
@@ -90,7 +103,7 @@ def create_unauthorized_user(response: Response, authorize: bool = True) -> str:
                 'first_name': 'The',
                 'last_name': 'Guest',
                 'nickname': f'guest_{generate_uuid(length=8)}',
-                'password': hash_password(generate_uuid()),
+                'password': get_hash(generate_uuid()),
                 'date_created': int(time()),
                 'is_tmp': True}
     db_connector.exec_query(query={'document': 'users',

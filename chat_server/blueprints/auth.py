@@ -24,7 +24,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.exceptions import HTTPException
 
 from chat_server.config import db_connector
-from chat_server.utils.auth import get_current_user, secret_key, jwt_encryption_algo, hash_password, \
+from chat_server.utils.auth import get_current_user, secret_key, jwt_encryption_algo, get_hash, \
     check_password_strength, generate_uuid
 
 router = APIRouter(
@@ -54,7 +54,7 @@ def signup(response: Response,
     new_user_record = dict(_id=generate_uuid(length=20),
                            first_name=first_name,
                            last_name=last_name,
-                           password=hash_password(password),
+                           password=get_hash(password),
                            nickname=nickname,
                            creation_time=time(),
                            is_tmp=False)
@@ -76,7 +76,7 @@ def login(response: Response, username: str = Form(...), password: str = Form(..
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid username or password"
         )
     db_password = matching_user["password"]
-    if hash_password(password) != db_password:
+    if get_hash(password) != db_password:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid username or password"
         )
