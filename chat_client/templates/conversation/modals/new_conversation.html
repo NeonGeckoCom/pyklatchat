@@ -1,0 +1,29 @@
+<div class="modal fade" id="newConversationModal" tabindex="-1" role="dialog" aria-labelledby="newConversationModalTitle" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="newConversationModalTitle">New Conversation</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+            <label for="conversation_name">Conversation Name</label>
+            <input type="text" class="form-control" name="conversation_name" id="conversation_name" placeholder="Enter conversation name" required>
+        </div>
+        <div class="form-group">
+            <label for="conversation_id">Conversation ID (optional)</label>
+            <input type="text" class="form-control" name="conversation_id" id="conversation_id" placeholder="Set unique id for the conversation">
+        </div>
+        <div class="form-check">
+            <input type="checkbox"  name="is_private" class="form-check-input" id="is_private">
+            <label class="form-check-label" for="is_private">Private</label>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-success">Add</button>
+      </div>
+    </div>
+  </div>
+</div>

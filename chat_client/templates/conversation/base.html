@@ -1,14 +1,15 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Klatchat|Conversations|{{ conversation['_id'] }}</title>
-    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css"
-          integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T"
-          crossorigin="anonymous">
+{% extends 'base.html' %}
+
+{% block css_imports %}
+    {{ super() }}
     <link rel="stylesheet" href="../../static/css/chat.css">
-</head>
-<body>
+{% endblock %}
+
+{% block header %}
+    {% include 'conversation/modals/new_conversation.html' %}
+{% endblock %}
+
+{% block main %}
     <div class="container content">
         <div class="row">
             <div class="conversationContainer col-xl-6 col-lg-6 col-md-6 col-sm-12 col-12">
@@ -43,12 +44,9 @@
             </div>
         </div>
     </div>
-</body>
-    <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js" integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1" crossorigin="anonymous"></script>
-    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js" integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM" crossorigin="anonymous"></script>
-    <script src="https://cdn.socket.io/4.1.1/socket.io.min.js"></script>
-    <script src="../../static/js/user_utils.js"></script>
+{% endblock %}
+
+{% block js_imports %}
+    {{ super() }}
     <script src="../../static/js/chat_utils.js"></script>
-    <script src="../../static/js/sio.js"></script>
-</html>
+{% endblock %}
