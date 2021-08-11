@@ -74,5 +74,4 @@ def get_conversation(response: Response, request: Request, cid: str, username: s
                     message['user_last_name'] = response_data['last_name']
                     message['user_nickname'] = response_data['nickname']
                     message['user_avatar'] = response_data['avatar']
-    print(username)
     return {"conversation_data": conversation_data, "current_user": username}
