@@ -42,6 +42,41 @@ function buildUserMessage(userData, messageText, timeCreated, isMine){
     return html;
 }
 
+function buildConversation(conversationData = {}){
+    let html = `<div class="conversationContainer col-xl-6 col-lg-6 col-md-6 col-sm-12 col-12">
+                <div class="card" id="{{ conversation['_id'] }}">
+                    <div class="card-header">${ conversationData['conversation_name'] }</div>
+                    <div class="card-body height3">
+                        <ul class="chat-list">`
+    if(conversationData.hasOwnProperty('chat_flow')) {
+        Array.from(conversationData['chat_flow']).forEach(message => {
+            const orientation = currentUser && message['user_nickname'] === currentUser['nickname']?'in':'out';
+            html += `<li class="${orientation}">
+                        <div class="chat-img">
+                            <img alt="Avatar" src="../../static/img/${ message['user_avatar'] }">
+                        </div>
+                        <div class="chat-body">
+                            <div class="chat-message">
+                                <h5>${ message['user_nickname'] }</h5>
+                                <p>${ message['message_text'] }</p>
+                            </div>
+                        </div>
+                    </li>`
+        });
+    }else{
+        html+=`<div class="blank_chat">No messages in this chat yet...</div>`;
+    }
+    html += `</ul>
+             </div>
+                   <div class="card-footer">
+                        <input class="user_input form-control" data-target-cid="${conversationData['_id']}" type="text" placeholder='Write a Message to "${conversationData['conversation_name']}"'>
+                        <button class="send_user_input mt-2 btn btn-success" data-target-cid="${conversationData['_id']}">Send Message</button>
+                    </div>
+                </div>
+            </div>`
+    return html;
+}
+
 
 function addMessageAttachments(html, attachments={}){
     return html;

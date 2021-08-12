@@ -25,7 +25,8 @@ conversation_templates = Jinja2Templates(directory="chat_client/templates")
 async def chats(request: Request):
     return conversation_templates.TemplateResponse("conversation/base.html",
                                                    {"request": request,
-                                                    'section': 'Followed Conversations'})
+                                                    'section': 'Followed Conversations',
+                                                    'add_sio': '1'})
 
 
 @router.post("/new", response_class=HTMLResponse)
