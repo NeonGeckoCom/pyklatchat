@@ -11,7 +11,7 @@ from pydantic import BaseModel
 from bson.objectid import ObjectId
 
 from chat_server.config import db_connector
-from chat_server.utils.auth import get_current_user, secret_key, jwt_encryption_algo, hash_password, \
+from chat_server.utils.auth import get_current_user, secret_key, jwt_encryption_algo, get_hash, \
     check_password_strength, generate_uuid
 
 router = APIRouter(

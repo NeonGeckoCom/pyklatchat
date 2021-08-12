@@ -1,4 +1,4 @@
-const socket = io("http://127.0.0.1:8000");
+const socket = io("ws://127.0.0.1:8000");
 
 socket.on('connect', () => {
      console.info('Connected to Server')
