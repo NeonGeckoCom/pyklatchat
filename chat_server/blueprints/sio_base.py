@@ -16,3 +16,15 @@
 # Specialized conversational reconveyance options from Conversation Processing Intelligence Corp.
 # US Patents 2008-2021: US7424516, US20140161250, US20140177813, US8638908, US8068604, US8553852, US10530923, US10530924
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
+
+from chat_server.sio import sio
+
+
+@sio.event
+def connect(sid, environ, auth):
+    print(f'{sid} connected')
+
+
+@sio.event
+def disconnect(sid):
+    print(f'{sid} disconnected')

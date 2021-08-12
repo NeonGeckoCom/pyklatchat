@@ -16,3 +16,25 @@
 # Specialized conversational reconveyance options from Conversation Processing Intelligence Corp.
 # US Patents 2008-2021: US7424516, US20140161250, US20140177813, US8638908, US8068604, US8553852, US10530923, US10530924
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
+
+import os
+import sys
+
+from typing import Optional
+from fastapi import FastAPI
+
+sys.path.append(os.path.pardir)
+
+from config import Configuration
+from chat_server.blueprints import auth as auth_blueprint
+
+
+def create_asgi_app() -> FastAPI:
+    """
+        Application factory for the Klatchat Server
+    """
+    chat_app = FastAPI(title="Klatchat Server API",
+                       version='0.0.1')
+    chat_app.include_router(auth_blueprint.router)
+
+    return chat_app
