@@ -158,7 +158,10 @@ document.addEventListener('DOMContentLoaded', (e)=>{
        e.preventDefault();
        if(conversationSearchInput.value!==""){
             getConversationDataByInput(conversationSearchInput.value).then(conversationData=>{
-                buildConversation(conversationData);
+                if(conversationData && conversationData!=={}) {
+                    buildConversation(conversationData);
+                    conversationSearchInput.value = "";
+                }
             });
        }
     });
