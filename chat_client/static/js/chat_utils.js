@@ -67,7 +67,7 @@ function buildConversationHTML(conversationData = {}){
     let html = `<div class="conversationContainer col-xl-6 col-lg-6 col-md-6 col-sm-12 col-12 m-2">
                 <div class="card" id="${ conversationData['_id'] }">
                     <div class="card-header">${ conversationData['conversation_name'] }</div>
-                    <div class="card-body height3" style="overflow-y: scroll; height: 300px!important;">
+                    <div class="card-body height3" style="overflow-y: auto; height: 250px!important;">
                         <ul class="chat-list">`
     if(conversationData.hasOwnProperty('chat_flow')) {
         Array.from(conversationData['chat_flow']).forEach(message => {
