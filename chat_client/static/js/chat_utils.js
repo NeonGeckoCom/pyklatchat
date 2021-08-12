@@ -24,6 +24,7 @@ async function addMessage(cid, userID=null, messageText, timeCreated,attachments
                 cidList.removeChild(blankChat[0]);
             }
             cidList.insertAdjacentHTML('beforeend', messageHTML);
+            cidList.lastChild.scrollIntoView();
         }
     }
 }
