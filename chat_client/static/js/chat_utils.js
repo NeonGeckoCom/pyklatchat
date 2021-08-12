@@ -1,5 +1,10 @@
 const avatarPath = '../../static/img/';
 
+const showConversationSearch = document.getElementById('showConversationSearch');
+const hideConversationSearch = document.getElementById('hideConversationSearch');
+const conversationSearchInput = document.getElementById('conversationSearchInput');
+const addBySearch = document.getElementById('addBySearch');
+
 async function addMessage(cid, userID=null, messageText, timeCreated,attachments={}){
     const cidElem = document.getElementById(cid);
     if(cidElem){
@@ -42,18 +47,33 @@ function buildUserMessage(userData, messageText, timeCreated, isMine){
     return html;
 }
 
-function buildConversation(conversationData = {}){
-    let html = `<div class="conversationContainer col-xl-6 col-lg-6 col-md-6 col-sm-12 col-12">
-                <div class="card" id="{{ conversation['_id'] }}">
+function buildConversation(conversationData){
+   const newConversationHTML = buildConversationHTML(conversationData);
+   const conversationsBody = document.getElementById('conversationsBody');
+   conversationsBody.insertAdjacentHTML('afterbegin', newConversationHTML);
+   const chatInputButtons = document.getElementsByClassName('send_user_input');
+   Array.from(chatInputButtons).forEach(btn=>{
+        if(btn.hasAttribute('data-target-cid')) {
+            btn.addEventListener('click', (e)=>{
+                const textInputElem = btn.parentElement.getElementsByClassName('user_input')[0];
+                emitUserMessage(textInputElem, btn.getAttribute('data-target-cid'));
+            });
+        }
+   });
+}
+
+function buildConversationHTML(conversationData = {}){
+    let html = `<div class="conversationContainer col-xl-6 col-lg-6 col-md-6 col-sm-12 col-12 m-2">
+                <div class="card" id="${ conversationData['_id'] }">
                     <div class="card-header">${ conversationData['conversation_name'] }</div>
-                    <div class="card-body height3">
+                    <div class="card-body height3" style="overflow-y: scroll; height: 300px!important;">
                         <ul class="chat-list">`
     if(conversationData.hasOwnProperty('chat_flow')) {
         Array.from(conversationData['chat_flow']).forEach(message => {
             const orientation = currentUser && message['user_nickname'] === currentUser['nickname']?'in':'out';
             html += `<li class="${orientation}">
                         <div class="chat-img">
-                            <img alt="Avatar" src="../../static/img/${ message['user_avatar'] }">
+                            <img alt="Avatar" src="${ avatarPath+message['user_avatar'] }">
                         </div>
                         <div class="chat-body">
                             <div class="chat-message">
@@ -78,6 +98,21 @@ function buildConversation(conversationData = {}){
 }
 
 
+async function getConversationDataByInput(input=""){
+    let conversationData = {};
+    if(input && typeof input === "string"){
+        const query_url = 'http://127.0.0.1:8001/chats/search/'+input
+        await fetch(query_url)
+            .then(response => response.ok?response.json():{})
+            .then(data => {
+                conversationData = data;
+            });
+    }
+    return conversationData;
+}
+
+
+
 function addMessageAttachments(html, attachments={}){
     return html;
 }
@@ -100,13 +135,30 @@ function emitUserMessage(textInputElem, cid){
 }
 
 document.addEventListener('DOMContentLoaded', (e)=>{
-   const chatInputButtons = document.getElementsByClassName('send_user_input');
-   Array.from(chatInputButtons).forEach(btn=>{
-        if(btn.hasAttribute('data-target-cid')) {
-            btn.addEventListener('click', (e)=>{
-                const textInputElem = btn.parentElement.getElementsByClassName('user_input')[0];
-                emitUserMessage(textInputElem, btn.getAttribute('data-target-cid'));
+
+    showConversationSearch.addEventListener('click', (e)=>{
+       e.preventDefault();
+       e.target.hidden = true;
+       hideConversationSearch.hidden = false;
+       conversationSearchInput.hidden = false;
+       addBySearch.hidden = false;
+    });
+
+    hideConversationSearch.addEventListener('click', (e)=>{
+       e.preventDefault();
+       e.target.hidden = true;
+       showConversationSearch.hidden = false;
+       conversationSearchInput.value = "";
+       conversationSearchInput.hidden = true;
+       addBySearch.hidden = true;
+    });
+
+    addBySearch.addEventListener('click', async (e)=>{
+       e.preventDefault();
+       if(conversationSearchInput.value!==""){
+            getConversationDataByInput(conversationSearchInput.value).then(conversationData=>{
+                buildConversation(conversationData);
             });
-        }
-   });
+       }
+    });
 });

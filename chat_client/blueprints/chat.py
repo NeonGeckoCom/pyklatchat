@@ -42,10 +42,26 @@ async def create_chat(request: Request,
 
     post_response = requests.post(f'http://127.0.0.1:8000/chat_api/new', json=new_conversation)
 
-    json_data = jsonable_encoder(post_response.json())
+    json_data = {}
+
+    if post_response.status_code == 200:
+
+        json_data = jsonable_encoder(post_response.json())
 
     return JSONResponse(content=json_data, status_code=post_response.status_code)
 
+
+@router.get('/search/{search_str}')
+async def chats(request: Request, search_str: str):
+    post_response = requests.get(f'http://127.0.0.1:8000/chat_api/search/{search_str}')
+
+    json_data = {}
+
+    if post_response.status_code == 200:
+
+        json_data = jsonable_encoder(post_response.json())
+
+    return JSONResponse(content=json_data, status_code=post_response.status_code)
 
 # @router.get("/{cid}", response_class=HTMLResponse)
 # async def get_chat(request: Request, cid: str):
