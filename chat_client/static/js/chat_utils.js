@@ -1,5 +1,3 @@
-const avatarPath = '../../static/img/';
-
 const showConversationSearch = document.getElementById('showConversationSearch');
 const hideConversationSearch = document.getElementById('hideConversationSearch');
 const conversationSearchInput = document.getElementById('conversationSearchInput');
@@ -37,7 +35,7 @@ function buildUserMessage(userData, messageText, timeCreated, isMine){
     const avatarImage = userData.hasOwnProperty('avatar')?userData['avatar']:'default_avatar.png'
     html += `<li class="${messageSideClass}">`
     html += "<div class=\"chat-img\">\n" +
-            `   <img alt="Avatar" src="${avatarPath+avatarImage}">\n` +
+            `   <img alt="Avatar" src="${configData["imageBaseFolder"]+'/'+avatarImage}">\n` +
             "</div>"
     html +=` <div class="chat-body">
                 <div class="chat-message">
@@ -103,7 +101,7 @@ function buildConversationHTML(conversationData = {}){
 async function getConversationDataByInput(input=""){
     let conversationData = {};
     if(input && typeof input === "string"){
-        const query_url = 'http://127.0.0.1:8001/chats/search/'+input
+        const query_url = `${configData['currentURLBase']}/chats/search/'${input}`
         await fetch(query_url)
             .then(response => response.ok?response.json():{})
             .then(data => {
@@ -169,9 +167,12 @@ document.addEventListener('DOMContentLoaded', (e)=>{
 
     addNewConversation.addEventListener('click', (e)=>{
        e.preventDefault();
-       fetch('http://127.0.0.1:8001/chats/new',
-           {method: 'post', body: {}}).then(response=>{
-
+       fetch(`${configData['currentURLBase']}/chats/new`, {method: 'post', body: {}}).then(response=>{
+                if(response.ok){
+                    buildConversation(response.json());
+                }else{
+                    console.log('err')
+                }
             });
     });
 });

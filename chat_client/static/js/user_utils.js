@@ -2,7 +2,7 @@ let currentUser = null;
 
 async function get_user_data(userID=null){
     let userData = {}
-    let query_url = `http://127.0.0.1:8001/users/`
+    let query_url = `${configData["currentURLBase"]}/users/`
     if(userID){
         query_url+='?user_id='+userID;
     }
