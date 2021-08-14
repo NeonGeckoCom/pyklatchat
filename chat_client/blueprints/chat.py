@@ -46,7 +46,9 @@ async def create_chat(request: Request,
 
     if post_response.status_code == 200:
 
-        json_data = jsonable_encoder(post_response.json())
+        json_data = post_response.json()
+
+        print(json_data)
 
     return JSONResponse(content=json_data, status_code=post_response.status_code)
 

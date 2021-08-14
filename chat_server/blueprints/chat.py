@@ -6,7 +6,8 @@ from uuid import uuid4
 from time import time
 from typing import Optional
 from fastapi import APIRouter, Depends, Form, Response, status, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import HTTPException
 from pydantic import BaseModel
 from bson.objectid import ObjectId
@@ -22,7 +23,6 @@ router = APIRouter(
 
 
 class NewConversationData(BaseModel):
-    _id: str = uuid4().hex
     conversation_name: str
     is_private: bool = False
     created_on: int = int(time())
@@ -38,8 +38,11 @@ def new_conversation(response: Response, request_data: NewConversationData):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED, detail='Provided conversation id already exists'
             )
-    db_connector.exec_query(query=dict(document='chats', command='insert_one', data=(request_data.__dict__,)))
-    return {"success": True}
+    _id = db_connector.exec_query(query=dict(document='chats', command='insert_one', data=(request_data.__dict__,)))
+    request_data.__dict__['_id'] = str(request_data.__dict__['_id'])
+    json_compatible_item_data = jsonable_encoder(request_data.__dict__)
+    json_compatible_item_data['_id'] = str(_id.inserted_id)
+    return JSONResponse(content=json_compatible_item_data)
 
 
 @router.get("/get/{cid}")

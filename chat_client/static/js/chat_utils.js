@@ -167,9 +167,21 @@ document.addEventListener('DOMContentLoaded', (e)=>{
 
     addNewConversation.addEventListener('click', (e)=>{
        e.preventDefault();
-       fetch(`${configData['currentURLBase']}/chats/new`, {method: 'post', body: {}}).then(response=>{
+       const newConversationID = document.getElementById('conversationID');
+       const newConversationName = document.getElementById('conversationName');
+       const isPrivate = document.getElementById('isPrivate');
+
+       let formData = new FormData();
+
+       formData.append('conversation_name', newConversationName.value);
+       formData.append('conversation_id', newConversationID?newConversationID.value:null);
+       formData.append('is_private', isPrivate.checked)
+
+
+       fetch(`${configData['currentURLBase']}/chats/new`, {method: 'post', body: formData}).then( async response=>{
                 if(response.ok){
-                    buildConversation(response.json());
+                    const responseJson = await response.json();
+                    buildConversation(responseJson);
                 }else{
                     console.log('err')
                 }
