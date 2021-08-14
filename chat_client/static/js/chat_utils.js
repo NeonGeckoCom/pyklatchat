@@ -4,6 +4,7 @@ const showConversationSearch = document.getElementById('showConversationSearch')
 const hideConversationSearch = document.getElementById('hideConversationSearch');
 const conversationSearchInput = document.getElementById('conversationSearchInput');
 const addBySearch = document.getElementById('addBySearch');
+const addNewConversation = document.getElementById('addNewConversation');
 
 async function addMessage(cid, userID=null, messageText, timeCreated,attachments={}){
     const cidElem = document.getElementById(cid);
@@ -164,5 +165,13 @@ document.addEventListener('DOMContentLoaded', (e)=>{
                 }
             });
        }
+    });
+
+    addNewConversation.addEventListener('click', (e)=>{
+       e.preventDefault();
+       fetch('http://127.0.0.1:8001/chats/new',
+           {method: 'post', body: {}}).then(response=>{
+
+            });
     });
 });

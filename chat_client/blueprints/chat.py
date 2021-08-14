@@ -29,7 +29,7 @@ async def chats(request: Request):
                                                     'add_sio': '1'})
 
 
-@router.post("/new", response_class=HTMLResponse)
+@router.post("/new", response_class=JSONResponse)
 async def create_chat(request: Request,
                       conversation_name: str = Form(...),
                       conversation_id: str = Form(None),
