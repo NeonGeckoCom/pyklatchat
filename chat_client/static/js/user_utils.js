@@ -27,9 +27,13 @@ function updateNavbar(){
     }
 }
 
+const currentUserLoaded = new CustomEvent("currentUserLoaded", { "detail": "Event that is fired when current user is loaded" });
+
+
 document.addEventListener('DOMContentLoaded', (e)=>{
     get_user_data().then(data=>{
         currentUser = data;
+        document.dispatchEvent(currentUserLoaded);
         updateNavbar();
     });
 });

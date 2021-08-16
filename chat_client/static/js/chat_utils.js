@@ -170,8 +170,9 @@ function restoreChatAlignment(keyName=conversationAlignmentKey){
 }
 
 document.addEventListener('DOMContentLoaded', (e)=>{
-
-    restoreChatAlignment();
+    document.addEventListener('currentUserLoaded',(e)=>{
+        restoreChatAlignment();
+    });
 
     showConversationSearch.addEventListener('click', (e)=>{
        e.preventDefault();
