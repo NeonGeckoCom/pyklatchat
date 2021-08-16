@@ -63,22 +63,26 @@ def get_conversation(response: Response, request: Request, cid: str, username: s
     if conversation_data.get('chat_flow', None):
         conversation_data['chat_flow'] = conversation_data['chat_flow'][chat_history_from:
                                                                         chat_history_from + limit_chat_history]
-        for message in conversation_data['chat_flow']:
-            user_data = requests.get(
-                'http://' + request.client.host + ':' + str(8000) + f'/users_api/{message["user_id"]}',
-                cookies=request.cookies)
-            if user_data.status_code != 200:
-                message['user_first_name'] = 'Deleted'
-                message['user_last_name'] = 'User'
-                message['user_nickname'] = 'deleted_user'
-                message['user_avatar'] = 'default_avatar.png'
-            else:
-                response_data = user_data.json()['data']
-                if response_data and len(list(response_data)) > 0:
-                    message['user_first_name'] = response_data['first_name']
-                    message['user_last_name'] = response_data['last_name']
-                    message['user_nickname'] = response_data['nickname']
-                    message['user_avatar'] = response_data['avatar']
+        users_data_request = requests.get('http://' + request.client.host + ':' + str(8000) +
+                                          f'/users_api/bulk_fetch/?user_ids='
+                                          f'{",".join([x["user_id"] for x in conversation_data["chat_flow"]])}',
+                                          cookies=request.cookies)
+        if users_data_request.status_code == 200:
+            users_data = users_data_request.json()
+            print(users_data)
+            for idx in range(len(users_data)):
+                if len(list(users_data[idx])) > 0:
+                    conversation_data['chat_flow'][idx]['user_first_name'] = users_data[idx]['first_name']
+                    conversation_data['chat_flow'][idx]['user_last_name'] = users_data[idx]['last_name']
+                    conversation_data['chat_flow'][idx]['user_nickname'] = users_data[idx]['nickname']
+                    conversation_data['chat_flow'][idx]['user_avatar'] = users_data[idx]['avatar'] or \
+                                                                         'default_avatar.png'
+                else:
+                    conversation_data['chat_flow'][idx]['user_first_name'] = 'Deleted'
+                    conversation_data['chat_flow'][idx]['user_last_name'] = 'User'
+                    conversation_data['chat_flow'][idx]['user_nickname'] = 'deleted_user'
+                    conversation_data['chat_flow'][idx]['user_avatar'] = 'default_avatar.png'
+
     return {"conversation_data": conversation_data, "current_user": username}
 
 
@@ -104,21 +108,26 @@ def get_conversation(response: Response, request: Request, search_str: str, user
     if conversation_data.get('chat_flow', None):
         conversation_data['chat_flow'] = conversation_data['chat_flow'][chat_history_from:
                                                                         chat_history_from + limit_chat_history]
-        for message in conversation_data['chat_flow']:
-            user_data = requests.get(
-                'http://' + request.client.host + ':' + str(8000) + f'/users_api/{message["user_id"]}',
-                cookies=request.cookies)
-            if user_data.status_code != 200:
-                message['user_first_name'] = 'Deleted'
-                message['user_last_name'] = 'User'
-                message['user_nickname'] = 'deleted_user'
-                message['user_avatar'] = 'default_avatar.png'
-            else:
-                response_data = user_data.json()['data']
-                if response_data and len(list(response_data)) > 0:
-                    message['user_first_name'] = response_data['first_name']
-                    message['user_last_name'] = response_data['last_name']
-                    message['user_nickname'] = response_data['nickname']
-                    message['user_avatar'] = response_data['avatar']
+
+        request_url = f'http://' + request.client.host + ':' + str(8000) + \
+                      f'/users_api/bulk_fetch/?user_ids=' + \
+                      f'{",".join([x["user_id"] for x in conversation_data["chat_flow"]])}'
+        users_data_request = requests.get(request_url,
+                                          cookies=request.cookies)
+        if users_data_request.status_code == 200:
+            users_data = users_data_request.json()
+            print('Users data', users_data)
+            for idx in range(len(users_data)):
+                if len(list(users_data[idx])) > 0:
+                    conversation_data['chat_flow'][idx]['user_first_name'] = users_data[idx]['first_name']
+                    conversation_data['chat_flow'][idx]['user_last_name'] = users_data[idx]['last_name']
+                    conversation_data['chat_flow'][idx]['user_nickname'] = users_data[idx]['nickname']
+                    conversation_data['chat_flow'][idx]['user_avatar'] = users_data[idx]['avatar'] or \
+                                                                         'default_avatar.png'
+                else:
+                    conversation_data['chat_flow'][idx]['user_first_name'] = 'Deleted'
+                    conversation_data['chat_flow'][idx]['user_last_name'] = 'User'
+                    conversation_data['chat_flow'][idx]['user_nickname'] = 'deleted_user'
+                    conversation_data['chat_flow'][idx]['user_avatar'] = 'default_avatar.png'
 
     return conversation_data

@@ -2,10 +2,11 @@ import jwt
 
 from uuid import uuid4
 from time import time
-from typing import Optional
-from fastapi import APIRouter, Depends, Form, Response, status, Request
-from fastapi.responses import HTMLResponse
+from typing import Optional, List
+from fastapi import APIRouter, Depends, Form, Response, status, Request, Query
+from fastapi.responses import JSONResponse
 from fastapi.exceptions import HTTPException
+from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel
 from bson.objectid import ObjectId
 
@@ -36,3 +37,26 @@ def get_user(user_id: str):
     user.pop('password')
     user.pop('is_tmp')
     return {"data": user}
+
+
+@router.get('/bulk_fetch/')
+def fetch_received_user_ids(user_ids: List[str] = Query(None)):
+    user_ids = user_ids[0].split(',')
+    users = db_connector.exec_query(query={'document': 'users',
+                                           'command': 'find',
+                                           'data': {'_id': {'$in': list(set(user_ids))}}})
+    users = list(users)
+
+    result = list()
+
+    for user_id in user_ids:
+        desired_records = list(filter(lambda x: str(x['_id']) == user_id, users))
+        if len(desired_records) == 0:
+            desired_record = {}
+        else:
+            desired_record = desired_records[0]
+            desired_record.pop('password', None)
+            desired_record.pop('is_tmp', None)
+        result.append(desired_record)
+    json_compatible_item_data = jsonable_encoder(result)
+    return JSONResponse(content=json_compatible_item_data, status_code=200)

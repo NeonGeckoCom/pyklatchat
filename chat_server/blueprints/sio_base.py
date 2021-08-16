@@ -40,6 +40,7 @@ def disconnect(sid):
 async def user_message(sid, data):
     LOG.debug(f'Got new user message from {sid}: {data}')
     filter_expression = dict(_id=ObjectId(data['cid']))
+    print(data)
     push_expression = {'$push': {'chat_flow': {'user_id': data['userID'],
                                                'message_text': data['messageText'],
                                                'created_on': data['timeCreated']}}}

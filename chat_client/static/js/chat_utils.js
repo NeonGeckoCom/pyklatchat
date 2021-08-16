@@ -54,15 +54,14 @@ function buildConversation(conversationData,remember=true){
    const newConversationHTML = buildConversationHTML(conversationData);
    const conversationsBody = document.getElementById('conversationsBody');
    conversationsBody.insertAdjacentHTML('afterbegin', newConversationHTML);
-   const chatInputButtons = document.getElementsByClassName('send_user_input');
-   Array.from(chatInputButtons).forEach(btn=>{
-        if(btn.hasAttribute('data-target-cid')) {
-            btn.addEventListener('click', (e)=>{
-                const textInputElem = btn.parentElement.getElementsByClassName('user_input')[0];
-                emitUserMessage(textInputElem, btn.getAttribute('data-target-cid'));
-            });
-        }
-   });
+   const chatInputButton = document.getElementById(conversationData['_id']+'-send');
+    if(chatInputButton.hasAttribute('data-target-cid')) {
+        chatInputButton.addEventListener('click', (e)=>{
+            const textInputElem = document.getElementById(conversationData['_id']+'-input');
+            emitUserMessage(textInputElem, e.target.getAttribute('data-target-cid'));
+            textInputElem.value = "";
+        });
+    }
 }
 
 function buildConversationHTML(conversationData = {}){
@@ -76,7 +75,7 @@ function buildConversationHTML(conversationData = {}){
             const orientation = currentUser && message['user_nickname'] === currentUser['nickname']?'in':'out';
             html += `<li class="${orientation}">
                         <div class="chat-img">
-                            <img alt="Avatar" src="${ avatarPath+message['user_avatar'] }">
+                            <img alt="Avatar" src="${ configData.imageBaseFolder+'/'+message['user_avatar'] }">
                         </div>
                         <div class="chat-body">
                             <div class="chat-message">
@@ -92,8 +91,8 @@ function buildConversationHTML(conversationData = {}){
     html += `</ul>
              </div>
                    <div class="card-footer">
-                        <input class="user_input form-control" data-target-cid="${conversationData['_id']}" type="text" placeholder='Write a Message to "${conversationData['conversation_name']}"'>
-                        <button class="send_user_input mt-2 btn btn-success" data-target-cid="${conversationData['_id']}">Send Message</button>
+                        <input class="user_input form-control" id="${conversationData['_id']}-input" type="text" placeholder='Write a Message to "${conversationData['conversation_name']}"'>
+                        <button class="send_user_input mt-2 btn btn-success" id="${conversationData['_id']}-send" data-target-cid="${conversationData['_id']}">Send Message</button>
                     </div>
                 </div>
             </div>`
@@ -130,6 +129,7 @@ function getTimeFromTimestamp(timeCreated){
 
 function emitUserMessage(textInputElem, cid){
     if(textInputElem && textInputElem.value){
+        console.log(textInputElem.value)
         const timeCreated = Math.floor(Date.now() / 1000);
         addMessage(cid, currentUser['_id'], textInputElem.value, timeCreated,{}, true).then(_=>{
             socket.emit('user_message', {'cid':cid,'userID':currentUser['_id'],'messageText':textInputElem.value,'timeCreated':timeCreated});
@@ -162,7 +162,6 @@ function addNewCID(cid, keyName=conversationAlignmentKey){
 function restoreChatAlignment(keyName=conversationAlignmentKey){
     let itemsLayout = retrieveItemsLayout(keyName);
     for (const item of itemsLayout) {
-        console.log(`Processing item: ${item}`)
         getConversationDataByInput(item).then(conversationData=>{
             buildConversation(conversationData, false);
         });

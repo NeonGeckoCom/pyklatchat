@@ -1,6 +1,8 @@
+let socket;
+
 document.addEventListener('configLoaded',(e)=>{
 
-    const socket = io("http://"+configData['SOCKET_IO_SERVER_URL']);
+    socket = io("http://"+configData['SOCKET_IO_SERVER_URL']);
 
     socket.on('connect', () => {
          console.info('Connected to Server')
