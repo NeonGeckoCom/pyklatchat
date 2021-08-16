@@ -47,7 +47,10 @@ function buildUserMessage(userData, messageText, timeCreated, isMine){
     return html;
 }
 
-function buildConversation(conversationData){
+function buildConversation(conversationData,remember=true){
+   if(remember){
+       addNewCID(conversationData['_id'], conversationAlignmentKey);
+   }
    const newConversationHTML = buildConversationHTML(conversationData);
    const conversationsBody = document.getElementById('conversationsBody');
    conversationsBody.insertAdjacentHTML('afterbegin', newConversationHTML);
@@ -101,7 +104,8 @@ function buildConversationHTML(conversationData = {}){
 async function getConversationDataByInput(input=""){
     let conversationData = {};
     if(input && typeof input === "string"){
-        const query_url = `${configData['currentURLBase']}/chats/search/'${input}`
+        const query_url = `${configData['currentURLBase']}/chats/search/${input}`
+        console.log(query_url)
         await fetch(query_url)
             .then(response => response.ok?response.json():{})
             .then(data => {
@@ -134,7 +138,40 @@ function emitUserMessage(textInputElem, cid){
     }
 }
 
+function retrieveItemsLayout(keyName=conversationAlignmentKey){
+    let itemsLayout = localStorage.getItem(keyName);
+    if(itemsLayout){
+        itemsLayout = JSON.parse(itemsLayout);
+    }else{
+        itemsLayout = [];
+    }
+    return itemsLayout;
+}
+
+function addNewCID(cid, keyName=conversationAlignmentKey){
+    let itemLayout = retrieveItemsLayout(keyName);
+    itemLayout.push(cid);
+    localStorage.setItem(keyName,JSON.stringify(itemLayout));
+}
+
+/**
+ * Restores chats alignment from the local storage
+ *
+ * @param keyName: name of the local storage key
+**/
+function restoreChatAlignment(keyName=conversationAlignmentKey){
+    let itemsLayout = retrieveItemsLayout(keyName);
+    for (const item of itemsLayout) {
+        console.log(`Processing item: ${item}`)
+        getConversationDataByInput(item).then(conversationData=>{
+            buildConversation(conversationData, false);
+        });
+    }
+}
+
 document.addEventListener('DOMContentLoaded', (e)=>{
+
+    restoreChatAlignment();
 
     showConversationSearch.addEventListener('click', (e)=>{
        e.preventDefault();

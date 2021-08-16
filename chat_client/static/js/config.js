@@ -7,6 +7,8 @@ let configData = {
     'currentURLFull': window.location.href
 };
 
+const conversationAlignmentKey = 'conversationAlignment';
+
 const configFullLoadedEvent = new CustomEvent("configLoaded", { "detail": "Event that is fired when configs are loaded" });
 
 function __extractURLBase(){

@@ -26,7 +26,7 @@ async def chats(request: Request):
     return conversation_templates.TemplateResponse("conversation/base.html",
                                                    {"request": request,
                                                     'section': 'Followed Conversations',
-                                                    'add_sio': '1'})
+                                                    'add_sio': True})
 
 
 @router.post("/new", response_class=JSONResponse)
