@@ -104,7 +104,6 @@ async function getConversationDataByInput(input=""){
     let conversationData = {};
     if(input && typeof input === "string"){
         const query_url = `${configData['currentURLBase']}/chats/search/${input}`
-        console.log(query_url)
         await fetch(query_url)
             .then(response => response.ok?response.json():{})
             .then(data => {
