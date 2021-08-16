@@ -116,7 +116,6 @@ def get_conversation(response: Response, request: Request, search_str: str, user
                                           cookies=request.cookies)
         if users_data_request.status_code == 200:
             users_data = users_data_request.json()
-            print('Users data', users_data)
             for idx in range(len(users_data)):
                 if len(list(users_data[idx])) > 0:
                     conversation_data['chat_flow'][idx]['user_first_name'] = users_data[idx]['first_name']
