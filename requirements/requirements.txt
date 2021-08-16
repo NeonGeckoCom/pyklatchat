@@ -39,9 +39,8 @@ MarkupSafe==2.0.1
 memory-tempfile==2.2.3
 mycroft-messagebus-client==0.9.1
 mysql-connector==2.2.9
-neon_utils @ git+https://github.com/neongeckocom/neon-skill-utils
 neon-mq-connector @ git+https://github.com/neongeckocom/neon_mq_connector
-neon-utils==0.5.7
+neon-utils
 netifaces==0.10.9
 nltk==3.6.2
 nodeenv==1.6.0
