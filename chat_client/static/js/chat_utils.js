@@ -129,12 +129,13 @@ function getTimeFromTimestamp(timeCreated){
 
 function emitUserMessage(textInputElem, cid){
     if(textInputElem && textInputElem.value){
-        console.log(textInputElem.value)
         const timeCreated = Math.floor(Date.now() / 1000);
-        addMessage(cid, currentUser['_id'], textInputElem.value, timeCreated,{}, true).then(_=>{
-            socket.emit('user_message', {'cid':cid,'userID':currentUser['_id'],'messageText':textInputElem.value,'timeCreated':timeCreated});
-            textInputElem.value = "";
+        const messageText = textInputElem.value;
+        addMessage(cid, currentUser['_id'], messageText, timeCreated,{}, true).then(_=>{
+            socket.emit('user_message', {'cid':cid,'userID':currentUser['_id'],'messageText':messageText,
+                              'timeCreated':timeCreated});
         });
+        textInputElem.value = "";
     }
 }
 
