@@ -47,14 +47,16 @@ def fetch_received_user_ids(user_ids: List[str] = Query(None)):
                                            'data': {'_id': {'$in': list(set(user_ids))}}})
     users = list(users)
 
+    formatted_users = dict()
+
+    for user in users:
+        formatted_users[user['_id']] = user
+
     result = list()
 
     for user_id in user_ids:
-        desired_records = list(filter(lambda x: str(x['_id']) == user_id, users))
-        if len(desired_records) == 0:
-            desired_record = {}
-        else:
-            desired_record = desired_records[0]
+        desired_record = formatted_users.get(user_id, {})
+        if len(list(desired_record)) > 0:
             desired_record.pop('password', None)
             desired_record.pop('is_tmp', None)
         result.append(desired_record)
