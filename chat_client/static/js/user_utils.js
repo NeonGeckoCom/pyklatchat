@@ -18,11 +18,9 @@ function updateNavbar(){
     if(currentUser){
         const currentUserNavDisplay = document.getElementById('currentUserNavDisplay');
         if(currentUserNavDisplay) {
-            currentUserNavDisplay.innerHTML = `<li class="nav-item">
-                                                <a class="nav-link" href="#" style="color: #fff">
+            currentUserNavDisplay.innerHTML = `<a class="nav-link" href="#" style="color: #fff">
                                                     Logged in as: ${currentUser['nickname']}
-                                                </a>
-                                            </li>`;
+                                               </a>`;
         }
     }
 }
