@@ -1,5 +1,3 @@
-const showConversationSearch = document.getElementById('showConversationSearch');
-const hideConversationSearch = document.getElementById('hideConversationSearch');
 const conversationSearchInput = document.getElementById('conversationSearchInput');
 const addBySearch = document.getElementById('addBySearch');
 const addNewConversation = document.getElementById('addNewConversation');
@@ -171,23 +169,6 @@ function restoreChatAlignment(keyName=conversationAlignmentKey){
 document.addEventListener('DOMContentLoaded', (e)=>{
     document.addEventListener('currentUserLoaded',(e)=>{
         restoreChatAlignment();
-    });
-
-    showConversationSearch.addEventListener('click', (e)=>{
-       e.preventDefault();
-       e.target.hidden = true;
-       hideConversationSearch.hidden = false;
-       conversationSearchInput.hidden = false;
-       addBySearch.hidden = false;
-    });
-
-    hideConversationSearch.addEventListener('click', (e)=>{
-       e.preventDefault();
-       e.target.hidden = true;
-       showConversationSearch.hidden = false;
-       conversationSearchInput.value = "";
-       conversationSearchInput.hidden = true;
-       addBySearch.hidden = true;
     });
 
     addBySearch.addEventListener('click', async (e)=>{

@@ -13,15 +13,8 @@
 
 {% block main %}
     {{ super() }}
-    <div id="conversationInvokerWrapper">
-        <button class="btn btn-info" id="showConversationSearch">Import Existing</button>
-        <button class="btn btn-danger" id="hideConversationSearch" hidden>Hide</button>
-        <input type="text" id="conversationSearchInput" placeholder="Type in conversation name or id..." hidden>
-        <button class="btn btn-primary" id="addBySearch" hidden>Add</button>
-    </div>
-    <hr>
     <div class="container content" id="conversationsWrapper">
-        <div class="d-flex flex-row" id="conversationsBody" style="height: 600px!important;">
+        <div class="d-flex flex-row" id="conversationsBody" style="height: 800px!important;">
         </div>
     </div>
 {% endblock %}
