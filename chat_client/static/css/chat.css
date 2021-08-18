@@ -133,3 +133,7 @@ body{
     opacity: 1;
     font-size: 1.8rem;
 }
+
+#toggleSignup:hover {
+  text-decoration: underline!important;
+}

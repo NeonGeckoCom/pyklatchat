@@ -1,4 +1,9 @@
 const currentUserNavDisplay = document.getElementById('currentUserNavDisplay');
+const toggleSignup = document.getElementById('toggleSignup');
+
+const loginModal = $('#loginModal');
+const signupModal = $('#signupModal');
+
 
 let currentUser = null;
 
@@ -49,4 +54,13 @@ function refreshCurrentUser(sendNotification=false){
 
 document.addEventListener('DOMContentLoaded', (e)=>{
     refreshCurrentUser(true);
+    currentUserNavDisplay.addEventListener('click', (e)=>{
+        if(currentUser['is_tmp']){
+            loginModal.modal('show');
+        }
+    });
+    toggleSignup.addEventListener('click', (e)=>{
+        loginModal.modal('hide');
+        signupModal.modal('show');
+    });
 });
