@@ -37,7 +37,7 @@ function buildUserMessage(userData, messageText, timeCreated, isMine){
             "</div>"
     html +=` <div class="chat-body">
                 <div class="chat-message">
-                    <h5>${userData['nickname']}</h5>
+                    <small>${userData['nickname']}</small>
                     <p>${messageText}</p>
                 </div>
              </div>`
@@ -52,6 +52,9 @@ function buildConversation(conversationData,remember=true){
    const newConversationHTML = buildConversationHTML(conversationData);
    const conversationsBody = document.getElementById('conversationsBody');
    conversationsBody.insertAdjacentHTML('afterbegin', newConversationHTML);
+   const currentConversation = document.getElementById(conversationData['_id']);
+   const conversationParent = currentConversation.parentElement;
+   const conversationHolder = conversationParent.parentElement;
    const chatInputButton = document.getElementById(conversationData['_id']+'-send');
     if(chatInputButton.hasAttribute('data-target-cid')) {
         chatInputButton.addEventListener('click', (e)=>{
@@ -60,12 +63,23 @@ function buildConversation(conversationData,remember=true){
             textInputElem.value = "";
         });
     }
+    const chatCloseButton = document.getElementById(`close-${conversationData['_id']}`);
+    if(chatCloseButton.hasAttribute('data-target-cid')) {
+        chatCloseButton.addEventListener('click', (e)=>{
+            conversationHolder.removeChild(conversationParent);
+            removeCID(conversationData['_id']);
+        });
+    }
 }
 
 function buildConversationHTML(conversationData = {}){
     let html = `<div class="conversationContainer col-xl-6 col-lg-6 col-md-6 col-sm-12 col-12 m-2">
                 <div class="card" id="${ conversationData['_id'] }">
-                    <div class="card-header">${ conversationData['conversation_name'] }</div>
+                    <div class="card-header">${ conversationData['conversation_name'] }
+                        <button type="button" id="close-${conversationData['_id']}" data-target-cid="${conversationData['_id']}" class="close-cid">
+                            <span aria-hidden="true">×</span>
+                        </button>
+                    </div>
                     <div class="card-body height3" style="overflow-y: auto; height: 250px!important;">
                         <ul class="chat-list">`
     if(conversationData.hasOwnProperty('chat_flow')) {
@@ -103,7 +117,7 @@ async function getConversationDataByInput(input=""){
     if(input && typeof input === "string"){
         const query_url = `${configData['currentURLBase']}/chats/search/${input}`
         await fetch(query_url)
-            .then(response => response.ok?response.json():{})
+            .then(response => response.ok?response.json():null)
             .then(data => {
                 conversationData = data;
             });
@@ -152,6 +166,14 @@ function addNewCID(cid, keyName=conversationAlignmentKey){
     localStorage.setItem(keyName,JSON.stringify(itemLayout));
 }
 
+function removeCID(cid, keyName=conversationAlignmentKey){
+    let itemLayout = retrieveItemsLayout(keyName);
+    itemLayout = itemLayout.filter(function(value, index, arr){
+        return value !== cid;
+    });
+    localStorage.setItem(keyName,JSON.stringify(itemLayout));
+}
+
 /**
  * Restores chats alignment from the local storage
  *
@@ -161,7 +183,11 @@ function restoreChatAlignment(keyName=conversationAlignmentKey){
     let itemsLayout = retrieveItemsLayout(keyName);
     for (const item of itemsLayout) {
         getConversationDataByInput(item).then(conversationData=>{
-            buildConversation(conversationData, false);
+            if(conversationData) {
+                buildConversation(conversationData, false);
+            }else{
+                console.log('No matching conversation found');
+            }
         });
     }
 }
@@ -175,7 +201,7 @@ document.addEventListener('DOMContentLoaded', (e)=>{
        e.preventDefault();
        if(conversationSearchInput.value!==""){
             getConversationDataByInput(conversationSearchInput.value).then(conversationData=>{
-                if(conversationData && conversationData!=={}) {
+                if(conversationData) {
                     buildConversation(conversationData);
                     conversationSearchInput.value = "";
                 }
@@ -201,7 +227,7 @@ document.addEventListener('DOMContentLoaded', (e)=>{
                     const responseJson = await response.json();
                     buildConversation(responseJson);
                 }else{
-                    console.log('err')
+                    console.log('Cannot add new conversation ',response.json())
                 }
             });
     });

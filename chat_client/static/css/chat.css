@@ -106,3 +106,30 @@ body{
 .content{
     margin-top:40px;
 }
+
+.chats-container-alignment{
+    margin-top: 0!important;
+    margin-left: unset!important;
+}
+
+.close-cid{
+    color: white;
+    opacity: 0.6;
+    float: right;
+    font-weight: 700;
+    line-height: 1;
+    font-size: 1.5rem;
+    background-color: transparent;
+    border: none;
+    outline: none;
+}
+
+.close-cid:focus {
+  outline: none;
+  box-shadow: none;
+}
+
+.close-cid:hover{
+    opacity: 1;
+    font-size: 1.8rem;
+}
