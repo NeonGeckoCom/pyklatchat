@@ -1,3 +1,5 @@
+const currentUserNavDisplay = document.getElementById('currentUserNavDisplay');
+
 let currentUser = null;
 
 async function get_user_data(userID=null){
@@ -14,12 +16,19 @@ async function get_user_data(userID=null){
      return userData;
 }
 
-function updateNavbar(){
-    if(currentUser){
-        const currentUserNavDisplay = document.getElementById('currentUserNavDisplay');
+function updateNavbar(forceUpdate=false){
+    if(currentUser || forceUpdate){
         if(currentUserNavDisplay) {
+            let innerText = currentUser['nickname'];
+            console.log(currentUser['is_tmp']);
+            if(currentUser['is_tmp']){
+                innerText+=', Login'
+            }else{
+                innerText+=', Logout'
+            }
+            console.log('here')
             currentUserNavDisplay.innerHTML = `<a class="nav-link" href="#" style="color: #fff">
-                                                    Logged in as: ${currentUser['nickname']}
+                                                    ${innerText}
                                                </a>`;
         }
     }
@@ -27,11 +36,17 @@ function updateNavbar(){
 
 const currentUserLoaded = new CustomEvent("currentUserLoaded", { "detail": "Event that is fired when current user is loaded" });
 
-
-document.addEventListener('DOMContentLoaded', (e)=>{
+function refreshCurrentUser(sendNotification=false){
     get_user_data().then(data=>{
         currentUser = data;
-        document.dispatchEvent(currentUserLoaded);
+        if(sendNotification) {
+            document.dispatchEvent(currentUserLoaded);
+        }
         updateNavbar();
     });
+}
+
+
+document.addEventListener('DOMContentLoaded', (e)=>{
+    refreshCurrentUser(true);
 });

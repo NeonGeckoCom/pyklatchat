@@ -35,7 +35,6 @@ def get_user(user_id: str):
             status_code=status.HTTP_404_NOT_FOUND, detail='User not found'
         )
     user.pop('password')
-    user.pop('is_tmp')
     return {"data": user}
 
 
