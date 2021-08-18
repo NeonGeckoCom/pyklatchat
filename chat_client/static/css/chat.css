@@ -134,6 +134,11 @@ body{
     font-size: 1.8rem;
 }
 
+#toggleSignup{
+    color:cornflowerblue;
+}
+
 #toggleSignup:hover {
   text-decoration: underline!important;
+  color:cornflowerblue;
 }
