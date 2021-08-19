@@ -55,9 +55,10 @@ def signup(first_name: str = Form(...),
     new_user_record = dict(_id=generate_uuid(length=20),
                            first_name=first_name,
                            last_name=last_name,
+                           avatar='default_avatar.png',
                            password=get_hash(password),
                            nickname=nickname,
-                           date_created=time(),
+                           date_created=int(time()),
                            is_tmp=False)
     db_connector.exec_query(query=dict(document='users', command='insert_one', data=new_user_record))
 
@@ -88,8 +89,8 @@ def login(response: Response, username: str = Form(...), password: str = Form(..
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid username or password"
         )
     token = jwt.encode(payload={"sub": matching_user['_id'],
-                                'creation_time': time(),
-                                'last_refresh_time': time()
+                                'creation_time': int(time()),
+                                'last_refresh_time': int(time())
                                 }, key=secret_key, algorithm=jwt_encryption_algo)
     response = JSONResponse(content=dict(login=True))
 
