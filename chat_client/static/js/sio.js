@@ -9,7 +9,6 @@ document.addEventListener('configLoaded',(e)=>{
     });
 
     socket.on('new_message', data => {
-        console.log(data);
         const msgData = JSON.parse(data);
         addMessage(msgData['cid'], msgData['userID'], msgData['messageText'], msgData['timeCreated'], {})
             .catch(err=>console.error('Error occurred while adding new message: ',err));
