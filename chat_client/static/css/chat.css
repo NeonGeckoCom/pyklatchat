@@ -34,13 +34,13 @@ body{
     position: relative;
 }
 
-.chat-list .chat-message:before {
-    content: "";
-    position: absolute;
-    top: 15px;
-    width: 0;
-    height: 0;
-}
+/*.chat-list .chat-message:before {*/
+/*    content: "";*/
+/*    position: absolute;*/
+/*    top: 15px;*/
+/*    width: 0;*/
+/*    height: 0;*/
+/*}*/
 
 .chat-list .chat-message h5 {
     margin: 0 0 5px 0;
@@ -56,16 +56,15 @@ body{
 }
 
 .chat-list .chat-body {
-    margin-left: 20px;
     float: left;
     width: 70%;
 }
 
-.chat-list .in .chat-message:before {
-    left: -12px;
-    border-bottom: 20px solid transparent;
-    border-right: 20px solid #5a99ee;
-}
+/*.chat-list .in .chat-message:before {*/
+/*    left: -12px;*/
+/*    border-bottom: 20px solid transparent;*/
+/*    border-right: 20px solid #5a99ee;*/
+/*}*/
 
 .chat-list .out .chat-img {
     float: right;
@@ -73,7 +72,6 @@ body{
 
 .chat-list .out .chat-body {
     float: right;
-    margin-right: 20px;
     text-align: right;
 }
 
@@ -81,11 +79,11 @@ body{
     background: #fc6d4c;
 }
 
-.chat-list .out .chat-message:before {
-    right: -12px;
-    border-bottom: 20px solid transparent;
-    border-left: 20px solid #fc6d4c;
-}
+/*.chat-list .out .chat-message:before {*/
+/*    right: -12px;*/
+/*    border-bottom: 20px solid transparent;*/
+/*    border-left: 20px solid #fc6d4c;*/
+/*}*/
 
 .card .card-header:first-child {
     -webkit-border-radius: 0.3rem 0.3rem 0 0;

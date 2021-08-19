@@ -51,7 +51,7 @@ async function loginUser(){
             .then(response => response.ok?response.json():null)
             .then(data => {
                 if(data){
-                    refreshCurrentUser(false);
+                    refreshCurrentUser(false, true);
                     loginUsername.value = "";
                     loginPassword.value = "";
                     loginModal.modal('hide');
@@ -63,7 +63,7 @@ async function loginUser(){
 async function logoutUser(){
     const query_url = `${configData["currentURLBase"]}/auth/logout/`;
     await fetch(query_url).then(response=>{
-        response.ok?refreshCurrentUser(false):'';
+        response.ok?refreshCurrentUser(false, true):'';
         logoutModal.modal('hide');
     });
 }
@@ -87,7 +87,7 @@ async function createUser(){
             })
             .then(data => {
                 if(data['ok']){
-                    refreshCurrentUser(false);
+                    refreshCurrentUser(false, true);
                     signupUsername.value = "";
                     signupFirstName.value = "";
                     signupLastName.value = "";
@@ -123,19 +123,25 @@ function updateNavbar(forceUpdate=false){
 
 const currentUserLoaded = new CustomEvent("currentUserLoaded", { "detail": "Event that is fired when current user is loaded" });
 
-function refreshCurrentUser(sendNotification=false){
+function refreshCurrentUser(sendNotification=false, refreshChats=false){
     getUserData().then(data=>{
         currentUser = data;
         if(sendNotification) {
             document.dispatchEvent(currentUserLoaded);
         }
         updateNavbar();
+        if(refreshChats) {
+            console.log(configData['currentURLFull']);
+            if (configData['currentURLFull'].includes('chats')) {
+                refreshChat();
+            }
+        }
     });
 }
 
 
 document.addEventListener('DOMContentLoaded', (e)=>{
-    refreshCurrentUser(true);
+    refreshCurrentUser(true, false);
     currentUserNavDisplay.addEventListener('click', (e)=>{
         e.preventDefault();
         if(currentUser['is_tmp']){

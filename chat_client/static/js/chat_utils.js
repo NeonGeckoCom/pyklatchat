@@ -1,6 +1,7 @@
 const conversationSearchInput = document.getElementById('conversationSearchInput');
 const addBySearch = document.getElementById('addBySearch');
 const addNewConversation = document.getElementById('addNewConversation');
+const conversationBody = document.getElementById('conversationsBody');
 
 async function addMessage(cid, userID=null, messageText, timeCreated,attachments={}){
     const cidElem = document.getElementById(cid);
@@ -85,7 +86,7 @@ function buildConversationHTML(conversationData = {}){
     if(conversationData.hasOwnProperty('chat_flow')) {
         Array.from(conversationData['chat_flow']).forEach(message => {
             const orientation = currentUser && message['user_nickname'] === currentUser['nickname']?'in':'out';
-            html += `<li class="${orientation}">
+            html += `<li class="${orientation}" data-sender="${ message['user_nickname'] }">
                         <div class="chat-img">
                             <img alt="Avatar" src="${ configData.imageBaseFolder+'/'+message['user_avatar'] }">
                         </div>
@@ -190,6 +191,21 @@ function restoreChatAlignment(keyName=conversationAlignmentKey){
             }
         });
     }
+}
+
+function refreshChat(){
+    Array.from(conversationBody.getElementsByClassName('conversationContainer')).forEach(conversation=>{
+       const messages = conversation.getElementsByClassName('card')[0]
+           .getElementsByClassName('card-body')[0]
+           .getElementsByClassName('chat-list')[0]
+           .getElementsByTagName('li');
+       Array.from(messages).forEach(message=>{
+          if(message.hasAttribute('data-sender')){
+              const messageSenderNickname = message.getAttribute('data-sender');
+              message.className = currentUser && messageSenderNickname === currentUser['nickname']?'in':'out';
+          }
+       });
+    });
 }
 
 document.addEventListener('DOMContentLoaded', (e)=>{
