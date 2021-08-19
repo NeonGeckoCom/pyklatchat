@@ -12,7 +12,7 @@ async function addMessage(cid, userID=null, messageText, timeCreated,attachments
             if(isMine) {
                 userData = currentUser;
             }else{
-                userData = await get_user_data(userID);
+                userData = await getUserData(userID);
             }
             let messageHTML = buildUserMessage(userData, messageText, timeCreated, isMine);
             messageHTML = addMessageAttachments(messageHTML, attachments);
@@ -186,7 +186,7 @@ function restoreChatAlignment(keyName=conversationAlignmentKey){
             if(conversationData) {
                 buildConversation(conversationData, false);
             }else{
-                console.log('No matching conversation found');
+                displayAlert('conversationsBody','No matching conversation found','danger');
             }
         });
     }
@@ -203,8 +203,10 @@ document.addEventListener('DOMContentLoaded', (e)=>{
             getConversationDataByInput(conversationSearchInput.value).then(conversationData=>{
                 if(conversationData) {
                     buildConversation(conversationData);
-                    conversationSearchInput.value = "";
+                }else{
+                    displayAlert('importConversationModalBody','Cannot find conversation matching your search','danger');
                 }
+                conversationSearchInput.value = "";
             });
        }
     });
@@ -223,12 +225,15 @@ document.addEventListener('DOMContentLoaded', (e)=>{
 
 
        fetch(`${configData['currentURLBase']}/chats/new`, {method: 'post', body: formData}).then( async response=>{
+                const responseJson = await response.json();
                 if(response.ok){
-                    const responseJson = await response.json();
                     buildConversation(responseJson);
                 }else{
-                    console.log('Cannot add new conversation ',response.json())
+                    displayAlert('newConversationModalBody','Cannot add new conversation: '+ responseJson['detail'][0]['msg'],'danger');
                 }
+                newConversationName.value="";
+                newConversationID.value = "";
+                isPrivate.checked = false;
             });
     });
 });
