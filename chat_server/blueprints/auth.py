@@ -19,8 +19,10 @@
 
 import jwt
 
-from fastapi import APIRouter, Depends, Form, Response, status
-from fastapi.responses import HTMLResponse
+from time import time
+
+from fastapi import APIRouter, Depends, Form, Response, status, Request
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.exceptions import HTTPException
 
 from chat_server.config import db_connector
@@ -34,8 +36,7 @@ router = APIRouter(
 
 
 @router.post("/signup")
-def signup(response: Response,
-           first_name: str = Form(...),
+def signup(first_name: str = Form(...),
            last_name: str = Form(...),
            nickname: str = Form(...),
            password: str = Form(...)):
@@ -56,14 +57,20 @@ def signup(response: Response,
                            last_name=last_name,
                            password=get_hash(password),
                            nickname=nickname,
-                           creation_time=time(),
+                           date_created=time(),
                            is_tmp=False)
     db_connector.exec_query(query=dict(document='users', command='insert_one', data=new_user_record))
 
-    token = jwt.encode(payload={"sub": new_user_record['_id']}, key=secret_key, algorithm=jwt_encryption_algo)
+    token = jwt.encode(payload={"sub": new_user_record['_id'],
+                                'creation_time': new_user_record['date_created'],
+                                'last_refresh_time': new_user_record['date_created']},
+                       key=secret_key, algorithm=jwt_encryption_algo)
+
+    response = JSONResponse(content=dict(signup=True))
+
     response.set_cookie("session", token, httponly=True)
 
-    return {'signup': True}
+    return response
 
 
 @router.post("/login")
@@ -80,13 +87,20 @@ def login(response: Response, username: str = Form(...), password: str = Form(..
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid username or password"
         )
-    token = jwt.encode(payload={"sub": matching_user['_id']}, key=secret_key, algorithm=jwt_encryption_algo)
+    token = jwt.encode(payload={"sub": matching_user['_id'],
+                                'creation_time': time(),
+                                'last_refresh_time': time()
+                                }, key=secret_key, algorithm=jwt_encryption_algo)
+    response = JSONResponse(content=dict(login=True))
+
     response.set_cookie("session", token, httponly=True)
-    return {"login": True}
+
+    return response
 
 
 @router.get("/logout")
-def logout(response: Response):
+def logout(request: Request, response: Response):
     response.delete_cookie("session")
-    return {"logout": True}
+    get_current_user(request=request, response=response, force_tmp=True)
+    return response
 

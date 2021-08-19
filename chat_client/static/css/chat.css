@@ -139,6 +139,7 @@ body{
 }
 
 .toggler:hover {
-  text-decoration: underline!important;
-  color:cornflowerblue;
+    text-decoration: underline!important;
+    color:cornflowerblue;
+    cursor: pointer;
 }

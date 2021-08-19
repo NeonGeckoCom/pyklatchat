@@ -27,18 +27,21 @@ async def login(request: Request,
 
     post_response = requests.post(f'http://127.0.0.1:8000/auth/login', data=data)
 
-    json_data = {}
+    json_data = post_response.json()
+
+    response = JSONResponse(content=json_data, status_code=post_response.status_code)
 
     if post_response.status_code == 200:
 
         for cookie in post_response.cookies:
-            response.set_cookie(key=cookie.name, value=cookie.value, httponly=True)
 
-        json_data = post_response.json()
+            response.delete_cookie('session')
+
+            response.set_cookie(key=cookie.name, value=cookie.value, httponly=True)
 
         LOG.info(f'{username}: {json_data}')
 
-    return JSONResponse(content=json_data, status_code=post_response.status_code)
+    return response
 
 
 @router.post("/signup", response_class=JSONResponse)
@@ -56,15 +59,17 @@ async def signup(request: Request,
 
     post_response = requests.post(f'http://127.0.0.1:8000/auth/signup', data=data)
 
-    json_data = {}
+    json_data = post_response.json()
+
+    response = JSONResponse(content=json_data, status_code=post_response.status_code)
 
     if post_response.status_code == 200:
+
+        response.delete_cookie('session')
 
         for cookie in post_response.cookies:
             response.set_cookie(key=cookie.name, value=cookie.value, httponly=True)
 
-        json_data = post_response.json()
+    LOG.info(f'{nickname}: {json_data}')
 
-        LOG.info(f'{nickname}: {json_data}')
-
-    return JSONResponse(content=json_data, status_code=post_response.status_code)
+    return response

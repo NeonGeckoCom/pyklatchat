@@ -63,17 +63,23 @@ async function createUser(){
     }else if(signupPassword.value!==repeatSignupPassword.value){
         displayAlert('signupModalBody','Passwords do not match', 'danger');
     }else {
-        formData.append('nickname', loginUsername.value);
+        formData.append('nickname', signupUsername.value);
         formData.append('first_name', signupFirstName.value);
         formData.append('last_name', signupLastName.value);
-        formData.append('password', loginPassword.value);
+        formData.append('password', signupPassword.value);
         await fetch(query_url, {method:'post', body:formData})
-            .then(response => response.ok?response.json():null)
+            .then(async response => {
+                return {'ok':response.ok,'data':await response.json()}
+            })
             .then(data => {
-                if(data){
+                if(data['ok']){
                     refreshCurrentUser(false);
                 }else{
-                    displayAlert('signupModalBody',`Failed to create an account: ${data['detail'][0]['msg']}`, 'danger');
+                    let errorMessage = 'Failed to create an account';
+                    if(data['data'].hasOwnProperty('detail')){
+                        errorMessage = data['data']['detail'];
+                    }
+                    displayAlert('signupModalBody',errorMessage, 'danger');
                 }
             });
     }
