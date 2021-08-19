@@ -1,3 +1,23 @@
+# NEON AI (TM) SOFTWARE, Software Development Kit & Application Development System
+#
+# Copyright 2008-2021 Neongecko.com Inc. | All Rights Reserved
+#
+# Notice of License - Duplicating this Notice of License near the start of any file containing
+# a derivative of this software is a condition of license for this software.
+# Friendly Licensing:
+# No charge, open source royalty free use of the Neon AI software source and object is offered for
+# educational users, noncommercial enthusiasts, Public Benefit Corporations (and LLCs) and
+# Social Purpose Corporations (and LLCs). Developers can contact developers@neon.ai
+# For commercial licensing, distribution of derivative works or redistribution please contact licenses@neon.ai
+# Distributed on an "AS IS” basis without warranties or conditions of any kind, either express or implied.
+# Trademarks of Neongecko: Neon AI(TM), Neon Assist (TM), Neon Communicator(TM), Klat(TM)
+# Authors: Guy Daniels, Daniel McKnight, Elon Gasper, Richard Leeds, Kirill Hrymailo
+#
+# Specialized conversational reconveyance options from Conversation Processing Intelligence Corp.
+# US Patents 2008-2021: US7424516, US20140161250, US20140177813, US8638908, US8068604, US8553852, US10530923, US10530924
+# China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
+
+
 import jwt
 import requests
 
@@ -9,6 +29,8 @@ from fastapi.exceptions import HTTPException
 from fastapi.templating import Jinja2Templates
 from fastapi.encoders import jsonable_encoder
 
+from chat_client.client_config import app_config
+
 router = APIRouter(
     prefix="/chats",
     responses={'404': {"description": "Unknown endpoint"}},
@@ -16,10 +38,6 @@ router = APIRouter(
 
 conversation_templates = Jinja2Templates(directory="chat_client/templates")
 
-
-# @router.get("/new", response_class=HTMLResponse)
-# async def create_chat(request: Request):
-#     return conversation_templates.TemplateResponse("new_conversation.html", {"request": request})
 
 @router.get('/')
 async def chats(request: Request):
@@ -30,8 +48,7 @@ async def chats(request: Request):
 
 
 @router.post("/new", response_class=JSONResponse)
-async def create_chat(request: Request,
-                      conversation_name: str = Form(...),
+async def create_chat(conversation_name: str = Form(...),
                       conversation_id: str = Form(None),
                       is_private: bool = Form(False)):
 
@@ -40,7 +57,7 @@ async def create_chat(request: Request,
                             is_private=is_private,
                             created_on=int(time()))
 
-    post_response = requests.post(f'http://127.0.0.1:8000/chat_api/new', json=new_conversation)
+    post_response = requests.post(f'{app_config["SERVER_URL"]}/chat_api/new', json=new_conversation)
 
     json_data = {}
 
@@ -54,8 +71,8 @@ async def create_chat(request: Request,
 
 
 @router.get('/search/{search_str}')
-async def chats(request: Request, search_str: str):
-    post_response = requests.get(f'http://127.0.0.1:8000/chat_api/search/{search_str}')
+async def chats(search_str: str):
+    post_response = requests.get(f'{app_config["SERVER_URL"]}/chat_api/search/{search_str}')
 
     json_data = {}
 
@@ -65,17 +82,3 @@ async def chats(request: Request, search_str: str):
 
     return JSONResponse(content=json_data, status_code=post_response.status_code)
 
-# @router.get("/{cid}", response_class=HTMLResponse)
-# async def get_chat(request: Request, cid: str):
-#     get_response = requests.get(f'http://127.0.0.1:8000/chat_api/get/{cid}', cookies=request.cookies)
-#     if get_response.status_code != 200:
-#         raise HTTPException(
-#             status_code=status.HTTP_401_UNAUTHORIZED, detail=f"{get_response.json()['detail']} "
-#         )
-#     else:
-#         conversation_data = get_response.json()
-#     conversation_data['current_user'].pop('password')
-#     return conversation_templates.TemplateResponse("get_conversation.html",
-#                                                    {"request": request,
-#                                                     "current_user": conversation_data['current_user'],
-#                                                     "conversation": conversation_data['conversation_data']})

@@ -18,31 +18,11 @@
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
 
 
-import requests
+import os
 
-from typing import Optional
-from fastapi import Response, Request, status, APIRouter
-from fastapi.exceptions import HTTPException
+from config import Configuration
 
-from chat_client.client_config import app_config
+config_file_path = os.environ.get('CHATCLIENT_CONFIG', '~/.local/share/neon/credentials_client.json')
+server_env = os.environ.get('APP_ENV', 'LOCALHOST')
 
-
-router = APIRouter(
-    prefix="/users",
-    responses={'404': {"description": "Unknown user"}},
-)
-
-
-@router.get("/")
-def get_user(response: Response, request: Request, user_id: Optional[str] = None):
-    user_id = user_id or ''
-    get_user_response = requests.get(f'{app_config["SERVER_URL"]}/users_api/{user_id}', cookies=request.cookies)
-    if get_user_response.status_code != 200:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail=get_user_response.json()
-        )
-    else:
-        for cookie in get_user_response.cookies:
-            response.set_cookie(key=cookie.name, value=cookie.value, httponly=True)
-        return get_user_response.json()
-
+app_config = Configuration(file_path=config_file_path).config_data.get('CHAT_CLIENT', {}).get(server_env)

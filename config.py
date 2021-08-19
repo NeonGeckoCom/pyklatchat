@@ -20,7 +20,7 @@
 import os
 import json
 
-from utils.database.db_controller import DatabaseController, DatabaseConnector
+from utils.database.db_controller import DatabaseController
 
 
 class Configuration:
