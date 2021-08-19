@@ -120,7 +120,7 @@ def get_conversation(response: Response, request: Request, search_str: str, user
                     conversation_data['chat_flow'][idx]['user_first_name'] = users_data[idx]['first_name']
                     conversation_data['chat_flow'][idx]['user_last_name'] = users_data[idx]['last_name']
                     conversation_data['chat_flow'][idx]['user_nickname'] = users_data[idx]['nickname']
-                    conversation_data['chat_flow'][idx]['user_avatar'] = users_data[idx]['avatar'] or \
+                    conversation_data['chat_flow'][idx]['user_avatar'] = users_data[idx].get('avatar', None) or \
                                                                          'default_avatar.png'
                 else:
                     conversation_data['chat_flow'][idx]['user_first_name'] = 'Deleted'

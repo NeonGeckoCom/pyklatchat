@@ -1,5 +1,8 @@
 const currentUserNavDisplay = document.getElementById('currentUserNavDisplay');
 
+const logoutModal = $('#logoutModal');
+
+const logoutConfirm = document.getElementById('logoutConfirm');
 
 const loginModal = $('#loginModal');
 
@@ -49,9 +52,20 @@ async function loginUser(){
             .then(data => {
                 if(data){
                     refreshCurrentUser(false);
+                    loginUsername.value = "";
+                    loginPassword.value = "";
+                    loginModal.modal('hide');
                 }
             });
     }
+}
+
+async function logoutUser(){
+    const query_url = `${configData["currentURLBase"]}/auth/logout/`;
+    await fetch(query_url).then(response=>{
+        response.ok?refreshCurrentUser(false):'';
+        logoutModal.modal('hide');
+    });
 }
 
 async function createUser(){
@@ -74,6 +88,12 @@ async function createUser(){
             .then(data => {
                 if(data['ok']){
                     refreshCurrentUser(false);
+                    signupUsername.value = "";
+                    signupFirstName.value = "";
+                    signupLastName.value = "";
+                    signupPassword.value = "";
+                    repeatSignupPassword.value = "";
+                    signupModal.modal('hide');
                 }else{
                     let errorMessage = 'Failed to create an account';
                     if(data['data'].hasOwnProperty('detail')){
@@ -120,7 +140,14 @@ document.addEventListener('DOMContentLoaded', (e)=>{
         e.preventDefault();
         if(currentUser['is_tmp']){
             loginModal.modal('show');
+        }else{
+            logoutModal.modal('show');
         }
+    });
+
+    logoutConfirm.addEventListener('click', (e)=>{
+        e.preventDefault();
+        logoutUser().catch(err=>console.error('Error while logging out user: ',err));
     });
 
     toggleLogin.addEventListener('click', (e)=>{
@@ -144,4 +171,6 @@ document.addEventListener('DOMContentLoaded', (e)=>{
         e.preventDefault();
         createUser().catch(err=>console.error('Error while creating a user: ',err));
     });
+
+
 });

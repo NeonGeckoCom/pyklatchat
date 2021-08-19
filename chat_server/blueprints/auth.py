@@ -100,8 +100,8 @@ def login(response: Response, username: str = Form(...), password: str = Form(..
 
 
 @router.get("/logout")
-def logout(request: Request, response: Response):
-    response.delete_cookie("session")
+def logout(request: Request):
+    response = JSONResponse(content=dict(logout=True))
     get_current_user(request=request, response=response, force_tmp=True)
     return response
 

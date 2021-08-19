@@ -17,9 +17,7 @@ router = APIRouter(
 
 
 @router.post("/login", response_class=JSONResponse)
-async def login(request: Request,
-                response: Response,
-                username: str = Form(...),
+async def login(username: str = Form(...),
                 password: str = Form(...)):
 
     data = dict(username=username,
@@ -45,9 +43,7 @@ async def login(request: Request,
 
 
 @router.post("/signup", response_class=JSONResponse)
-async def signup(request: Request,
-                 response: Response,
-                 nickname: str = Form(...),
+async def signup(nickname: str = Form(...),
                  first_name: str = Form(...),
                  last_name: str = Form(...),
                  password: str = Form(...)):
@@ -71,5 +67,26 @@ async def signup(request: Request,
             response.set_cookie(key=cookie.name, value=cookie.value, httponly=True)
 
     LOG.info(f'{nickname}: {json_data}')
+
+    return response
+
+
+@router.get("/logout", response_class=JSONResponse)
+async def logout():
+
+    logout_response = requests.get(f'http://127.0.0.1:8000/auth/logout')
+
+    json_data = logout_response.json()
+
+    response = JSONResponse(content=json_data, status_code=logout_response.status_code)
+
+    if logout_response.status_code == 200:
+
+        response.delete_cookie('session')
+
+        for cookie in logout_response.cookies:
+            response.set_cookie(key=cookie.name, value=cookie.value, httponly=True)
+
+    LOG.info(f'{json_data}')
 
     return response
