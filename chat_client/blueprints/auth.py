@@ -39,3 +39,32 @@ async def login(request: Request,
         LOG.info(f'{username}: {json_data}')
 
     return JSONResponse(content=json_data, status_code=post_response.status_code)
+
+
+@router.post("/signup", response_class=JSONResponse)
+async def signup(request: Request,
+                 response: Response,
+                 nickname: str = Form(...),
+                 first_name: str = Form(...),
+                 last_name: str = Form(...),
+                 password: str = Form(...)):
+
+    data = dict(nickname=nickname,
+                first_name=first_name,
+                last_name=last_name,
+                password=password)
+
+    post_response = requests.post(f'http://127.0.0.1:8000/auth/signup', data=data)
+
+    json_data = {}
+
+    if post_response.status_code == 200:
+
+        for cookie in post_response.cookies:
+            response.set_cookie(key=cookie.name, value=cookie.value, httponly=True)
+
+        json_data = post_response.json()
+
+        LOG.info(f'{nickname}: {json_data}')
+
+    return JSONResponse(content=json_data, status_code=post_response.status_code)

@@ -7,10 +7,10 @@
           <span aria-hidden="true">&times;</span>
         </button>
       </div>
-      <div class="modal-body">
+      <div class="modal-body" id="loginModalBody">
         <div class="form-group">
             <label for="loginUsername">Nickname</label>
-            <input type="text" class="form-control" id="loginUsername" placeholder="Enter nickname or email">
+            <input type="text" class="form-control" id="loginUsername" placeholder="Enter nickname">
         </div>
         <div class="form-group">
             <label for="loginPassword">Password</label>
@@ -20,7 +20,8 @@
             <input type="checkbox" class="form-check-input" id="rememberMe">
             <label class="form-check-label" for="rememberMe">Remember me</label>
         </div>
-        Already have an account? <a id="toggleSignup">Sign In</a>
+        <br>
+        Already have an account? <a id="toggleSignup" class="toggler">Sign In</a>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-success" id="loginButton">Login</button>

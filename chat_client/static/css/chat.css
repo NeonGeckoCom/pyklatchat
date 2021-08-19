@@ -134,11 +134,11 @@ body{
     font-size: 1.8rem;
 }
 
-#toggleSignup{
+.toggler{
     color:cornflowerblue;
 }
 
-#toggleSignup:hover {
+.toggler:hover {
   text-decoration: underline!important;
   color:cornflowerblue;
 }

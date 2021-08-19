@@ -7,14 +7,18 @@
           <span aria-hidden="true">&times;</span>
         </button>
       </div>
-      <div class="modal-body">
+      <div class="modal-body" id="signupModalBody">
         <div class="form-group">
-            <label for="firstName">First Name</label>
-            <input type="text" class="form-control" id="firstName" placeholder="Enter first name">
+            <label for="signupUsername">Nickname</label>
+            <input type="text" class="form-control" id="signupUsername" placeholder="Enter nickname">
         </div>
         <div class="form-group">
-            <label for="lastName">Last Name</label>
-            <input type="text" class="form-control" id="lastName" placeholder="Enter last name">
+            <label for="signupFirstName">First Name</label>
+            <input type="text" class="form-control" id="signupFirstName" placeholder="Enter first name">
+        </div>
+        <div class="form-group">
+            <label for="signupLastName">Last Name</label>
+            <input type="text" class="form-control" id="signupLastName" placeholder="Enter last name">
         </div>
         <div class="form-group">
             <label for="signupPassword">Password</label>
@@ -24,10 +28,11 @@
             <label for="repeatSignupPassword">Repeat Password</label>
             <input type="password" class="form-control" id="repeatSignupPassword" placeholder="Repeat password">
         </div>
+        <br>
+          Already have an account? <a id="toggleLogin" class="toggler">Login</a>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-success" id="signUpButton">Create an Account</button>
-        <button type="button" class="btn btn-info" id="toggleLogin">Login</button>
       </div>
     </div>
   </div>
