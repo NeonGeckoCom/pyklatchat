@@ -45,9 +45,12 @@ class NeonAPIMQConnector(MQConnector):
         self.vhost = '/neon_api'
         self.tcp_credentials = (self.config['NEON_API_PROXY']['HOST'],
                                 int(self.config['NEON_API_PROXY']['PORT']))
-        self.consumers = dict(neon_api_consumer=ConsumerThread(connection=self.create_mq_connection(vhost=self.vhost),
-                                                               queue='neon_api_input',
-                                                               callback_func=self.handle_api_input))
+        self.register_consumer(name='neon_api_consumer',
+                               vhost=self.vhost,
+                               queue='neon_api_input',
+                               callback=self.handle_api_input,
+                               on_error=self.default_error_handler,
+                               auto_ack=False)
 
     def handle_api_input(self,
                          channel: pika.channel.Channel,
