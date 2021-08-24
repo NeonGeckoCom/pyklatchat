@@ -15,5 +15,13 @@
         "JWT_ALGO": "HS256"
       }
     }
+  },
+  "DATABASE_CONFIG": {
+    "(Runtime environment)": {
+      "dialect": "(supported database dialect)",
+      "host": "Database host address",
+      "port": "Database Port (int)",
+      "database": "Database Name"
+    }
   }
 }
