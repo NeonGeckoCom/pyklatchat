@@ -26,4 +26,7 @@ server_env = os.environ.get('SERVER_ENV', 'LOCALHOST')
 config = Configuration(file_path=config_file_path)
 
 app_config = config.config_data.get('CHAT_SERVER', {}).get(server_env)
-db_connector = config.get_db_controller('mongo')
+
+db_dialect = app_config['CONNECTION_PROPERTIES'].pop('dialect')
+
+db_connector = config.get_db_controller(db_dialect)

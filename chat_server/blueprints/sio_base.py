@@ -23,7 +23,7 @@ from bson.objectid import ObjectId
 from neon_utils import LOG
 
 from chat_server.sio import sio
-from chat_server.config import db_connector
+from chat_server.server_config import db_connector
 
 
 @sio.event

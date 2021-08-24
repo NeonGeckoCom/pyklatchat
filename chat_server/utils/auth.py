@@ -28,14 +28,18 @@ from fastapi.security import APIKeyCookie
 from starlette import status
 from neon_utils import LOG
 
-from chat_server.config import db_connector
+from chat_server.server_config import db_connector, app_config
 
-cookie_lifetime = 60 * 60  # lifetime for JWT token session
-cookie_refresh_rate = 5 * 60  # frequency for JWT token refresh
-secret_key = os.environ.get('AUTH_SECRET')
-jwt_encryption_algo = os.environ.get('JWT_ALGO')
+cookies_config = app_config.get('COOKIES', {})
 
-LOG.set_level('DEBUG')
+secret_key = cookies_config.get('SECRET', None)
+if not secret_key:
+    raise AssertionError('"SECRET" must be present among cookie properties')
+
+cookie_lifetime = int(cookies_config.get('LIFETIME', 60 * 60))
+cookie_refresh_rate = int(cookies_config.get('REFRESH_RATE', 5 * 60))
+
+jwt_encryption_algo = cookies_config.get('JWT_ALGO', 'HS256')
 
 
 def check_password_strength(password: str) -> str:

@@ -31,7 +31,7 @@ class MySQLConnector(DatabaseConnector):
         return DatabaseTypes.RELATIONAL
 
     def create_connection(self):
-        self._cnx = MySQLConnection(**self.config_data['connection_properties'])
+        self._cnx = MySQLConnection(**self.config_data['CONNECTION_PROPERTIES'])
 
     def abort_connection(self):
         self._cnx.close()
