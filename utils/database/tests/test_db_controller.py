@@ -23,7 +23,7 @@ import unittest
 
 from neon_utils import LOG
 
-os.chdir(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))))
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))))
 
 from config import Configuration
 from utils.database.db_controller import DatabaseController
