@@ -58,7 +58,7 @@ class Configuration:
 
             :param new_config_dict: dictionary containing new configuration
             :param at_key: the key at which to append new dictionary
-                            (optional but setting that will reduce possible future conflicts)
+                            (optional but setting that will reduce possible future key conflicts)
         """
         if at_key:
             self.config_data[at_key] = new_config_dict

@@ -41,6 +41,14 @@ router = APIRouter(
 @router.post("/login", response_class=JSONResponse)
 async def login(username: str = Form(...),
                 password: str = Form(...)):
+    """
+        Forwards input login data to the Server API endpoint and handles the returned response
+
+        :param username: posted Form Data username param
+        :param password: posted Form Data password param
+
+        :returns Response object depending on returned status with refreshed session cookies if status_code == 200
+    """
 
     data = dict(username=username,
                 password=password)
@@ -59,7 +67,7 @@ async def login(username: str = Form(...),
 
             response.set_cookie(key=cookie.name, value=cookie.value, httponly=True)
 
-        LOG.info(f'{username}: {json_data}')
+        LOG.info(f'Login response for {username}: {json_data}')
 
     return response
 
@@ -69,6 +77,16 @@ async def signup(nickname: str = Form(...),
                  first_name: str = Form(...),
                  last_name: str = Form(...),
                  password: str = Form(...)):
+    """
+        Forwards new user signup data to the Server API endpoint and handles the returned response
+
+        :param nickname: posted Form Data nickname param
+        :param first_name: posted Form Data first name param
+        :param last_name: posted Form Data last name param
+        :param password: posted Form Data password param
+
+        :returns Response object depending on returned status with refreshed session cookies if status_code == 200
+    """
 
     data = dict(nickname=nickname,
                 first_name=first_name,
@@ -88,13 +106,14 @@ async def signup(nickname: str = Form(...),
         for cookie in post_response.cookies:
             response.set_cookie(key=cookie.name, value=cookie.value, httponly=True)
 
-    LOG.info(f'{nickname}: {json_data}')
+    LOG.info(f'Signup response for {nickname}: {json_data}')
 
     return response
 
 
 @router.get("/logout", response_class=JSONResponse)
 async def logout():
+    """Emits logout request to the server API and sets tmp user cookie in response"""
 
     logout_response = requests.get(f'{app_config["SERVER_URL"]}/auth/logout')
 
@@ -109,6 +128,6 @@ async def logout():
         for cookie in logout_response.cookies:
             response.set_cookie(key=cookie.name, value=cookie.value, httponly=True)
 
-    LOG.info(f'{json_data}')
+    LOG.info(f'Logout response: {json_data}')
 
     return response

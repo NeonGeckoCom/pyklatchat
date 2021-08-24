@@ -34,9 +34,9 @@ class TestDBController(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls) -> None:
-        file_path = os.path.expanduser(os.environ.get('DATABASE_CONNECTOR_CONFIG',
+        file_path = os.path.expanduser(os.environ.get('DATABASE_CONFIG',
                                                       '~/.local/share/neon/credentials.json'))
-        cls.configuration = Configuration(file_path=file_path)
+        cls.configuration = Configuration(from_files=[file_path])
         cls.db_controller = cls.configuration.get_db_controller(dialect='mongo')
 
     @unittest.skip('Relational database is skipped for now')
