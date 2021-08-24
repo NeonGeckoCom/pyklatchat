@@ -28,8 +28,5 @@ server_env = os.environ.get('SERVER_ENV', 'LOCALHOST')
 config = Configuration(from_files=[server_config_path, database_config_path])
 
 app_config = config.config_data.get('CHAT_SERVER', {}).get(server_env)
-db_config = config.config_data.get('DATABASE_CONFIG', {}).get(server_env)
 
-db_dialect = db_config.pop('dialect')
-
-db_connector = config.get_db_controller(db_dialect)
+db_connector = config.get_db_controller()

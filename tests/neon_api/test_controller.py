@@ -86,7 +86,7 @@ class TestNeonAPIController(unittest.TestCase):
     def setUpClass(cls) -> None:
         file_path = os.path.expanduser(os.environ.get('NEON_API_CONNECTOR_CONFIG',
                                                       '~/.local/share/neon/credentials.json'))
-        cls.config_data = Configuration(file_path=file_path).config_data
+        cls.config_data = Configuration(from_files=[file_path]).config_data
         cls.ping_socket(address=cls.config_data['NEON_API_PROXY']['HOST'],
                         port=int(cls.config_data['NEON_API_PROXY']['PORT']))
         LOG.debug('Starting Main Thread...')

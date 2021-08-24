@@ -19,6 +19,7 @@
 
 import os
 import json
+import copy
 
 from typing import List
 from neon_utils import LOG
@@ -79,20 +80,20 @@ class Configuration:
         self._config_data = value
 
     def get_db_controller(self,
-                          dialect: str,
                           override: bool = False) -> DatabaseController:
         """
             Returns an new instance of Database Controller for specified dialect (creates new one if not present)
 
-            :param dialect: Database dialect
             :param override: to override existing instance under :param dialect
 
             :returns instance of Database Controller
         """
-        config_data = self.config_data.get('DATABASE_CONFIG', {}).get(os.environ.get('ENV'), {})
+        db_config = copy.deepcopy(self.config_data.get('DATABASE_CONFIG', {}).get(os.environ.get('ENV'), {}))
+
+        dialect = db_config.pop('dialect')
         db_controller = self.db_controllers.get(dialect, None)
         if not db_controller or override:
-            db_controller = DatabaseController(config_data=config_data)
+            db_controller = DatabaseController(config_data=db_config)
             db_controller.attach_connector(dialect=dialect)
             db_controller.connect()
         return db_controller
