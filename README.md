@@ -10,9 +10,22 @@ An actual description of proposed solution can be found [under this link](https:
 
 Any configuration properties should be grouped by runtime environment which is set via environment variable "<b>ENV</b>"
 
+
+### Database
+
+For database configuration location is managed via environment variable "<b>DATABASE_CONFIG</b>".
+
+Note: database configuration can be merged inside other configurations (e.g. chat server configuration file)
+the only strong requirement is a key header "<b>DATABASE_CONFIG</b>"
+
+#### Example of configuration
+
+Example of configuration can be found in "example_db_config.json"
+
+
 ### Chat Server
 
-For chat server configuration location is managed via environment variable "<b>CHATSERVER_CONFIG</b>"
+Chat server configuration location is managed via environment variable "<b>CHATSERVER_CONFIG</b>".
 
 #### Example of configuration
 
@@ -24,7 +37,7 @@ Chat Server can be launched as python module from root directory: ```python -m c
 
 ### Chat Client
 
-For chat client configuration location is managed via environment variable "<b>CHATCLIENT_CONFIG</b>"
+Chat client configuration location is managed via environment variable "<b>CHATCLIENT_CONFIG</b>"
 
 #### Client-side configuration
 

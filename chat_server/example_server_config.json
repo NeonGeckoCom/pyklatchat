@@ -16,7 +16,7 @@
       }
     }
   },
-  "DATABASE_CONFIG": {
+  "DATABASE_CONFIG (it is optional to include it here)": {
     "(Runtime environment)": {
       "dialect": "(supported database dialect)",
       "host": "Database host address",
