@@ -113,7 +113,7 @@ async def signup(nickname: str = Form(...),
 
 @router.get("/logout", response_class=JSONResponse)
 async def logout():
-    """Emits logout request to the server API and sets tmp user cookie in response"""
+    """Emits logout request to the server API and sets returned tmp user cookie in response"""
 
     logout_response = requests.get(f'{app_config["SERVER_URL"]}/auth/logout')
 

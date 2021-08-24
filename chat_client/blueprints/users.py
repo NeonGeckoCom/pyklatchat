@@ -35,6 +35,15 @@ router = APIRouter(
 
 @router.get("/")
 def get_user(response: Response, request: Request, user_id: Optional[str] = None):
+    """
+        Forwards getting user by id to the server API and handles the response cookies
+
+        :param request: input request object
+        :param response: output response object with applied cookies from server response
+        :param user_id: requested user id
+
+        :returns JSON-formatted response from server
+    """
     user_id = user_id or ''
     get_user_response = requests.get(f'{app_config["SERVER_URL"]}/users_api/{user_id}', cookies=request.cookies)
     if get_user_response.status_code != 200:

@@ -28,6 +28,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.exceptions import HTTPException
 from fastapi.templating import Jinja2Templates
 from fastapi.encoders import jsonable_encoder
+from neon_utils import LOG
 
 from chat_client.client_config import app_config
 
@@ -41,6 +42,13 @@ conversation_templates = Jinja2Templates(directory="chat_client/templates")
 
 @router.get('/')
 async def chats(request: Request):
+    """
+        Renders chats page HTML as a response related to the input request
+
+        :param request: input Request object
+
+        :returns chats template response
+    """
     return conversation_templates.TemplateResponse("conversation/base.html",
                                                    {"request": request,
                                                     'section': 'Followed Conversations',
@@ -51,6 +59,15 @@ async def chats(request: Request):
 async def create_chat(conversation_name: str = Form(...),
                       conversation_id: str = Form(None),
                       is_private: bool = Form(False)):
+    """
+        Forwards new chat creation data to the server API and handles the returned response
+
+        :param conversation_name: posted Form Data conversation name
+        :param conversation_id: posted Form Data conversation id
+        :param is_private: posted Form Data is_private checkbox state
+
+        :returns JSON-formatted response from server
+    """
 
     new_conversation = dict(_id=conversation_id or uuid4().hex,
                             conversation_name=conversation_name,
@@ -65,13 +82,20 @@ async def create_chat(conversation_name: str = Form(...),
 
         json_data = post_response.json()
 
-        print(json_data)
+        LOG.debug(f'Chat creation response: {json_data}')
 
     return JSONResponse(content=json_data, status_code=post_response.status_code)
 
 
 @router.get('/search/{search_str}')
 async def chats(search_str: str):
+    """
+        Forwards chat searching to the server API and handles the returned response
+
+        :param search_str: input string to search against
+
+        :returns JSON response from server API
+    """
     post_response = requests.get(f'{app_config["SERVER_URL"]}/chat_api/search/{search_str}')
 
     json_data = {}
@@ -79,6 +103,8 @@ async def chats(search_str: str):
     if post_response.status_code == 200:
 
         json_data = jsonable_encoder(post_response.json())
+
+        LOG.debug(f'Chat search response: {json_data}')
 
     return JSONResponse(content=json_data, status_code=post_response.status_code)
 
