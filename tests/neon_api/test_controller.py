@@ -96,9 +96,12 @@ class TestNeonAPIController(unittest.TestCase):
         cls.response_event = Event()
         cls.test_connector = MQConnectorChild(config=cls.config_data)
         cls.test_mq_connection = cls.test_connector.create_mq_connection(NEON_API_VHOST)
-        cls.test_connector.consumers = dict(neon_api_listener=ConsumerThread(connection=cls.test_mq_connection,
-                                                                             queue='neon_api_output',
-                                                                             callback_func=cls.neon_api_output_callback))
+        cls.test_connector.register_consumer(name='neon_api_listener',
+                                             vhost=NEON_API_VHOST,
+                                             queue='neon_api_output',
+                                             callback=cls.neon_api_output_callback,
+                                             on_error=cls.test_connector.default_error_handler,
+                                             auto_ack=False)
         cls.test_connector.run_consumers()
 
     def setUp(self) -> None:

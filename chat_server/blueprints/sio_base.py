@@ -22,6 +22,7 @@ import json
 from bson.objectid import ObjectId
 from neon_utils import LOG
 
+from chat_server.constants.chat_constants import NEON_USER_ID
 from chat_server.sio import sio
 from chat_server.server_config import db_connector
 
@@ -67,6 +68,32 @@ async def user_message(sid, data):
     filter_expression = dict(_id=ObjectId(data['cid']))
     LOG.info(f'Received user message data: {data}')
     push_expression = {'$push': {'chat_flow': {'user_id': data['userID'],
+                                               'message_text': data['messageText'],
+                                               'created_on': data['timeCreated']}}}
+    db_connector.exec_query({'command': 'update', 'document': 'chats', 'data': (filter_expression, push_expression,)})
+    await sio.emit('new_message', data=json.dumps(data), skip_sid=[sid])
+
+
+@sio.event
+async def neon_message(sid, data):
+    """
+        SIO event fired on receiving neon response
+
+        :param sid: connected instance id
+        :param data: user message data
+        Example:
+        ```
+            data = {'cid':'conversation id',
+                    'userID': 'emitted user id',
+                    'messageText': 'content of the user message',
+                    'timeCreated': 'timestamp on which message was created'}
+        ```
+    """
+    # TODO: update this method with actual neon response parsing
+    LOG.debug(f'Got new neon message from {sid}: {data}')
+    filter_expression = dict(_id=ObjectId(data['cid']))
+    LOG.info(f'Received user message data: {data}')
+    push_expression = {'$push': {'chat_flow': {'user_id': NEON_USER_ID,
                                                'message_text': data['messageText'],
                                                'created_on': data['timeCreated']}}}
     db_connector.exec_query({'command': 'update', 'document': 'chats', 'data': (filter_expression, push_expression,)})
