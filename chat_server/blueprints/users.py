@@ -39,13 +39,28 @@ router = APIRouter(
 )
 
 
-@router.get("/")
-def get_user(response: Response, request: Request):
+@router.get("/", response_class=JSONResponse)
+def current_user_data(response: Response, request: Request):
+    """
+        Gets current user data from session cookies
+
+        :param request: active client session request
+        :param response: response object to be returned to user
+
+        :returns JSON response containing data of current user
+    """
     return dict(data=get_current_user(request=request, response=response))
 
 
-@router.get("/{user_id}")
+@router.get("/{user_id}", response_class=JSONResponse)
 def get_user(user_id: str):
+    """
+        Gets user by provided id
+
+        :param user_id: provided user id
+
+        :returns JSON response with fetched user data, 404 code otherwise
+    """
     user = db_connector.exec_query(query={'document': 'users',
                                           'command': 'find_one',
                                           'data': {'_id': user_id}})
@@ -57,8 +72,15 @@ def get_user(user_id: str):
     return {"data": user}
 
 
-@router.get('/bulk_fetch/')
+@router.get('/bulk_fetch/', response_class=JSONResponse)
 def fetch_received_user_ids(user_ids: List[str] = Query(None)):
+    """
+        Gets users data based on provided user ids
+
+        :param user_ids: list of provided user ids
+
+        :returns JSON response containing array of fetched user data
+    """
     user_ids = user_ids[0].split(',')
     users = db_connector.exec_query(query={'document': 'users',
                                            'command': 'find',

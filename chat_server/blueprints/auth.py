@@ -40,6 +40,17 @@ def signup(first_name: str = Form(...),
            last_name: str = Form(...),
            nickname: str = Form(...),
            password: str = Form(...)):
+    """
+        Creates new user based on received form data
+
+        :param first_name: new user first name
+        :param last_name: new user last name
+        :param nickname: new user nickname (unique)
+        :param password: new user password
+
+        :returns JSON response with status corresponding to the new user creation status,
+                 sets session cookies if creation is successful
+    """
     existing_user = db_connector.exec_query(query={'command': 'find_one',
                                                    'document': 'users',
                                                    'data': {'nickname': nickname}})
@@ -75,7 +86,15 @@ def signup(first_name: str = Form(...),
 
 
 @router.post("/login")
-def login(response: Response, username: str = Form(...), password: str = Form(...)):
+def login(username: str = Form(...), password: str = Form(...)):
+    """
+        Logs In user based on provided credentials
+
+        :param username: provided username (nickname)
+        :param password: provided password matching username
+
+        :returns JSON response with status corresponding to authorization status, sets session cookie with response
+    """
     matching_user = db_connector.exec_query(query={'command': 'find_one',
                                                    'document': 'users',
                                                    'data': {'nickname': username}})
@@ -101,6 +120,13 @@ def login(response: Response, username: str = Form(...), password: str = Form(..
 
 @router.get("/logout")
 def logout(request: Request):
+    """
+        Erases current user session cookies and returns temporal credentials
+
+        :param request: logout intended request
+
+        :returns response with temporal cookie
+    """
     response = JSONResponse(content=dict(logout=True))
     get_current_user(request=request, response=response, force_tmp=True)
     return response

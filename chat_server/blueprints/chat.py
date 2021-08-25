@@ -48,7 +48,14 @@ class NewConversationData(BaseModel):
 
 
 @router.post("/new")
-def new_conversation(response: Response, request_data: NewConversationData):
+def new_conversation(request_data: NewConversationData):
+    """
+        Creates new conversation from provided conversation data
+
+        :param request_data: data for new conversation described by NewConversationData model
+
+        :returns JSON response with new conversation data if added, 401 error message otherwise
+    """
     if request_data.__dict__.get('_id', None):
         matching_conversation_id = db_connector.exec_query(query={'command': 'find_one',
                                                                   'document': 'chats',
@@ -65,9 +72,22 @@ def new_conversation(response: Response, request_data: NewConversationData):
 
 
 @router.get("/get/{cid}")
-def get_conversation(response: Response, request: Request, cid: str, username: str = Depends(get_current_user),
+def get_conversation(request: Request, cid: str, username: str = Depends(get_current_user),
                      chat_history_from: int = 0,
                      limit_chat_history: int = 100):
+    """
+        Gets conversation data by id
+
+        Note: soon will be depreciated, consider to replace with /search/{search_str} instead
+
+        :param request: client request
+        :param cid: desired conversation id
+        :param username: current user data
+        :param chat_history_from: upper time bound for messages
+        :param limit_chat_history: lower time bound for messages
+
+        :returns conversation data if found, 401 error code otherwise
+    """
     if ObjectId.is_valid(cid):
         cid = ObjectId(cid)
     conversation_data = db_connector.exec_query(query={'command': 'find_one',
@@ -105,9 +125,20 @@ def get_conversation(response: Response, request: Request, cid: str, username: s
 
 
 @router.get("/search/{search_str}")
-def get_conversation(response: Response, request: Request, search_str: str, username: str = Depends(get_current_user),
+def get_conversation(request: Request, search_str: str, username: str = Depends(get_current_user),
                      chat_history_from: int = 0,
                      limit_chat_history: int = 100):
+    """
+        Gets conversation data matching search string
+
+        :param request: client request
+        :param search_str: provided search string
+        :param username: current user data
+        :param chat_history_from: upper time bound for messages
+        :param limit_chat_history: lower time bound for messages
+
+        :returns conversation data if found, 401 error code otherwise
+    """
     or_expression = [{'conversation_name': search_str}]
 
     if ObjectId.is_valid(search_str):

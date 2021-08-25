@@ -27,20 +27,45 @@ from chat_server.server_config import db_connector
 
 
 @sio.event
-def connect(sid, environ, auth):
+def connect(sid, environ: dict, auth):
+    """
+        SIO event fired on client connect
+
+        :param sid: connected instance id
+        :param environ: connection environment dict
+        :param auth: authorization method (None if was not provided)
+    """
     LOG.info(f'{sid} connected')
 
 
 @sio.event
 def disconnect(sid):
+    """
+        SIO event fired on client disconnect
+
+        :param sid: connected instance id
+    """
     LOG.info(f'{sid} disconnected')
 
 
 @sio.event
 async def user_message(sid, data):
+    """
+        SIO event fired on new user message in chat
+
+        :param sid: connected instance id
+        :param data: user message data
+        Example:
+        ```
+            data = {'cid':'conversation id',
+                    'userID': 'emitted user id',
+                    'messageText': 'content of the user message',
+                    'timeCreated': 'timestamp on which message was created'}
+        ```
+    """
     LOG.debug(f'Got new user message from {sid}: {data}')
     filter_expression = dict(_id=ObjectId(data['cid']))
-    print(data)
+    LOG.info(f'Received user message data: {data}')
     push_expression = {'$push': {'chat_flow': {'user_id': data['userID'],
                                                'message_text': data['messageText'],
                                                'created_on': data['timeCreated']}}}
