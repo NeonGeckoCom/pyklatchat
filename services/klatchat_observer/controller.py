@@ -21,7 +21,7 @@ import pika
 import socketio
 
 from neon_utils.socket_utils import b64_to_dict, dict_to_b64
-from neon_mq_connector.connector import MQConnector, ConsumerThread
+from neon_mq_connector.connector import MQConnector
 from pika.channel import Channel
 
 
