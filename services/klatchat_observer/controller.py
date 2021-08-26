@@ -31,7 +31,7 @@ class ChatObserver(MQConnector):
     def __init__(self, config: dict, service_name: str):
         super().__init__(config, service_name)
 
-        self.vhost = '/neon_api'
+        self.vhost = '/neon_chat_api'
         self._sio = socketio.AsyncClient()
 
         self.register_consumer(name='neon_response_consumer',
