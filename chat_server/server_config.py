@@ -20,10 +20,13 @@
 import os
 from config import Configuration
 
-config_file_path = os.environ.get('CHATSERVER_CONFIG', '~/.local/share/neon/chatserver_credentials.json')
+server_config_path = os.environ.get('CHATSERVER_CONFIG', '~/.local/share/neon/chatserver_credentials.json')
+database_config_path = os.environ.get('DATABASE_CONFIG', '~/.local/share/neon/chatserver_credentials.json')
+
 server_env = os.environ.get('SERVER_ENV', 'LOCALHOST')
 
-config = Configuration(file_path=config_file_path)
+config = Configuration(from_files=[server_config_path, database_config_path])
 
-app_config = config.config_data.get('CHAT_SERVER', {}).get('SERVER_ENV', 'LOCALHOST')
-db_connector = config.get_db_controller('mongo')
+app_config = config.config_data.get('CHAT_SERVER', {}).get(server_env)
+
+db_connector = config.get_db_controller()

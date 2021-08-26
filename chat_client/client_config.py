@@ -17,39 +17,12 @@
 # US Patents 2008-2021: US7424516, US20140161250, US20140177813, US8638908, US8068604, US8553852, US10530923, US10530924
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
 
-from mysql.connector import MySQLConnection
 
-from typing import Optional
-from neon_utils import LOG
-from utils.database.base_connector import DatabaseConnector, DatabaseTypes
+import os
 
+from config import Configuration
 
-class MySQLConnector(DatabaseConnector):
+config_file_path = os.environ.get('CHATCLIENT_CONFIG', '~/.local/share/neon/credentials_client.json')
+server_env = os.environ.get('APP_ENV', 'LOCALHOST')
 
-    @property
-    def database_type(self):
-        return DatabaseTypes.RELATIONAL
-
-    def create_connection(self):
-        self._cnx = MySQLConnection(**self.config_data)
-
-    def abort_connection(self):
-        self._cnx.close()
-
-    def exec_raw_query(self, query: str, *args) -> Optional[list]:
-        """Executes raw string query and returns its results
-
-            :param query: valid SQL query string
-
-            :returns query result if any
-        """
-        cursor = self.connection.cursor()
-        cursor.execute(query_str, args=args)
-        result = None
-        try:
-            result = cursor.fetchall()
-        except Exception as ex:
-            LOG.error(ex)
-        finally:
-            cursor.close()
-            return result
+app_config = Configuration(from_files=[config_file_path]).config_data.get('CHAT_CLIENT', {}).get(server_env)

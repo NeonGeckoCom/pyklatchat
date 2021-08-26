@@ -17,14 +17,57 @@
 # US Patents 2008-2021: US7424516, US20140161250, US20140177813, US8638908, US8068604, US8553852, US10530923, US10530924
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
 
+import json
+
+from bson.objectid import ObjectId
+from neon_utils import LOG
+
 from chat_server.sio import sio
+from chat_server.server_config import db_connector
 
 
 @sio.event
-def connect(sid, environ, auth):
-    print(f'{sid} connected')
+def connect(sid, environ: dict, auth):
+    """
+        SIO event fired on client connect
+
+        :param sid: connected instance id
+        :param environ: connection environment dict
+        :param auth: authorization method (None if was not provided)
+    """
+    LOG.info(f'{sid} connected')
 
 
 @sio.event
 def disconnect(sid):
-    print(f'{sid} disconnected')
+    """
+        SIO event fired on client disconnect
+
+        :param sid: connected instance id
+    """
+    LOG.info(f'{sid} disconnected')
+
+
+@sio.event
+async def user_message(sid, data):
+    """
+        SIO event fired on new user message in chat
+
+        :param sid: connected instance id
+        :param data: user message data
+        Example:
+        ```
+            data = {'cid':'conversation id',
+                    'userID': 'emitted user id',
+                    'messageText': 'content of the user message',
+                    'timeCreated': 'timestamp on which message was created'}
+        ```
+    """
+    LOG.debug(f'Got new user message from {sid}: {data}')
+    filter_expression = dict(_id=ObjectId(data['cid']))
+    LOG.info(f'Received user message data: {data}')
+    push_expression = {'$push': {'chat_flow': {'user_id': data['userID'],
+                                               'message_text': data['messageText'],
+                                               'created_on': data['timeCreated']}}}
+    db_connector.exec_query({'command': 'update', 'document': 'chats', 'data': (filter_expression, push_expression,)})
+    await sio.emit('new_message', data=json.dumps(data), skip_sid=[sid])

@@ -35,7 +35,7 @@ def main(config: Optional[dict] = None, testing=False):
 
 if __name__ == '__main__':
     try:
-        config_data = Configuration(file_path=os.environ.get('NEON_API_CONNECTOR_CONFIG', 'config.json')).config_data
+        config_data = Configuration(from_files=[os.environ.get('NEON_API_CONNECTOR_CONFIG', 'config.json')]).config_data
     except Exception as e:
         LOG.error(e)
         config_data = dict()

@@ -17,39 +17,41 @@
 # US Patents 2008-2021: US7424516, US20140161250, US20140177813, US8638908, US8068604, US8553852, US10530923, US10530924
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
 
-from mysql.connector import MySQLConnection
+
+import requests
 
 from typing import Optional
-from neon_utils import LOG
-from utils.database.base_connector import DatabaseConnector, DatabaseTypes
+from fastapi import Response, Request, status, APIRouter
+from fastapi.exceptions import HTTPException
+
+from chat_client.client_config import app_config
 
 
-class MySQLConnector(DatabaseConnector):
+router = APIRouter(
+    prefix="/users",
+    responses={'404': {"description": "Unknown user"}},
+)
 
-    @property
-    def database_type(self):
-        return DatabaseTypes.RELATIONAL
 
-    def create_connection(self):
-        self._cnx = MySQLConnection(**self.config_data)
+@router.get("/")
+def get_user(response: Response, request: Request, user_id: Optional[str] = None):
+    """
+        Forwards getting user by id to the server API and handles the response cookies
 
-    def abort_connection(self):
-        self._cnx.close()
+        :param request: input request object
+        :param response: output response object with applied cookies from server response
+        :param user_id: requested user id
 
-    def exec_raw_query(self, query: str, *args) -> Optional[list]:
-        """Executes raw string query and returns its results
+        :returns JSON-formatted response from server
+    """
+    user_id = user_id or ''
+    get_user_response = requests.get(f'{app_config["SERVER_URL"]}/users_api/{user_id}', cookies=request.cookies)
+    if get_user_response.status_code != 200:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail=get_user_response.json()
+        )
+    else:
+        for cookie in get_user_response.cookies:
+            response.set_cookie(key=cookie.name, value=cookie.value, httponly=True)
+        return get_user_response.json()
 
-            :param query: valid SQL query string
-
-            :returns query result if any
-        """
-        cursor = self.connection.cursor()
-        cursor.execute(query_str, args=args)
-        result = None
-        try:
-            result = cursor.fetchall()
-        except Exception as ex:
-            LOG.error(ex)
-        finally:
-            cursor.close()
-            return result

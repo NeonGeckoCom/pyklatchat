@@ -17,39 +17,31 @@
 # US Patents 2008-2021: US7424516, US20140161250, US20140177813, US8638908, US8068604, US8553852, US10530923, US10530924
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
 
-from mysql.connector import MySQLConnection
+import os
+import sys
 
 from typing import Optional
+from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 from neon_utils import LOG
-from utils.database.base_connector import DatabaseConnector, DatabaseTypes
+
+from chat_client.blueprints import chat as chat_blueprint, \
+                                   users as users_blueprint, \
+                                   auth as auth_blueprint
 
 
-class MySQLConnector(DatabaseConnector):
+def create_asgi_app(app_version: str = None) -> FastAPI:
+    """
+        Application factory for the Klatchat Client
 
-    @property
-    def database_type(self):
-        return DatabaseTypes.RELATIONAL
+        :param app_version: application version
+    """
+    LOG.info(f'Starting Klatchat Client v{app_version}')
+    chat_app = FastAPI(title="Klatchat Client",
+                       version=app_version)
+    chat_app.mount("/static", StaticFiles(directory="chat_client/static"), name="static")
+    chat_app.include_router(chat_blueprint.router)
+    chat_app.include_router(users_blueprint.router)
+    chat_app.include_router(auth_blueprint.router)
 
-    def create_connection(self):
-        self._cnx = MySQLConnection(**self.config_data)
-
-    def abort_connection(self):
-        self._cnx.close()
-
-    def exec_raw_query(self, query: str, *args) -> Optional[list]:
-        """Executes raw string query and returns its results
-
-            :param query: valid SQL query string
-
-            :returns query result if any
-        """
-        cursor = self.connection.cursor()
-        cursor.execute(query_str, args=args)
-        result = None
-        try:
-            result = cursor.fetchall()
-        except Exception as ex:
-            LOG.error(ex)
-        finally:
-            cursor.close()
-            return result
+    return chat_app

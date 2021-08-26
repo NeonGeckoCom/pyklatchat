@@ -19,20 +19,58 @@
 
 import os
 import json
+import copy
 
-from utils.database.db_controller import DatabaseController, DatabaseConnector
+from typing import List
+from neon_utils import LOG
+
+from utils.database.db_controller import DatabaseController
 
 
 class Configuration:
 
     db_controllers = dict()
 
-    def __init__(self, file_path: str):
-        with open(os.path.expanduser(file_path)) as input_file:
-            self._config_data = json.load(input_file)
+    def __init__(self, from_files: List[str]):
+        self._config_data = dict()
+        for source_file in from_files:
+            self.add_new_config_properties(self.extract_config_from_path(source_file))
+
+    @staticmethod
+    def extract_config_from_path(file_path: str) -> dict:
+        """
+            Extracts configuration dictionary from desired file path
+
+            :param file_path: desired file path
+
+            :returns dictionary containing configs from target file, empty dict otherwise
+        """
+        try:
+            with open(os.path.expanduser(file_path)) as input_file:
+                extraction_result = json.load(input_file)
+        except Exception as ex:
+            LOG.error(f'Exception occurred while extracting data from {file_path}: {ex}')
+            extraction_result = dict()
+        return extraction_result
+
+    def add_new_config_properties(self, new_config_dict: dict, at_key: str = None):
+        """
+            Adds new configuration properties to existing configuration dict
+
+            :param new_config_dict: dictionary containing new configuration
+            :param at_key: the key at which to append new dictionary
+                            (optional but setting that will reduce possible future key conflicts)
+        """
+        if at_key:
+            self.config_data[at_key] = new_config_dict
+        else:
+            # merge existing config with new dictionary (python 3.5+ syntax)
+            self.config_data = {**self.config_data, **new_config_dict}
 
     @property
     def config_data(self) -> dict:
+        if not self._config_data:
+            self._config_data = dict()
         return self._config_data
 
     @config_data.setter
@@ -42,20 +80,20 @@ class Configuration:
         self._config_data = value
 
     def get_db_controller(self,
-                          dialect: str,
                           override: bool = False) -> DatabaseController:
         """
             Returns an new instance of Database Controller for specified dialect (creates new one if not present)
 
-            :param dialect: Database dialect
             :param override: to override existing instance under :param dialect
 
             :returns instance of Database Controller
         """
-        config_data = self.config_data.get('CHAT_SERVER', {}).get(os.environ.get('ENV'), {})
+        db_config = copy.deepcopy(self.config_data.get('DATABASE_CONFIG', {}).get(os.environ.get('ENV'), {}))
+
+        dialect = db_config.pop('dialect')
         db_controller = self.db_controllers.get(dialect, None)
         if not db_controller or override:
-            db_controller = DatabaseController(config_data=config_data)
+            db_controller = DatabaseController(config_data=db_config)
             db_controller.attach_connector(dialect=dialect)
             db_controller.connect()
         return db_controller

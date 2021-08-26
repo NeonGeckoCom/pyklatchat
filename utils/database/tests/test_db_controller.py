@@ -34,10 +34,8 @@ class TestDBController(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls) -> None:
-        file_path = os.path.expanduser(os.environ.get('DATABASE_CONNECTOR_CONFIG',
-                                                      '~/.local/share/neon/credentials.json'))
-        cls.configuration = Configuration(file_path=file_path)
-        cls.db_controller = cls.configuration.get_db_controller(dialect='mongo')
+        file_path = os.environ.get('DATABASE_CONFIG', '~/.local/share/neon/credentials.json')
+        cls.configuration = Configuration(from_files=[file_path])
 
     @unittest.skip('Relational database is skipped for now')
     def test_simple_interaction_mysql(self):
@@ -46,6 +44,7 @@ class TestDBController(unittest.TestCase):
         self.assertIsNotNone(result)
 
     def test_simple_interaction_mongo(self):
+        self.db_controller = self.configuration.get_db_controller()
         test_data = {"name": "John", "address": "Highway 37"}
         self.db_controller.exec_query(query={'command': 'insert_one',
                                              'document': 'test',

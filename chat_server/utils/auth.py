@@ -28,14 +28,18 @@ from fastapi.security import APIKeyCookie
 from starlette import status
 from neon_utils import LOG
 
-from chat_server.config import db_connector
+from chat_server.server_config import db_connector, app_config
 
-cookie_lifetime = 60 * 60  # lifetime for JWT token session
-cookie_refresh_rate = 5 * 60  # frequency for JWT token refresh
-secret_key = os.environ.get('AUTH_SECRET')
-jwt_encryption_algo = os.environ.get('JWT_ALGO')
+cookies_config = app_config.get('COOKIES', {})
 
-LOG.set_level('DEBUG')
+secret_key = cookies_config.get('SECRET', None)
+if not secret_key:
+    raise AssertionError('"SECRET" must be present among cookie properties')
+
+cookie_lifetime = int(cookies_config.get('LIFETIME', 60 * 60))
+cookie_refresh_rate = int(cookies_config.get('REFRESH_RATE', 5 * 60))
+
+jwt_encryption_algo = cookies_config.get('JWT_ALGO', 'HS256')
 
 
 def check_password_strength(password: str) -> str:
@@ -102,19 +106,20 @@ def create_unauthorized_user(response: Response, authorize: bool = True) -> str:
     new_user = {'_id': generate_uuid(),
                 'first_name': 'The',
                 'last_name': 'Guest',
+                'avatar': 'default_avatar.png',
                 'nickname': f'guest_{generate_uuid(length=8)}',
                 'password': get_hash(generate_uuid()),
                 'date_created': int(time()),
                 'is_tmp': True}
     db_connector.exec_query(query={'document': 'users',
                                    'command': 'insert_one',
-                                   'data': new_user})
+                                   'data': (new_user, )})
     if authorize:
         token = jwt.encode({"sub": new_user['_id'],
                             'creation_time': time(),
                             'last_refresh_time': time()}, secret_key)
         response.set_cookie('session', token, httponly=True)
-    return new_user['_id']
+    return new_user
 
 
 def get_current_user(request: Request, response: Response, force_tmp: bool = False) -> str:
@@ -128,6 +133,7 @@ def get_current_user(request: Request, response: Response, force_tmp: bool = Fal
         :returns user id based on received cookies or sets temporal user cookies if not found
     """
     user_id = None
+    user = {}
     if not force_tmp:
         session = get_cookie_from_request(request, 'session')
         if session:
@@ -137,7 +143,7 @@ def get_current_user(request: Request, response: Response, force_tmp: bool = Fal
                 try:
                     user = db_connector.exec_query(query={'command': 'find_one',
                                                           'document': 'users',
-                                                          'data': {'_id': payload['sub']}})
+                                                          'data': ({'_id': payload['sub']})})
                     if not user:
                         raise KeyError(f'{payload["sub"]} is not found among users, setting temporal user credentials')
                     user_id = user['_id']
@@ -146,9 +152,9 @@ def get_current_user(request: Request, response: Response, force_tmp: bool = Fal
                         LOG.info('Cookie was refreshed')
                 except KeyError as err:
                     LOG.warning(f'{err}')
-    if not user_id:
-        user_id = create_unauthorized_user(response=response)
-    return user_id
+    if not user_id or force_tmp:
+        user = create_unauthorized_user(response=response)
+    return user
 
 
 def refresh_cookie(payload: dict, response: Response):

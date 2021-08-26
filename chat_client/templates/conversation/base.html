@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+
+{% block css_imports %}
+    {{ super() }}
+    <link rel="stylesheet" href="../../static/css/chat.css">
+{% endblock %}
+
+{% block header %}
+    {% include 'conversation/modals/new_conversation.html' %}
+    {% include 'conversation/modals/import_conversation.html' %}
+    {{ super() }}
+{% endblock %}
+
+{% block main %}
+    {{ super() }}
+    <div class="container content chats-container-alignment" id="conversationsWrapper">
+        <div class="d-flex flex-row" id="conversationsBody">
+        </div>
+    </div>
+{% endblock %}
+
+{% block js_imports %}
+    {{ super() }}
+    <script src="../../static/js/chat_utils.js"></script>
+{% endblock %}

@@ -26,15 +26,15 @@ from utils.database.base_connector import DatabaseConnector, DatabaseTypes
 
 class MongoDBConnector(DatabaseConnector):
 
-    mongo_recognised_commands = ('insert_one', 'insert_many', 'delete_one', 'delete_many', 'find', 'find_one')
+    mongo_recognised_commands = ('insert_one', 'insert_many', 'delete_one', 'delete_many', 'find', 'find_one', 'update')
 
     @property
     def database_type(self) -> DatabaseTypes:
         return DatabaseTypes.NOSQL
 
     def create_connection(self):
-        database = self.config_data['connection_properties'].pop('database')
-        self._cnx = MongoClient(**self.config_data['connection_properties'])[database]
+        database = self.config_data.pop('database')
+        self._cnx = MongoClient(**self.config_data)[database]
 
     def abort_connection(self):
         self._cnx.close()
@@ -46,12 +46,16 @@ class MongoDBConnector(DatabaseConnector):
             :param query: dictionary with query instruction has to contain following parameters:
                 - "document": target document for query
                 - "command": member of the self.mongo_recognised_commands
-                - "data": query data (List[dict] if bulk insert, dict otherwise)
+                - "data": query data, represented as a tuple of (List[dict] if bulk insert, dict otherwise)
 
             :returns result of the query execution if any
         """
         if query.get('command', 'find') not in self.mongo_recognised_commands:
-            raise NotImplemented(f'{query} is not supported, please use one of the following: '
-                                 f'{self.mongo_recognised_commands}')
+            raise NotImplementedError(f'Query command: {query.get("command")} is not supported, '
+                                      f'please use one of the following: '
+                                      f'{self.mongo_recognised_commands}')
         db_command = getattr(self.connection[query.get('document')], query.get('command'))
-        return db_command(query.get('data'))
+        if not isinstance(query.get('data'), tuple):
+            LOG.warning('Received wrong param type for query data, using default conversion to tuple')
+            query['data'] = (query['data'],)
+        return db_command(*query.get('data'))

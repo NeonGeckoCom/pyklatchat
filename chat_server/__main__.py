@@ -26,7 +26,7 @@ from chat_server.blueprints.sio_base import *
 from chat_server.app import create_asgi_app
 
 
-def chat_app(config_data: Optional[dict]):
+def chat_app(config_data: Optional[dict], app_version: str = None):
     return socketio.ASGIApp(socketio_server=sio, other_asgi_app=create_asgi_app())
 
 

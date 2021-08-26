@@ -17,39 +17,23 @@
 # US Patents 2008-2021: US7424516, US20140161250, US20140177813, US8638908, US8068604, US8553852, US10530923, US10530924
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
 
-from mysql.connector import MySQLConnection
+import socketio
+import uvicorn
 
 from typing import Optional
-from neon_utils import LOG
-from utils.database.base_connector import DatabaseConnector, DatabaseTypes
+from chat_client.app import create_asgi_app
 
 
-class MySQLConnector(DatabaseConnector):
+def create_chat_client(config_data: Optional[dict], app_version: str = None):
+    return create_asgi_app(app_version=app_version)
 
-    @property
-    def database_type(self):
-        return DatabaseTypes.RELATIONAL
 
-    def create_connection(self):
-        self._cnx = MySQLConnection(**self.config_data)
-
-    def abort_connection(self):
-        self._cnx.close()
-
-    def exec_raw_query(self, query: str, *args) -> Optional[list]:
-        """Executes raw string query and returns its results
-
-            :param query: valid SQL query string
-
-            :returns query result if any
-        """
-        cursor = self.connection.cursor()
-        cursor.execute(query_str, args=args)
-        result = None
-        try:
-            result = cursor.fetchall()
-        except Exception as ex:
-            LOG.error(ex)
-        finally:
-            cursor.close()
-            return result
+if __name__ == '__main__':
+    version = None
+    with open('chat_client/version.py') as f:
+        lines = f.readlines()
+        for line in lines:
+            if line.startswith('__version__'):
+                version = line.split('=')[1].strip().strip('"').strip("'")
+                break
+    uvicorn.run(app=create_chat_client(config_data=None, app_version=version), port=8001)
