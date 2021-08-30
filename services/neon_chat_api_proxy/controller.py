@@ -65,19 +65,20 @@ class ChatAPIProxy(MQConnector):
             self._bus.run_in_thread()
         return self._bus
 
-    def handle_neon_message(self, _data: dict):
+    def handle_neon_message(self, message: Message):
         """
             Handles responses from Neon API
 
-            :param _data: Received data
+            :param message: Received Message object
         """
-        if _data and isinstance(_data, dict):
+        if len(list(message.data)) > 0:
+            response_dict = {'data': message.data, 'context': message.context}
             mq_connection = self.create_mq_connection(vhost=self.vhost)
             connection_channel = mq_connection.channel()
             connection_channel.queue_declare(queue='neon_api_response')
             connection_channel.basic_publish(exchange='',
                                              routing_key='neon_api_response',
-                                             body=dict_to_b64(_data),
+                                             body=dict_to_b64(response_dict),
                                              properties=pika.BasicProperties(expiration='1000')
                                              )
             connection_channel.close()
