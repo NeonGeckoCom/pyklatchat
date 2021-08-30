@@ -3,7 +3,7 @@ const addBySearch = document.getElementById('addBySearch');
 const addNewConversation = document.getElementById('addNewConversation');
 const conversationBody = document.getElementById('conversationsBody');
 
-async function addMessage(cid, userID=null, messageText, timeCreated,attachments={}){
+async function addMessage(cid, userID=null, messageID = null, messageText, timeCreated,attachments={}){
     const cidElem = document.getElementById(cid);
     if(cidElem){
         const cidList = cidElem.getElementsByClassName('card-body')[0].getElementsByClassName('chat-list')[0]
@@ -15,7 +15,10 @@ async function addMessage(cid, userID=null, messageText, timeCreated,attachments
             }else{
                 userData = await getUserData(userID);
             }
-            let messageHTML = buildUserMessage(userData, messageText, timeCreated, isMine);
+            if(!messageID) {
+                messageID = generateUUID();
+            }
+            let messageHTML = buildUserMessage(userData, messageID, messageText, timeCreated, isMine);
             messageHTML = addMessageAttachments(messageHTML, attachments);
             const blankChat = cidList.getElementsByClassName('blank_chat');
             if(blankChat.length>0){
@@ -23,11 +26,13 @@ async function addMessage(cid, userID=null, messageText, timeCreated,attachments
             }
             cidList.insertAdjacentHTML('beforeend', messageHTML);
             cidList.lastChild.scrollIntoView();
+            return messageID;
         }
     }
+    return -1;
 }
 
-function buildUserMessage(userData, messageText, timeCreated, isMine){
+function buildUserMessage(userData, messageID, messageText, timeCreated, isMine){
     let html = "";
     const messageSideClass = isMine?"in":"out";
     //const messageTime = getTimeFromTimestamp(timeCreated);
@@ -37,7 +42,7 @@ function buildUserMessage(userData, messageText, timeCreated, isMine){
             `   <img alt="Avatar" src="${configData["imageBaseFolder"]+'/'+avatarImage}">\n` +
             "</div>"
     html +=` <div class="chat-body">
-                <div class="chat-message">
+                <div class="chat-message" id="${messageID}">
                     <small>${userData['nickname']}</small>
                     <p>${messageText}</p>
                 </div>
@@ -90,7 +95,7 @@ function buildConversationHTML(conversationData = {}){
                         <div class="chat-img">
                             <img alt="Avatar" src="${ configData.imageBaseFolder+'/'+message['user_avatar'] }">
                         </div>
-                        <div class="chat-body">
+                        <div class="chat-body" id="${ message['message_id'] }">
                             <div class="chat-message">
                                 <h5>${ message['user_nickname'] }</h5>
                                 <p>${ message['message_text'] }</p>
@@ -143,8 +148,10 @@ function emitUserMessage(textInputElem, cid){
     if(textInputElem && textInputElem.value){
         const timeCreated = Math.floor(Date.now() / 1000);
         const messageText = textInputElem.value;
-        addMessage(cid, currentUser['_id'], messageText, timeCreated,{}, true).then(_=>{
-            socket.emit('user_message', {'cid':cid,'userID':currentUser['_id'],'messageText':messageText,
+        addMessage(cid, currentUser['_id'],null, messageText, timeCreated,{}, true).then(messageID=>{
+            socket.emit('user_message', {'cid':cid,'userID':currentUser['_id'],
+                              'messageText':messageText,
+                              'messageID':messageID,
                               'timeCreated':timeCreated});
         });
         textInputElem.value = "";

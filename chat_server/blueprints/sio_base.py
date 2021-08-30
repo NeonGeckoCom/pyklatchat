@@ -59,6 +59,7 @@ async def user_message(sid, data):
         ```
             data = {'cid':'conversation id',
                     'userID': 'emitted user id',
+                    'messageID': 'id of emitted message'
                     'messageText': 'content of the user message',
                     'timeCreated': 'timestamp on which message was created'}
         ```
@@ -67,6 +68,7 @@ async def user_message(sid, data):
     filter_expression = dict(_id=ObjectId(data['cid']))
     LOG.info(f'Received user message data: {data}')
     push_expression = {'$push': {'chat_flow': {'user_id': data['userID'],
+                                               'message_id': data['messageID'],
                                                'message_text': data['messageText'],
                                                'created_on': data['timeCreated']}}}
     db_connector.exec_query({'command': 'update', 'document': 'chats', 'data': (filter_expression, push_expression,)})
