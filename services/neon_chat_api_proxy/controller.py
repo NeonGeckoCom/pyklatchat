@@ -47,7 +47,7 @@ class ChatAPIProxy(MQConnector):
 
     def register_bus_handlers(self):
         """Convenience method to gather SIO listeners"""
-        self.bus.on('mycroft response', func=self.handle_neon_message)
+        self._bus.on('mycroft response', func=self.handle_neon_message)
 
     @property
     def bus(self):
@@ -61,6 +61,7 @@ class ChatAPIProxy(MQConnector):
                                          port=int(self.bus_config.get('port', 8181)),
                                          route=self.bus_config.get('route', '/core'),
                                          ssl=self.bus_config.get('ssl', False))
+            self.register_bus_handlers()
             self._bus.run_in_thread()
         return self._bus
 
