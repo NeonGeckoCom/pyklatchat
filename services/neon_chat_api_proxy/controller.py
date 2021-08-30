@@ -18,7 +18,6 @@
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
 
 import pika
-import socketio
 from mycroft_bus_client import MessageBusClient, Message
 
 from neon_utils.socket_utils import b64_to_dict, dict_to_b64
@@ -87,10 +86,10 @@ class ChatAPIProxy(MQConnector):
             raise TypeError(f'Invalid data type received, expected: dict; got: {type(_data)}')
 
     def handle_user_message(self,
-                             channel: pika.channel.Channel,
-                             method: pika.spec.Basic.Return,
-                             properties: pika.spec.BasicProperties,
-                             body: bytes):
+                            channel: pika.channel.Channel,
+                            method: pika.spec.Basic.Return,
+                            properties: pika.spec.BasicProperties,
+                            body: bytes):
         """
             Handles input requests from MQ to Neon API
 
