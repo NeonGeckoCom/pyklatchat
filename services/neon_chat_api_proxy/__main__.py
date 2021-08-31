@@ -17,6 +17,7 @@
 # US Patents 2008-2021: US7424516, US20140161250, US20140177813, US8638908, US8068604, US8553852, US10530923, US10530924
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
 import os
+import sys
 
 from typing import Optional
 from neon_utils import LOG
@@ -39,4 +40,9 @@ if __name__ == '__main__':
     except Exception as e:
         LOG.error(e)
         config_data = dict()
-    main(config=config_data)
+    LOG.info(f'Starting Chat API Proxy Listener (pid: {os.getpid()})...')
+    try:
+        main(config=config_data)
+    except Exception as ex:
+        LOG.error(f'Chat API Proxy Listener (pid: {os.getpid()}) interrupted due to exception: {ex}')
+        sys.exit(-1)
