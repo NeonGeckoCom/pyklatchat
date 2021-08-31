@@ -52,7 +52,7 @@ class ChatAPIProxy(MQConnector):
             Convenience method for connection to message bus
             :param refresh: To refresh existing connection
         """
-        if not self._bus:
+        if not self._bus or refresh:
             self._bus = MessageBusClient(host=self.bus_config['host'],
                                          port=int(self.bus_config.get('port', 8181)),
                                          route=self.bus_config.get('route', '/core'))
@@ -115,7 +115,8 @@ class ChatAPIProxy(MQConnector):
             if message_id:
                 self.bus.emit(Message(msg_type='klat.shout',
                                       data=dict(text=dict_data.get('messageText', '')),
-                                      context=dict(message_id=message_id)))
+                                      context=dict(message_id=message_id,
+                                                   neon_should_respond=True)))
 
         else:
             raise TypeError(f'Invalid body received, expected: bytes string; got: {type(body)}')
