@@ -22,7 +22,7 @@ import sys
 from typing import Optional
 from neon_utils import LOG
 from config import Configuration
-from services.klatchat_observer.controller import ChatObserver
+from services.neon_chat_api_proxy.controller import ChatAPIProxy
 
 
 def main(config: Optional[dict] = None, testing=False):
@@ -30,7 +30,7 @@ def main(config: Optional[dict] = None, testing=False):
     if testing:
         # Set some testing parameters here
         daemon = True
-    connector = ChatObserver(config=config, service_name='chat_api_proxy')
+    connector = ChatAPIProxy(config=config, service_name='chat_api_proxy')
     connector.run_consumers(daemon=daemon)
 
 

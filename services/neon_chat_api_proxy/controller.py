@@ -20,6 +20,7 @@
 import pika
 from mycroft_bus_client import MessageBusClient, Message
 
+from neon_utils import LOG
 from neon_utils.socket_utils import b64_to_dict, dict_to_b64
 from neon_mq_connector.connector import MQConnector
 from pika.channel import Channel
@@ -33,10 +34,8 @@ class ChatAPIProxy(MQConnector):
 
         self.vhost = '/neon_chat_api'
         self.bus_config = config['MESSAGEBUS']
-        self._bus = MessageBusClient(host=self.bus_config['host'],
-                                     port=int(self.bus_config.get('port', 8181)),
-                                     route=self.bus_config.get('route', '/core'))
-
+        self._bus = None
+        self.connect_bus()
         self.register_consumer(name='neon_request_consumer',
                                vhost=self.vhost,
                                queue='neon_api_request',
@@ -48,6 +47,18 @@ class ChatAPIProxy(MQConnector):
         """Convenience method to gather SIO listeners"""
         self._bus.on('mycroft response', func=self.handle_neon_message)
 
+    def connect_bus(self, refresh=False):
+        """
+            Convenience method for connection to message bus
+            :param refresh: To refresh existing connection
+        """
+        if not self._bus:
+            self._bus = MessageBusClient(host=self.bus_config['host'],
+                                         port=int(self.bus_config.get('port', 8181)),
+                                         route=self.bus_config.get('route', '/core'))
+            self.register_bus_handlers()
+            self._bus.run_in_thread()
+
     @property
     def bus(self):
         """
@@ -56,12 +67,7 @@ class ChatAPIProxy(MQConnector):
             :return: connected async socket io instance
         """
         if not self._bus:
-            self._bus = MessageBusClient(host=self.bus_config['host'],
-                                         port=int(self.bus_config.get('port', 8181)),
-                                         route=self.bus_config.get('route', '/core'),
-                                         ssl=self.bus_config.get('ssl', False))
-            self.register_bus_handlers()
-            self._bus.run_in_thread()
+            self.connect_bus()
         return self._bus
 
     def handle_neon_message(self, message: Message):
@@ -70,20 +76,22 @@ class ChatAPIProxy(MQConnector):
 
             :param message: Received Message object
         """
+
         if len(list(message.data)) > 0:
-            response_dict = {'data': message.data, 'context': message.context}
-            mq_connection = self.create_mq_connection(vhost=self.vhost)
-            connection_channel = mq_connection.channel()
-            connection_channel.queue_declare(queue='neon_api_response')
-            connection_channel.basic_publish(exchange='',
-                                             routing_key='neon_api_response',
-                                             body=dict_to_b64(response_dict),
-                                             properties=pika.BasicProperties(expiration='1000')
-                                             )
-            connection_channel.close()
-            mq_connection.close()
+            body = {'data': message.data, 'context': message.context}
         else:
-            raise TypeError(f'Invalid data type received, expected: dict; got: {type(_data)}')
+            body = {'data': {'msg': 'Failed to get response from Neon'}}
+        LOG.info(f'Received neon response body: {body}')
+        mq_connection = self.create_mq_connection(vhost=self.vhost)
+        connection_channel = mq_connection.channel()
+        connection_channel.queue_declare(queue='neon_api_response')
+        connection_channel.basic_publish(exchange='',
+                                         routing_key='neon_api_response',
+                                         body=dict_to_b64(body),
+                                         properties=pika.BasicProperties(expiration='1000')
+                                         )
+        connection_channel.close()
+        mq_connection.close()
 
     def handle_user_message(self,
                             channel: pika.channel.Channel,
@@ -101,11 +109,12 @@ class ChatAPIProxy(MQConnector):
         """
         if body and isinstance(body, bytes):
             dict_data = b64_to_dict(body)
-            message_id = dict_data.get('message_id', None)
+            LOG.info(f'Received user message: {dict_data}')
+            message_id = dict_data.get('messageID', None)
 
-            if dict_data.get('message_id'):
+            if message_id:
                 self.bus.emit(Message(msg_type='klat.shout',
-                                      data=dict_data,
+                                      data=dict(text=dict_data.get('messageText', '')),
                                       context=dict(message_id=message_id)))
 
         else:
