@@ -45,7 +45,9 @@ class ChatAPIProxy(MQConnector):
 
     def register_bus_handlers(self):
         """Convenience method to gather SIO listeners"""
-        self._bus.on('mycroft response', func=self.handle_neon_message)
+        self._bus.on('klat.response', self.handle_neon_message)
+        self._bus.on('mycroft response', self.handle_neon_message)
+        self._bus.on('recognizer_loop:utterance', self.handle_neon_message)
 
     def connect_bus(self, refresh=False):
         """
@@ -114,7 +116,7 @@ class ChatAPIProxy(MQConnector):
 
             if message_id:
                 self.bus.emit(Message(msg_type='klat.shout',
-                                      data=dict(text=dict_data.get('messageText', '')),
+                                      data=dict(text=dict_data.get('messageText', '').strip().capitalize()),
                                       context=dict(message_id=message_id,
                                                    neon_should_respond=True)))
 
