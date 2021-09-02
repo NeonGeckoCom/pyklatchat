@@ -116,6 +116,7 @@ class ChatObserver(MQConnector):
         """
         if body and isinstance(body, bytes):
             dict_data = b64_to_dict(body)
+            LOG.info(f'dict_data: {dict_data}')
             self.sio.emit('neon_message', data=dict_data)
         else:
             raise TypeError(f'Invalid body received, expected: bytes string; got: {type(body)}')

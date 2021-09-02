@@ -43,7 +43,7 @@ function buildUserMessage(userData, messageID, messageText, timeCreated, isMine)
             "</div>"
     html +=` <div class="chat-body">
                 <div class="chat-message" id="${messageID}">
-                    <small>${userData['nickname']}</small>
+                    <small style="font-size: small">${userData['nickname']}</small>
                     <p>${messageText}</p>
                 </div>
              </div>`
@@ -86,7 +86,7 @@ function buildConversationHTML(conversationData = {}){
                             <span aria-hidden="true">×</span>
                         </button>
                     </div>
-                    <div class="card-body height3" style="overflow-y: auto; height: 250px!important;">
+                    <div class="card-body height3" style="overflow-y: auto; height: 450px!important;">
                         <ul class="chat-list">`
     if(conversationData.hasOwnProperty('chat_flow')) {
         Array.from(conversationData['chat_flow']).forEach(message => {
@@ -97,7 +97,7 @@ function buildConversationHTML(conversationData = {}){
                         </div>
                         <div class="chat-body" id="${ message['message_id'] }">
                             <div class="chat-message">
-                                <h5>${ message['user_nickname'] }</h5>
+                                <small style="font-size: small">${ message['user_nickname'] }</small>
                                 <p>${ message['message_text'] }</p>
                             </div>
                         </div>

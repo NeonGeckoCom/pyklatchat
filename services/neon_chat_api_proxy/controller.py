@@ -16,6 +16,7 @@
 # Specialized conversational reconveyance options from Conversation Processing Intelligence Corp.
 # US Patents 2008-2021: US7424516, US20140161250, US20140177813, US8638908, US8068604, US8553852, US10530923, US10530924
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
+import uuid
 
 import pika
 from mycroft_bus_client import MessageBusClient, Message
@@ -46,8 +47,6 @@ class ChatAPIProxy(MQConnector):
     def register_bus_handlers(self):
         """Convenience method to gather SIO listeners"""
         self._bus.on('klat.response', self.handle_neon_message)
-        self._bus.on('mycroft response', self.handle_neon_message)
-        self._bus.on('recognizer_loop:utterance', self.handle_neon_message)
 
     def connect_bus(self, refresh=False):
         """
@@ -116,9 +115,13 @@ class ChatAPIProxy(MQConnector):
 
             if message_id:
                 self.bus.emit(Message(msg_type='klat.shout',
-                                      data=dict(text=dict_data.get('messageText', '').strip().capitalize()),
-                                      context=dict(message_id=message_id,
-                                                   neon_should_respond=True)))
+                                      data=dict(sid=message_id,
+                                                nick='pyklatchat_user',
+                                                cid=dict_data.get('cid'),
+                                                time=dict_data.get('timeCreated'),
+                                                title='Klatchat User Shout',
+                                                text=dict_data.get('messageText', '').strip().capitalize()),
+                                      context=dict(neon_should_respond=True)))
 
         else:
             raise TypeError(f'Invalid body received, expected: bytes string; got: {type(body)}')
