@@ -141,3 +141,9 @@ body{
     color:cornflowerblue;
     cursor: pointer;
 }
+
+.reply-text{
+    border-left: 4px solid white;
+    padding: 2px;
+    cursor: pointer;
+}

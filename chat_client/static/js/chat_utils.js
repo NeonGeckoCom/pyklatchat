@@ -3,7 +3,7 @@ const addBySearch = document.getElementById('addBySearch');
 const addNewConversation = document.getElementById('addNewConversation');
 const conversationBody = document.getElementById('conversationsBody');
 
-async function addMessage(cid, userID=null, messageID = null, messageText, timeCreated,attachments={}){
+async function addMessage(cid, userID=null, messageID = null, messageText, timeCreated,repliedMessageID=null,attachments={}){
     const cidElem = document.getElementById(cid);
     if(cidElem){
         const cidList = cidElem.getElementsByClassName('card-body')[0].getElementsByClassName('chat-list')[0]
@@ -18,7 +18,7 @@ async function addMessage(cid, userID=null, messageID = null, messageText, timeC
             if(!messageID) {
                 messageID = generateUUID();
             }
-            let messageHTML = buildUserMessage(userData, messageID, messageText, timeCreated, isMine);
+            let messageHTML = buildUserMessage(userData, messageID, messageText, timeCreated, isMine, repliedMessageID);
             messageHTML = addMessageAttachments(messageHTML, attachments);
             const blankChat = cidList.getElementsByClassName('blank_chat');
             if(blankChat.length>0){
@@ -32,7 +32,17 @@ async function addMessage(cid, userID=null, messageID = null, messageText, timeC
     return -1;
 }
 
-function buildUserMessage(userData, messageID, messageText, timeCreated, isMine){
+/**
+ * Builds user message HTML
+ * @param userData: data of message sender
+ * @param messageID: id of user message
+ * @param messageText: text of user message
+ * @param timeCreated: date of creation
+ * @param isMine: if message was emitted by current user
+ * @param repliedMessageID: id of replied message if any
+ * @returns {string}: constructed HTML out of input params
+ */
+function buildUserMessage(userData, messageID, messageText, timeCreated, isMine, repliedMessageID=null){
     let html = "";
     const messageSideClass = isMine?"in":"out";
     //const messageTime = getTimeFromTimestamp(timeCreated);
@@ -47,8 +57,43 @@ function buildUserMessage(userData, messageID, messageText, timeCreated, isMine)
                     <p>${messageText}</p>
                 </div>
              </div>`
-    html+="</li>"
+    html += "</li>"
     return html;
+}
+
+/**
+ * Resolves user reply on message
+ * @param replyID: id of user reply
+ * @param repliedID id of replied message
+ */
+function resolveUserReply(replyID,repliedID){
+    if(repliedID){
+        const repliedElem = document.getElementById(repliedID);
+        if(repliedElem) {
+            const repliedText = repliedElem.getElementsByTagName('p')[0].innerText;
+            const replyHTML = `<a class="reply-text" data-replied-id="${repliedID}">
+                                    ${repliedText}
+                                </a>`;
+            document.getElementById(replyID).insertAdjacentHTML('afterbegin', replyHTML);
+        }
+    }
+}
+
+/**
+ * Attaches message replies to initialized conversation
+ * @param conversationData: conversation data object
+ */
+function attachReplies(conversationData){
+    if(conversationData.hasOwnProperty('chat_flow')) {
+        Array.from(conversationData['chat_flow']).forEach(message => {
+            resolveUserReply(message['message_id'], message?.replied_message);
+        });
+        Array.from(document.getElementsByClassName('reply-text')).forEach(replyItem=>{
+            replyItem.addEventListener('click', (e)=>{
+               document.getElementById(replyItem.getAttribute('data-replied-id')).scrollIntoView();
+            });
+        });
+    }
 }
 
 function buildConversation(conversationData,remember=true){
@@ -58,6 +103,7 @@ function buildConversation(conversationData,remember=true){
    const newConversationHTML = buildConversationHTML(conversationData);
    const conversationsBody = document.getElementById('conversationsBody');
    conversationsBody.insertAdjacentHTML('afterbegin', newConversationHTML);
+   attachReplies(conversationData);
    const currentConversation = document.getElementById(conversationData['_id']);
    const conversationParent = currentConversation.parentElement;
    const conversationHolder = conversationParent.parentElement;
@@ -90,18 +136,9 @@ function buildConversationHTML(conversationData = {}){
                         <ul class="chat-list">`
     if(conversationData.hasOwnProperty('chat_flow')) {
         Array.from(conversationData['chat_flow']).forEach(message => {
-            const orientation = currentUser && message['user_nickname'] === currentUser['nickname']?'in':'out';
-            html += `<li class="${orientation}" data-sender="${ message['user_nickname'] }">
-                        <div class="chat-img">
-                            <img alt="Avatar" src="${ configData.imageBaseFolder+'/'+message['user_avatar'] }">
-                        </div>
-                        <div class="chat-body" id="${ message['message_id'] }">
-                            <div class="chat-message">
-                                <small style="font-size: small">${ message['user_nickname'] }</small>
-                                <p>${ message['message_text'] }</p>
-                            </div>
-                        </div>
-                    </li>`
+            const isMine = currentUser && message['user_nickname'] === currentUser['nickname'];
+            html += buildUserMessage({'avatar':message['user_avatar'],'nickname':message['user_nickname']},message['message_id'], message['message_text'], getTimeFromTimestamp(message['created_on']),isMine,
+                message?.replied_message);
         });
     }else{
         html+=`<div class="blank_chat">No messages in this chat yet...</div>`;
@@ -144,11 +181,11 @@ function getTimeFromTimestamp(timeCreated){
     return hours + ':' + minutes.substr(-2);
 }
 
-function emitUserMessage(textInputElem, cid){
+function emitUserMessage(textInputElem, cid, repliedMessageID=null){
     if(textInputElem && textInputElem.value){
         const timeCreated = Math.floor(Date.now() / 1000);
         const messageText = textInputElem.value;
-        addMessage(cid, currentUser['_id'],null, messageText, timeCreated,{}, true).then(messageID=>{
+        addMessage(cid, currentUser['_id'],null, messageText, timeCreated,repliedMessageID,{}, true).then(messageID=>{
             socket.emit('user_message', {'cid':cid,'userID':currentUser['_id'],
                               'messageText':messageText,
                               'messageID':messageID,
@@ -195,6 +232,7 @@ function restoreChatAlignment(keyName=conversationAlignmentKey){
                 buildConversation(conversationData, false);
             }else{
                 displayAlert('conversationsBody','No matching conversation found','danger');
+                removeCID(item);
             }
         });
     }

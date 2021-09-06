@@ -105,8 +105,9 @@ async def neon_message(sid, data):
     if not _neon_record:
         db_connector.exec_query({'command': 'insert_one', 'document': 'users', 'data': neon_data})
     time_created = time.time()
+    message_id = generate_uuid()
     push_expression = {'$push': {'chat_flow': {'user_id': neon_id,
-                                               'response_message_id': generate_uuid(),
+                                               'message_id': message_id,
                                                'replied_message': klat_data['sid'],
                                                'message_text': data['data']['responses']['en-us']['sentence'],
                                                'created_on': time_created}}}
@@ -114,6 +115,7 @@ async def neon_message(sid, data):
     data_to_send = dict(cid=klat_data['cid'],
                         userID=neon_id,
                         messageText=data['data']['responses']['en-us']['sentence'],
-                        messageID=klat_data['sid'],
+                        messageID=message_id,
+                        repliedMessage=klat_data['sid'],
                         timeCreated=time_created)
     await sio.emit('new_message', data=json.dumps(data_to_send), skip_sid=[sid])
