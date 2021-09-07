@@ -26,3 +26,9 @@ function generateUUID() {
             s => (a[i++] + s * 0x10000 >> s).toString(16).padStart(4, '0')
     );
 }
+
+function shrinkToFit(text, maxLength){
+    if(text.length>maxLength){
+        text = text.substring(0, maxLength) + '...';
+    }return text;
+}

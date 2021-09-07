@@ -53,8 +53,9 @@ function buildUserMessage(userData, messageID, messageText, timeCreated, isMine,
             "</div>"
     html +=` <div class="chat-body">
                 <div class="chat-message" id="${messageID}">
-                    <small style="font-size: small">${userData['nickname']}</small>
-                    <p>${messageText}</p>
+                    <p style="font-size: small;font-weight: bolder;" class="message-nickname">${userData['nickname']}</p>
+                    <div class="reply-placeholder mb-2 mt-1"></div>
+                    <p class="message-text">${messageText}</p>
                 </div>
              </div>`
     html += "</li>"
@@ -70,11 +71,12 @@ function resolveUserReply(replyID,repliedID){
     if(repliedID){
         const repliedElem = document.getElementById(repliedID);
         if(repliedElem) {
-            const repliedText = repliedElem.getElementsByTagName('p')[0].innerText;
+            let repliedText = repliedElem.getElementsByClassName('message-text')[0].innerText;
+            repliedText = shrinkToFit(repliedText, 10);
             const replyHTML = `<a class="reply-text" data-replied-id="${repliedID}">
                                     ${repliedText}
                                 </a>`;
-            document.getElementById(replyID).insertAdjacentHTML('afterbegin', replyHTML);
+            document.getElementById(replyID).getElementsByClassName('reply-placeholder')[0].insertAdjacentHTML('afterbegin', replyHTML);
         }
     }
 }
@@ -90,7 +92,11 @@ function attachReplies(conversationData){
         });
         Array.from(document.getElementsByClassName('reply-text')).forEach(replyItem=>{
             replyItem.addEventListener('click', (e)=>{
-               document.getElementById(replyItem.getAttribute('data-replied-id')).scrollIntoView();
+                const repliedItem = document.getElementById(replyItem.getAttribute('data-replied-id'));
+                const backgroundParent = repliedItem.parentElement.parentElement;
+                repliedItem.scrollIntoView();
+                backgroundParent.classList.remove('message-selected');
+                setTimeout(() => backgroundParent.classList.add('message-selected'),500);
             });
         });
     }
