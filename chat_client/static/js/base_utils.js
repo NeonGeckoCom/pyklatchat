@@ -32,9 +32,9 @@ function displayAlert(parentElem,text='Error Occurred',alertType='danger',alertI
  * @returns {string} Generated UUID hex
  */
 function generateUUID(length=8, strPattern='00-0-4-1-000') {
-    const a = crypto.getRandomValues(new Uint16Array(8));
+    const a = crypto.getRandomValues(new Uint16Array(length));
     let i = 0;
-    return '00-0-4-1-000'.replace(/[^-]/g,
+    return strPattern.replace(/[^-]/g,
             s => (a[i++] + s * 0x10000 >> s).toString(16).padStart(4, '0')
     );
 }
