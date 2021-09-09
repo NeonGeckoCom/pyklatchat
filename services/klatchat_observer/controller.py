@@ -65,12 +65,12 @@ class ChatObserver(MQConnector):
                                auto_ack=False)
 
     def register_sio_handlers(self):
-        """Convenience method to gather SIO listeners"""
+        """Convenience method for setting up Socket IO listeners"""
         self._sio.on('new_message', handler=self.handle_user_message)
 
     def connect_sio(self, refresh=False):
         """
-            Method for establishing connection to SIO server
+            Method for establishing connection with Socket IO server
 
             :param refresh: To refresh an existing instance
         """
@@ -82,7 +82,7 @@ class ChatObserver(MQConnector):
     @property
     def sio(self):
         """
-            Creates async socket io client if none is present
+            Creates socket io client if none is present
 
             :return: connected async socket io instance
         """
