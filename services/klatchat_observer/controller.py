@@ -41,7 +41,11 @@ class ChatObserver(MQConnector):
 
     @classmethod
     def get_receiver_from_message(cls, message_prefix: str) -> Receivers:
-        """Gets receiver based on message"""
+        """
+            Gets receiver based on message
+
+            :param message_prefix: calling prefix of user message
+        """
         for receiver in list(cls.receiver_prefixes):
             if any(message_prefix.lower() == x.lower() for x in cls.receiver_prefixes[receiver]):
                 return receiver
