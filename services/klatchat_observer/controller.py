@@ -16,19 +16,36 @@
 # Specialized conversational reconveyance options from Conversation Processing Intelligence Corp.
 # US Patents 2008-2021: US7424516, US20140161250, US20140177813, US8638908, US8068604, US8553852, US10530923, US10530924
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
-import json
-
 import pika
 import socketio
 
+from enum import Enum
 from neon_utils import LOG
 from neon_utils.socket_utils import b64_to_dict, dict_to_b64
 from neon_mq_connector.connector import MQConnector
 from pika.channel import Channel
 
 
+class Receivers(Enum):
+    """Enumeration of possible receivers"""
+    NEON = 'neon'
+    UNRESOLVED = 'unresolved'
+
+
 class ChatObserver(MQConnector):
     """Observer of conversations states"""
+
+    receiver_prefixes = {
+        Receivers.NEON: ['neon']
+    }
+
+    @classmethod
+    def get_receiver_from_message(cls, message_prefix: str) -> Receivers:
+        """Gets receiver based on message"""
+        for receiver in list(cls.receiver_prefixes):
+            if any(message_prefix.lower() == x.lower() for x in cls.receiver_prefixes[receiver]):
+                return receiver
+        return Receivers.UNRESOLVED
 
     def __init__(self, config: dict, service_name: str):
         super().__init__(config, service_name)
@@ -69,23 +86,24 @@ class ChatObserver(MQConnector):
             self.connect_sio()
         return self._sio
 
-    def handle_user_message(self,
-                            _data):
+    def handle_user_message(self, _data, requesting_by_separator: str = ','):
         """
             Handles input requests from MQ to Neon API
 
             :param _data: Received user data
+            :param requesting_by_separator: character to consider for requesting e.g. Neon, how are you? is for comma
         """
-        neon_related_prefixes = ['Neon,', 'neon,', 'NEON,']
         LOG.info(f'Received data: {_data}')
         try:
             _data = eval(_data)
         except Exception as ex:
             LOG.warning(f'Failed to deserialize received data: {_data}: {ex}')
         if _data and isinstance(_data, dict):
-            for neon_related_prefix in neon_related_prefixes:
-                if _data.get("messageText", '').startswith(neon_related_prefix):
-                    _data['messageText'] = _data.get('messageText', '').replace(neon_related_prefix, '')
+            receiver = self.get_receiver_from_message(message_prefix=_data.get('messageText')
+                                                      .split(requesting_by_separator)[0])
+            if receiver != Receivers.UNRESOLVED:
+                _data['messageText'] = _data['messageText'].split(requesting_by_separator)[1:]
+                if receiver == Receivers.NEON:
                     mq_connection = self.create_mq_connection(vhost=self.vhost)
                     connection_channel = mq_connection.channel()
                     connection_channel.queue_declare(queue='neon_api_request')
@@ -96,7 +114,8 @@ class ChatObserver(MQConnector):
                                                      )
                     connection_channel.close()
                     mq_connection.close()
-                    break
+            else:
+                LOG.debug('No received found in user message, skipping')
         else:
             raise TypeError(f'Malformed data received: {_data}')
 
