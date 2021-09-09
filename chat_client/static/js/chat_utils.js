@@ -88,9 +88,25 @@ function resolveUserReply(replyID,repliedID){
             const replyHTML = `<a class="reply-text" data-replied-id="${repliedID}">
                                     ${repliedText}
                                 </a>`;
-            document.getElementById(replyID).getElementsByClassName('reply-placeholder')[0].insertAdjacentHTML('afterbegin', replyHTML);
+            const replyPlaceholder = document.getElementById(replyID).getElementsByClassName('reply-placeholder')[0];
+            replyPlaceholder.insertAdjacentHTML('afterbegin', replyHTML);
+            attachReplyHighlighting(replyPlaceholder.getElementsByClassName('reply-text')[0]);
         }
     }
+}
+
+/**
+ * Attaches reply highlighting for reply item
+ * @param replyItem reply item element
+ */
+function attachReplyHighlighting(replyItem){
+    replyItem.addEventListener('click', (e)=>{
+        const repliedItem = document.getElementById(replyItem.getAttribute('data-replied-id'));
+        const backgroundParent = repliedItem.parentElement.parentElement;
+        repliedItem.scrollIntoView();
+        backgroundParent.classList.remove('message-selected');
+        setTimeout(() => backgroundParent.classList.add('message-selected'),500);
+    });
 }
 
 /**
@@ -103,13 +119,7 @@ function attachReplies(conversationData){
             resolveUserReply(message['message_id'], message?.replied_message);
         });
         Array.from(document.getElementsByClassName('reply-text')).forEach(replyItem=>{
-            replyItem.addEventListener('click', (e)=>{
-                const repliedItem = document.getElementById(replyItem.getAttribute('data-replied-id'));
-                const backgroundParent = repliedItem.parentElement.parentElement;
-                repliedItem.scrollIntoView();
-                backgroundParent.classList.remove('message-selected');
-                setTimeout(() => backgroundParent.classList.add('message-selected'),500);
-            });
+            attachReplyHighlighting(replyItem);
         });
     }
 }
