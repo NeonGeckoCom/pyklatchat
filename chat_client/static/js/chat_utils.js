@@ -3,13 +3,13 @@ const addBySearch = document.getElementById('addBySearch');
 const addNewConversation = document.getElementById('addNewConversation');
 const conversationBody = document.getElementById('conversationsBody');
 
-async function addMessage(cid, userID=null, messageID = null, messageText, timeCreated,repliedMessageID=null,attachments={}){
+async function addMessage(cid, userID=null, messageID=null, messageText, timeCreated, repliedMessageID=null, attachments={}){
     const cidElem = document.getElementById(cid);
     if(cidElem){
         const cidList = cidElem.getElementsByClassName('card-body')[0].getElementsByClassName('chat-list')[0]
         if(cidList){
             let userData;
-            const isMine = userID === currentUser['_id']
+            const isMine = userID === currentUser['_id'];
             if(isMine) {
                 userData = currentUser;
             }else{
