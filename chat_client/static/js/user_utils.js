@@ -134,7 +134,7 @@ function refreshCurrentUser(sendNotification=false, refreshChats=false){
         updateNavbar();
         if(refreshChats) {
             if (configData['currentURLFull'].includes('chats')) {
-                refreshChat();
+                refreshChatView();
             }
         }
     });
