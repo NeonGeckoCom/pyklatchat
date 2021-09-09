@@ -39,11 +39,12 @@ async function getUserData(userID=null){
 }
 
 async function loginUser(){
+    const loginModalBody = document.getElementById('loginModalBody');
     const query_url = `${configData["currentURLBase"]}/auth/login/`;
     const formData = new FormData();
     const inputValues = [loginUsername.value, loginPassword.value];
     if(inputValues.includes("") || inputValues.includes(null)){
-        displayAlert('loginModalBody','Required fields are blank', 'danger');
+        displayAlert(loginModalBody,'Required fields are blank', 'danger');
     }else {
         formData.append('username', loginUsername.value);
         formData.append('password', loginPassword.value);
@@ -69,13 +70,14 @@ async function logoutUser(){
 }
 
 async function createUser(){
+    const signupModalBody = document.getElementById('signupModalBody');
     const query_url = `${configData["currentURLBase"]}/auth/signup/`;
     const formData = new FormData();
     const inputValues = [signupUsername.value, signupFirstName.value, signupLastName.value, signupPassword.value, repeatSignupPassword.value];
     if(inputValues.includes("") || inputValues.includes(null)){
-        displayAlert('signupModalBody','Required fields are blank', 'danger');
+        displayAlert(signupModalBody,'Required fields are blank', 'danger');
     }else if(signupPassword.value!==repeatSignupPassword.value){
-        displayAlert('signupModalBody','Passwords do not match', 'danger');
+        displayAlert(signupModalBody,'Passwords do not match', 'danger');
     }else {
         formData.append('nickname', signupUsername.value);
         formData.append('first_name', signupFirstName.value);
@@ -99,7 +101,7 @@ async function createUser(){
                     if(data['data'].hasOwnProperty('detail')){
                         errorMessage = data['data']['detail'];
                     }
-                    displayAlert('signupModalBody',errorMessage, 'danger');
+                    displayAlert(signupModalBody,errorMessage, 'danger');
                 }
             });
     }

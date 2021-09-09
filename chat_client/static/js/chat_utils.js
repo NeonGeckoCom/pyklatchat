@@ -237,7 +237,7 @@ function restoreChatAlignment(keyName=conversationAlignmentKey){
             if(conversationData) {
                 buildConversation(conversationData, false);
             }else{
-                displayAlert('conversationsBody','No matching conversation found','danger');
+                displayAlert(document.getElementById('conversationsBody'),'No matching conversation found','danger');
                 removeCID(item);
             }
         });
@@ -271,7 +271,7 @@ document.addEventListener('DOMContentLoaded', (e)=>{
                 if(conversationData) {
                     buildConversation(conversationData);
                 }else{
-                    displayAlert('importConversationModalBody','Cannot find conversation matching your search','danger');
+                    displayAlert(document.getElementById('importConversationModalBody'),'Cannot find conversation matching your search','danger');
                 }
                 conversationSearchInput.value = "";
             });
@@ -296,7 +296,7 @@ document.addEventListener('DOMContentLoaded', (e)=>{
                 if(response.ok){
                     buildConversation(responseJson);
                 }else{
-                    displayAlert('newConversationModalBody','Cannot add new conversation: '+ responseJson['detail'][0]['msg'],'danger');
+                    displayAlert(document.getElementById('newConversationModalBody'),'Cannot add new conversation: '+ responseJson['detail'][0]['msg'],'danger');
                 }
                 newConversationName.value="";
                 newConversationID.value = "";

@@ -1,16 +1,22 @@
-function displayAlert(parent_id,text='Error Occurred',alert_type='danger',alert_id='alert'){
-    if(!['info','success','warning','danger','primary','secondary','dark'].includes(alert_type)){
-        alert_type = 'danger'; //default
+/**
+ * Adds Bootstrap alert HTML to specified element's id
+ * @param parentElem: DOM Element in which to display alert
+ * @param text: Text of alert (defaults 'Error Occurred')
+ * @param alertType: Type of alert from bootstrap-supported alert types (defaults to 'danger')
+ * @param alertID: Id of alert to display (defaults to 'alert')
+ */
+function displayAlert(parentElem,text='Error Occurred',alertType='danger',alertID='alert'){
+    if(!['info','success','warning','danger','primary','secondary','dark'].includes(alertType)){
+        alertType = 'danger'; //default
     }
-    let alert = document.getElementById(alert_id);
+    let alert = document.getElementById(alertID);
     if(alert){
         alert.remove();
     }
 
     if(text) {
-        const container = document.getElementById(parent_id);
-        container.insertAdjacentHTML('afterbegin',
-            `<div class="alert alert-${alert_type} alert-dismissible" role="alert" id="${alert_id}">
+        parentElem.insertAdjacentHTML('afterbegin',
+            `<div class="alert alert-${alertType} alert-dismissible" role="alert" id="${alertID}">
                     <b>${text}</b>
                     <button type="button" class="close" data-dismiss="alert" aria-label="Close">
                         <span aria-hidden="true">&times;</span>
@@ -19,7 +25,13 @@ function displayAlert(parent_id,text='Error Occurred',alert_type='danger',alert_
     }
 }
 
-function generateUUID() {
+/**
+ * Generates UUID hex
+ * @param length: length of UUID (defaults to 8)
+ * @param strPattern: pattern to follow for UUID (optional)
+ * @returns {string} Generated UUID hex
+ */
+function generateUUID(length=8, strPattern='00-0-4-1-000') {
     const a = crypto.getRandomValues(new Uint16Array(8));
     let i = 0;
     return '00-0-4-1-000'.replace(/[^-]/g,
@@ -27,6 +39,12 @@ function generateUUID() {
     );
 }
 
+/**
+ * Shrinks text to fit into desired length
+ * @param text: Text to shrink
+ * @param maxLength: max length of text to save
+ * @returns {string} Shrunk text, fitting into "maxLength"
+ */
 function shrinkToFit(text, maxLength){
     if(text.length>maxLength){
         text = text.substring(0, maxLength) + '...';
