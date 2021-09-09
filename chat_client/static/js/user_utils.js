@@ -24,6 +24,11 @@ const toggleLogin = document.getElementById('toggleLogin');
 
 let currentUser = null;
 
+/**
+ * Gets user data from chat client URL
+ * @param userID: id of desired user (current user if null)
+ * @returns {Promise<{}>} promise resolving obtaining of user data
+ */
 async function getUserData(userID=null){
     let userData = {}
     let query_url = `${configData["currentURLBase"]}/users/`
@@ -38,6 +43,10 @@ async function getUserData(userID=null){
      return userData;
 }
 
+/**
+ * Method that handles fetching provided user data with valid login credentials
+ * @returns {Promise<void>} promise resolving validity of user-entered data
+ */
 async function loginUser(){
     const loginModalBody = document.getElementById('loginModalBody');
     const query_url = `${configData["currentURLBase"]}/auth/login/`;
@@ -61,6 +70,10 @@ async function loginUser(){
     }
 }
 
+/**
+ * Method that handles logging user out
+ * @returns {Promise<void>} promise resolving user logout
+ */
 async function logoutUser(){
     const query_url = `${configData["currentURLBase"]}/auth/logout/`;
     await fetch(query_url).then(response=>{
@@ -69,6 +82,10 @@ async function logoutUser(){
     });
 }
 
+/**
+ * Method that handles fetching provided user data with valid sign up credentials
+ * @returns {Promise<void>} promise resolving validity of new user creation
+ */
 async function createUser(){
     const signupModalBody = document.getElementById('signupModalBody');
     const query_url = `${configData["currentURLBase"]}/auth/signup/`;
@@ -107,6 +124,10 @@ async function createUser(){
     }
 }
 
+/**
+ * Helper method for updating navbar based on current user property
+ * @param forceUpdate to force updating of navbar (defaults to false)
+ */
 function updateNavbar(forceUpdate=false){
     if(currentUser || forceUpdate){
         if(currentUserNavDisplay) {
@@ -123,8 +144,17 @@ function updateNavbar(forceUpdate=false){
     }
 }
 
+/**
+ * Custom Event fired on current user loaded
+ * @type {CustomEvent<string>}
+ */
 const currentUserLoaded = new CustomEvent("currentUserLoaded", { "detail": "Event that is fired when current user is loaded" });
 
+/**
+ * Convenience method encapsulating refreshing page view based on current user
+ * @param sendNotification: to send notification about user changing (defaults to false)
+ * @param refreshChats: to refresh the chats (defaults to false)
+ */
 function refreshCurrentUser(sendNotification=false, refreshChats=false){
     getUserData().then(data=>{
         currentUser = data;
