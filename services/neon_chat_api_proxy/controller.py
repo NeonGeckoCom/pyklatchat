@@ -28,7 +28,7 @@ from pika.channel import Channel
 
 
 class ChatAPIProxy(MQConnector):
-    """Observer of conversations states"""
+    """Proxy module for establishing connection between PyKlatchat and neon chat api"""
 
     def __init__(self, config: dict, service_name: str):
         super().__init__(config, service_name)
@@ -45,12 +45,13 @@ class ChatAPIProxy(MQConnector):
                                auto_ack=False)
 
     def register_bus_handlers(self):
-        """Convenience method to gather SIO listeners"""
+        """Convenience method to gather message bus handlers"""
         self._bus.on('klat.response', self.handle_neon_message)
 
-    def connect_bus(self, refresh=False):
+    def connect_bus(self, refresh: bool = False):
         """
-            Convenience method for connection to message bus
+            Convenience method for establishing connection to message bus
+
             :param refresh: To refresh existing connection
         """
         if not self._bus or refresh:
@@ -63,9 +64,9 @@ class ChatAPIProxy(MQConnector):
     @property
     def bus(self):
         """
-            Creates async socket io client if none is present
+            Connects to Message Bus if no connection was established
 
-            :return: connected async socket io instance
+            :return: connected message bus client instance
         """
         if not self._bus:
             self.connect_bus()
@@ -73,7 +74,7 @@ class ChatAPIProxy(MQConnector):
 
     def handle_neon_message(self, message: Message):
         """
-            Handles responses from Neon API
+            Handles responses from Neon Chat API
 
             :param message: Received Message object
         """
@@ -100,7 +101,7 @@ class ChatAPIProxy(MQConnector):
                             properties: pika.spec.BasicProperties,
                             body: bytes):
         """
-            Handles input requests from MQ to Neon API
+            Handles requests from MQ to Neon Chat API
 
             :param channel: MQ channel object (pika.channel.Channel)
             :param method: MQ return method (pika.spec.Basic.Return)
