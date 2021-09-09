@@ -106,7 +106,8 @@ class ChatObserver(MQConnector):
             receiver = self.get_receiver_from_message(message_prefix=_data.get('messageText')
                                                       .split(requesting_by_separator)[0])
             if receiver != Receivers.UNRESOLVED:
-                _data['messageText'] = _data['messageText'].split(requesting_by_separator)[1:]
+                _data['messageText'] = requesting_by_separator.join(_data['messageText']
+                                                                    .split(requesting_by_separator)[1:]).strip()
                 if receiver == Receivers.NEON:
                     mq_connection = self.create_mq_connection(vhost=self.vhost)
                     connection_channel = mq_connection.channel()
