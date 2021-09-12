@@ -26,8 +26,8 @@ from neon_mq_connector.connector import MQConnector
 from pika.channel import Channel
 
 
-class Receivers(Enum):
-    """Enumeration of possible receivers"""
+class Recipients(Enum):
+    """Enumeration of possible recipients"""
     NEON = 'neon'
     UNRESOLVED = 'unresolved'
 
@@ -35,21 +35,21 @@ class Receivers(Enum):
 class ChatObserver(MQConnector):
     """Observer of conversations states"""
 
-    receiver_prefixes = {
-        Receivers.NEON: ['neon']
+    recipient_prefixes = {
+        Recipients.NEON: ['neon']
     }
 
     @classmethod
-    def get_recipient_from_message(cls, message_prefix: str) -> Receivers:
+    def get_recipient_from_message(cls, message_prefix: str) -> Recipients:
         """
             Gets recipient based on message
 
             :param message_prefix: calling prefix of user message
         """
-        for receiver in list(cls.receiver_prefixes):
-            if any(message_prefix.lower() == x.lower() for x in cls.receiver_prefixes[receiver]):
-                return receiver
-        return Receivers.UNRESOLVED
+        for recipient in list(cls.recipient_prefixes):
+            if any(message_prefix.lower() == x.lower() for x in cls.recipient_prefixes[recipient]):
+                return recipient
+        return Recipients.UNRESOLVED
 
     def __init__(self, config: dict, service_name: str):
         super().__init__(config, service_name)
@@ -103,12 +103,12 @@ class ChatObserver(MQConnector):
         except Exception as ex:
             LOG.warning(f'Failed to deserialize received data: {_data}: {ex}')
         if _data and isinstance(_data, dict):
-            receiver = self.get_recipient_from_message(message_prefix=_data.get('messageText')
+            recipient = self.get_recipient_from_message(message_prefix=_data.get('messageText')
                                                        .split(requesting_by_separator)[0])
-            if receiver != Receivers.UNRESOLVED:
+            if recipient != Recipients.UNRESOLVED:
                 _data['messageText'] = requesting_by_separator.join(_data['messageText']
                                                                     .split(requesting_by_separator)[1:]).strip()
-                if receiver == Receivers.NEON:
+                if recipient == Recipients.NEON:
                     mq_connection = self.create_mq_connection(vhost=self.vhost)
                     connection_channel = mq_connection.channel()
                     connection_channel.queue_declare(queue='neon_api_request')
