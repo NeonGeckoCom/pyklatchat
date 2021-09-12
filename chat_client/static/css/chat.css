@@ -141,3 +141,34 @@ body{
     color:cornflowerblue;
     cursor: pointer;
 }
+
+.reply-text{
+    border-left: 4px solid white;
+    padding: 2px;
+    cursor: pointer;
+}
+
+.message-selected{
+    animation: 1.5s ease 0s 1 normal none running color_change;
+}
+
+@-webkit-keyframes color_change {
+      0% {
+        background-color: rgba(51, 170, 51, .4)
+      }
+      20% {
+        background-color: rgba(51, 170, 51, .6)
+      }
+      40% {
+        background-color: rgba(51, 170, 51, .8)
+      }
+      60% {
+        background-color: rgba(51, 170, 51, .8)
+      }
+      80% {
+        background-color: rgba(51, 170, 51, .8)
+      }
+      100% {
+        background-color: rgba(51, 170, 51, .6)
+      }
+    }

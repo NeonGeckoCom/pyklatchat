@@ -3,31 +3,58 @@ const addBySearch = document.getElementById('addBySearch');
 const addNewConversation = document.getElementById('addNewConversation');
 const conversationBody = document.getElementById('conversationsBody');
 
-async function addMessage(cid, userID=null, messageText, timeCreated,attachments={}){
+/**
+ * Adds new message to desired conversation id
+ * @param cid: desired conversation id
+ * @param userID: message sender id
+ * @param messageID: id of sent message (gets generated if null)
+ * @param messageText: text of the message
+ * @param timeCreated: timestamp for message creation
+ * @param repliedMessageID: id of the replied message (optional)
+ * @param attachments: array of attachments to add (optional)
+ * @returns {Promise<null|number>}: promise resolving id of added message, -1 if failed to resolve message id creation
+ */
+async function addMessage(cid, userID=null, messageID=null, messageText, timeCreated, repliedMessageID=null, attachments=[{}]){
     const cidElem = document.getElementById(cid);
     if(cidElem){
         const cidList = cidElem.getElementsByClassName('card-body')[0].getElementsByClassName('chat-list')[0]
         if(cidList){
             let userData;
-            const isMine = userID === currentUser['_id']
+            const isMine = userID === currentUser['_id'];
             if(isMine) {
                 userData = currentUser;
             }else{
                 userData = await getUserData(userID);
             }
-            let messageHTML = buildUserMessage(userData, messageText, timeCreated, isMine);
-            messageHTML = addMessageAttachments(messageHTML, attachments);
+            if(!messageID) {
+                messageID = generateUUID();
+            }
+            let messageHTML = buildUserMessageHTML(userData, messageID, messageText, timeCreated, isMine);
             const blankChat = cidList.getElementsByClassName('blank_chat');
             if(blankChat.length>0){
                 cidList.removeChild(blankChat[0]);
             }
             cidList.insertAdjacentHTML('beforeend', messageHTML);
+            const addedMessage = document.getElementById(messageID);
+            addMessageAttachments(addedMessage, attachments);
+            resolveUserReply(messageID, repliedMessageID);
             cidList.lastChild.scrollIntoView();
+            return messageID;
         }
     }
+    return -1;
 }
 
-function buildUserMessage(userData, messageText, timeCreated, isMine){
+/**
+ * Builds user message HTML
+ * @param userData: data of message sender
+ * @param messageID: id of user message
+ * @param messageText: text of user message
+ * @param timeCreated: date of creation
+ * @param isMine: if message was emitted by current user
+ * @returns {string}: constructed HTML out of input params
+ */
+function buildUserMessageHTML(userData, messageID, messageText, timeCreated, isMine){
     let html = "";
     const messageSideClass = isMine?"in":"out";
     //const messageTime = getTimeFromTimestamp(timeCreated);
@@ -37,22 +64,90 @@ function buildUserMessage(userData, messageText, timeCreated, isMine){
             `   <img alt="Avatar" src="${configData["imageBaseFolder"]+'/'+avatarImage}">\n` +
             "</div>"
     html +=` <div class="chat-body">
-                <div class="chat-message">
-                    <small>${userData['nickname']}</small>
-                    <p>${messageText}</p>
+                <div class="chat-message" id="${messageID}">
+                    <p style="font-size: small;font-weight: bolder;" class="message-nickname">${userData['nickname']}</p>
+                    <div class="reply-placeholder mb-2 mt-1"></div>
+                    <p class="message-text">${messageText}</p>
                 </div>
              </div>`
-    html+="</li>"
+    html += "</li>"
     return html;
 }
 
-function buildConversation(conversationData,remember=true){
+/**
+ * Resolves user reply on message
+ * @param replyID: id of user reply
+ * @param repliedID id of replied message
+ */
+function resolveUserReply(replyID,repliedID){
+    if(repliedID){
+        const repliedElem = document.getElementById(repliedID);
+        if(repliedElem) {
+            let repliedText = repliedElem.getElementsByClassName('message-text')[0].innerText;
+            repliedText = shrinkToFit(repliedText, 10);
+            const replyHTML = `<a class="reply-text" data-replied-id="${repliedID}">
+                                    ${repliedText}
+                                </a>`;
+            const replyPlaceholder = document.getElementById(replyID).getElementsByClassName('reply-placeholder')[0];
+            replyPlaceholder.insertAdjacentHTML('afterbegin', replyHTML);
+            attachReplyHighlighting(replyPlaceholder.getElementsByClassName('reply-text')[0]);
+        }
+    }
+}
+
+/**
+ * Attaches reply highlighting for reply item
+ * @param replyItem reply item element
+ */
+function attachReplyHighlighting(replyItem){
+    replyItem.addEventListener('click', (e)=>{
+        const repliedItem = document.getElementById(replyItem.getAttribute('data-replied-id'));
+        const backgroundParent = repliedItem.parentElement.parentElement;
+        repliedItem.scrollIntoView();
+        backgroundParent.classList.remove('message-selected');
+        setTimeout(() => backgroundParent.classList.add('message-selected'),500);
+    });
+}
+
+/**
+ * Attaches message replies to initialized conversation
+ * @param conversationData: conversation data object
+ */
+function attachReplies(conversationData){
+    if(conversationData.hasOwnProperty('chat_flow')) {
+        Array.from(conversationData['chat_flow']).forEach(message => {
+            resolveUserReply(message['message_id'], message?.replied_message);
+        });
+        Array.from(document.getElementsByClassName('reply-text')).forEach(replyItem=>{
+            attachReplyHighlighting(replyItem);
+        });
+    }
+}
+
+/**
+ * Builds new conversation HTML from provided data and attaches it to the list of displayed conversations
+ * @param conversationData: JS Object containing conversation data of type:
+ * {
+ *     '_id': 'id of conversation',
+ *     'conversation_name': 'title of the conversation',
+ *     'chat_flow': [{
+ *         'user_nickname': 'nickname of sender',
+ *         'user_avatar': 'avatar of sender',
+ *         'message_id': 'id of the message',
+ *         'message_text': 'text of the message',
+ *         'created_on': 'creation time of the message'
+ *     }, ... (num of user messages returned)]
+ * }
+ * @param remember: to store this conversation into localStorage (defaults to true)
+ */
+function buildConversation(conversationData={},remember=true){
    if(remember){
        addNewCID(conversationData['_id'], conversationAlignmentKey);
    }
    const newConversationHTML = buildConversationHTML(conversationData);
    const conversationsBody = document.getElementById('conversationsBody');
    conversationsBody.insertAdjacentHTML('afterbegin', newConversationHTML);
+   attachReplies(conversationData);
    const currentConversation = document.getElementById(conversationData['_id']);
    const conversationParent = currentConversation.parentElement;
    const conversationHolder = conversationParent.parentElement;
@@ -73,6 +168,22 @@ function buildConversation(conversationData,remember=true){
     }
 }
 
+/**
+ * Builds HTML for received conversation data
+ * @param conversationData: JS Object containing conversation data of type:
+ * {
+ *     '_id': 'id of conversation',
+ *     'conversation_name': 'title of the conversation',
+ *     'chat_flow': [{
+ *         'user_nickname': 'nickname of sender',
+ *         'user_avatar': 'avatar of sender',
+ *         'message_id': 'id of the message',
+ *         'message_text': 'text of the message',
+ *         'created_on': 'creation time of the message'
+ *     }, ... (num of user messages returned)]
+ * }
+ * @returns {string} conversation HTML based on provided data (without replies)
+ */
 function buildConversationHTML(conversationData = {}){
     let html = `<div class="conversationContainer col-xl-6 col-lg-6 col-md-6 col-sm-12 col-12 m-2">
                 <div class="card" id="${ conversationData['_id'] }">
@@ -81,22 +192,12 @@ function buildConversationHTML(conversationData = {}){
                             <span aria-hidden="true">×</span>
                         </button>
                     </div>
-                    <div class="card-body height3" style="overflow-y: auto; height: 250px!important;">
+                    <div class="card-body height3" style="overflow-y: auto; height: 450px!important;">
                         <ul class="chat-list">`
     if(conversationData.hasOwnProperty('chat_flow')) {
         Array.from(conversationData['chat_flow']).forEach(message => {
-            const orientation = currentUser && message['user_nickname'] === currentUser['nickname']?'in':'out';
-            html += `<li class="${orientation}" data-sender="${ message['user_nickname'] }">
-                        <div class="chat-img">
-                            <img alt="Avatar" src="${ configData.imageBaseFolder+'/'+message['user_avatar'] }">
-                        </div>
-                        <div class="chat-body">
-                            <div class="chat-message">
-                                <h5>${ message['user_nickname'] }</h5>
-                                <p>${ message['message_text'] }</p>
-                            </div>
-                        </div>
-                    </li>`
+            const isMine = currentUser && message['user_nickname'] === currentUser['nickname'];
+            html += buildUserMessageHTML({'avatar':message['user_avatar'],'nickname':message['user_nickname']},message['message_id'], message['message_text'], getTimeFromTimestamp(message['created_on']),isMine);
         });
     }else{
         html+=`<div class="blank_chat">No messages in this chat yet...</div>`;
@@ -113,6 +214,11 @@ function buildConversationHTML(conversationData = {}){
 }
 
 
+/**
+ * Gets conversation data based on input string
+ * @param input: input string text
+ * @returns {Promise<{}>} promise resolving conversation data returned
+ */
 async function getConversationDataByInput(input=""){
     let conversationData = {};
     if(input && typeof input === "string"){
@@ -127,30 +233,52 @@ async function getConversationDataByInput(input=""){
 }
 
 
-
-function addMessageAttachments(html, attachments={}){
-    return html;
+/**
+ * Adds message attachments to provided html
+ * @param messageElem: message DOM Element
+ * @param attachments: array of attachments to add
+ */
+function addMessageAttachments(messageElem, attachments=[{}]){
+    //TODO: implement attachments mechanism
 }
 
-function getTimeFromTimestamp(timeCreated){
-    const date = new Date(timeCreated * 1000);
+/**
+ * Gets time object from provided UNIX timestamp
+ * @param timestampCreated: UNIX timestamp (in seconds)
+ * @returns {string} string time (hours:minutes)
+ */
+function getTimeFromTimestamp(timestampCreated=0){
+    const date = new Date(timestampCreated * 1000);
     const hours = date.getHours();
     const minutes = "0" + date.getMinutes();
     return hours + ':' + minutes.substr(-2);
 }
 
-function emitUserMessage(textInputElem, cid){
+/**
+ * Emits user message to Socket IO Server
+ * @param textInputElem: DOM Element with input text
+ * @param cid: Conversation ID
+ * @param repliedMessageID: ID of replied message
+ */
+function emitUserMessage(textInputElem, cid, repliedMessageID=null){
     if(textInputElem && textInputElem.value){
         const timeCreated = Math.floor(Date.now() / 1000);
         const messageText = textInputElem.value;
-        addMessage(cid, currentUser['_id'], messageText, timeCreated,{}, true).then(_=>{
-            socket.emit('user_message', {'cid':cid,'userID':currentUser['_id'],'messageText':messageText,
+        addMessage(cid, currentUser['_id'],null, messageText, timeCreated,repliedMessageID,{}).then(messageID=>{
+            socket.emit('user_message', {'cid':cid,'userID':currentUser['_id'],
+                              'messageText':messageText,
+                              'messageID':messageID,
                               'timeCreated':timeCreated});
         });
         textInputElem.value = "";
     }
 }
 
+/**
+ * Retrieves conversation layout from local storage
+ * @param keyName: key to lookup in local storage (defaults to provided in config.js)
+ * @returns {Array} array of conversations from local storage
+ */
 function retrieveItemsLayout(keyName=conversationAlignmentKey){
     let itemsLayout = localStorage.getItem(keyName);
     if(itemsLayout){
@@ -161,12 +289,22 @@ function retrieveItemsLayout(keyName=conversationAlignmentKey){
     return itemsLayout;
 }
 
+/**
+ * Adds new conversation id to local storage
+ * @param cid: conversation id to add
+ * @param keyName: local storage key to add to
+ */
 function addNewCID(cid, keyName=conversationAlignmentKey){
     let itemLayout = retrieveItemsLayout(keyName);
     itemLayout.push(cid);
     localStorage.setItem(keyName,JSON.stringify(itemLayout));
 }
 
+/**
+ * Removed conversation id from local storage
+ * @param cid: conversation id to remove
+ * @param keyName: local storage key to remove from
+ */
 function removeCID(cid, keyName=conversationAlignmentKey){
     let itemLayout = retrieveItemsLayout(keyName);
     itemLayout = itemLayout.filter(function(value, index, arr){
@@ -187,13 +325,17 @@ function restoreChatAlignment(keyName=conversationAlignmentKey){
             if(conversationData) {
                 buildConversation(conversationData, false);
             }else{
-                displayAlert('conversationsBody','No matching conversation found','danger');
+                displayAlert(document.getElementById('conversationsBody'),'No matching conversation found','danger');
+                removeCID(item);
             }
         });
     }
 }
 
-function refreshChat(){
+/**
+ * Refreshes chat view (e.g. when user session gets updated)
+ */
+function refreshChatView(){
     Array.from(conversationBody.getElementsByClassName('conversationContainer')).forEach(conversation=>{
        const messages = conversation.getElementsByClassName('card')[0]
            .getElementsByClassName('card-body')[0]
@@ -220,7 +362,7 @@ document.addEventListener('DOMContentLoaded', (e)=>{
                 if(conversationData) {
                     buildConversation(conversationData);
                 }else{
-                    displayAlert('importConversationModalBody','Cannot find conversation matching your search','danger');
+                    displayAlert(document.getElementById('importConversationModalBody'),'Cannot find conversation matching your search','danger');
                 }
                 conversationSearchInput.value = "";
             });
@@ -245,7 +387,7 @@ document.addEventListener('DOMContentLoaded', (e)=>{
                 if(response.ok){
                     buildConversation(responseJson);
                 }else{
-                    displayAlert('newConversationModalBody','Cannot add new conversation: '+ responseJson['detail'][0]['msg'],'danger');
+                    displayAlert(document.getElementById('newConversationModalBody'),'Cannot add new conversation: '+ responseJson['detail'][0]['msg'],'danger');
                 }
                 newConversationName.value="";
                 newConversationID.value = "";
