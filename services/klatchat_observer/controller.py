@@ -40,7 +40,7 @@ class ChatObserver(MQConnector):
     }
 
     @classmethod
-    def get_receiver_from_message(cls, message_prefix: str) -> Receivers:
+    def get_recipient_from_message(cls, message_prefix: str) -> Receivers:
         """
             Gets receiver based on message
 
@@ -103,8 +103,8 @@ class ChatObserver(MQConnector):
         except Exception as ex:
             LOG.warning(f'Failed to deserialize received data: {_data}: {ex}')
         if _data and isinstance(_data, dict):
-            receiver = self.get_receiver_from_message(message_prefix=_data.get('messageText')
-                                                      .split(requesting_by_separator)[0])
+            receiver = self.get_recipient_from_message(message_prefix=_data.get('messageText')
+                                                       .split(requesting_by_separator)[0])
             if receiver != Receivers.UNRESOLVED:
                 _data['messageText'] = requesting_by_separator.join(_data['messageText']
                                                                     .split(requesting_by_separator)[1:]).strip()
