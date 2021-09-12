@@ -42,7 +42,7 @@ class ChatObserver(MQConnector):
     @classmethod
     def get_recipient_from_message(cls, message_prefix: str) -> Receivers:
         """
-            Gets receiver based on message
+            Gets recipient based on message
 
             :param message_prefix: calling prefix of user message
         """
