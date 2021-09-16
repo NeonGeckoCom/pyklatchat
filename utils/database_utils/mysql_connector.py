@@ -17,7 +17,7 @@
 # US Patents 2008-2021: US7424516, US20140161250, US20140177813, US8638908, US8068604, US8553852, US10530923, US10530924
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
 
-from mysql.connector import MySQLConnection
+from mysql.connector import (connection)
 
 from typing import Optional
 from neon_utils import LOG
@@ -32,7 +32,7 @@ class MySQLConnector(DatabaseConnector):
         return DatabaseTypes.RELATIONAL
 
     def create_connection(self):
-        self._cnx = MySQLConnection(**self.config_data)
+        self._cnx = connection.MySQLConnection(**self.config_data)
 
     def abort_connection(self):
         self._cnx.close()
@@ -45,7 +45,7 @@ class MySQLConnector(DatabaseConnector):
             :returns query result if any
         """
         cursor = self.connection.cursor()
-        cursor.execute(query, args=args)
+        cursor.execute(query, *args, **kwargs)
         result = None
         try:
             result = cursor.fetchall()

@@ -26,23 +26,36 @@ from neon_utils import LOG
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))))
 
 from config import Configuration
+from utils.connection_utils import create_ssh_tunnel
 
 
 class TestDBController(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls) -> None:
-        file_path = os.environ.get('DATABASE_CONFIG', '~/.local/share/neon/credentials.json')
-        cls.configuration = Configuration(from_files=[file_path])
+        main_config_file_path = os.environ.get('DATABASE_CONFIG', '~/.local/share/neon/credentials.json')
+        ssh_config_file_path = os.environ.get('SSH_CONFIG', '~/.local/share/neon/credentials.json')
 
-    @unittest.skip('Relational database is skipped for now')
+        cls.configuration = Configuration(from_files=[main_config_file_path, ssh_config_file_path])
+
     def test_simple_interaction_mysql(self):
+        ssh_configs = self.configuration.config_data['SSH_CONFIG']
+        tunnel_connection = create_ssh_tunnel(server_address=ssh_configs['ADDRESS'],
+                                              username=ssh_configs['USER'],
+                                              password=ssh_configs['PASSWORD'],
+                                              remote_bind_address=('127.0.0.1', 3306))
+        override_configs = {'host': '127.0.0.1',
+                            'port': tunnel_connection.local_bind_address[1]}
+        self.db_controller = self.configuration.get_db_controller(name='klatchat_2222',
+                                                                  override_args=override_configs)
+
         simple_query = """SELECT name, created, last_updated_cid,value from shoutbox_cache;"""
         result = self.db_controller.exec_query(query=simple_query)
         self.assertIsNotNone(result)
 
     def test_simple_interaction_mongo(self):
-        self.db_controller = self.configuration.get_db_controller()
+        self.db_controller = self.configuration.get_db_controller(name='pyklatchat_3333')
+        self.assertIsNotNone(self.db_controller)
         test_data = {"name": "John", "address": "Highway 37"}
         self.db_controller.exec_query(query={'command': 'insert_one',
                                              'document': 'test',

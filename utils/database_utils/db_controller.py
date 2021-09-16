@@ -46,6 +46,17 @@ class DatabaseController:
             raise AssertionError(f'Invalid dialect provided, supported are: {list(self.database_class_mapping)}')
         self._connector = self.database_class_mapping[dialect](config_data=self.config_data)
 
+    def detach_connector(self, graceful_termination_func: callable = None):
+        """
+            Drops current database connector connection
+
+            :param graceful_termination_func: function causing graceful termination of connector instance (optional)
+        """
+        if graceful_termination_func:
+            graceful_termination_func(self._connector)
+        else:
+            self._connector = None
+
     def exec_query(self, query, *args):
         return self.connector.exec_raw_query(query=query, *args)
 
