@@ -34,9 +34,10 @@ class TestDBController(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         main_config_file_path = os.environ.get('DATABASE_CONFIG', '~/.local/share/neon/credentials.json')
+        new_config_file_path = os.environ.get('DATABASE_CONFIG', '~/.local/share/neon/credentials_new.json')
         ssh_config_file_path = os.environ.get('SSH_CONFIG', '~/.local/share/neon/credentials.json')
 
-        cls.configuration = Configuration(from_files=[main_config_file_path, ssh_config_file_path])
+        cls.configuration = Configuration(from_files=[main_config_file_path,new_config_file_path, ssh_config_file_path])
 
     def test_simple_interaction_mysql(self):
         ssh_configs = self.configuration.config_data['SSH_CONFIG']
