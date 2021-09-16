@@ -35,7 +35,7 @@ class TestDBController(unittest.TestCase):
     def setUpClass(cls) -> None:
         main_config_file_path = os.environ.get('DATABASE_CONFIG', '~/.local/share/neon/credentials.json')
         new_config_file_path = os.environ.get('DATABASE_CONFIG', '~/.local/share/neon/credentials_new.json')
-        ssh_config_file_path = os.environ.get('SSH_CONFIG', '~/.local/share/neon/credentials.json')
+        ssh_config_file_path = os.environ.get('SSH_CONFIG', None)
 
         cls.configuration = Configuration(from_files=[main_config_file_path,new_config_file_path, ssh_config_file_path])
 
