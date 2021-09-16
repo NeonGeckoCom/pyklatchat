@@ -29,12 +29,12 @@ jobs:
           mkdir -p ~/.local/share/neon
           echo $DATABASE_CONNECTOR > ~/.local/share/neon/credentials.json
           echo $DATABASE_CONNECTOR_NEW > ~/.local/share/neon/credentials_new.json
-      - name: Test DB Controller
+      - name: Test DB Utils
         run: |
-          pytest utils/database/tests/test_db_controller.py --doctest-modules --junitxml=tests/db-controller-test-results.xml
-      - name: Upload DB Controller test results
+          pytest tests/test_db_utils.py --doctest-modules --junitxml=tests/db-utils-test-results.xml
+      - name: Upload DB Utils test results
         uses: actions/upload-artifact@v2
         with:
-          name: db-controller-test-results
-          path: tests/db-controller-test-results.xml
+          name: db-utils-test-results
+          path: tests/db-utils-test-results.xml
 
