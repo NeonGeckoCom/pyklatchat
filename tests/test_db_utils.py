@@ -37,16 +37,18 @@ class TestDBController(unittest.TestCase):
         new_config_file_path = os.environ.get('DATABASE_CONFIG', '~/.local/share/neon/credentials_new.json')
         ssh_config_file_path = os.environ.get('SSH_CONFIG', None)
 
-        cls.configuration = Configuration(from_files=[main_config_file_path,new_config_file_path, ssh_config_file_path])
+        cls.configuration = Configuration(from_files=[main_config_file_path, new_config_file_path, ssh_config_file_path])
 
     def test_simple_interaction_mysql(self):
-        ssh_configs = self.configuration.config_data['SSH_CONFIG']
-        tunnel_connection = create_ssh_tunnel(server_address=ssh_configs['ADDRESS'],
-                                              username=ssh_configs['USER'],
-                                              password=ssh_configs['PASSWORD'],
-                                              remote_bind_address=('127.0.0.1', 3306))
-        override_configs = {'host': '127.0.0.1',
-                            'port': tunnel_connection.local_bind_address[1]}
+        ssh_configs = self.configuration.config_data.get('SSH_CONFIG', None)
+        override_configs = dict()
+        if ssh_configs:
+            tunnel_connection = create_ssh_tunnel(server_address=ssh_configs['ADDRESS'],
+                                                  username=ssh_configs['USER'],
+                                                  password=ssh_configs['PASSWORD'],
+                                                  remote_bind_address=('127.0.0.1', 3306))
+            override_configs = {'host': '127.0.0.1',
+                                'port': tunnel_connection.local_bind_address[1]}
         self.db_controller = self.configuration.get_db_controller(name='klatchat_2222',
                                                                   override_args=override_configs)
 

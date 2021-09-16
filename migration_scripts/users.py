@@ -16,10 +16,28 @@
 # Specialized conversational reconveyance options from Conversation Processing Intelligence Corp.
 # US Patents 2008-2021: US7424516, US20140161250, US20140177813, US8638908, US8068604, US8553852, US10530923, US10530924
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
+import os
 
-def migrate_users(time_since: int):
+from config import Configuration
+from utils.connection_utils import create_ssh_tunnel
+
+config_source_files = [os.environ.get('CONFIG_PATH', 'config.json'), os.environ.get('SSH_CONFIG', None)]
+
+configuration = Configuration(from_files=config_source_files)
+
+
+def migrate_users(time_since: int, old_db_key: str, new_db_key: str):
     """
         Migrating users from old database to new one
         :param time_since: since what time to perform the migration
+        :param old_db_key: old database key
+        :param new_db_key: new database key
     """
-    pass
+    ssh_configs = configuration.config_data.get('SSH_CONFIG')
+    tunnel_connection = create_ssh_tunnel(server_address=ssh_configs['ADDRESS'],
+                                          username=ssh_configs['USER'],
+                                          password=ssh_configs['PASSWORD'],
+                                          remote_bind_address=('127.0.0.1', 3306))
+    mysql_controller = configuration.get_db_controller(name=old_db_key,
+                                                       override_args={'port': tunnel_connection.local_bind_address[1]})
+    mongo_controller = configuration.get_db_controller(name=new_db_key)

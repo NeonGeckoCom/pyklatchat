@@ -79,7 +79,13 @@ class Configuration:
             raise TypeError(f'Type: {type(value)} not supported')
         self._config_data = value
 
-    def get_db_controller(self, name: str, override: bool = False, override_args: dict = None) -> DatabaseController:
+    def get_db_config_from_key(self, key: str):
+        """Gets DB configuration by key"""
+        return copy.deepcopy(self.config_data.get('DATABASE_CONFIG', {}).get(os.environ.get('ENV'), {}).get(key, {}))
+
+    def get_db_controller(self, name: str,
+                          override: bool = False,
+                          override_args: dict = None) -> DatabaseController:
         """
             Returns an new instance of Database Controller for specified dialect (creates new one if not present)
 
@@ -91,8 +97,7 @@ class Configuration:
         """
         db_controller = self.db_controllers.get(name, None)
         if not db_controller or override:
-            db_config = copy.deepcopy(self.config_data.get('DATABASE_CONFIG', {}).get(os.environ.get('ENV'), {})
-                                      .get(name, {}))
+            db_config = self.get_db_config_from_key(key=name)
             # Overriding with "override args" if needed
             if not override_args:
                 override_args = {}
