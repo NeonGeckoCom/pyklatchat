@@ -26,8 +26,6 @@ from neon_utils import LOG
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))))
 
 from config import Configuration
-from utils.database.db_controller import DatabaseController
-from utils.database.mongodb_connector import MongoDBConnector
 
 
 class TestDBController(unittest.TestCase):

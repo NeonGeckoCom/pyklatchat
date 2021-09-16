@@ -24,7 +24,7 @@ import copy
 from typing import List
 from neon_utils import LOG
 
-from utils.database.db_controller import DatabaseController
+from utils.database_utils import DatabaseController
 
 
 class Configuration:
@@ -79,8 +79,7 @@ class Configuration:
             raise TypeError(f'Type: {type(value)} not supported')
         self._config_data = value
 
-    def get_db_controller(self,
-                          override: bool = False) -> DatabaseController:
+    def get_db_controller(self, override: bool = False) -> DatabaseController:
         """
             Returns an new instance of Database Controller for specified dialect (creates new one if not present)
 

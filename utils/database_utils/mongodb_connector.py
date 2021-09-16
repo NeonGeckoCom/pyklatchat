@@ -21,7 +21,7 @@ from typing import Optional
 from pymongo import MongoClient
 from neon_utils import LOG
 
-from utils.database.base_connector import DatabaseConnector, DatabaseTypes
+from utils.database_utils.base_connector import DatabaseConnector, DatabaseTypes
 
 
 class MongoDBConnector(DatabaseConnector):
