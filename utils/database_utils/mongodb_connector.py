@@ -39,7 +39,7 @@ class MongoDBConnector(DatabaseConnector):
     def abort_connection(self):
         self._cnx.close()
 
-    def exec_raw_query(self, query: dict, *args) -> Optional[dict]:
+    def exec_raw_query(self, query: dict, *args, **kwargs) -> Optional[dict]:
         """
             Generic method for executing query over mongo db
 

@@ -16,38 +16,24 @@
 # Specialized conversational reconveyance options from Conversation Processing Intelligence Corp.
 # US Patents 2008-2021: US7424516, US20140161250, US20140177813, US8638908, US8068604, US8553852, US10530923, US10530924
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
-import datetime
-import time
+
+from config import Configuration
+from utils.connection_utils import create_ssh_tunnel
 
 
-def migrate_users(old_db_controller, new_db_controller, time_since: int):
+def setup_db_connectors(configuration: Configuration, old_db_key: str, new_db_key: str):
     """
         Migrating users from old database to new one
-        :param old_db_controller: old database connector
-        :param new_db_controller: new database connector
-        :param time_since: since what time to perform the migration
+        :param configuration: active configuration
+        :param old_db_key: old database key
+        :param new_db_key: new database key
     """
-
-    get_user_columns = """ SELECT COLUMN_NAME FROM information_schema.columns 
-                            WHERE TABLE_NAME = 'users'; """
-
-    columns = old_db_controller.exec_query(get_user_columns, generator=True)
-
-    columns = [c[0] for c in columns]
-
-    last_timestamp = time.mktime(datetime.datetime.strptime('01/01/2020', "%d/%m/%Y").timetuple())
-
-    print(last_timestamp)
-
-    get_user_query = f""" SELECT * FROM users WHERE access > {int(last_timestamp)}; """
-
-    result = old_db_controller.exec_query(get_user_query)
-
-    result_list = []
-    for record in result:
-        result_dict = {}
-        for idx in range(len(columns[:-3])):
-            result_dict[columns[idx]] = record[idx]
-        result_list.append(result_dict)
-
-    print(result_list)
+    ssh_configs = configuration.config_data.get('SSH_CONFIG')
+    tunnel_connection = create_ssh_tunnel(server_address=ssh_configs['ADDRESS'],
+                                          username=ssh_configs['USER'],
+                                          password=ssh_configs['PASSWORD'],
+                                          remote_bind_address=('127.0.0.1', 3306))
+    mysql_connector = configuration.get_db_controller(name=old_db_key,
+                                                      override_args={'port': tunnel_connection.local_bind_address[1]})
+    mongo_connector = configuration.get_db_controller(name=new_db_key)
+    return mysql_connector, mongo_connector

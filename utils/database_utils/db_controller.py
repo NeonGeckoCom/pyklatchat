@@ -57,8 +57,8 @@ class DatabaseController:
         else:
             self._connector = None
 
-    def exec_query(self, query, *args):
-        return self.connector.exec_raw_query(query=query, *args)
+    def exec_query(self, query, *args, **kwargs):
+        return self.connector.exec_raw_query(query=query, *args, **kwargs)
 
     def connect(self):
         self.connector.create_connection()
