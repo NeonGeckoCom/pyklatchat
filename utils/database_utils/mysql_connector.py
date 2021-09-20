@@ -45,7 +45,7 @@ class MySQLConnector(DatabaseConnector):
 
             :returns query result if any
         """
-        cursor = self.connection.cursor()
+        cursor = self.connection.cursor(dictionary=True)
         cursor.execute(query, *args, **kwargs)
         result = None
         try:

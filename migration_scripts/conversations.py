@@ -84,9 +84,7 @@ def migrate_conversations(old_db_controller, new_db_controller,
     LOG.debug(f'Received column names: {columns}')
 
     get_cids_query = f""" 
-                          SELECT * from shoutbox_conversations where cid in (
-                          SELECT distinct shoutbox.cid from shoutbox
-                          where shoutbox.created>{time_since}) and user_title not like '%!PRIVATE%'; 
+                          select * from shoutbox_conversations where updated>1577829600;
                       """
 
     result = old_db_controller.exec_query(get_cids_query)
@@ -98,7 +96,7 @@ def migrate_conversations(old_db_controller, new_db_controller,
             result_dict[columns[idx]] = record[idx]
         result_list.append(result_dict)
 
-    LOG.info(f'Received {len(result_list)} matching cids to insert')
+    LOG.info(f'Received {len(result_list)} matching cids')
 
     received_nicks = [record['creator'] for record in result_list]
 
@@ -110,5 +108,5 @@ def migrate_conversations(old_db_controller, new_db_controller,
 
     new_db_controller.exec_query(query=dict(document='conversations', command='insert_many', data=result_list))
 
-    return [record for record in list(result_list)], nicknames_mapping
+    return [str(x['cid']) for x in result_list], nicknames_mapping
 
