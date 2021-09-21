@@ -57,5 +57,5 @@ class MongoDBConnector(DatabaseConnector):
         db_command = getattr(self.connection[query.get('document')], query.get('command'))
         if not isinstance(query.get('data'), tuple):
             LOG.warning('Received wrong param type for query data, using default conversion to tuple')
-            query['data'] = (query['data'],)
+            query['data'] = (query.get('data', {}),)
         return db_command(*query.get('data'))

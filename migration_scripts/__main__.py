@@ -27,6 +27,7 @@ from neon_utils import LOG
 from config import Configuration
 from migration_scripts.constants import MigrationFiles
 from migration_scripts.conversations import migrate_conversations
+from migration_scripts.shouts import migrate_shouts
 from migration_scripts.utils import setup_db_connectors
 from migration_scripts import migrate_users
 
@@ -78,15 +79,21 @@ def main(migration_id: str = None, dump_dir=os.getcwd(), time_since: int = 15778
             json.dump(nick_to_uuid_mapping, f)
             LOG.info(f'Stored nicks mapping in {nick_mapping_file}')
 
-        with open(os.path.join(considered_path, cid_list_file), 'w') as f:
-            cids = [cid+'\n' for cid in cids]
-            f.writelines(cids)
-            LOG.info(f'Stored cid list in {cid_list_file}')
+        if cids:
+
+            with open(os.path.join(considered_path, cid_list_file), 'w') as f:
+                cids = [cid + '\n' for cid in cids]
+                f.writelines(cids)
+                LOG.info(f'Stored cid list in {cid_list_file}')
 
     migrate_users(old_db_controller=mysql_connector,
                   new_db_controller=mongo_connector,
                   nick_to_uuid_mapping=nick_to_uuid_mapping)
 
+    migrate_shouts(old_db_controller=mysql_connector,
+                   new_db_controller=mongo_connector,
+                   nick_to_uuid_mapping=nick_to_uuid_mapping)
+
 
 if __name__ == '__main__':
-    main(migration_id='f688600fbfaa4dd098626609fb2f2f6d')
+    main()
