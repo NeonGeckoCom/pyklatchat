@@ -20,7 +20,6 @@
 import os
 import json
 import uuid
-from enum import Enum
 
 from neon_utils import LOG
 
@@ -32,7 +31,7 @@ from migration_scripts.utils import setup_db_connectors
 from migration_scripts import migrate_users
 
 
-def main(migration_id: str = None, dump_dir=os.getcwd(), time_since: int = 1577829600):
+def main(migration_id: str = None, dump_dir=os.getcwd(), time_since: int = 1677829600):
     """
         Main migration scripts entry point
 
@@ -59,40 +58,50 @@ def main(migration_id: str = None, dump_dir=os.getcwd(), time_since: int = 15778
 
     LOG.info('Established connections with dbs')
 
-    nick_mapping_file = 'nick_mapping.json'
-
-    cid_list_file = 'cids.txt'
-
     if all(os.path.exists(os.path.join(considered_path, f.value)) for f in (MigrationFiles.NICK_MAPPING,
-                                                                            MigrationFiles.CIDS,)):
+                                                                            MigrationFiles.CIDS,
+                                                                            MigrationFiles.NICKS)):
         LOG.info('Skipping conversations migrations')
 
         with open(os.path.join(considered_path, MigrationFiles.NICK_MAPPING.value)) as f:
             nick_to_uuid_mapping = json.load(f)
+
+        with open(os.path.join(considered_path, MigrationFiles.NICKS.value)) as f:
+            nicks_to_consider = [x.strip() for x in f.readlines()]
+
+        with open(os.path.join(considered_path, MigrationFiles.CIDS.value)) as f:
+            cids = [x.strip() for x in f.readlines()]
     else:
         LOG.info('Starting conversations migration')
-        cids, nick_to_uuid_mapping = migrate_conversations(old_db_controller=mysql_connector,
-                                                           new_db_controller=mongo_connector,
-                                                           time_since=time_since)
+        cids, nick_to_uuid_mapping, nicks_to_consider = migrate_conversations(old_db_controller=mysql_connector,
+                                                                              new_db_controller=mongo_connector,
+                                                                              time_since=time_since)
 
-        with open(os.path.join(considered_path, nick_mapping_file), 'w') as f:
+        with open(os.path.join(considered_path, MigrationFiles.NICK_MAPPING.value), 'w') as f:
             json.dump(nick_to_uuid_mapping, f)
-            LOG.info(f'Stored nicks mapping in {nick_mapping_file}')
+            LOG.info(f'Stored nicks mapping in {MigrationFiles.NICK_MAPPING.value}')
+
+        if nicks_to_consider:
+            with open(os.path.join(considered_path, MigrationFiles.NICKS.value), 'w') as f:
+                nicks = [nick + '\n' for nick in nicks_to_consider]
+                f.writelines(nicks)
+                LOG.info(f'Stored nicks list in {MigrationFiles.NICKS.value}')
 
         if cids:
-
-            with open(os.path.join(considered_path, cid_list_file), 'w') as f:
+            with open(os.path.join(considered_path, MigrationFiles.CIDS.value), 'w') as f:
                 cids = [cid + '\n' for cid in cids]
                 f.writelines(cids)
-                LOG.info(f'Stored cid list in {cid_list_file}')
+                LOG.info(f'Stored cid list in {MigrationFiles.CIDS.value}')
 
     migrate_users(old_db_controller=mysql_connector,
                   new_db_controller=mongo_connector,
-                  nick_to_uuid_mapping=nick_to_uuid_mapping)
+                  nick_to_uuid_mapping=nick_to_uuid_mapping,
+                  nicks_to_consider=nicks_to_consider)
 
     migrate_shouts(old_db_controller=mysql_connector,
                    new_db_controller=mongo_connector,
-                   nick_to_uuid_mapping=nick_to_uuid_mapping)
+                   nick_to_uuid_mapping=nick_to_uuid_mapping,
+                   from_cids=cids)
 
 
 if __name__ == '__main__':

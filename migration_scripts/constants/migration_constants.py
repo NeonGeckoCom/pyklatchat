@@ -6,3 +6,4 @@ class MigrationFiles(Enum):
 
     NICK_MAPPING = 'nick_mapping.json'
     CIDS = 'cids.txt'
+    NICKS = 'nicks.txt'

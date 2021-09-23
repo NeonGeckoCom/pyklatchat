@@ -50,12 +50,13 @@ class MongoDBConnector(DatabaseConnector):
 
             :returns result of the query execution if any
         """
-        if query.get('command', 'find') not in self.mongo_recognised_commands:
-            raise NotImplementedError(f'Query command: {query.get("command")} is not supported, '
+        received_command = query.get('command', 'find')
+        if received_command not in self.mongo_recognised_commands:
+            raise NotImplementedError(f'Query command: {received_command} is not supported, '
                                       f'please use one of the following: '
                                       f'{self.mongo_recognised_commands}')
         db_command = getattr(self.connection[query.get('document')], query.get('command'))
         if not isinstance(query.get('data'), tuple):
             LOG.warning('Received wrong param type for query data, using default conversion to tuple')
             query['data'] = (query.get('data', {}),)
-        return db_command(*query.get('data'))
+        return db_command(*query.get('data'), *args, **kwargs)

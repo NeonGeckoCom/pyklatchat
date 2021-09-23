@@ -23,23 +23,10 @@ from typing import List, Dict, Tuple
 
 from neon_utils import LOG
 
-
-def get_existing_nicks(mongo_controller, nicknames: List[str]) -> dict:
-    """
-        Gets nicknames from mongo db
-
-        :param mongo_controller: controller to active mongo collection
-        :param nicknames: received nicks from mysql controller
-
-        :returns List of dict containing filtered items
-    """
-    retrieved_data = mongo_controller.exec_query(query=dict(document='users', command='find',
-                                                 data={'nick': {'$in': nicknames}}))
-    LOG.info(f'Retrieved {len(list(retrieved_data))} existing nicknames from new db')
-    return {record['nick']: record['_id'] for record in retrieved_data}
+from utils.database_utils.mongo_utils.user_utils import get_existing_nicks_to_id
 
 
-def index_nicks(mongo_controller, received_nicks: List[str]) -> dict:
+def index_nicks(mongo_controller, received_nicks: List[str]) -> Tuple[dict, List[str]]:
     """
         Assigns unique id to each nick that is not present in new db
 
@@ -48,22 +35,21 @@ def index_nicks(mongo_controller, received_nicks: List[str]) -> dict:
     """
 
     # Excluding existing nicks from loop
-    nicks_mapping = get_existing_nicks(mongo_controller, received_nicks)
+    nicks_mapping = get_existing_nicks_to_id(mongo_controller)
 
     nicks_to_consider = list(set(received_nicks) - set(list(nicks_mapping)))
 
     # Generating UUID for each nick that is not present in new db
-    if len(nicks_to_consider) > 0:
-        for nick in nicks_to_consider:
-            nicks_mapping[nick] = uuid.uuid4().hex
+    for nick in nicks_to_consider:
+        nicks_mapping[nick] = uuid.uuid4().hex
 
     LOG.info(f'Created nicks mapping for {len(list(nicks_mapping))} records')
 
-    return nicks_mapping
+    return nicks_mapping, nicks_to_consider
 
 
 def migrate_conversations(old_db_controller, new_db_controller,
-                          time_since: int = 1577829600) -> Tuple[list, Dict[str, str]]:
+                          time_since: int = 1577829600) -> Tuple[List[str], Dict[str, str], List[str]]:
     """
         Migrating conversations from old database to new one
         :param old_db_controller: old database connector
@@ -72,19 +58,21 @@ def migrate_conversations(old_db_controller, new_db_controller,
     """
     LOG.info(f'Considered time since: {time_since}')
 
-    # z = int(time.mktime(datetime.datetime.strptime('01/01/2020', "%d/%m/%Y")))
-
     get_cids_query = f""" 
                           select * from shoutbox_conversations where updated>{time_since};
                       """
 
     result = old_db_controller.exec_query(get_cids_query)
 
+    result_cids = [r['cid'] for r in result]
+
     existing_cids = new_db_controller.exec_query(query=dict(document='conversations', command='find', data={
-        'cid': {'$in': [r['cid'] for r in result]}
+        'cid': {'$in': result_cids}
     }))
 
     existing_cids = [r['cid'] for r in existing_cids]
+
+    all_cids = list(set(result_cids + existing_cids))
 
     LOG.info(f'Found {len(existing_cids)} existing cids')
 
@@ -93,21 +81,44 @@ def migrate_conversations(old_db_controller, new_db_controller,
 
     LOG.info(f'Received {len(result)} new cids')
 
-    received_nicks = [record['creator'] for record in result]
+    received_nicks = [record['creator'].strip().lower() for record in result]
 
-    nicknames_mapping = index_nicks(mongo_controller=new_db_controller,
-                                    received_nicks=received_nicks)
+    nicknames_mapping, nicks_to_consider = index_nicks(mongo_controller=new_db_controller,
+                                                       received_nicks=received_nicks)
 
-    new_cids_list = []
+    LOG.debug(f'Records to process: {len(result)}')
 
-    if result:
+    i = 0
 
-        for record in result:
-            record['creator'] = nicknames_mapping.get(record['creator'], record['creator'])
+    new_cids = []
 
-        new_db_controller.exec_query(query=dict(document='conversations', command='insert_many', data=result))
+    for record in result:
+        try:
+            insertion_record = {
+                '_id': record['cid'],
+                'is_private': int(record['private']) == 1,
+                'domain': record['domain'],
+                'image': record['image_url'],
+                'password': record['password'],
+                'conversation_name': record['title'],
+                'creator': nicknames_mapping.get(record['creator'], record['creator']),
+                'created_on': int(record['created'])
+            }
 
-        new_cids_list = [str(x['cid']) for x in result]
+            i += 1
 
-    return new_cids_list, nicknames_mapping
+            LOG.debug(f'Processing record #{i} of {len(result)}')
 
+            new_db_controller.exec_query(query=dict(document='chats',
+                                                    command='update',
+                                                    data=({'_id': insertion_record['_id']},
+                                                          {"$set": insertion_record})),
+                                         upsert=True)
+
+            new_cids.append(record['cid'])
+
+        except Exception as ex:
+            LOG.error(f'Skipping processing of conversation data "{record}" due to exception: {ex}')
+            continue
+
+    return all_cids, nicknames_mapping, nicks_to_consider
