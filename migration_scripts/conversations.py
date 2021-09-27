@@ -22,6 +22,7 @@ import uuid
 from typing import List, Dict, Tuple
 
 from neon_utils import LOG
+from pymongo import ReplaceOne
 
 from utils.database_utils.mongo_utils.user_utils import get_existing_nicks_to_id
 
@@ -64,10 +65,10 @@ def migrate_conversations(old_db_controller, new_db_controller,
 
     result = old_db_controller.exec_query(get_cids_query)
 
-    result_cids = [r['cid'] for r in result]
+    result_cids = [str(r['cid']) for r in result]
 
     existing_cids = new_db_controller.exec_query(query=dict(document='conversations', command='find', data={
-        'cid': {'$in': result_cids}
+        '_id': {'$in': result_cids}
     }))
 
     existing_cids = [r['cid'] for r in existing_cids]
@@ -81,44 +82,29 @@ def migrate_conversations(old_db_controller, new_db_controller,
 
     LOG.info(f'Received {len(result)} new cids')
 
-    received_nicks = [record['creator'].strip().lower() for record in result]
+    received_nicks = [record['creator'].strip().lower() for record in result if record['creator'] is not None]
 
     nicknames_mapping, nicks_to_consider = index_nicks(mongo_controller=new_db_controller,
                                                        received_nicks=received_nicks)
 
     LOG.debug(f'Records to process: {len(result)}')
 
-    i = 0
+    formed_result = [ReplaceOne({'_id': str(record['cid'])},
+                                {
+                                    '_id': str(record['cid']),
+                                    'is_private': int(record['private']) == 1,
+                                    'domain': record['domain'],
+                                    'image': record['image_url'],
+                                    'password': record['password'],
+                                    'conversation_name': record['title'],
+                                    'chat_flow': [],
+                                    'creator': nicknames_mapping.get(record['creator'], record['creator']),
+                                    'created_on': int(record['created'])
+                                }, upsert=True) for record in result
+                     ]
 
-    new_cids = []
-
-    for record in result:
-        try:
-            insertion_record = {
-                '_id': record['cid'],
-                'is_private': int(record['private']) == 1,
-                'domain': record['domain'],
-                'image': record['image_url'],
-                'password': record['password'],
-                'conversation_name': record['title'],
-                'creator': nicknames_mapping.get(record['creator'], record['creator']),
-                'created_on': int(record['created'])
-            }
-
-            i += 1
-
-            LOG.debug(f'Processing record #{i} of {len(result)}')
-
-            new_db_controller.exec_query(query=dict(document='chats',
-                                                    command='update',
-                                                    data=({'_id': insertion_record['_id']},
-                                                          {"$set": insertion_record})),
-                                         upsert=True)
-
-            new_cids.append(record['cid'])
-
-        except Exception as ex:
-            LOG.error(f'Skipping processing of conversation data "{record}" due to exception: {ex}')
-            continue
+    new_db_controller.exec_query(query=dict(document='chats',
+                                            command='bulk_write',
+                                            data=formed_result))
 
     return all_cids, nicknames_mapping, nicks_to_consider

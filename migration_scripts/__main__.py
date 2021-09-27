@@ -77,21 +77,21 @@ def main(migration_id: str = None, dump_dir=os.getcwd(), time_since: int = 16778
                                                                               new_db_controller=mongo_connector,
                                                                               time_since=time_since)
 
-        with open(os.path.join(considered_path, MigrationFiles.NICK_MAPPING.value), 'w') as f:
-            json.dump(nick_to_uuid_mapping, f)
-            LOG.info(f'Stored nicks mapping in {MigrationFiles.NICK_MAPPING.value}')
-
-        if nicks_to_consider:
-            with open(os.path.join(considered_path, MigrationFiles.NICKS.value), 'w') as f:
-                nicks = [nick + '\n' for nick in nicks_to_consider]
-                f.writelines(nicks)
-                LOG.info(f'Stored nicks list in {MigrationFiles.NICKS.value}')
-
-        if cids:
-            with open(os.path.join(considered_path, MigrationFiles.CIDS.value), 'w') as f:
-                cids = [cid + '\n' for cid in cids]
-                f.writelines(cids)
-                LOG.info(f'Stored cid list in {MigrationFiles.CIDS.value}')
+        # with open(os.path.join(considered_path, MigrationFiles.NICK_MAPPING.value), 'w', encoding="utf-8") as f:
+        #     json.dump(nick_to_uuid_mapping, f)
+        #     LOG.info(f'Stored nicks mapping in {MigrationFiles.NICK_MAPPING.value}')
+        #
+        # if nicks_to_consider:
+        #     with open(os.path.join(considered_path, MigrationFiles.NICKS.value), 'w', encoding="utf-8") as f:
+        #         nicks = [str(nick) + '\n' for nick in nicks_to_consider]
+        #         f.writelines(nicks)
+        #         LOG.info(f'Stored nicks list in {MigrationFiles.NICKS.value}')
+        #
+        # if cids:
+        #     with open(os.path.join(considered_path, MigrationFiles.CIDS.value), 'w', encoding="utf-8") as f:
+        #         cids = [str(cid) + '\n' for cid in cids]
+        #         f.writelines(cids)
+        #         LOG.info(f'Stored cid list in {MigrationFiles.CIDS.value}')
 
     migrate_users(old_db_controller=mysql_connector,
                   new_db_controller=mongo_connector,

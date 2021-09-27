@@ -19,6 +19,7 @@
 import copy
 
 from neon_utils import LOG
+from pymongo import ReplaceOne
 
 
 def migrate_shouts(old_db_controller, new_db_controller, nick_to_uuid_mapping: dict, from_cids: list):
@@ -38,36 +39,45 @@ def migrate_shouts(old_db_controller, new_db_controller, nick_to_uuid_mapping: d
 
     users = ', '.join(["'" + nick.replace("'", "") + "'" for nick in list(nick_to_uuid_mapping)])
 
+    filter_str = f"WHERE nick IN ({users}) "
+
     existing_shout_ids = ', '.join(["'" + shout['_id'] + "'" for shout in list(existing_shouts)])
 
-    considered_cids = ', '.join(["'" + cid + "'" for cid in from_cids])
+    if existing_shout_ids:
+        filter_str += f"AND shout_id NOT IN ({existing_shout_ids}) "
 
-    get_shouts_query = f""" SELECT * FROM shoutbox 
-                            WHERE nick IN ({users}) 
-                            AND shout_id NOT IN ({existing_shout_ids})
-                            AND cid IN ( {considered_cids} ); """
+    considered_cids = ', '.join(["'" + str(cid) + "'" for cid in from_cids])
+
+    if considered_cids:
+        filter_str += f"AND cid IN ({considered_cids})"
+
+    get_shouts_query = f""" SELECT * FROM shoutbox {filter_str};"""
 
     result = old_db_controller.exec_query(get_shouts_query)
 
     LOG.info(f'Received {len(list(result))} new shouts')
 
-    for record in result:
-        try:
-            insertion_record = {
-                '_id': record['shout_id'],
-                'domain': record['domain'],
-                'user_id': nick_to_uuid_mapping[str(record['nick']).strip().lower()],
-                'created_on': int(record['created']),
-                'shout': record['shout'],
-                'language': record['language'],
-                'cid': record['cid']  # for alignment recovery on order failure
-            }
+    formed_result = [ReplaceOne({'_id': str(record['shout_id'])},
+                                {
+                                    '_id': str(record['shout_id']),
+                                    'domain': record['domain'],
+                                    'user_id': nick_to_uuid_mapping[bytes(record['nick']).decode('utf-8').strip().lower()
+                                                                    if isinstance(record['nick'], bytearray)
+                                                                    else record['nick'].strip().lower()],
+                                    'created_on': int(record['created']),
+                                    'shout': record['shout'],
+                                    'language': record['language'],
+                                    'cid': str(record['cid'])
+                                }, upsert=True) for record in result
+                     ]
 
-            new_db_controller.exec_query(query=dict(document='shouts',
-                                                    command='update',
-                                                    data=({'_id': insertion_record['_id']},
-                                                          {"$set": insertion_record})),
-                                         upsert=True)
+    new_db_controller.exec_query(query=dict(document='shouts',
+                                            command='bulk_write',
+                                            data=formed_result))
+
+    for record in result:
+
+        try:
 
             new_db_controller.exec_query(query=dict(document='chats',
                                                     command='update',

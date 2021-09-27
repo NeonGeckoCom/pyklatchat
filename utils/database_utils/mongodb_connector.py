@@ -26,7 +26,8 @@ from utils.database_utils.base_connector import DatabaseConnector, DatabaseTypes
 
 class MongoDBConnector(DatabaseConnector):
 
-    mongo_recognised_commands = ('insert_one', 'insert_many', 'delete_one', 'delete_many', 'find', 'find_one', 'update')
+    mongo_recognised_commands = ('insert_one', 'insert_many', 'delete_one', 'bulk_write',
+                                 'delete_many', 'find', 'find_one', 'update')
 
     @property
     def database_type(self) -> DatabaseTypes:
