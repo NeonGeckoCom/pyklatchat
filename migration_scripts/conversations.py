@@ -73,6 +73,8 @@ def migrate_conversations(old_db_controller, new_db_controller,
 
     existing_cids = [r['_id'] for r in existing_cids]
 
+    all_cids_in_scope = list(set(existing_cids+result_cids))
+
     LOG.info(f'Found {len(existing_cids)} existing cids')
 
     if existing_cids:
@@ -109,4 +111,4 @@ def migrate_conversations(old_db_controller, new_db_controller,
     else:
         LOG.info('All chats are already in new deb, skipping chat migration')
 
-    return result_cids, nicknames_mapping, nicks_to_consider
+    return all_cids_in_scope, nicknames_mapping, nicks_to_consider
