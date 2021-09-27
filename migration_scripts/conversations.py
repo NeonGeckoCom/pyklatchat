@@ -57,7 +57,7 @@ def migrate_conversations(old_db_controller, new_db_controller,
         :param new_db_controller: new database connector
         :param time_since: timestamp for conversation activity
     """
-    LOG.info(f'Considered time since: {time_since}')
+    LOG.info(f'Starting chats migration')
 
     get_cids_query = f""" 
                           select * from shoutbox_conversations where updated>{time_since};
@@ -67,22 +67,20 @@ def migrate_conversations(old_db_controller, new_db_controller,
 
     result_cids = [str(r['cid']) for r in result]
 
-    existing_cids = new_db_controller.exec_query(query=dict(document='conversations', command='find', data={
+    existing_cids = list(new_db_controller.exec_query(query=dict(document='chats', command='find', data={
         '_id': {'$in': result_cids}
-    }))
+    })))
 
-    existing_cids = [r['cid'] for r in existing_cids]
-
-    all_cids = list(set(result_cids + existing_cids))
+    existing_cids = [r['_id'] for r in existing_cids]
 
     LOG.info(f'Found {len(existing_cids)} existing cids')
 
     if existing_cids:
-        result = list(filter(lambda x: x['cid'] not in existing_cids, result))
+        result = list(filter(lambda x: str(x['cid']) not in existing_cids, result))
 
     LOG.info(f'Received {len(result)} new cids')
 
-    received_nicks = [record['creator'].strip().lower() for record in result if record['creator'] is not None]
+    received_nicks = [record['creator'] for record in result if record['creator'] is not None]
 
     nicknames_mapping, nicks_to_consider = index_nicks(mongo_controller=new_db_controller,
                                                        received_nicks=received_nicks)
@@ -103,8 +101,12 @@ def migrate_conversations(old_db_controller, new_db_controller,
                                 }, upsert=True) for record in result
                      ]
 
-    new_db_controller.exec_query(query=dict(document='chats',
-                                            command='bulk_write',
-                                            data=formed_result))
+    if len(formed_result) > 0:
 
-    return all_cids, nicknames_mapping, nicks_to_consider
+        new_db_controller.exec_query(query=dict(document='chats',
+                                                command='bulk_write',
+                                                data=formed_result))
+    else:
+        LOG.info('All chats are already in new deb, skipping chat migration')
+
+    return result_cids, nicknames_mapping, nicks_to_consider

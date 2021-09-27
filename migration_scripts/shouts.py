@@ -31,7 +31,7 @@ def migrate_shouts(old_db_controller, new_db_controller, nick_to_uuid_mapping: d
         :param from_cids: list of considered conversation ids
     """
 
-    existing_shouts = new_db_controller.exec_query(query=dict(document='shouts', command='find', data={}))
+    existing_shouts = list(new_db_controller.exec_query(query=dict(document='shouts', command='find', data={})))
 
     nick_to_uuid_mapping = {k.strip().lower(): v for k, v in copy.deepcopy(nick_to_uuid_mapping).items() if k}
 
@@ -55,25 +55,33 @@ def migrate_shouts(old_db_controller, new_db_controller, nick_to_uuid_mapping: d
 
     result = old_db_controller.exec_query(get_shouts_query)
 
-    LOG.info(f'Received {len(list(result))} new shouts')
+    LOG.info(f'Received {len(list(result))} shouts')
 
-    formed_result = [ReplaceOne({'_id': str(record['shout_id'])},
+    formed_result = []
+
+    for record in result:
+
+        if isinstance(record['nick'], bytearray):
+            record['nick'] = str(record['nick'].decode('utf-8'))
+
+        formed_result.append(ReplaceOne({'_id': str(record['shout_id'])},
                                 {
                                     '_id': str(record['shout_id']),
                                     'domain': record['domain'],
-                                    'user_id': nick_to_uuid_mapping[bytes(record['nick']).decode('utf-8').strip().lower()
-                                                                    if isinstance(record['nick'], bytearray)
-                                                                    else record['nick'].strip().lower()],
+                                    'user_id': nick_to_uuid_mapping.get(record['nick'], 'undefined'),
                                     'created_on': int(record['created']),
                                     'shout': record['shout'],
                                     'language': record['language'],
                                     'cid': str(record['cid'])
-                                }, upsert=True) for record in result
-                     ]
+                                }, upsert=True))
 
-    new_db_controller.exec_query(query=dict(document='shouts',
-                                            command='bulk_write',
-                                            data=formed_result))
+    if len(formed_result) > 0:
+
+        new_db_controller.exec_query(query=dict(document='shouts',
+                                                command='bulk_write',
+                                                data=formed_result))
+
+    LOG.info('Starting inserting shouts in conversations')
 
     for record in result:
 

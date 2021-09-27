@@ -34,15 +34,17 @@ def migrate_users(old_db_controller, new_db_controller, nick_to_uuid_mapping, ni
         :param nicks_to_consider: list of nicknames to consider
     """
 
+    LOG.info('Starting users migration')
+
     existing_nicks = get_existing_nicks_to_id(mongo_controller=new_db_controller)
 
     nick_to_uuid_mapping = {k.strip().lower(): v for k, v in copy.deepcopy(nick_to_uuid_mapping).items()
                             if k not in list(existing_nicks)}
 
-    LOG.info('Starting users migration')
+    LOG.info(f'Nicks to consider: {nicks_to_consider}')
 
     users = ', '.join(["'" + nick.replace("'", "") + "'" for nick in nicks_to_consider
-                       if nick not in list(existing_nicks)])
+                       if nick.strip().lower() not in list(existing_nicks)])
 
     if len(nicks_to_consider) == 0:
         LOG.info('All nicks are already in new db, skipping user migration')
@@ -113,73 +115,5 @@ def migrate_users(old_db_controller, new_db_controller, nick_to_uuid_mapping, ni
     new_db_controller.exec_query(query=dict(document='user_preferences',
                                             command='bulk_write',
                                             data=formed_result))
-
-    # for record in result:
-    #
-    #     for key, value in record.items():
-    #         if isinstance(value, Decimal):
-    #             record[key] = int(value)
-    #
-    #     # TODO: if old user will try to access his account from new system - send new password to his email
-    #
-    #     try:
-    #
-    #         # User Data
-    #
-    #         user_id = nick_to_uuid_mapping[record['nick'].strip().lower()]
-    #
-    #         insertion_record_user = {
-    #             '_id': user_id,
-    #             'first_name': record['first_name'],
-    #             'last_name': record['last_name'],
-    #             'avatar': record['avatar_url'],
-    #             'nickname': record['nick'],
-    #             'password': '123',
-    #             'about_me': record['about_me'],
-    #             'date_created': int(record['login']),
-    #             'email': record['mail'],
-    #             'phone': record['phone']
-    #         }
-    #
-    #         # User Preference Data
-    #
-    #         insertion_record_user_preference = {
-    #             '_id': user_id,
-    #             'display_nick': record['display_nick'],
-    #             'stt_language': record['stt_language'],
-    #             'use_client_stt': record['use_client_stt'],
-    #             'tts_language': record['tts_language'],
-    #             'tts_voice_gender': record['tts_voice_gender'],
-    #             'tts_secondary_language': record['tts_secondary_language'],
-    #             'speech_rate': record['speech_rate'],
-    #             'speech_pitch': record['speech_pitch'],
-    #             'speech_voice': record['speech_voice'],
-    #             'share_my_recordings': record['share_my_recordings'],
-    #             'ai_speech_voice': record['ai_speech_voice'],
-    #             'preferred_name': record['preferred_name'],
-    #             'ignored_brands': record['ignored_brands'],
-    #             'favorite_brands': record['favorite_brands'],
-    #             'volume': record['volume'],
-    #             'use_multi_line_shout': record['use_multi_line_shout']
-    #         }
-    #
-    #         new_db_controller.exec_query(query=dict(document='users',
-    #                                                 command='update',
-    #                                                 data=({'_id': insertion_record_user['_id']},
-    #                                                       {"$set": insertion_record_user})),
-    #                                      upsert=True)
-    #
-    #         new_db_controller.exec_query(query=dict(document='user_preferences',
-    #                                                 command='update',
-    #                                                 data=({'_id': insertion_record_user_preference['_id']},
-    #                                                       {"$set": insertion_record_user_preference})),
-    #                                      upsert=True)
-    #
-    #     except Exception as ex:
-    #         LOG.error(f'Skipping processing of user data "{record}" due to exception: {ex}')
-    #         continue
-
-    # if result:
-    #     new_db_controller.exec_query(query=dict(document='users', command='insert_many', data=result))
 
     LOG.info(f'Received {len(list(result))} new users')

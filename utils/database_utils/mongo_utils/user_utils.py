@@ -9,6 +9,9 @@ def get_existing_nicks_to_id(mongo_controller) -> dict:
 
         :returns List of dict containing filtered items
     """
-    retrieved_data = mongo_controller.exec_query(query=dict(document='users', command='find'))
-    LOG.info(f'Retrieved {len(list(retrieved_data))} existing nicknames from new db')
-    return {record['nick']: record['_id'] for record in retrieved_data}
+    retrieved_data = list(mongo_controller.exec_query(query=dict(document='users', command='find', data={})))
+
+    LOG.info(f'Retrieved {len(retrieved_data)} existing nicknames from new db')
+
+    return {record['nickname']: record['_id'] for record in list(retrieved_data)}
+
