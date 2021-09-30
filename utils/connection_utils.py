@@ -17,16 +17,24 @@
 # US Patents 2008-2021: US7424516, US20140161250, US20140177813, US8638908, US8068604, US8553852, US10530923, US10530924
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
 
-import os
-from config import Configuration
+from sshtunnel import SSHTunnelForwarder
 
-server_config_path = os.environ.get('CHATSERVER_CONFIG', '~/.local/share/neon/chatserver_credentials.json')
-database_config_path = os.environ.get('DATABASE_CONFIG', '~/.local/share/neon/chatserver_credentials.json')
 
-server_env = os.environ.get('SERVER_ENV', 'LOCALHOST')
+def create_ssh_tunnel(server_address: str, username: str, password: str,
+                      remote_bind_address: tuple = ('127.0.0.1', 8080)) -> SSHTunnelForwarder:
+    """
+        Creates tunneled SSH connection to dedicated address
 
-config = Configuration(from_files=[server_config_path, database_config_path])
-
-app_config = config.config_data.get('CHAT_SERVER', {}).get(server_env)
-
-db_connector = config.get_db_controller(name='pyklatchat_3333')
+        :param server_address: ssh server address
+        :param username: server username
+        :param password: server password
+        :param remote_bind_address: remote address to bind to
+    """
+    server = SSHTunnelForwarder(
+        server_address,
+        ssh_username=username,
+        ssh_password=password,
+        remote_bind_address=remote_bind_address
+    )
+    server.start()
+    return server

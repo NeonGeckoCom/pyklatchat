@@ -24,7 +24,7 @@ import copy
 from typing import List
 from neon_utils import LOG
 
-from utils.database.db_controller import DatabaseController
+from utils.database_utils import DatabaseController
 
 
 class Configuration:
@@ -33,7 +33,7 @@ class Configuration:
 
     def __init__(self, from_files: List[str]):
         self._config_data = dict()
-        for source_file in from_files:
+        for source_file in [file for file in from_files if file]:
             self.add_new_config_properties(self.extract_config_from_path(source_file))
 
     @staticmethod
@@ -79,21 +79,33 @@ class Configuration:
             raise TypeError(f'Type: {type(value)} not supported')
         self._config_data = value
 
-    def get_db_controller(self,
-                          override: bool = False) -> DatabaseController:
+    def get_db_config_from_key(self, key: str):
+        """Gets DB configuration by key"""
+        return copy.deepcopy(self.config_data.get('DATABASE_CONFIG', {}).get(os.environ.get('ENV'), {}).get(key, {}))
+
+    def get_db_controller(self, name: str,
+                          override: bool = False,
+                          override_args: dict = None) -> DatabaseController:
         """
             Returns an new instance of Database Controller for specified dialect (creates new one if not present)
 
-            :param override: to override existing instance under :param dialect
+            :param name: db connection name from config
+            :param override: to override existing instance under :param dialect (defaults to False)
+            :param override_args: dict with arguments to override (optional)
 
             :returns instance of Database Controller
         """
-        db_config = copy.deepcopy(self.config_data.get('DATABASE_CONFIG', {}).get(os.environ.get('ENV'), {}))
-
-        dialect = db_config.pop('dialect')
-        db_controller = self.db_controllers.get(dialect, None)
+        db_controller = self.db_controllers.get(name, None)
         if not db_controller or override:
-            db_controller = DatabaseController(config_data=db_config)
-            db_controller.attach_connector(dialect=dialect)
-            db_controller.connect()
+            db_config = self.get_db_config_from_key(key=name)
+            # Overriding with "override args" if needed
+            if not override_args:
+                override_args = {}
+            db_config = {**db_config, **override_args}
+
+            dialect = db_config.pop('dialect', None)
+            if dialect:
+                db_controller = DatabaseController(config_data=db_config)
+                db_controller.attach_connector(dialect=dialect)
+                db_controller.connect()
         return db_controller
