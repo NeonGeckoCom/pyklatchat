@@ -24,7 +24,7 @@ from neon_utils import LOG
 
 from chat_server.utils.user_utils import get_neon_data, get_bot_data
 from chat_server.sio import sio
-from chat_server.server_config import db_connector
+from chat_server.server_config import db_controller
 from chat_server.utils.auth import generate_uuid
 
 
@@ -70,10 +70,10 @@ async def user_message(sid, data):
     filter_expression = dict(_id=ObjectId(data['cid']))
     LOG.info(f'Received user message data: {data}')
     if data['userID'] == 'neon':
-        neon_data = get_neon_data(db_connector=db_connector)
+        neon_data = get_neon_data(db_controller=db_controller)
         data['userID'] = neon_data['_id']
     elif data.get('is_bot', False):
-        bot_data = get_bot_data(db_connector=db_connector, nickname=data['userID'])
+        bot_data = get_bot_data(db_controller=db_controller, nickname=data['userID'], context=data.get('context', None))
         data['userID'] = bot_data['_id']
 
     new_shout_data = {'_id': generate_uuid(),
@@ -85,8 +85,8 @@ async def user_message(sid, data):
 
     push_expression = {'$push': {'chat_flow': new_shout_data['_id']}}
 
-    db_connector.exec_query({'command': 'insert_one', 'document': 'shouts', 'data': push_expression})
+    db_controller.exec_query({'command': 'insert_one', 'document': 'shouts', 'data': push_expression})
 
-    db_connector.exec_query({'command': 'update', 'document': 'chats', 'data': (filter_expression, push_expression,)})
+    db_controller.exec_query({'command': 'update', 'document': 'chats', 'data': (filter_expression, push_expression,)})
 
     await sio.emit('new_message', data=json.dumps(data), skip_sid=[sid])

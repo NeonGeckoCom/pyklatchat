@@ -29,4 +29,4 @@ config = Configuration(from_files=[server_config_path, database_config_path])
 
 app_config = config.config_data.get('CHAT_SERVER', {}).get(server_env)
 
-db_connector = config.get_db_controller(name='pyklatchat_3333')
+db_controller = config.get_db_controller(name='pyklatchat_3333')

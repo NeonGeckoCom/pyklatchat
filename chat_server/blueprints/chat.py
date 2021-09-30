@@ -31,7 +31,7 @@ from fastapi.exceptions import HTTPException
 from pydantic import BaseModel
 from bson.objectid import ObjectId
 
-from chat_server.server_config import db_connector
+from chat_server.server_config import db_controller
 from chat_server.utils.auth import get_current_user, secret_key, jwt_encryption_algo, get_hash, \
     check_password_strength, generate_uuid
 
@@ -57,14 +57,14 @@ def new_conversation(request_data: NewConversationData):
         :returns JSON response with new conversation data if added, 401 error message otherwise
     """
     if request_data.__dict__.get('_id', None):
-        matching_conversation_id = db_connector.exec_query(query={'command': 'find_one',
+        matching_conversation_id = db_controller.exec_query(query={'command': 'find_one',
                                                                   'document': 'chats',
                                                                   'data': ({'_id': getattr(request_data, '_id')})})
         if matching_conversation_id:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED, detail='Provided conversation id already exists'
             )
-    _id = db_connector.exec_query(query=dict(document='chats', command='insert_one', data=(request_data.__dict__,)))
+    _id = db_controller.exec_query(query=dict(document='chats', command='insert_one', data=(request_data.__dict__,)))
     request_data.__dict__['_id'] = str(request_data.__dict__['_id'])
     json_compatible_item_data = jsonable_encoder(request_data.__dict__)
     json_compatible_item_data['_id'] = str(_id.inserted_id)
@@ -90,7 +90,7 @@ def get_conversation(request: Request, cid: str, username: str = Depends(get_cur
     """
     if ObjectId.is_valid(cid):
         cid = ObjectId(cid)
-    conversation_data = db_connector.exec_query(query={'command': 'find_one',
+    conversation_data = db_controller.exec_query(query={'command': 'find_one',
                                                        'document': 'chats',
                                                        'data': {'_id': cid}})
     if not conversation_data:
@@ -145,7 +145,7 @@ def get_conversation(request: Request, search_str: str, username: str = Depends(
         cid_search = ObjectId(search_str)
         or_expression.append({'_id': cid_search})
 
-    conversation_data = db_connector.exec_query(query={'command': 'find_one',
+    conversation_data = db_controller.exec_query(query={'command': 'find_one',
                                                        'document': 'chats',
                                                        'data': {"$or": or_expression}})
     if not conversation_data:

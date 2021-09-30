@@ -25,7 +25,7 @@ from fastapi import APIRouter, Depends, Form, Response, status, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.exceptions import HTTPException
 
-from chat_server.server_config import db_connector
+from chat_server.server_config import db_controller
 from chat_server.utils.auth import get_current_user, secret_key, jwt_encryption_algo, get_hash, \
     check_password_strength, generate_uuid
 
@@ -51,7 +51,7 @@ def signup(first_name: str = Form(...),
         :returns JSON response with status corresponding to the new user creation status,
                  sets session cookies if creation is successful
     """
-    existing_user = db_connector.exec_query(query={'command': 'find_one',
+    existing_user = db_controller.exec_query(query={'command': 'find_one',
                                                    'document': 'users',
                                                    'data': {'nickname': nickname}})
     if existing_user:
@@ -71,7 +71,7 @@ def signup(first_name: str = Form(...),
                            nickname=nickname,
                            date_created=int(time()),
                            is_tmp=False)
-    db_connector.exec_query(query=dict(document='users', command='insert_one', data=new_user_record))
+    db_controller.exec_query(query=dict(document='users', command='insert_one', data=new_user_record))
 
     token = jwt.encode(payload={"sub": new_user_record['_id'],
                                 'creation_time': new_user_record['date_created'],
@@ -95,7 +95,7 @@ def login(username: str = Form(...), password: str = Form(...)):
 
         :returns JSON response with status corresponding to authorization status, sets session cookie with response
     """
-    matching_user = db_connector.exec_query(query={'command': 'find_one',
+    matching_user = db_controller.exec_query(query={'command': 'find_one',
                                                    'document': 'users',
                                                    'data': {'nickname': username}})
     if not matching_user or matching_user['is_tmp']:

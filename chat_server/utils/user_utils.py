@@ -20,11 +20,18 @@
 from time import time
 
 from chat_server.utils.auth import get_hash, generate_uuid
+from utils.database_utils import DatabaseController
 
 
-def get_neon_data(db_connector):
-    """Gets default data for neon ai"""
-    neon_data = db_connector.exec_query({'command': 'find_one', 'document': 'users',
+def get_neon_data(db_controller: DatabaseController) -> dict:
+    """
+        Gets default data for neon ai and inserts it in db if not present there
+
+        :param db_controller: db controller instance
+
+        :return Neon AI data
+    """
+    neon_data = db_controller.exec_query({'command': 'find_one', 'document': 'users',
                                          'data': {'nickname': 'neon'}})
     if not neon_data:
         neon_data = dict(_id=generate_uuid(length=20),
@@ -35,22 +42,33 @@ def get_neon_data(db_connector):
                          nickname='neon',
                          date_created=int(time()),
                          is_tmp=False)
-        db_connector.exec_query({'command': 'insert_one', 'document': 'users', 'data': neon_data})
+        db_controller.exec_query({'command': 'insert_one', 'document': 'users', 'data': neon_data})
     return neon_data
 
 
-def get_bot_data(db_connector, nickname: str):
-    """Gets default data for neon ai"""
-    bot_data = db_connector.exec_query({'command': 'find_one', 'document': 'users',
+def get_bot_data(db_controller: DatabaseController, nickname: str, context: dict = None) -> dict:
+    """
+        Gets data for provided bot and inserts it in db if not present there
+
+        :param db_controller: db controller instance
+        :param nickname: nickname of the bot provided
+        :param context: context with additional bot information (optional)
+
+        :return Matching bot data
+    """
+    if not context:
+        context = {}
+
+    bot_data = db_controller.exec_query({'command': 'find_one', 'document': 'users',
                                         'data': {'nickname': nickname}})
     if not bot_data:
         bot_data = dict(_id=generate_uuid(length=20),
-                        first_name=nickname.capitalize(),
-                        last_name='',
-                        avatar='',
+                        first_name=context.get('first_name', nickname.capitalize()),
+                        last_name=context.get('last_name', ''),
+                        avatar=context.get('avatar', ''),
                         password=get_hash(generate_uuid()),
                         nickname=nickname,
                         date_created=int(time()),
                         is_tmp=False)
-        db_connector.exec_query({'command': 'insert_one', 'document': 'users', 'data': bot_data})
+        db_controller.exec_query({'command': 'insert_one', 'document': 'users', 'data': bot_data})
     return bot_data
