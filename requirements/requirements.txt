@@ -76,6 +76,7 @@ ruamel.yaml.clib==0.2.4
 s3transfer==0.4.2
 six==1.16.0
 soupsieve==2.2.1
+sshtunnel~=0.4
 starlette==0.14.2
 timezonefinder==5.2.0
 toml==0.10.2

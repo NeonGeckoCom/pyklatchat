@@ -17,16 +17,23 @@
 # US Patents 2008-2021: US7424516, US20140161250, US20140177813, US8638908, US8068604, US8553852, US10530923, US10530924
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
 
-import os
 from config import Configuration
+from utils.connection_utils import create_ssh_tunnel
 
-server_config_path = os.environ.get('CHATSERVER_CONFIG', '~/.local/share/neon/chatserver_credentials.json')
-database_config_path = os.environ.get('DATABASE_CONFIG', '~/.local/share/neon/chatserver_credentials.json')
 
-server_env = os.environ.get('SERVER_ENV', 'LOCALHOST')
-
-config = Configuration(from_files=[server_config_path, database_config_path])
-
-app_config = config.config_data.get('CHAT_SERVER', {}).get(server_env)
-
-db_connector = config.get_db_controller(name='pyklatchat_3333')
+def setup_db_connectors(configuration: Configuration, old_db_key: str, new_db_key: str):
+    """
+        Migrating users from old database to new one
+        :param configuration: active configuration
+        :param old_db_key: old database key
+        :param new_db_key: new database key
+    """
+    ssh_configs = configuration.config_data.get('SSH_CONFIG')
+    tunnel_connection = create_ssh_tunnel(server_address=ssh_configs['ADDRESS'],
+                                          username=ssh_configs['USER'],
+                                          password=ssh_configs['PASSWORD'],
+                                          remote_bind_address=('127.0.0.1', 3306))
+    mysql_connector = configuration.get_db_controller(name=old_db_key,
+                                                      override_args={'port': tunnel_connection.local_bind_address[1]})
+    mongo_connector = configuration.get_db_controller(name=new_db_key)
+    return mysql_connector, mongo_connector

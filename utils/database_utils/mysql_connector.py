@@ -17,43 +17,41 @@
 # US Patents 2008-2021: US7424516, US20140161250, US20140177813, US8638908, US8068604, US8553852, US10530923, US10530924
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
 
-from utils.database.mongodb_connector import MongoDBConnector
-from utils.database.mysql_connector import MySQLConnector
+from mysql.connector import (connection)
 
-from utils.database.base_connector import DatabaseConnector, DatabaseTypes
+from typing import Optional
+from neon_utils import LOG
+from utils.database_utils.base_connector import DatabaseConnector, DatabaseTypes
 
 
-class DatabaseController:
-
-    database_class_mapping = {'mongo': MongoDBConnector,
-                              'mysql': MySQLConnector}
-
-    def __init__(self, config_data: dict):
-        self._connector = None
-        self.config_data = config_data
+class MySQLConnector(DatabaseConnector):
+    """Base connector for all MySQL-related dbs"""
 
     @property
-    def connector(self) -> DatabaseConnector:
-        return self._connector
+    def database_type(self):
+        return DatabaseTypes.RELATIONAL
 
-    def attach_connector(self, dialect: str):
+    def create_connection(self):
+        self._cnx = connection.MySQLConnection(**self.config_data)
+
+    def abort_connection(self):
+        self._cnx.close()
+
+    def exec_raw_query(self, query: str, generator: bool = False, *args, **kwargs) -> Optional[list]:
+        """Executes raw string query and returns its results
+
+            :param query: valid SQL query string
+            :param generator: to return cursor as generator object (defaults to False)
+
+            :returns query result if any
         """
-            Creates database connector instance base on the given class
-
-            :param dialect: name of the dialect to for connection
-        """
-        if dialect not in list(self.database_class_mapping):
-            raise AssertionError(f'Invalid dialect provided, supported are: {list(self.database_class_mapping)}')
-        self._connector = self.database_class_mapping[dialect](config_data=self.config_data)
-
-    def exec_query(self, query, *args):
-        return self.connector.exec_raw_query(query=query, *args)
-
-    def connect(self):
-        self.connector.create_connection()
-
-    def disconnect(self):
-        self.connector.abort_connection()
-
-    def get_type(self) -> DatabaseTypes:
-        return self.connector.database_type
+        cursor = self.connection.cursor(dictionary=True)
+        cursor.execute(query, *args, **kwargs)
+        result = None
+        try:
+            result = cursor.fetchall()
+        except Exception as ex:
+            LOG.error(ex)
+        finally:
+            cursor.close()
+            return result

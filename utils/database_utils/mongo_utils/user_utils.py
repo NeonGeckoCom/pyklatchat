@@ -17,16 +17,20 @@
 # US Patents 2008-2021: US7424516, US20140161250, US20140177813, US8638908, US8068604, US8553852, US10530923, US10530924
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
 
-import os
-from config import Configuration
+from neon_utils import LOG
 
-server_config_path = os.environ.get('CHATSERVER_CONFIG', '~/.local/share/neon/chatserver_credentials.json')
-database_config_path = os.environ.get('DATABASE_CONFIG', '~/.local/share/neon/chatserver_credentials.json')
 
-server_env = os.environ.get('SERVER_ENV', 'LOCALHOST')
+def get_existing_nicks_to_id(mongo_controller) -> dict:
+    """
+        Gets existing nicknames to id mapping from provided mongo db
 
-config = Configuration(from_files=[server_config_path, database_config_path])
+        :param mongo_controller: controller to active mongo collection
 
-app_config = config.config_data.get('CHAT_SERVER', {}).get(server_env)
+        :returns List of dict containing filtered items
+    """
+    retrieved_data = list(mongo_controller.exec_query(query=dict(document='users', command='find', data={})))
 
-db_connector = config.get_db_controller(name='pyklatchat_3333')
+    LOG.info(f'Retrieved {len(retrieved_data)} existing nicknames from new db')
+
+    return {record['nickname']: record['_id'] for record in list(retrieved_data)}
+
