@@ -61,8 +61,11 @@ async def user_message(sid, data):
         ```
             data = {'cid':'conversation id',
                     'userID': 'emitted user id',
-                    'messageID': 'id of emitted message'
+                    'messageID': 'id of emitted message',
                     'messageText': 'content of the user message',
+                    'repliedMessage': 'id of replied message (optional)',
+                    'bot': 'if the message is from bot (defaults to False)',
+                    'context': 'message context (optional)',
                     'timeCreated': 'timestamp on which message was created'}
         ```
     """
@@ -72,7 +75,7 @@ async def user_message(sid, data):
     if data['userID'] == 'neon':
         neon_data = get_neon_data(db_controller=db_controller)
         data['userID'] = neon_data['_id']
-    elif data.get('is_bot', False):
+    elif data.get('bot', False):
         bot_data = get_bot_data(db_controller=db_controller, nickname=data['userID'], context=data.get('context', None))
         data['userID'] = bot_data['_id']
 
