@@ -37,3 +37,20 @@ def get_neon_data(db_connector):
                          is_tmp=False)
         db_connector.exec_query({'command': 'insert_one', 'document': 'users', 'data': neon_data})
     return neon_data
+
+
+def get_bot_data(db_connector, nickname: str):
+    """Gets default data for neon ai"""
+    bot_data = db_connector.exec_query({'command': 'find_one', 'document': 'users',
+                                        'data': {'nickname': nickname}})
+    if not bot_data:
+        bot_data = dict(_id=generate_uuid(length=20),
+                        first_name=nickname.capitalize(),
+                        last_name='',
+                        avatar='',
+                        password=get_hash(generate_uuid()),
+                        nickname=nickname,
+                        date_created=int(time()),
+                        is_tmp=False)
+        db_connector.exec_query({'command': 'insert_one', 'document': 'users', 'data': bot_data})
+    return bot_data
