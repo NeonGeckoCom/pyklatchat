@@ -16,6 +16,8 @@
 # Specialized conversational reconveyance options from Conversation Processing Intelligence Corp.
 # US Patents 2008-2021: US7424516, US20140161250, US20140177813, US8638908, US8068604, US8553852, US10530923, US10530924
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
+import time
+
 import pika
 import socketio
 
@@ -24,6 +26,8 @@ from neon_utils import LOG
 from neon_utils.socket_utils import b64_to_dict, dict_to_b64
 from neon_mq_connector.connector import MQConnector
 from pika.channel import Channel
+
+from chat_server.utils.auth import generate_uuid
 
 
 class Recipients(Enum):
@@ -140,8 +144,18 @@ class ChatObserver(MQConnector):
         """
         if body and isinstance(body, bytes):
             dict_data = b64_to_dict(body)
+
+            klat_data = dict_data['context']['klat_data']
+            send_data = {
+                'cid': klat_data['cid'],
+                'userID': 'neon',
+                'messageID': generate_uuid(),
+                'repliedMessage': klat_data['sid'],
+                'messageText': dict_data['data']['responses']['en-us']['sentence'],
+                'timeCreated': time.time()
+            }
             LOG.info(f'dict_data: {dict_data}')
-            self.sio.emit('neon_message', data=dict_data)
+            self.sio.emit('neon_message', data=send_data)
         else:
             raise TypeError(f'Invalid body received, expected: bytes string; got: {type(body)}')
 

@@ -21,12 +21,11 @@ from time import time
 
 from chat_server.utils.auth import get_hash, generate_uuid
 
-neon_data = None
 
-
-def get_neon_default_data():
-    """Gets default data for neon bot"""
-    global neon_data
+def get_neon_data(db_connector):
+    """Gets default data for neon ai"""
+    neon_data = db_connector.exec_query({'command': 'find_one', 'document': 'users',
+                                         'data': {'nickname': 'neon'}})
     if not neon_data:
         neon_data = dict(_id=generate_uuid(length=20),
                          first_name='Neon',
@@ -36,4 +35,5 @@ def get_neon_default_data():
                          nickname='neon',
                          date_created=int(time()),
                          is_tmp=False)
+        db_connector.exec_query({'command': 'insert_one', 'document': 'users', 'data': neon_data})
     return neon_data
