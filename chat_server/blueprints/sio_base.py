@@ -72,6 +72,8 @@ async def user_message(sid, data):
     LOG.debug(f'Got new user message from {sid}: {data}')
     filter_expression = dict(_id=ObjectId(data['cid']))
     LOG.info(f'Received user message data: {data}')
+    if not data.get('messageID', False):
+        data['messageID'] = generate_uuid()
     if data['userID'] == 'neon':
         neon_data = get_neon_data(db_controller=db_controller)
         data['userID'] = neon_data['_id']
