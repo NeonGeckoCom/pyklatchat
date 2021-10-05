@@ -25,7 +25,7 @@ from utils.database_utils import DatabaseController
 
 def get_neon_data(db_controller: DatabaseController) -> dict:
     """
-        Gets default data for neon ai and inserts it in db if not present there
+        Gets a user profile for the user 'Neon' and adds it to the users db if not already present
 
         :param db_controller: db controller instance
 
@@ -48,7 +48,7 @@ def get_neon_data(db_controller: DatabaseController) -> dict:
 
 def get_bot_data(db_controller: DatabaseController, nickname: str, context: dict = None) -> dict:
     """
-        Gets data for provided bot and inserts it in db if not present there
+        Gets a user profile for the requested bot instance and adds it to the users db if not already present
 
         :param db_controller: db controller instance
         :param nickname: nickname of the bot provided
