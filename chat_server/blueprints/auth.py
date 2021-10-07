@@ -52,8 +52,8 @@ def signup(first_name: str = Form(...),
                  sets session cookies if creation is successful
     """
     existing_user = db_controller.exec_query(query={'command': 'find_one',
-                                                   'document': 'users',
-                                                   'data': {'nickname': nickname}})
+                                                    'document': 'users',
+                                                    'data': {'nickname': nickname}})
     if existing_user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Nickname is already in use"

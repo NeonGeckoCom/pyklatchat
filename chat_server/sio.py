@@ -81,32 +81,57 @@ async def user_message(sid, data):
                     'repliedMessage': 'id of replied message (optional)',
                     'bot': 'if the message is from bot (defaults to False)',
                     'context': 'message context (optional)',
+                    'test': 'is test message (defaults to False)',
                     'timeCreated': 'timestamp on which message was created'}
         ```
     """
     LOG.debug(f'Got new user message from {sid}: {data}')
-    filter_expression = dict(_id=ObjectId(data['cid']))
-    LOG.info(f'Received user message data: {data}')
-    if not data.get('messageID', False):
-        data['messageID'] = generate_uuid()
-    if data['userID'] == 'neon':
-        neon_data = get_neon_data(db_controller=db_controller)
-        data['userID'] = neon_data['_id']
-    elif data.get('bot', False):
-        bot_data = get_bot_data(db_controller=db_controller, nickname=data['userID'], context=data.get('context', None))
-        data['userID'] = bot_data['_id']
+    try:
+        try:
+            filter_expression = dict(_id=ObjectId(data['cid']))
+        except Exception as ex:
+            LOG.warning('Received invalid ObjectId, trying to apply str')
+            filter_expression = dict(_id=data['cid'])
 
-    new_shout_data = {'_id': generate_uuid(),
-                      'user_id': data['userID'],
-                      'message_id': data['messageID'],
-                      'message_text': data['messageText'],
-                      'replied_message': data.get('repliedMessage', ''),
-                      'created_on': data['timeCreated']}
+        if not data.get('test', False):
+            cid_data = db_controller.exec_query({'command': 'find_one', 'document': 'chats', 'data': filter_expression})
+            if not cid_data:
+                msg = 'Shouting to non-existent conversation, skipping further processing'
+                await emit_error(sid=sid, message=msg)
+                return
 
-    push_expression = {'$push': {'chat_flow': new_shout_data['_id']}}
+        LOG.info(f'Received user message data: {data}')
+        if not data.get('messageID', False):
+            data['messageID'] = generate_uuid()
+        if data['userID'] == 'neon':
+            neon_data = get_neon_data(db_controller=db_controller)
+            data['userID'] = neon_data['_id']
+        elif data.get('bot', False):
+            bot_data = get_bot_data(db_controller=db_controller, nickname=data['userID'], context=data.get('context', None))
+            data['userID'] = bot_data['_id']
 
-    db_controller.exec_query({'command': 'insert_one', 'document': 'shouts', 'data': new_shout_data})
+        new_shout_data = {'_id': data['messageID'],
+                          'user_id': data['userID'],
+                          'message_text': data['messageText'],
+                          'replied_message': data.get('repliedMessage', ''),
+                          'created_on': data['timeCreated']}
 
-    db_controller.exec_query({'command': 'update', 'document': 'chats', 'data': (filter_expression, push_expression,)})
+        push_expression = {'$push': {'chat_flow': new_shout_data['_id']}}
 
-    await sio.emit('new_message', data=json.dumps(data), skip_sid=[sid])
+        db_controller.exec_query({'command': 'insert_one', 'document': 'shouts', 'data': new_shout_data})
+
+        if not data.get('test', False):
+            db_controller.exec_query({'command': 'update', 'document': 'chats', 'data': (filter_expression, push_expression,)})
+            await sio.emit('new_message', data=json.dumps(data), skip_sid=[sid])
+    except Exception as ex:
+        LOG.error(f'Exception on sio processing: {ex}')
+        await emit_error(sid=sid, message=f'Unable to process request "user_message" with data: {data}')
+
+
+async def emit_error(sid: str, message: str):
+    """
+        Emits error message to provided sid
+        :param sid: desired sid
+        :param message: message to emit
+    """
+    await sio.emit('klatchat_sio_error', data=json.dumps(dict(msg=message)), to=[sid])

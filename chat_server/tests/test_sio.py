@@ -28,6 +28,8 @@ from neon_utils import LOG
 from uvicorn import Config
 
 from chat_server.tests.beans.server import ASGITestServer
+from chat_server.utils.auth import generate_uuid
+from chat_server.server_config import db_controller
 
 SERVER_ADDRESS = "http://127.0.0.1:8888"
 
@@ -54,10 +56,18 @@ class TestSIO(unittest.TestCase):
         self.pong_received = True
         self.pong_event.set()
 
-    @pytest.mark.usefixtures('create_server')
-    def test_01_ping_server(self):
+    def setUp(self) -> None:
         self.sio = socketio.Client()
         self.sio.connect(url=SERVER_ADDRESS)
+        LOG.info(f'Socket IO client connected to {SERVER_ADDRESS}')
+
+    def tearDown(self) -> None:
+        if self.sio:
+            self.sio.disconnect()
+
+    @pytest.mark.usefixtures('create_server')
+    def test_01_ping_server(self):
+
         self.sio.on('pong', self.handle_pong)
 
         self.pong_event = Event()
@@ -67,4 +77,21 @@ class TestSIO(unittest.TestCase):
         LOG.info(f'Socket IO client connected to {SERVER_ADDRESS}')
         self.pong_event.wait(5)
         self.assertEqual(self.pong_received, True)
-        self.sio.disconnect()
+
+    @pytest.mark.usefixtures('create_server')
+    def test_neon_message(self):
+        message_id = f'test_neon_{generate_uuid()}'
+        message_data = {'userID': 'neon',
+                        'messageID': message_id,
+                        'messageText': 'Neon Test 123',
+                        'bot': False,
+                        'cid': '-1',
+                        'test': True,
+                        'timeCreated': int(time.time())}
+        self.sio.emit('user_message', data=message_data)
+        time.sleep(2)
+        shout = db_controller.exec_query(query={'command': 'find_one',
+                                                'document': 'shouts',
+                                                'data': {'_id': message_id}})
+        self.assertIsNotNone(shout)
+        self.assertIsInstance(shout, dict)
