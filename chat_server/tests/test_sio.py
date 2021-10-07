@@ -36,7 +36,7 @@ SERVER_ADDRESS = "http://127.0.0.1:8888"
 
 @pytest.fixture(scope="session")
 def create_server():
-    """Pinging SIO server for response"""
+    """Creates ASGI server for testing"""
     config = Config('chat_server.tests.utils.app_utils:get_test_app', port=8888, log_level="info", factory=True)
     app_server = ASGITestServer(config=config)
     with app_server.run_in_thread():
