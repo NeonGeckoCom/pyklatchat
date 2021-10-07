@@ -23,9 +23,7 @@ import jwt
 
 from time import time
 from uuid import uuid4
-from fastapi import Response, Depends, Request
-from fastapi.security import APIKeyCookie
-from starlette import status
+from fastapi import Response, Request
 from neon_utils import LOG
 
 from chat_server.server_config import db_controller, app_config

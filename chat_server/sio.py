@@ -17,6 +17,96 @@
 # US Patents 2008-2021: US7424516, US20140161250, US20140177813, US8638908, US8068604, US8553852, US10530923, US10530924
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
 
+import json
+
 import socketio
+from bson.objectid import ObjectId
+from neon_utils import LOG
+
+from chat_server.utils.user_utils import get_neon_data, get_bot_data
+from chat_server.server_config import db_controller
+from chat_server.utils.auth import generate_uuid
+
 
 sio = socketio.AsyncServer(cors_allowed_origins='*', async_mode='asgi')
+
+
+@sio.event
+def connect(sid, environ: dict, auth):
+    """
+        SIO event fired on client connect
+
+        :param sid: connected instance id
+        :param environ: connection environment dict
+        :param auth: authorization method (None if was not provided)
+    """
+    LOG.info(f'{sid} connected')
+
+
+@sio.event
+async def ping(sid, data):
+    """
+        SIO event fired on client ping request
+
+        :param sid: connected instance id
+        :param data: user message data
+    """
+    LOG.info(f'Received ping request from "{sid}"')
+    await sio.emit('pong', data={'msg': 'hello from sio server'})
+
+
+@sio.event
+def disconnect(sid):
+    """
+        SIO event fired on client disconnect
+
+        :param sid: connected instance id
+    """
+    LOG.info(f'{sid} disconnected')
+
+
+@sio.event
+async def user_message(sid, data):
+    """
+        SIO event fired on new user message in chat
+
+        :param sid: connected instance id
+        :param data: user message data
+        Example:
+        ```
+            data = {'cid':'conversation id',
+                    'userID': 'emitted user id',
+                    'messageID': 'id of emitted message',
+                    'messageText': 'content of the user message',
+                    'repliedMessage': 'id of replied message (optional)',
+                    'bot': 'if the message is from bot (defaults to False)',
+                    'context': 'message context (optional)',
+                    'timeCreated': 'timestamp on which message was created'}
+        ```
+    """
+    LOG.debug(f'Got new user message from {sid}: {data}')
+    filter_expression = dict(_id=ObjectId(data['cid']))
+    LOG.info(f'Received user message data: {data}')
+    if not data.get('messageID', False):
+        data['messageID'] = generate_uuid()
+    if data['userID'] == 'neon':
+        neon_data = get_neon_data(db_controller=db_controller)
+        data['userID'] = neon_data['_id']
+    elif data.get('bot', False):
+        bot_data = get_bot_data(db_controller=db_controller, nickname=data['userID'], context=data.get('context', None))
+        data['userID'] = bot_data['_id']
+
+    new_shout_data = {'_id': generate_uuid(),
+                      'user_id': data['userID'],
+                      'message_id': data['messageID'],
+                      'message_text': data['messageText'],
+                      'replied_message': data.get('repliedMessage', ''),
+                      'created_on': data['timeCreated']}
+
+    push_expression = {'$push': {'chat_flow': new_shout_data['_id']}}
+
+    db_controller.exec_query({'command': 'insert_one', 'document': 'shouts', 'data': new_shout_data})
+
+    db_controller.exec_query({'command': 'update', 'document': 'chats', 'data': (filter_expression, push_expression,)})
+
+    await sio.emit('new_message', data=json.dumps(data), skip_sid=[sid])

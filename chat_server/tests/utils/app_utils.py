@@ -17,9 +17,16 @@
 # US Patents 2008-2021: US7424516, US20140161250, US20140177813, US8638908, US8068604, US8553852, US10530923, US10530924
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
 
-import uvicorn
+import socketio
+
+from typing import Union
+from fastapi import FastAPI
 
 from chat_server.app import create_app
 
-if __name__ == '__main__':
-    uvicorn.run(app=create_app())
+
+def get_test_app() -> Union[FastAPI, socketio.ASGIApp]:
+    """Returns test application instance"""
+    return create_app(testing_mode=True)
+
+

@@ -19,24 +19,27 @@
 
 import os
 import sys
+from typing import Union
 
-from typing import Optional
+import socketio
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-
+from fastapi.testclient import TestClient
+from neon_utils import LOG
 
 sys.path.append(os.path.pardir)
 
-from config import Configuration
+from chat_server.sio import sio
 from chat_server.blueprints import auth as auth_blueprint, chat as chat_blueprint, users as users_blueprint
-from neon_utils import LOG
 
 
-def create_asgi_app(app_version: str = None) -> FastAPI:
+def create_app(testing_mode: bool = False, sio_server: socketio.AsyncServer = sio) -> Union[FastAPI, socketio.ASGIApp]:
     """
         Application factory for the Klatchat Server
 
-        :param app_version: application version
+        :param testing_mode: to run application in testing mode (defaults to False)
+        :param sio_server: socket io server instance (optional)
     """
     version = None
     with open('chat_server/version.py') as f:
@@ -59,5 +62,12 @@ def create_asgi_app(app_version: str = None) -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    if testing_mode:
+        chat_app = TestClient(chat_app)
+
+    if sio_server:
+        chat_app = socketio.ASGIApp(socketio_server=sio_server,
+                                    other_asgi_app=chat_app)
 
     return chat_app

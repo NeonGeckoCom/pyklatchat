@@ -17,23 +17,18 @@
 # US Patents 2008-2021: US7424516, US20140161250, US20140177813, US8638908, US8068604, US8553852, US10530923, US10530924
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
 
-import jwt
 import requests
-import re
 
-from uuid import uuid4
 from time import time
-from typing import Optional
-from fastapi import APIRouter, Depends, Form, Response, status, Request
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi import APIRouter, Depends, status, Request
+from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import HTTPException
 from pydantic import BaseModel
 from bson.objectid import ObjectId
 
 from chat_server.server_config import db_controller
-from chat_server.utils.auth import get_current_user, secret_key, jwt_encryption_algo, get_hash, \
-    check_password_strength, generate_uuid
+from chat_server.utils.auth import get_current_user
 
 router = APIRouter(
     prefix="/chat_api",
@@ -58,8 +53,8 @@ def new_conversation(request_data: NewConversationData):
     """
     if request_data.__dict__.get('_id', None):
         matching_conversation_id = db_controller.exec_query(query={'command': 'find_one',
-                                                                  'document': 'chats',
-                                                                  'data': ({'_id': getattr(request_data, '_id')})})
+                                                                   'document': 'chats',
+                                                                   'data': ({'_id': getattr(request_data, '_id')})})
         if matching_conversation_id:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED, detail='Provided conversation id already exists'
