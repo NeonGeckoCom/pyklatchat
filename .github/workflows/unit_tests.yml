@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       PYKLATCHAT_TESTING_CREDENTIALS: ${{ secrets.PYKLATCHAT_TESTING_CREDENTIALS }}
-
+      SERVER_ENV: ${{ secrets.SERVER_ENV }}
     steps:
       - uses: actions/checkout@v2
       - name: Set up python ${{ matrix.python-version }}
