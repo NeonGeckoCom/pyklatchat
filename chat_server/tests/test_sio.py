@@ -67,7 +67,6 @@ class TestSIO(unittest.TestCase):
 
     @pytest.mark.usefixtures('create_server')
     def test_01_ping_server(self):
-
         self.sio.on('pong', self.handle_pong)
 
         self.pong_event = Event()
@@ -81,6 +80,7 @@ class TestSIO(unittest.TestCase):
     @pytest.mark.usefixtures('create_server')
     def test_neon_message(self):
         message_id = f'test_neon_{generate_uuid()}'
+        user_id = 'neon'
         message_data = {'userID': 'neon',
                         'messageID': message_id,
                         'messageText': 'Neon Test 123',
@@ -90,8 +90,48 @@ class TestSIO(unittest.TestCase):
                         'timeCreated': int(time.time())}
         self.sio.emit('user_message', data=message_data)
         time.sleep(2)
+        neon = db_controller.exec_query(query={'command': 'find_one',
+                                               'document': 'users',
+                                               'data': {'nickname': user_id}})
+        self.assertIsNotNone(neon)
+        self.assertIsInstance(neon, dict)
         shout = db_controller.exec_query(query={'command': 'find_one',
                                                 'document': 'shouts',
                                                 'data': {'_id': message_id}})
         self.assertIsNotNone(shout)
         self.assertIsInstance(shout, dict)
+
+    @pytest.mark.usefixtures('create_server')
+    def test_bot_message(self):
+        message_id = f'test_bot_{generate_uuid()}'
+        user_id = f'neon_test_bot_{generate_uuid()}'
+        message_data = {'userID': user_id,
+                        'messageID': message_id,
+                        'messageText': 'Bot Test 123',
+                        'bot': True,
+                        'cid': '-1',
+                        'context': dict(first_name='The', last_name='Bot'),
+                        'test': True,
+                        'timeCreated': int(time.time())}
+        self.sio.emit('user_message', data=message_data)
+        time.sleep(2)
+        bot = db_controller.exec_query(query={'command': 'find_one',
+                                              'document': 'users',
+                                              'data': {'nickname': user_id}})
+        self.assertIsNotNone(bot)
+        self.assertIsInstance(bot, dict)
+        self.assertTrue(bot['first_name'] == 'The')
+        self.assertTrue(bot['last_name'] == 'Bot')
+
+        shout = db_controller.exec_query(query={'command': 'find_one',
+                                                'document': 'shouts',
+                                                'data': {'_id': message_id}})
+        self.assertIsNotNone(shout)
+        self.assertIsInstance(shout, dict)
+
+        db_controller.exec_query(query={'command': 'delete_one',
+                                        'document': 'shouts',
+                                        'data': {'_id': message_id}})
+        db_controller.exec_query(query={'command': 'delete_one',
+                                        'document': 'users',
+                                        'data': {'nickname': user_id}})
