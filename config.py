@@ -81,7 +81,7 @@ class Configuration:
 
     def get_db_config_from_key(self, key: str):
         """Gets DB configuration by key"""
-        return self.config_data.get('DATABASE_CONFIG', {}).get(os.environ.get('SERVER_ENV'), {}).get(key, {})
+        return self.config_data.get('DATABASE_CONFIG', {}).get(os.environ.get('SERVER_ENV', 'LOCALHOST'), {}).get(key, {})
 
     def get_db_controller(self, name: str,
                           override: bool = False,
