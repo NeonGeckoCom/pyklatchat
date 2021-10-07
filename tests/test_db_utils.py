@@ -34,10 +34,11 @@ class TestDBController(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         db_config_file_path = os.environ.get('DATABASE_CONFIG', '~/.local/share/neon/credentials.json')
-        ssh_config_file_path = os.environ.get('SSH_CONFIG', None)
+        ssh_config_file_path = os.environ.get('SSH_CONFIG', '~/.local/share/neon/credentials.json')
 
         cls.configuration = Configuration(from_files=[db_config_file_path, ssh_config_file_path])
 
+    @unittest.skip('Skipped until ssh key connection will be configured')
     def test_simple_interaction_mysql(self):
         ssh_configs = self.configuration.config_data.get('SSH_CONFIG', None)
         override_configs = dict()
