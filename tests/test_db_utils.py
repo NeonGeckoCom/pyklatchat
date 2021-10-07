@@ -33,7 +33,6 @@ class TestDBController(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls) -> None:
-        os.environ["SERVER_ENV"] = 'LOCALHOST'
         db_config_file_path = os.environ.get('DATABASE_CONFIG', '~/.local/share/neon/credentials.json')
         ssh_config_file_path = os.environ.get('SSH_CONFIG', '~/.local/share/neon/credentials.json')
 
