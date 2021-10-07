@@ -20,6 +20,7 @@
 import json
 
 import socketio
+from bson.errors import InvalidId
 from bson.objectid import ObjectId
 from neon_utils import LOG
 
@@ -89,8 +90,8 @@ async def user_message(sid, data):
     try:
         try:
             filter_expression = dict(_id=ObjectId(data['cid']))
-        except Exception as ex:
-            LOG.warning('Received invalid ObjectId, trying to apply str')
+        except InvalidId:
+            LOG.warning('Received invalid id for ObjectId, trying to apply str')
             filter_expression = dict(_id=data['cid'])
 
         if not data.get('test', False):
