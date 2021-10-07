@@ -35,4 +35,11 @@ jobs:
         with:
           name: db-utils-test-results
           path: tests/db-utils-test-results.xml
-
+      - name: Test SIO
+        run: |
+          pytest chat_server/tests/test_sio.py --doctest-modules --junitxml=tests/sio-test-results.xml
+      - name: Upload SIO test results
+        uses: actions/upload-artifact@v2
+        with:
+          name: sio-test-results
+          path: tests/sio-test-results.xml

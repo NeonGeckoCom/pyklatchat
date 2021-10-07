@@ -20,8 +20,8 @@
 import os
 from config import Configuration
 
-server_config_path = os.environ.get('CHATSERVER_CONFIG', '~/.local/share/neon/chatserver_credentials.json')
-database_config_path = os.environ.get('DATABASE_CONFIG', '~/.local/share/neon/chatserver_credentials.json')
+server_config_path = os.environ.get('CHATSERVER_CONFIG', '~/.local/share/neon/credentials.json')
+database_config_path = os.environ.get('DATABASE_CONFIG', '~/.local/share/neon/credentials.json')
 
 server_env = os.environ.get('SERVER_ENV', 'LOCALHOST')
 
