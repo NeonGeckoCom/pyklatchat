@@ -23,12 +23,10 @@ import jwt
 
 from time import time
 from uuid import uuid4
-from fastapi import Response, Depends, Request
-from fastapi.security import APIKeyCookie
-from starlette import status
+from fastapi import Response, Request
 from neon_utils import LOG
 
-from chat_server.server_config import db_connector, app_config
+from chat_server.server_config import db_controller, app_config
 
 cookies_config = app_config.get('COOKIES', {})
 
@@ -111,7 +109,7 @@ def create_unauthorized_user(response: Response, authorize: bool = True) -> str:
                 'password': get_hash(generate_uuid()),
                 'date_created': int(time()),
                 'is_tmp': True}
-    db_connector.exec_query(query={'document': 'users',
+    db_controller.exec_query(query={'document': 'users',
                                    'command': 'insert_one',
                                    'data': (new_user, )})
     if authorize:
@@ -141,7 +139,7 @@ def get_current_user(request: Request, response: Response, force_tmp: bool = Fal
             current_timestamp = time()
             if (int(current_timestamp) - int(payload.get('creation_time', 0))) <= cookie_lifetime:
                 try:
-                    user = db_connector.exec_query(query={'command': 'find_one',
+                    user = db_controller.exec_query(query={'command': 'find_one',
                                                           'document': 'users',
                                                           'data': ({'_id': payload['sub']})})
                     if not user:

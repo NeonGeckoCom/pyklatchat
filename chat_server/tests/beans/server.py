@@ -17,9 +17,27 @@
 # US Patents 2008-2021: US7424516, US20140161250, US20140177813, US8638908, US8068604, US8553852, US10530923, US10530924
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
 
+import contextlib
+import threading
+import time
+
 import uvicorn
 
-from chat_server.app import create_app
 
-if __name__ == '__main__':
-    uvicorn.run(app=create_app())
+class ASGITestServer(uvicorn.Server):
+    """Class that creates non-blocking ASGI web server"""
+
+    def install_signal_handlers(self):
+        pass
+
+    @contextlib.contextmanager
+    def run_in_thread(self):
+        thread = threading.Thread(target=self.run)
+        thread.start()
+        try:
+            while not self.started:
+                time.sleep(1e-3)
+            yield
+        finally:
+            self.should_exit = True
+            thread.join()

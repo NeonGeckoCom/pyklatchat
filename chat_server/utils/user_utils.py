@@ -20,13 +20,19 @@
 from time import time
 
 from chat_server.utils.auth import get_hash, generate_uuid
+from utils.database_utils import DatabaseController
 
-neon_data = None
 
+def get_neon_data(db_controller: DatabaseController) -> dict:
+    """
+        Gets a user profile for the user 'Neon' and adds it to the users db if not already present
 
-def get_neon_default_data():
-    """Gets default data for neon bot"""
-    global neon_data
+        :param db_controller: db controller instance
+
+        :return Neon AI data
+    """
+    neon_data = db_controller.exec_query({'command': 'find_one', 'document': 'users',
+                                         'data': {'nickname': 'neon'}})
     if not neon_data:
         neon_data = dict(_id=generate_uuid(length=20),
                          first_name='Neon',
@@ -36,4 +42,33 @@ def get_neon_default_data():
                          nickname='neon',
                          date_created=int(time()),
                          is_tmp=False)
+        db_controller.exec_query({'command': 'insert_one', 'document': 'users', 'data': neon_data})
     return neon_data
+
+
+def get_bot_data(db_controller: DatabaseController, nickname: str, context: dict = None) -> dict:
+    """
+        Gets a user profile for the requested bot instance and adds it to the users db if not already present
+
+        :param db_controller: db controller instance
+        :param nickname: nickname of the bot provided
+        :param context: context with additional bot information (optional)
+
+        :return Matching bot data
+    """
+    if not context:
+        context = {}
+
+    bot_data = db_controller.exec_query({'command': 'find_one', 'document': 'users',
+                                        'data': {'nickname': nickname}})
+    if not bot_data:
+        bot_data = dict(_id=generate_uuid(length=20),
+                        first_name=context.get('first_name', nickname.capitalize()),
+                        last_name=context.get('last_name', ''),
+                        avatar=context.get('avatar', ''),
+                        password=get_hash(generate_uuid()),
+                        nickname=nickname,
+                        date_created=int(time()),
+                        is_tmp=False)
+        db_controller.exec_query({'command': 'insert_one', 'document': 'users', 'data': bot_data})
+    return bot_data

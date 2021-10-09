@@ -29,7 +29,7 @@ from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel
 from bson.objectid import ObjectId
 
-from chat_server.server_config import db_connector
+from chat_server.server_config import db_controller
 from chat_server.utils.auth import get_current_user, secret_key, jwt_encryption_algo, get_hash, \
     check_password_strength, generate_uuid
 
@@ -61,7 +61,7 @@ def get_user(user_id: str):
 
         :returns JSON response with fetched user data, 404 code otherwise
     """
-    user = db_connector.exec_query(query={'document': 'users',
+    user = db_controller.exec_query(query={'document': 'users',
                                           'command': 'find_one',
                                           'data': {'_id': user_id}})
     if not user:
@@ -82,7 +82,7 @@ def fetch_received_user_ids(user_ids: List[str] = Query(None)):
         :returns JSON response containing array of fetched user data
     """
     user_ids = user_ids[0].split(',')
-    users = db_connector.exec_query(query={'document': 'users',
+    users = db_controller.exec_query(query={'document': 'users',
                                            'command': 'find',
                                            'data': {'_id': {'$in': list(set(user_ids))}}})
     users = list(users)

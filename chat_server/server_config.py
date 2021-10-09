@@ -20,8 +20,8 @@
 import os
 from config import Configuration
 
-server_config_path = os.environ.get('CHATSERVER_CONFIG', '~/.local/share/neon/chatserver_credentials.json')
-database_config_path = os.environ.get('DATABASE_CONFIG', '~/.local/share/neon/chatserver_credentials.json')
+server_config_path = os.environ.get('CHATSERVER_CONFIG', '~/.local/share/neon/credentials.json')
+database_config_path = os.environ.get('DATABASE_CONFIG', '~/.local/share/neon/credentials.json')
 
 server_env = os.environ.get('SERVER_ENV', 'LOCALHOST')
 
@@ -29,4 +29,4 @@ config = Configuration(from_files=[server_config_path, database_config_path])
 
 app_config = config.config_data.get('CHAT_SERVER', {}).get(server_env)
 
-db_connector = config.get_db_controller(name='pyklatchat_3333')
+db_controller = config.get_db_controller(name='pyklatchat_3333')
