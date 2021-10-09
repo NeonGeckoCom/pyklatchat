@@ -100,6 +100,9 @@ class TestSIO(unittest.TestCase):
                                                 'data': {'_id': message_id}})
         self.assertIsNotNone(shout)
         self.assertIsInstance(shout, dict)
+        db_controller.exec_query(query={'command': 'delete_one',
+                                        'document': 'shouts',
+                                        'data': {'_id': message_id}})
 
     @pytest.mark.usefixtures('create_server')
     def test_bot_message(self):
