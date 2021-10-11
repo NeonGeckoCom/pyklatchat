@@ -165,6 +165,7 @@ def get_conversation(request: Request, search_str: str, username: str = Depends(
                                           cookies=request.cookies)
         if users_data_request.status_code == 200:
             users_data = users_data_request.json()
+            users_data = sorted(users_data, key=lambda user_shout: user_shout['created_on'])
             conversation_data['chat_flow'] = []
             for i in range(len(users_data)):
                 message_record = {'user_id': users_data[i]['user_id'],
@@ -193,7 +194,6 @@ def fetch_shouts(shout_ids: List[str] = Query(None)):
     shout_ids = shout_ids[0].split(',')
     shouts = db_controller.exec_query(query={'document': 'shouts',
                                              'command': 'find',
-                                             'sort': [('created_on', pymongo.DESCENDING)],
                                              'data': {'_id': {'$in': list(set(shout_ids))}}})
     shouts = list(shouts)
 
