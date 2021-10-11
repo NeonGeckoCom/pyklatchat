@@ -83,8 +83,8 @@ def fetch_received_user_ids(user_ids: List[str] = Query(None)):
     """
     user_ids = user_ids[0].split(',')
     users = db_controller.exec_query(query={'document': 'users',
-                                           'command': 'find',
-                                           'data': {'_id': {'$in': list(set(user_ids))}}})
+                                            'command': 'find',
+                                            'data': {'_id': {'$in': list(set(user_ids))}}})
     users = list(users)
 
     formatted_users = dict()
@@ -101,4 +101,6 @@ def fetch_received_user_ids(user_ids: List[str] = Query(None)):
             desired_record.pop('is_tmp', None)
         result.append(desired_record)
     json_compatible_item_data = jsonable_encoder(result)
-    return JSONResponse(content=json_compatible_item_data, status_code=200)
+    return JSONResponse(content=json_compatible_item_data)
+
+
