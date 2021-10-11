@@ -67,11 +67,11 @@ def migrate_shouts(old_db_controller, new_db_controller, nick_to_uuid_mapping: d
         formed_result.append(ReplaceOne({'_id': str(record['shout_id'])},
                                 {
                                     '_id': str(record['shout_id']),
-                                    'domain': record['domain'],
+                                    'domain': bytes(record['domain']).decode("utf-8"),
                                     'user_id': nick_to_uuid_mapping.get(record['nick'], 'undefined'),
                                     'created_on': int(record['created']),
                                     'shout': record['shout'],
-                                    'language': record['language'],
+                                    'language': bytes(record['language']).decode('utf-8'),
                                     'cid': str(record['cid'])
                                 }, upsert=True))
 
@@ -83,15 +83,32 @@ def migrate_shouts(old_db_controller, new_db_controller, nick_to_uuid_mapping: d
 
     LOG.info('Starting inserting shouts in conversations')
 
-    for record in result:
+    aggregated_shouts = aggregate_shouts_by_cid(result)
 
+    for key, value in aggregated_shouts.items():
         try:
 
             new_db_controller.exec_query(query=dict(document='chats',
                                                     command='update',
-                                                    data=({'_id': record['cid']},
-                                                          {'$push': {'chat_flow': record['shout_id']}})))
+                                                    data=({'_id': key},
+                                                          {'$push': {'chat_flow': {'$each': value}}})))
 
         except Exception as ex:
-            LOG.error(f'Skipping processing of shout data "{record}" due to exception: {ex}')
+            LOG.error(f'Skipping processing of shout data for cid: "{key}" due to exception: {ex}')
             continue
+
+
+def aggregate_shouts_by_cid(shouts: list) -> dict:
+    """
+        Aggregates shouts by cid
+
+        :param shouts: list of shouts to aggregate
+        :returns: dict with keys as cids, values as shout_ids
+    """
+    result = dict()
+    for shout in shouts:
+        cid = bytes(shout['cid']).decode('utf-8')
+        if not result.get(cid, None):
+            result[cid] = []
+        result[cid].append(shout['shout_id'])
+    return result

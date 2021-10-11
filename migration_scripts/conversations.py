@@ -67,6 +67,8 @@ def migrate_conversations(old_db_controller, new_db_controller,
 
     result_cids = [str(r['cid']) for r in result]
 
+    received_nicks = list(set([str(r['creator']) for r in result]))
+
     existing_cids = list(new_db_controller.exec_query(query=dict(document='chats', command='find', data={
         '_id': {'$in': result_cids}
     })))
@@ -81,8 +83,6 @@ def migrate_conversations(old_db_controller, new_db_controller,
         result = list(filter(lambda x: str(x['cid']) not in existing_cids, result))
 
     LOG.info(f'Received {len(result)} new cids')
-
-    received_nicks = [record['creator'] for record in result if record['creator'] is not None]
 
     nicknames_mapping, nicks_to_consider = index_nicks(mongo_controller=new_db_controller,
                                                        received_nicks=received_nicks)
@@ -109,6 +109,6 @@ def migrate_conversations(old_db_controller, new_db_controller,
                                                 command='bulk_write',
                                                 data=formed_result))
     else:
-        LOG.info('All chats are already in new deb, skipping chat migration')
+        LOG.info('All chats are already in new db, skipping chat migration')
 
     return all_cids_in_scope, nicknames_mapping, nicks_to_consider

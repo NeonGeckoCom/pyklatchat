@@ -43,25 +43,14 @@ def migrate_users(old_db_controller, new_db_controller, nick_to_uuid_mapping, ni
 
     LOG.info(f'Nicks to consider: {nicks_to_consider}')
 
-    users = ', '.join(["'" + nick.replace("'", "") + "'" for nick in nicks_to_consider
+    users = ', '.join(['"' + nick.replace("'", "") + '"' for nick in nicks_to_consider
                        if nick.strip().lower() not in list(existing_nicks)])
 
     if len(nicks_to_consider) == 0:
         LOG.info('All nicks are already in new db, skipping user migration')
         return
 
-    get_user_query = f""" SELECT color, nick, avatar_url, pass, 
-                                 mail, login, timezone, logout, about_me, speech_rate, 
-                                 speech_pitch, speech_voice, ai_speech_voice, stt_language, 
-                                 tts_language, tts_voice_gender, tts_secondary_language, time_format, 
-                                 unit_measure, date_format, location_city, location_state, 
-                                 location_country, first_name, middle_name, last_name, preferred_name, 
-                                 birthday, age, display_nick, utc, email_verified, phone_verified, 
-                                 ignored_brands, favorite_brands, specially_requested, stt_region, 
-                                 alt_languages, secondary_tts_gender, secondary_neon_voice, 
-                                 username, phone, synonyms, full_name, share_my_recordings, 
-                                 use_client_stt, show_recordings_from_others, speakers_on, 
-                                 allow_audio_recording, volume, use_multi_line_shout 
+    get_user_query = f""" SELECT regex_replace('[^a-zA-Z0-9\- ]','', nick)
                            FROM shoutbox_users WHERE nick IN ({users}); """
 
     result = old_db_controller.exec_query(get_user_query)

@@ -31,7 +31,7 @@ from migration_scripts.utils import setup_db_connectors
 from migration_scripts import migrate_users
 
 
-def main(migration_id: str = None, dump_dir=os.getcwd(), time_since: int = 1677829600):
+def main(migration_id: str = "e2a6001c75c84e01a1ba7184bbda8883", dump_dir=os.getcwd(), time_since: int = 1677829600):
     """
         Main migration scripts entry point
 
@@ -95,10 +95,10 @@ def main(migration_id: str = None, dump_dir=os.getcwd(), time_since: int = 16778
                 f.writelines(cids)
                 LOG.info(f'Stored cid list in {MigrationFiles.CIDS.value}')
 
-    migrate_users(old_db_controller=mysql_connector,
-                  new_db_controller=mongo_connector,
-                  nick_to_uuid_mapping=nick_to_uuid_mapping,
-                  nicks_to_consider=nicks_to_consider)
+    # migrate_users(old_db_controller=mysql_connector,
+    #               new_db_controller=mongo_connector,
+    #               nick_to_uuid_mapping=nick_to_uuid_mapping,
+    #               nicks_to_consider=nicks_to_consider)
 
     migrate_shouts(old_db_controller=mysql_connector,
                    new_db_controller=mongo_connector,
