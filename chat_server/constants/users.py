@@ -9,6 +9,11 @@ class UserPatterns(Enum):
         'nickname': 'deleted_user',
         'avatar': 'default_avatar.png'
     }
+    UNAUTHORIZED_USER = {
+        'first_name': 'The',
+        'last_name': 'Guest',
+        'avatar': 'default_avatar.png'
+    }
     NEON = {
         'first_name': 'Neon',
         'last_name': 'AI',

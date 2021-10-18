@@ -27,6 +27,7 @@ from uuid import uuid4
 from fastapi import Response, Request
 from neon_utils import LOG
 
+from chat_server.constants.users import UserPatterns
 from chat_server.server_config import db_controller, app_config
 
 cookies_config = app_config.get('COOKIES', {})
@@ -93,7 +94,7 @@ def get_cookie_from_request(request: Request, cookie_name: str) -> Optional[str]
     return request.cookies.get(cookie_name)
 
 
-def create_unauthorized_user(response: Response, authorize: bool = True) -> str:
+def create_unauthorized_user(response: Response, authorize: bool = True) -> dict:
     """
         Creates unauthorized user and sets its credentials to cookies
 
@@ -102,17 +103,13 @@ def create_unauthorized_user(response: Response, authorize: bool = True) -> str:
 
         :returns: uuid of the new user
     """
-    new_user = {'_id': generate_uuid(),
-                'first_name': 'The',
-                'last_name': 'Guest',
-                'avatar': 'default_avatar.png',
-                'nickname': f'guest_{generate_uuid(length=8)}',
-                'password': get_hash(generate_uuid()),
-                'date_created': int(time()),
-                'is_tmp': True}
+    from chat_server.utils.user_utils import create_from_pattern
+
+    new_user = create_from_pattern(source=UserPatterns.UNAUTHORIZED_USER,
+                                   override_defaults=dict(nickname=f'guest_{generate_uuid(length=8)}'))
     db_controller.exec_query(query={'document': 'users',
-                                   'command': 'insert_one',
-                                   'data': (new_user, )})
+                                    'command': 'insert_one',
+                                    'data': new_user})
     if authorize:
         token = jwt.encode({"sub": new_user['_id'],
                             'creation_time': time(),
