@@ -17,8 +17,9 @@
 # US Patents 2008-2021: US7424516, US20140161250, US20140177813, US8638908, US8068604, US8553852, US10530923, US10530924
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
 
-import os
 import hashlib
+from typing import Optional
+
 import jwt
 
 from time import time
@@ -80,7 +81,7 @@ def get_hash(input_str: str, encoding='utf-8', algo='sha512') -> str:
     return getattr(hashlib, algo)(input_str.encode(encoding)).hexdigest()
 
 
-def get_cookie_from_request(request: Request, cookie_name: str) -> dict:
+def get_cookie_from_request(request: Request, cookie_name: str) -> Optional[str]:
     """
         Gets cookie from response by its name
 
