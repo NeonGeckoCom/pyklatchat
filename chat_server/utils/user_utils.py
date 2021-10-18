@@ -16,11 +16,33 @@
 # Specialized conversational reconveyance options from Conversation Processing Intelligence Corp.
 # US Patents 2008-2021: US7424516, US20140161250, US20140177813, US8638908, US8068604, US8553852, US10530923, US10530924
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
-
+import copy
 from time import time
 
+from chat_server.constants.users import UserPatterns
 from chat_server.utils.auth import get_hash, generate_uuid
 from utils.database_utils import DatabaseController
+
+
+def create_from_pattern(source: UserPatterns, override_defaults: dict = None) -> dict:
+    """
+        Creates user record based on provided pattern from UserPatterns
+
+        :param source: source pattern from UserPatterns
+        :param override_defaults: to override default values (optional)
+        :returns user data populated with default values where necessary
+    """
+    if not override_defaults:
+        override_defaults = {}
+
+    matching_data = {**copy.deepcopy(source.value), **override_defaults}
+
+    matching_data.setdefault('_id', generate_uuid(length=20))
+    matching_data.setdefault('password', get_hash(generate_uuid()))
+    matching_data.setdefault('date_created', int(time()))
+    matching_data.setdefault('is_tmp', True)
+
+    return matching_data
 
 
 def get_neon_data(db_controller: DatabaseController) -> dict:
@@ -34,14 +56,7 @@ def get_neon_data(db_controller: DatabaseController) -> dict:
     neon_data = db_controller.exec_query({'command': 'find_one', 'document': 'users',
                                          'data': {'nickname': 'neon'}})
     if not neon_data:
-        neon_data = dict(_id=generate_uuid(length=20),
-                         first_name='Neon',
-                         last_name='AI',
-                         avatar='neon.webp',
-                         password=get_hash(generate_uuid()),
-                         nickname='neon',
-                         date_created=int(time()),
-                         is_tmp=False)
+        neon_data = create_from_pattern(source=UserPatterns.NEON)
         db_controller.exec_query({'command': 'insert_one', 'document': 'users', 'data': neon_data})
     return neon_data
 

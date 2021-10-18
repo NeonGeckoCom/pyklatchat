@@ -18,7 +18,6 @@
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
 from typing import List
 
-import pymongo
 import requests
 
 from time import time
@@ -29,8 +28,10 @@ from fastapi.exceptions import HTTPException
 from pydantic import BaseModel
 from bson.objectid import ObjectId
 
+from chat_server.constants.users import UserPatterns
 from chat_server.server_config import db_controller
 from chat_server.utils.auth import get_current_user
+from chat_server.utils.user_utils import create_from_pattern
 
 router = APIRouter(
     prefix="/chat_api",
@@ -185,11 +186,11 @@ def get_conversation(request: Request, search_str: str, username: str = Depends(
 @router.get('/fetch_shouts/', response_class=JSONResponse)
 def fetch_shouts(shout_ids: List[str] = Query(None)):
     """
-        Gets users data based on provided user ids
+        Gets shout data based on provided shout ids
 
         :param shout_ids: list of provided shout ids
 
-        :returns JSON response containing array of fetched user data
+        :returns JSON response containing array of fetched shout data
     """
     shout_ids = shout_ids[0].split(',')
     shouts = db_controller.exec_query(query={'document': 'shouts',
@@ -213,13 +214,10 @@ def fetch_shouts(shout_ids: List[str] = Query(None)):
     for shout in shouts:
         matching_user = formatted_users.get(shout['user_id'], {})
         if not matching_user:
-            matching_user['first_name'] = 'Deleted'
-            matching_user['last_name'] = 'User'
-            matching_user['nickname'] = 'deleted_user'
-            matching_user['avatar'] = 'default_avatar.png'
-        else:
-            matching_user.pop('password', None)
-            matching_user.pop('is_tmp', None)
+            matching_user = create_from_pattern(UserPatterns.UNRECOGNIZED_USER)
+
+        matching_user.pop('password', None)
+        matching_user.pop('is_tmp', None)
         shout['message_id'] = shout['_id']
         shout_data = {**shout, **matching_user}
         result.append(shout_data)
