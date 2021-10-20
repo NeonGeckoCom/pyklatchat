@@ -27,6 +27,6 @@ server_env = os.environ.get('SERVER_ENV', 'LOCALHOST')
 
 config = Configuration(from_files=[server_config_path, database_config_path])
 
-app_config = config.config_data.get('CHAT_SERVER', {}).get(server_env)
+app_config = config.config_data.get('CHAT_SERVER', {}).get(server_env, {})
 
 db_controller = config.get_db_controller(name='pyklatchat_3333')
