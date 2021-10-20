@@ -43,8 +43,8 @@ class NeonAPIMQConnector(MQConnector):
         super().__init__(config, service_name)
 
         self.vhost = '/neon_api'
-        self.tcp_credentials = (self.config['NEON_API_PROXY']['HOST'],
-                                int(self.config['NEON_API_PROXY']['PORT']))
+        self.tcp_credentials = (config['NEON_API_PROXY']['HOST'],
+                                int(config['NEON_API_PROXY']['PORT']))
         self.register_consumer(name='neon_api_consumer',
                                vhost=self.vhost,
                                queue='neon_api_input',
@@ -81,6 +81,3 @@ class NeonAPIMQConnector(MQConnector):
                                       )
         else:
             raise TypeError(f'Invalid body received, expected: bytes string; got: {type(body)}')
-
-    def run(self):
-        self.run_consumers()

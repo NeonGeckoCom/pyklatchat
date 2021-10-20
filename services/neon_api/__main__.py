@@ -25,12 +25,8 @@ from services.neon_api.controller import NeonAPIMQConnector
 
 
 def main(config: Optional[dict] = None, testing=False):
-    daemon = False
-    if testing:
-        # Set some testing parameters here
-        daemon = True
     connector = NeonAPIMQConnector(config=config, service_name='neon_api_connector')
-    connector.run_consumers(daemon=daemon)
+    connector.run()
 
 
 if __name__ == '__main__':

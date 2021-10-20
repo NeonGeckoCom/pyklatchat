@@ -26,12 +26,8 @@ from services.klatchat_observer.controller import ChatObserver
 
 
 def main(config: Optional[dict] = None, testing=False):
-    daemon = False
-    if testing:
-        # Set some testing parameters here
-        daemon = True
     connector = ChatObserver(config=config, service_name='chat_observer')
-    connector.run_consumers(daemon=daemon)
+    connector.run()
 
 
 if __name__ == '__main__':

@@ -108,7 +108,7 @@ class ChatObserver(MQConnector):
             LOG.warning(f'Failed to deserialize received data: {_data}: {ex}')
         if _data and isinstance(_data, dict):
             recipient = self.get_recipient_from_message(message_prefix=_data.get('messageText')
-                                                       .split(requesting_by_separator)[0])
+                                                        .split(requesting_by_separator)[0])
             if recipient != Recipients.UNRESOLVED:
                 _data['messageText'] = requesting_by_separator.join(_data['messageText']
                                                                     .split(requesting_by_separator)[1:]).strip()
@@ -158,7 +158,3 @@ class ChatObserver(MQConnector):
             self.sio.emit('neon_message', data=send_data)
         else:
             raise TypeError(f'Invalid body received, expected: bytes string; got: {type(body)}')
-
-    def run(self):
-        """Generic method to run all the relevant submodules"""
-        self.run_consumers()
