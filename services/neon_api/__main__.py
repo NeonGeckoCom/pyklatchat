@@ -25,7 +25,7 @@ from services.neon_api.controller import NeonAPIMQConnector
 
 
 def main(config: Optional[dict] = None, testing=False):
-    connector = NeonAPIMQConnector(config=config, service_name='neon_api_connector')
+    connector = NeonAPIMQConnector(config=config)
     connector.run()
 
 

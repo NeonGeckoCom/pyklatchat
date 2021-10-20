@@ -55,7 +55,7 @@ class ChatObserver(MQConnector):
                 return recipient
         return Recipients.UNRESOLVED
 
-    def __init__(self, config: dict, service_name: str):
+    def __init__(self, config: dict, service_name: str = 'chat_observer'):
         super().__init__(config, service_name)
 
         self.vhost = '/neon_chat_api'

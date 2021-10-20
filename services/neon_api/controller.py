@@ -27,7 +27,7 @@ from neon_mq_connector.connector import MQConnector, ConsumerThread
 class NeonAPIMQConnector(MQConnector):
     """Adapter for establishing connection between Neon API and MQ broker"""
 
-    def __init__(self, config: dict, service_name: str):
+    def __init__(self, config: dict, service_name: str = 'neon_api_connector'):
         """
             Additionally accepts message bus connection properties
 
