@@ -16,3 +16,14 @@
 # Specialized conversational reconveyance options from Conversation Processing Intelligence Corp.
 # US Patents 2008-2021: US7424516, US20140161250, US20140177813, US8638908, US8068604, US8553852, US10530923, US10530924
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
+import logging
+import sys
+from packaging import version
+from version import __version__
+
+DEPRECATION_VERSION = '0.0.2'
+
+if version.parse(__version__) >= version.parse(DEPRECATION_VERSION):
+    logging.error(f'This module should not be considered for usage since version "{DEPRECATION_VERSION}",'
+                  f' call neon_api directly instead')
+    sys.exit(-1)

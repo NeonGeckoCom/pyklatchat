@@ -27,7 +27,10 @@ from neon_utils.socket_utils import b64_to_dict, dict_to_b64
 from neon_mq_connector.connector import MQConnector
 from pika.channel import Channel
 
+from version import __version__
 from chat_server.utils.auth import generate_uuid
+from services.klatchat_observer.constants.neon_api_constants import NeonServices
+from services.klatchat_observer.utils.neon_api_utils import resolve_neon_service
 
 
 class Recipients(Enum):
@@ -58,12 +61,13 @@ class ChatObserver(MQConnector):
     def __init__(self, config: dict, service_name: str = 'chat_observer'):
         super().__init__(config, service_name)
 
-        self.vhost = '/neon_chat_api'
+        self.vhost = '/neon_api'
         self._sio = None
+        self.sio_url = config['SIO_URL']
         self.connect_sio()
         self.register_consumer(name='neon_response_consumer',
                                vhost=self.vhost,
-                               queue='neon_api_response',
+                               queue='neon_api_output',
                                callback=self.handle_neon_response,
                                on_error=self.default_error_handler,
                                auto_ack=False)
@@ -80,7 +84,7 @@ class ChatObserver(MQConnector):
         """
         if not self._sio or refresh:
             self._sio = socketio.Client()
-            self._sio.connect(url=self.config['SIO_URL'])
+            self._sio.connect(url=self.sio_url)
             self.register_sio_handlers()
 
     @property
@@ -113,16 +117,19 @@ class ChatObserver(MQConnector):
                 _data['messageText'] = requesting_by_separator.join(_data['messageText']
                                                                     .split(requesting_by_separator)[1:]).strip()
                 if recipient == Recipients.NEON:
-                    mq_connection = self.create_mq_connection(vhost=self.vhost)
-                    connection_channel = mq_connection.channel()
-                    connection_channel.queue_declare(queue='neon_api_request')
-                    connection_channel.basic_publish(exchange='',
-                                                     routing_key='neon_api_request',
-                                                     body=dict_to_b64(_data),
-                                                     properties=pika.BasicProperties(expiration='1000')
-                                                     )
-                    connection_channel.close()
-                    mq_connection.close()
+                    with self.create_mq_connection(vhost=self.vhost) as mq_connection:
+                        with mq_connection.channel() as connection_channel:
+                            service = resolve_neon_service(message_data=_data)
+                            if service == NeonServices.WOLFRAM:
+                                _data['query'] = _data.pop('messageText', '')
+                            _data['service'] = service.value
+                            _data['agent'] = f'pyklatchat v{__version__}'
+                            connection_channel.queue_declare(queue='neon_api_input')
+                            connection_channel.basic_publish(exchange='',
+                                                             routing_key='neon_api_input',
+                                                             body=dict_to_b64(_data),
+                                                             properties=pika.BasicProperties(expiration='1000')
+                                                             )
             else:
                 LOG.debug('No received found in user message, skipping')
         else:
@@ -145,16 +152,15 @@ class ChatObserver(MQConnector):
         if body and isinstance(body, bytes):
             dict_data = b64_to_dict(body)
 
-            klat_data = dict_data['context']['klat_data']
             send_data = {
-                'cid': klat_data['cid'],
+                'cid': dict_data['cid'],
                 'userID': 'neon',
                 'messageID': generate_uuid(),
-                'repliedMessage': klat_data['sid'],
-                'messageText': dict_data['data']['responses']['en-us']['sentence'],
+                'repliedMessage': dict_data['replied_message'],
+                'messageText': dict_data['content'],
                 'timeCreated': time.time()
             }
             LOG.info(f'dict_data: {dict_data}')
-            self.sio.emit('neon_message', data=send_data)
+            self.sio.emit('user_message', data=send_data)
         else:
             raise TypeError(f'Invalid body received, expected: bytes string; got: {type(body)}')
