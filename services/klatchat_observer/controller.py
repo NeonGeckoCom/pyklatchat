@@ -17,6 +17,7 @@
 # US Patents 2008-2021: US7424516, US20140161250, US20140177813, US8638908, US8068604, US8553852, US10530923, US10530924
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
 import time
+from threading import Event
 
 import pika
 import socketio
@@ -58,7 +59,7 @@ class ChatObserver(MQConnector):
                 return recipient
         return Recipients.UNRESOLVED
 
-    def __init__(self, config: dict, service_name: str = 'chat_observer'):
+    def __init__(self, config: dict, service_name: str = 'chat_observer', scan_neon_service: bool = False):
         super().__init__(config, service_name)
 
         self.vhost = '/neon_api'
@@ -71,6 +72,40 @@ class ChatObserver(MQConnector):
                                callback=self.handle_neon_response,
                                on_error=self.default_error_handler,
                                auto_ack=False)
+        self.__neon_service_id = ''
+        self.neon_detection_enabled = scan_neon_service
+        self.neon_service_event = None
+        self.last_neon_request: int = 0
+        self.neon_service_refresh_interval = 60  # seconds
+
+    @property
+    def neon_service_id(self):
+        """Gets neon service id / detects the one from synchronization loop if neon_detection enabled"""
+        if not self.__neon_service_id \
+                or int(time.time()) - self.last_neon_request >= self.neon_service_refresh_interval \
+                and self.neon_detection_enabled:
+            self.get_neon_service()
+        return self.__neon_service_id
+
+    def get_neon_service(self, wait_timeout: int = 7) -> None:
+        """
+            Scans neon service synchronization loop for neon service id
+        """
+        self.neon_service_event = Event()
+        self.register_consumer(name='neon_service_sync_consumer',
+                               callback=self.handle_neon_sync,
+                               vhost=self.vhost,
+                               on_error=self.default_error_handler,
+                               auto_ack=False,
+                               queue='neon_api_connector_sync')
+        sync_consumer = self.consumers['neon_service_sync_consumer']
+        sync_consumer.start()
+        self.neon_service_event.wait(wait_timeout)
+        LOG.info('Joining sync consumer')
+        sync_consumer.join()
+        if not self.neon_service_event.is_set():
+            LOG.warning(f'Failed to get neon_service in {wait_timeout} seconds')
+            self.__neon_service_id = ''
 
     def register_sio_handlers(self):
         """Convenience method for setting up Socket IO listeners"""
@@ -105,7 +140,6 @@ class ChatObserver(MQConnector):
             :param _data: Received user data
             :param requesting_by_separator: character to consider for requesting e.g. Neon, how are you? is for comma
         """
-        LOG.info(f'Received data: {_data}')
         try:
             _data = eval(_data)
         except Exception as ex:
@@ -124,9 +158,14 @@ class ChatObserver(MQConnector):
                                 _data['query'] = _data.pop('messageText', '')
                             _data['service'] = service.value
                             _data['agent'] = f'pyklatchat v{__version__}'
-                            connection_channel.queue_declare(queue='neon_api_input')
+                            input_queue = 'neon_api_input'
+                            neon_service_id = self.neon_service_id
+                            if neon_service_id:
+                                input_queue = f'{input_queue}_{neon_service_id}'
+                                self.last_neon_request = int(time.time())
+                            connection_channel.queue_declare(queue=input_queue)
                             connection_channel.basic_publish(exchange='',
-                                                             routing_key='neon_api_input',
+                                                             routing_key=input_queue,
                                                              body=dict_to_b64(_data),
                                                              properties=pika.BasicProperties(expiration='1000')
                                                              )
@@ -134,6 +173,30 @@ class ChatObserver(MQConnector):
                 LOG.debug('No received found in user message, skipping')
         else:
             raise TypeError(f'Malformed data received: {_data}')
+
+    def handle_neon_sync(self,
+                         channel: pika.channel.Channel,
+                         method: pika.spec.Basic.Return,
+                         properties: pika.spec.BasicProperties,
+                         body: bytes):
+        """
+            Handles input neon api sync requests from MQ
+
+            :param channel: MQ channel object (pika.channel.Channel)
+            :param method: MQ return method (pika.spec.Basic.Return)
+            :param properties: MQ properties (pika.spec.BasicProperties)
+            :param body: request body (bytes)
+
+        """
+        if body and isinstance(body, bytes):
+            dict_data = b64_to_dict(body)
+            service_id = dict_data.get('service_id', None)
+            if service_id:
+                LOG.info(f'Received neon service id: {service_id}')
+                self.__neon_service_id = service_id
+                self.neon_service_event.set()
+        else:
+            raise TypeError(f'Invalid body received, expected: bytes string; got: {type(body)}')
 
     def handle_neon_response(self,
                              channel: pika.channel.Channel,
@@ -152,15 +215,23 @@ class ChatObserver(MQConnector):
         if body and isinstance(body, bytes):
             dict_data = b64_to_dict(body)
 
-            send_data = {
-                'cid': dict_data['cid'],
-                'userID': 'neon',
-                'messageID': generate_uuid(),
-                'repliedMessage': dict_data['replied_message'],
-                'messageText': dict_data['content'],
-                'timeCreated': time.time()
-            }
-            LOG.info(f'dict_data: {dict_data}')
-            self.sio.emit('user_message', data=send_data)
+            response_required_keys = ('cid', 'content',)
+
+            if all(required_key in list(dict_data) for required_key in response_required_keys):
+                send_data = {
+                    'cid': dict_data['cid'],
+                    'userID': 'neon',
+                    'messageID': generate_uuid(),
+                    'repliedMessage': dict_data.get('replied_message', ''),
+                    'messageText': dict_data['content'],
+                    'timeCreated': time.time()
+                }
+                self.sio.emit('user_message', data=send_data)
+            else:
+                LOG.warning(f'Skipping received data {dict_data} as it lacks one of the required keys: '
+                            f'({",".join(response_required_keys)})')
         else:
             raise TypeError(f'Invalid body received, expected: bytes string; got: {type(body)}')
+
+    def run(self, run_consumers: bool = True, run_sync: bool = True, **kwargs):
+        super().run(run_sync=False)

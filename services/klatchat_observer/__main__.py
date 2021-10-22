@@ -26,7 +26,7 @@ from services.klatchat_observer.controller import ChatObserver
 
 
 def main(config: Optional[dict] = None, testing=False):
-    connector = ChatObserver(config=config)
+    connector = ChatObserver(config=config, scan_neon_service=True)
     connector.run()
 
 
