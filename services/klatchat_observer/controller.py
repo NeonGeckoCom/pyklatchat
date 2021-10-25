@@ -87,7 +87,7 @@ class ChatObserver(MQConnector):
             self.get_neon_service()
         return self.__neon_service_id
 
-    def get_neon_service(self, wait_timeout: int = 7) -> None:
+    def get_neon_service(self, wait_timeout: int = 10) -> None:
         """
             Scans neon service synchronization loop for neon service id
         """
