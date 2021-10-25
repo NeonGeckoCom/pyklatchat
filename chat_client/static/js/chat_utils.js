@@ -3,6 +3,37 @@ const addBySearch = document.getElementById('addBySearch');
 const addNewConversation = document.getElementById('addNewConversation');
 const conversationBody = document.getElementById('conversationsBody');
 
+let conversationParticipants = {};
+
+/**
+ * Adds new conversation participant
+ * @param cid: conversation id
+ * @param nickname: nickname to add
+ * @param updateCount: to update participants count
+ */
+const addConversationParticipant = (cid, nickname, updateCount = false) => {
+    if(!conversationParticipants.hasOwnProperty(cid)){
+        conversationParticipants[cid] = {};
+    }
+    if(!conversationParticipants[cid].hasOwnProperty(nickname)){
+        conversationParticipants[cid][nickname] = 1;
+    }else{
+        conversationParticipants[cid][nickname]++;
+    }
+    if(updateCount){
+        setParticipantsCount(cid);
+    }
+}
+
+/**
+ * Sets participants count for conversation view
+ * @param cid: desired conversation id
+ */
+const setParticipantsCount = (cid) => {
+    const participantsCountNode = document.getElementById(`participants-count-${cid}`);
+    participantsCountNode.innerText = Object.keys(conversationParticipants[cid]).length;
+}
+
 /**
  * Adds new message to desired conversation id
  * @param cid: desired conversation id
@@ -38,6 +69,8 @@ async function addMessage(cid, userID=null, messageID=null, messageText, timeCre
             const addedMessage = document.getElementById(messageID);
             addMessageAttachments(addedMessage, attachments);
             resolveUserReply(messageID, repliedMessageID);
+            addConversationParticipant(cid, userData['nickname'], true);
+            setParticipantsCount(cid);
             cidList.lastChild.scrollIntoView();
             return messageID;
         }
@@ -144,6 +177,7 @@ function buildConversation(conversationData={},remember=true){
    if(remember){
        addNewCID(conversationData['_id'], conversationAlignmentKey);
    }
+   conversationParticipants[conversationData['_id']] = {};
    const newConversationHTML = buildConversationHTML(conversationData);
    const conversationsBody = document.getElementById('conversationsBody');
    conversationsBody.insertAdjacentHTML('afterbegin', newConversationHTML);
@@ -166,6 +200,7 @@ function buildConversation(conversationData={},remember=true){
             removeCID(conversationData['_id']);
         });
     }
+    setParticipantsCount(conversationData['_id']);
 }
 
 /**
@@ -188,6 +223,9 @@ function buildConversationHTML(conversationData = {}){
     let html = `<div class="conversationContainer col-xl-6 col-lg-6 col-md-6 col-sm-12 col-12 m-2">
                 <div class="card" id="${ conversationData['_id'] }">
                     <div class="card-header">${ conversationData['conversation_name'] }
+                        <span class="ml-3" id="participants-list-${conversationData['_id']}">
+                            <i class="icon-user" aria-hidden="true"></i> <span id="participants-count-${conversationData['_id']}">0</span>
+                        </span>
                         <button type="button" id="close-${conversationData['_id']}" data-target-cid="${conversationData['_id']}" class="close-cid">
                             <span aria-hidden="true">×</span>
                         </button>
@@ -198,6 +236,7 @@ function buildConversationHTML(conversationData = {}){
         Array.from(conversationData['chat_flow']).forEach(message => {
             const isMine = currentUser && message['user_nickname'] === currentUser['nickname'];
             html += buildUserMessageHTML({'avatar':message['user_avatar'],'nickname':message['user_nickname']},message['message_id'], message['message_text'], getTimeFromTimestamp(message['created_on']),isMine);
+            addConversationParticipant(conversationData['_id'], message['user_nickname']);
         });
     }else{
         html+=`<div class="blank_chat">No messages in this chat yet...</div>`;
