@@ -122,7 +122,8 @@ async def user_message(sid, data):
         db_controller.exec_query({'command': 'insert_one', 'document': 'shouts', 'data': new_shout_data})
 
         if not data.get('test', False):
-            db_controller.exec_query({'command': 'update', 'document': 'chats', 'data': (filter_expression, push_expression,)})
+            db_controller.exec_query({'command': 'update', 'document': 'chats', 'data': (filter_expression,
+                                                                                         push_expression,)})
             await sio.emit('new_message', data=json.dumps(data), skip_sid=[sid])
     except Exception as ex:
         LOG.error(f'Exception on sio processing: {ex}')

@@ -90,7 +90,7 @@ def migrate_shouts(old_db_controller, new_db_controller, nick_to_uuid_mapping: d
             new_db_controller.exec_query(query=dict(document='chats',
                                                     command='update',
                                                     data=({'_id': record['cid']},
-                                                          {'$push': {'chat_flow': record['shout_id']}})))
+                                                          {'$push': {'chat_flow': str(record['shout_id'])}})))
 
         except Exception as ex:
             LOG.error(f'Skipping processing of shout data "{record}" due to exception: {ex}')
