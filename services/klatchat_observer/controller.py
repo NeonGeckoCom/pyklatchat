@@ -170,7 +170,7 @@ class ChatObserver(MQConnector):
                                                              properties=pika.BasicProperties(expiration='1000')
                                                              )
             else:
-                LOG.debug('No received found in user message, skipping')
+                LOG.debug('No recipient found in user message, skipping')
         else:
             raise TypeError(f'Malformed data received: {_data}')
 
