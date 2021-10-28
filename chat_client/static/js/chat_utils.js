@@ -90,7 +90,7 @@ async function addMessage(cid, userID=null, messageID=null, messageText, timeCre
 function buildUserMessageHTML(userData, messageID, messageText, timeCreated, isMine){
     let html = "";
     const messageSideClass = isMine?"in":"out";
-    //const messageTime = getTimeFromTimestamp(timeCreated);
+    const messageTime = getTimeFromTimestamp(timeCreated);
     const avatarImage = userData.hasOwnProperty('avatar')?userData['avatar']:'default_avatar.png'
     html += `<li class="${messageSideClass}">`
     html += "<div class=\"chat-img\">\n" +
@@ -101,6 +101,8 @@ function buildUserMessageHTML(userData, messageID, messageText, timeCreated, isM
                     <p style="font-size: small;font-weight: bolder;" class="message-nickname">${userData['nickname']}</p>
                     <div class="reply-placeholder mb-2 mt-1"></div>
                     <p class="message-text">${messageText}</p>
+                    <br>
+                    <small>${messageTime}</small>
                 </div>
              </div>`
     html += "</li>"
@@ -235,7 +237,7 @@ function buildConversationHTML(conversationData = {}){
     if(conversationData.hasOwnProperty('chat_flow')) {
         Array.from(conversationData['chat_flow']).forEach(message => {
             const isMine = currentUser && message['user_nickname'] === currentUser['nickname'];
-            html += buildUserMessageHTML({'avatar':message['user_avatar'],'nickname':message['user_nickname']},message['message_id'], message['message_text'], getTimeFromTimestamp(message['created_on']),isMine);
+            html += buildUserMessageHTML({'avatar':message['user_avatar'],'nickname':message['user_nickname']},message['message_id'], message['message_text'], message['created_on'],isMine);
             addConversationParticipant(conversationData['_id'], message['user_nickname']);
         });
     }else{
@@ -288,9 +290,39 @@ function addMessageAttachments(messageElem, attachments=[{}]){
  */
 function getTimeFromTimestamp(timestampCreated=0){
     const date = new Date(timestampCreated * 1000);
+    const year = date.getFullYear().toString();
+    let month = date.getMonth();
+    month = month>=10?month:'0'+month;
+    let day = date.getDay();
+    day = day>=10?day:'0'+day;
     const hours = date.getHours();
-    const minutes = "0" + date.getMinutes();
-    return hours + ':' + minutes.substr(-2);
+    let minutes = date.getMinutes();
+    minutes = minutes>=10?minutes:'0'+minutes;
+    return strFmtDate(year, month, day, hours, minutes, null);
+}
+
+/**
+ * Composes date based on input params
+ * @param year: desired year
+ * @param month: desired month
+ * @param day: desired day
+ * @param hours: num of hours
+ * @param minutes: minutes
+ * @param seconds: seconds
+ * @return date string
+ */
+function strFmtDate(year, month, day, hours, minutes, seconds){
+    let finalDate = "";
+    if(year && month && day){
+        finalDate+=`${year}-${month}-${day}`
+    }
+    if(hours && minutes) {
+        finalDate += ` ${hours}:${minutes}`
+        if (seconds) {
+            finalDate += `:${seconds}`
+        }
+    }
+    return finalDate;
 }
 
 /**
