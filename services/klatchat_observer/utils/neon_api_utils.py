@@ -16,17 +16,21 @@
 # Specialized conversational reconveyance options from Conversation Processing Intelligence Corp.
 # US Patents 2008-2021: US7424516, US20140161250, US20140177813, US8638908, US8068604, US8553852, US10530923, US10530924
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
+from ..constants.neon_api_constants import NeonServices, neon_service_tokens
 
-import os
-from config import Configuration
 
-server_config_path = os.environ.get('CHATSERVER_CONFIG', '~/.local/share/neon/credentials.json')
-database_config_path = os.environ.get('DATABASE_CONFIG', '~/.local/share/neon/credentials.json')
+def resolve_neon_service(message_data: dict, bypass_threshold: float = 0.5) -> NeonServices:
+    """
+        Resolves desired neon service based on the data content from message
 
-server_env = os.environ.get('SERVER_ENV', 'LOCALHOST')
+        :param message_data: dictionary containing data for message
+        :param bypass_threshold: edge value to consider valid match
 
-config = Configuration(from_files=[server_config_path, database_config_path])
-
-app_config = config.config_data.get('CHAT_SERVER', {}).get(server_env, {})
-
-db_controller = config.get_db_controller(name='pyklatchat_3333')
+        :returns neon service from NeonServices
+    """
+    # TODO: parse message text into lexemes
+    for neon_service, tokens in neon_service_tokens.items():
+        match_percentage = len(set(list(message_data)) & set(tokens))/len(tokens)
+        if match_percentage > bypass_threshold:
+            return neon_service
+    return NeonServices.WOLFRAM

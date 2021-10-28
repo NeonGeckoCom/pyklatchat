@@ -17,16 +17,18 @@
 # US Patents 2008-2021: US7424516, US20140161250, US20140177813, US8638908, US8068604, US8553852, US10530923, US10530924
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
 
-import os
-from config import Configuration
+from enum import Enum
+from typing import Dict, List
 
-server_config_path = os.environ.get('CHATSERVER_CONFIG', '~/.local/share/neon/credentials.json')
-database_config_path = os.environ.get('DATABASE_CONFIG', '~/.local/share/neon/credentials.json')
 
-server_env = os.environ.get('SERVER_ENV', 'LOCALHOST')
+class NeonServices(Enum):
+    OWM = 'open_weather_map'
+    WOLFRAM = 'wolfram_alpha'
+    ALPHA_VANTAGE = 'alpha_vantage'
 
-config = Configuration(from_files=[server_config_path, database_config_path])
 
-app_config = config.config_data.get('CHAT_SERVER', {}).get(server_env, {})
-
-db_controller = config.get_db_controller(name='pyklatchat_3333')
+neon_service_tokens: Dict[NeonServices, List[str]] = {
+    NeonServices.OWM: ['lat', 'lng', 'lon'],
+    NeonServices.ALPHA_VANTAGE: ['symbol'],
+    NeonServices.WOLFRAM: ['query']
+}

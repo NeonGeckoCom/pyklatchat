@@ -161,7 +161,7 @@ def get_conversation(request: Request, search_str: str, username: str = Depends(
 
         request_url = f'http://' + request.client.host + ':' + str(8000) + \
                       f'/chat_api/fetch_shouts/?shout_ids=' + \
-                      f'{",".join(conversation_data["chat_flow"])}'
+                      f'{",".join([str(msg_id) for msg_id in conversation_data["chat_flow"]])}'
         users_data_request = requests.get(request_url,
                                           cookies=request.cookies)
         if users_data_request.status_code == 200:

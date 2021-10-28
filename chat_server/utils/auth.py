@@ -33,8 +33,6 @@ from chat_server.server_config import db_controller, app_config
 cookies_config = app_config.get('COOKIES', {})
 
 secret_key = cookies_config.get('SECRET', None)
-if not secret_key:
-    raise AssertionError('"SECRET" must be present among cookie properties')
 
 cookie_lifetime = int(cookies_config.get('LIFETIME', 60 * 60))
 cookie_refresh_rate = int(cookies_config.get('REFRESH_RATE', 5 * 60))
