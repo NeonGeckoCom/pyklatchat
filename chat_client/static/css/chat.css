@@ -179,3 +179,17 @@ body{
         background-color: rgba(51, 170, 51, .6)
       }
     }
+
+#conversationManagementNavbar {
+    position: absolute!important;
+    left: 0!important;
+    vertical-align: center!important;
+    width: 20%!important;
+    height: 100% !important;
+    background-color: cornflowerblue!important;
+    z-index: 9999!important;
+}
+
+#conversationManagementNavbar .navbar-nav {
+    padding: initial!important;
+}
