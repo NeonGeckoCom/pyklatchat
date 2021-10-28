@@ -99,8 +99,11 @@ def get_conversation(request: Request, cid: str, username: str = Depends(get_cur
     conversation_data['_id'] = str(conversation_data['_id'])
 
     if conversation_data.get('chat_flow', None):
-        conversation_data['chat_flow'] = conversation_data['chat_flow'][chat_history_from:
-                                                                        chat_history_from + limit_chat_history]
+        if chat_history_from == 0:
+            conversation_data['chat_flow'] = conversation_data['chat_flow'][chat_history_from - limit_chat_history:]
+        else:
+            conversation_data['chat_flow'] = conversation_data['chat_flow'][chat_history_from - limit_chat_history:
+                                                                            -chat_history_from]
         users_data_request = requests.get('http://' + request.client.host + ':' + str(8000) +
                                           f'/users_api/bulk_fetch/?user_ids='
                                           f'{",".join([x["user_id"] for x in conversation_data["chat_flow"]])}',
@@ -156,9 +159,11 @@ def get_conversation(request: Request, search_str: str, username: str = Depends(
     conversation_data['_id'] = str(conversation_data['_id'])
 
     if conversation_data.get('chat_flow', None):
-        conversation_data['chat_flow'] = conversation_data['chat_flow'][chat_history_from:
-                                                                        chat_history_from + limit_chat_history]
-
+        if chat_history_from == 0:
+            conversation_data['chat_flow'] = conversation_data['chat_flow'][chat_history_from - limit_chat_history:]
+        else:
+            conversation_data['chat_flow'] = conversation_data['chat_flow'][chat_history_from - limit_chat_history:
+                                                                            -chat_history_from]
         request_url = f'http://' + request.client.host + ':' + str(8000) + \
                       f'/chat_api/fetch_shouts/?shout_ids=' + \
                       f'{",".join([str(msg_id) for msg_id in conversation_data["chat_flow"]])}'
