@@ -169,6 +169,18 @@ class ChatObserver(MQConnector):
                                                              body=dict_to_b64(_data),
                                                              properties=pika.BasicProperties(expiration='1000')
                                                              )
+                elif recipient == Recipients.BOTS:
+                    with self.create_mq_connection(vhost='/chatbots') as mq_connection:
+                        with mq_connection.channel() as connection_channel:
+                            bots: List[str] = resolve_bots_from_message(message=_data)
+                            for bot in bots:
+                                _data['nick'] = bot
+                                connection_channel.queue_declare(queue='chatbot_user_message')
+                                connection_channel.basic_publish(exchange='',
+                                                                 routing_key='chatbot_user_message',
+                                                                 body=dict_to_b64(_data),
+                                                                 properties=pika.BasicProperties(expiration='1000')
+                                                                 )
             else:
                 LOG.debug('No received found in user message, skipping')
         else:
