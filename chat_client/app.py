@@ -16,14 +16,12 @@
 # Specialized conversational reconveyance options from Conversation Processing Intelligence Corp.
 # US Patents 2008-2021: US7424516, US20140161250, US20140177813, US8638908, US8068604, US8553852, US10530923, US10530924
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
-
-import os
-import sys
-
-from typing import Optional
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from neon_utils import LOG
+from starlette import status
+from starlette.responses import RedirectResponse
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from chat_client.blueprints import chat as chat_blueprint, \
                                    users as users_blueprint, \
@@ -39,6 +37,13 @@ def create_asgi_app(app_version: str = None) -> FastAPI:
     LOG.info(f'Starting Klatchat Client v{app_version}')
     chat_app = FastAPI(title="Klatchat Client",
                        version=app_version)
+
+    # Redirects any not found pages to chats page
+    @chat_app.exception_handler(StarletteHTTPException)
+    async def custom_http_exception_handler(request, exc):
+        if exc.status_code == status.HTTP_404_NOT_FOUND:
+            return RedirectResponse("/chats")
+
     chat_app.mount("/static", StaticFiles(directory="chat_client/static"), name="static")
     chat_app.include_router(chat_blueprint.router)
     chat_app.include_router(users_blueprint.router)
