@@ -196,12 +196,25 @@ function buildConversation(conversationData={},remember=true){
         });
     }
     const chatCloseButton = document.getElementById(`close-${conversationData['_id']}`);
+    const filenamesContainer = document.getElementById(`filename-container-${conversationData['_id']}`)
     if(chatCloseButton.hasAttribute('data-target-cid')) {
         chatCloseButton.addEventListener('click', (e)=>{
             conversationHolder.removeChild(conversationParent);
             removeCID(conversationData['_id']);
         });
     }
+    const attachmentsButton = document.getElementById('file-input-'+conversationData['_id']);
+    attachmentsButton.addEventListener('change', (e)=>{
+        e.preventDefault();
+        let fileName = e.currentTarget.value;
+        fileName = fileName.replace(/.*[\/\\]/, '');
+        filenamesContainer.style.display = "";
+        filenamesContainer.insertAdjacentHTML('afterbegin',
+                                                `<span class='filename'>${fileName}</span>`);
+        if (filenamesContainer.children.length === configData['maxNumAttachments']) {
+            attachmentsButton.disabled = true;
+        }
+    });
     setParticipantsCount(conversationData['_id']);
 }
 
@@ -248,6 +261,11 @@ function buildConversationHTML(conversationData = {}){
                    <div class="card-footer">
                         <input class="user_input form-control" id="${conversationData['_id']}-input" type="text" placeholder='Write a Message to "${conversationData['conversation_name']}"'>
                         <button class="send_user_input mt-2 btn btn-success" id="${conversationData['_id']}-send" data-target-cid="${conversationData['_id']}">Send Message</button>
+                        <label for="file-input-${conversationData['_id']}" class="attachment-label">
+                          <i class="icon-paperclip icon-large" aria-hidden="true"></i>
+                        </label>
+                        <input type="file" class="file-input fa fa-paperclip" data-target-cid="${conversationData['_id']}" style="display: none;" name="file-input" id="file-input-${conversationData['_id']}" multiple>
+                        <div class="filename-container" id="filename-container-${conversationData['_id']}" style="display: none"></div>
                     </div>
                 </div>
             </div>`

@@ -5,5 +5,5 @@
 /scripts/
 /chat_client/client_config.json
 /chat_server/server_config.json
-/chat_client/static/js/runtime_config.json
+/chat_client/static/runtime_config.json
 /ssh_config.json

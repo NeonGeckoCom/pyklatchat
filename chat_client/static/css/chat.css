@@ -193,3 +193,22 @@ body{
 #conversationManagementNavbar .navbar-nav {
     padding: initial!important;
 }
+
+.filename {
+  display: inline-block;
+  padding: 0 10px;
+  margin-right: 10px;
+  background-color: #ccc;
+  border: 1px solid black;
+  border-radius: 15px;
+  height: 20px;
+  line-height: 20px;
+  text-align: center;
+  font-weight: 700;
+  font-size: 12px;
+  font-family: 'verdana', sans-serif;
+}
+
+.attachment-label {
+    margin-left: 10px!important;
+}
