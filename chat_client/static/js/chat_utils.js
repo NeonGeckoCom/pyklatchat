@@ -238,6 +238,18 @@ function getFilenameFromPath(path){
 }
 
 /**
+ * Converts file to base64
+ * @param file: desired file
+ * @return {Promise}
+ */
+const toBase64 = file => new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = error => reject(error);
+});
+
+/**
  * Builds new conversation HTML from provided data and attaches it to the list of displayed conversations
  * @param conversationData: JS Object containing conversation data of type:
  * {
@@ -275,8 +287,8 @@ function buildConversation(conversationData={},remember=true){
             const textInputElem = document.getElementById(conversationData['_id']+'-input');
             const attachmentMapping = {};
             let i = 0;
-            Array.from(filenamesContainer.getElementsByClassName('filename')).forEach(filename=>{
-                attachmentMapping[filename.innerText] = attachmentsButton.files[i];
+            Array.from(filenamesContainer.getElementsByClassName('filename')).forEach(async filename=>{
+                attachmentMapping[filename.innerText] = await toBase64(attachmentsButton.files[i]);
             });
             emitUserMessage(textInputElem, e.target.getAttribute('data-target-cid'), attachmentMapping);
             textInputElem.value = "";
