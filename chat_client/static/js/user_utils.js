@@ -59,13 +59,11 @@ async function loginUser(){
         formData.append('password', loginPassword.value);
         await fetch(query_url, {method:'post', body:formData})
             .then(response => response.ok?response.json():null)
-            .then(data => {
-                if(data){
-                    refreshCurrentUser(false, true);
-                    loginUsername.value = "";
-                    loginPassword.value = "";
-                    loginModal.modal('hide');
-                }
+            .then(_ => {
+                refreshCurrentUser(false, true);
+                loginUsername.value = "";
+                loginPassword.value = "";
+                loginModal.modal('hide');
             });
     }
 }

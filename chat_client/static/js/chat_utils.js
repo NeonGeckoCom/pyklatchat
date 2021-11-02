@@ -45,7 +45,7 @@ const setParticipantsCount = (cid) => {
  * @param attachments: array of attachments to add (optional)
  * @returns {Promise<null|number>}: promise resolving id of added message, -1 if failed to resolve message id creation
  */
-async function addMessage(cid, userID=null, messageID=null, messageText, timeCreated, repliedMessageID=null, attachments=[{}]){
+async function addMessage(cid, userID=null, messageID=null, messageText, timeCreated, repliedMessageID=null, attachments=[]){
     const cidElem = document.getElementById(cid);
     if(cidElem){
         const cidList = cidElem.getElementsByClassName('card-body')[0].getElementsByClassName('chat-list')[0]
@@ -67,7 +67,7 @@ async function addMessage(cid, userID=null, messageID=null, messageText, timeCre
             }
             cidList.insertAdjacentHTML('beforeend', messageHTML);
             const addedMessage = document.getElementById(messageID);
-            addMessageAttachments(addedMessage, attachments);
+            resolveMessageAttachments(addedMessage, attachments);
             resolveUserReply(messageID, repliedMessageID);
             addConversationParticipant(cid, userData['nickname'], true);
             setParticipantsCount(cid);
@@ -130,6 +130,27 @@ function resolveUserReply(replyID,repliedID){
     }
 }
 
+
+/**
+ * Resolves attachments to the message
+ * @param messageID: id of user message
+ * @param attachments list of attachments received
+ */
+function resolveMessageAttachments(messageID,attachments = []){
+    if(messageID && attachments.length > 0){
+        const messageElem = document.getElementById(messageID);
+        if(messageElem) {
+            attachments.forEach(attachment => {
+                const attachmentHTML = `<span class="attachment-item">
+                                            ${attachment}
+                                        </span>`;
+                const attachmentPlaceholder = messageElem.getElementsByClassName('attachments-placeholder')[0];
+                attachmentPlaceholder.insertAdjacentHTML('afterbegin', attachmentHTML);
+            });
+        }
+    }
+}
+
 /**
  * Attaches reply highlighting for reply item
  * @param replyItem reply item element
@@ -160,6 +181,63 @@ function attachReplies(conversationData){
 }
 
 /**
+ * Adds download request on attachment item click
+ * @param attachmentItem: desired attachment item
+ * @param cid: current conversation id
+ * @param messageID: current message id
+ */
+function addAttachmentDownload(attachmentItem, cid, messageID){
+    if(attachmentItem){
+        const fileName = attachmentItem.innerText;
+        const getFileURL = `${configData['currentURLBase']}/chats/${cid}/${messageID}/${fileName}`;
+        fetch(getFileURL).then(response =>
+            response.ok?response.formData().then(data => download(data, fileName))
+                :console.error(`No file data received for path:${cid}/${messageID}/${fileName}`))
+            .catch(err=>console.error(`Failed to fetch: ${getFileURL}: ${err}`));
+    }
+}
+
+/**
+ * Downloads desired content
+ * @param content: content to download
+ * @param filename: name of the file to download
+ * @param contentType: type of the content
+ */
+function download(content, filename, contentType='application/octet-stream')
+{
+    const a = document.createElement('a');
+    const blob = new Blob([content], {'type':contentType});
+    a.href = window.URL.createObjectURL(blob);
+    a.target = 'blank';
+    a.download = filename;
+    a.click();
+    setTimeout(()=>document.removeChild(a), 0);
+}
+
+/**
+ * Attaches message replies to initialized conversation
+ * @param conversationData: conversation data object
+ */
+function addAttachments(conversationData){
+    if(conversationData.hasOwnProperty('chat_flow')) {
+        Array.from(conversationData['chat_flow']).forEach(message => {
+            resolveMessageAttachments(message['message_id'], message?.attachments);
+        });
+        Array.from(document.getElementsByClassName('attachment-item')).forEach(attachmentItem=>{
+            addAttachmentDownload(attachmentItem, conversationData['_id'], attachmentItem.parentNode.parentNode.id);
+        });
+    }
+}
+
+/**
+ * Extracts filename from path
+ * @param path: path to extract from
+ */
+function getFilenameFromPath(path){
+    return path.replace(/.*[\/\\]/, '');
+}
+
+/**
  * Builds new conversation HTML from provided data and attaches it to the list of displayed conversations
  * @param conversationData: JS Object containing conversation data of type:
  * {
@@ -184,30 +262,38 @@ function buildConversation(conversationData={},remember=true){
    const conversationsBody = document.getElementById('conversationsBody');
    conversationsBody.insertAdjacentHTML('afterbegin', newConversationHTML);
    attachReplies(conversationData);
+   addAttachments(conversationData);
    const currentConversation = document.getElementById(conversationData['_id']);
    const conversationParent = currentConversation.parentElement;
    const conversationHolder = conversationParent.parentElement;
    const chatInputButton = document.getElementById(conversationData['_id']+'-send');
+   const filenamesContainer = document.getElementById(`filename-container-${conversationData['_id']}`)
+   const attachmentsButton = document.getElementById('file-input-'+conversationData['_id']);
+
     if(chatInputButton.hasAttribute('data-target-cid')) {
         chatInputButton.addEventListener('click', (e)=>{
             const textInputElem = document.getElementById(conversationData['_id']+'-input');
-            emitUserMessage(textInputElem, e.target.getAttribute('data-target-cid'));
+            const attachmentMapping = {};
+            let i = 0;
+            Array.from(filenamesContainer.getElementsByClassName('filename')).forEach(filename=>{
+                attachmentMapping[filename.innerText] = attachmentsButton.files[i];
+            });
+            emitUserMessage(textInputElem, e.target.getAttribute('data-target-cid'), attachmentMapping);
             textInputElem.value = "";
         });
     }
+
     const chatCloseButton = document.getElementById(`close-${conversationData['_id']}`);
-    const filenamesContainer = document.getElementById(`filename-container-${conversationData['_id']}`)
     if(chatCloseButton.hasAttribute('data-target-cid')) {
         chatCloseButton.addEventListener('click', (e)=>{
             conversationHolder.removeChild(conversationParent);
             removeCID(conversationData['_id']);
         });
     }
-    const attachmentsButton = document.getElementById('file-input-'+conversationData['_id']);
+
     attachmentsButton.addEventListener('change', (e)=>{
         e.preventDefault();
-        let fileName = e.currentTarget.value;
-        fileName = fileName.replace(/.*[\/\\]/, '');
+        const fileName = getFilenameFromPath(e.currentTarget.value);
         filenamesContainer.style.display = "";
         filenamesContainer.insertAdjacentHTML('afterbegin',
                                                 `<span class='filename'>${fileName}</span>`);
@@ -293,15 +379,6 @@ async function getConversationDataByInput(input=""){
 
 
 /**
- * Adds message attachments to provided html
- * @param messageElem: message DOM Element
- * @param attachments: array of attachments to add
- */
-function addMessageAttachments(messageElem, attachments=[{}]){
-    //TODO: implement attachments mechanism
-}
-
-/**
  * Gets time object from provided UNIX timestamp
  * @param timestampCreated: UNIX timestamp (in seconds)
  * @returns {string} string time (hours:minutes)
@@ -348,15 +425,17 @@ function strFmtDate(year, month, day, hours, minutes, seconds){
  * @param textInputElem: DOM Element with input text
  * @param cid: Conversation ID
  * @param repliedMessageID: ID of replied message
+ * @param attachmentMapping: name to data mapping of attachments to add
  */
-function emitUserMessage(textInputElem, cid, repliedMessageID=null){
+function emitUserMessage(textInputElem, cid, repliedMessageID=null, attachmentMapping= {}){
     if(textInputElem && textInputElem.value){
         const timeCreated = Math.floor(Date.now() / 1000);
         const messageText = textInputElem.value;
-        addMessage(cid, currentUser['_id'],null, messageText, timeCreated,repliedMessageID,{}).then(messageID=>{
+        addMessage(cid, currentUser['_id'],null, messageText, timeCreated,repliedMessageID,Object.keys(attachmentMapping)).then(messageID=>{
             socket.emit('user_message', {'cid':cid,'userID':currentUser['_id'],
                               'messageText':messageText,
                               'messageID':messageID,
+                              'attachments': attachmentMapping,
                               'timeCreated':timeCreated});
         });
         textInputElem.value = "";
