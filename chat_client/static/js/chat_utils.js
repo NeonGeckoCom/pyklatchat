@@ -249,6 +249,32 @@ const toBase64 = file => new Promise((resolve, reject) => {
     reader.onerror = error => reject(error);
 });
 
+
+let __inputFileList = {};
+
+/**
+ * Gets uploaded files from specified conversation id
+ * @param cid specified conversation id
+ * @return {*} list of files from specified cid if any
+ */
+function getUploadedFiles(cid){
+    if(__inputFileList.hasOwnProperty(cid)){
+        return __inputFileList[cid];
+    }return [];
+}
+
+/**
+ * Adds File upload to specified cid
+ * @param cid: mentioned cid
+ * @param file: File object
+ */
+function addUpload(cid, file){
+    if(!__inputFileList.hasOwnProperty(cid)){
+        __inputFileList[cid] = [];
+    }
+    __inputFileList[cid].push(file);
+}
+
 /**
  * Builds new conversation HTML from provided data and attaches it to the list of displayed conversations
  * @param conversationData: JS Object containing conversation data of type:
@@ -283,14 +309,34 @@ function buildConversation(conversationData={},remember=true){
    const attachmentsButton = document.getElementById('file-input-'+conversationData['_id']);
 
     if(chatInputButton.hasAttribute('data-target-cid')) {
-        chatInputButton.addEventListener('click', (e)=>{
+        chatInputButton.addEventListener('click', async (e)=>{
             const textInputElem = document.getElementById(conversationData['_id']+'-input');
-            const attachmentMapping = {};
+            let attachmentMapping = {};
             let i = 0;
-            Array.from(filenamesContainer.getElementsByClassName('filename')).forEach(async filename=>{
-                attachmentMapping[filename.innerText] = await toBase64(attachmentsButton.files[i]);
-            });
-            emitUserMessage(textInputElem, e.target.getAttribute('data-target-cid'), attachmentMapping);
+            const filenamesArr = Array.from(filenamesContainer.getElementsByClassName('filename'));
+            if (filenamesArr.length > 0){
+                console.info('Processing attachments array...')
+                let numConverted = 0;
+                let errorOccurred = null;
+                filenamesArr.forEach(filename=>{
+                    toBase64(attachmentsButton.files[i]).then(d => {
+                        attachmentMapping[filename.innerText] = d;
+                        numConverted++;
+                    }).catch(err=>errorOccurred = err);
+                });
+                while(numConverted<filenamesArr.length && !errorOccurred){
+                    await new Promise((resolve, reject) => {
+                        setTimeout(() => {
+                            resolve('waiting...');
+                        }, 1000);
+                    });
+                }
+                if(errorOccurred){
+                    console.error(`Error during base64 conversion: ${errorOccurred}, skipping message sending`);
+                    return
+                }
+            }
+            emitUserMessage(textInputElem, e.target.getAttribute('data-target-cid'),null, attachmentMapping);
             textInputElem.value = "";
         });
     }
@@ -306,11 +352,18 @@ function buildConversation(conversationData={},remember=true){
     attachmentsButton.addEventListener('change', (e)=>{
         e.preventDefault();
         const fileName = getFilenameFromPath(e.currentTarget.value);
-        filenamesContainer.style.display = "";
-        filenamesContainer.insertAdjacentHTML('afterbegin',
-                                                `<span class='filename'>${fileName}</span>`);
-        if (filenamesContainer.children.length === configData['maxNumAttachments']) {
-            attachmentsButton.disabled = true;
+        const lastFile = attachmentsButton.files[attachmentsButton.files.length - 1]
+        if(lastFile.size > configData['maxUploadSize']){
+            console.warn(`Uploaded file is too big`);
+        }else {
+            addUpload(attachmentsButton.parentNode.parentNode.id, lastFile);
+            console.log(getUploadedFiles(attachmentsButton.parentNode.parentNode.id))
+            filenamesContainer.insertAdjacentHTML('afterbegin',
+                `<span class='filename'>${fileName}</span>`);
+            filenamesContainer.style.display = "";
+            if (filenamesContainer.children.length === configData['maxNumAttachments']) {
+                attachmentsButton.disabled = true;
+            }
         }
     });
     setParticipantsCount(conversationData['_id']);
