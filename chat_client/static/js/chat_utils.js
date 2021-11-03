@@ -312,19 +312,18 @@ function buildConversation(conversationData={},remember=true){
         chatInputButton.addEventListener('click', async (e)=>{
             const textInputElem = document.getElementById(conversationData['_id']+'-input');
             let attachmentMapping = {};
-            let i = 0;
-            const filenamesArr = Array.from(filenamesContainer.getElementsByClassName('filename'));
-            if (filenamesArr.length > 0){
+            const filesArr = getUploadedFiles(chatInputButton.getAttribute('data-target-cid'));
+            if (filesArr.length > 0){
                 console.info('Processing attachments array...')
                 let numConverted = 0;
                 let errorOccurred = null;
-                filenamesArr.forEach(filename=>{
-                    toBase64(attachmentsButton.files[i]).then(d => {
-                        attachmentMapping[filename.innerText] = d;
+                filesArr.forEach(file=>{
+                    toBase64(file).then(d => {
+                        attachmentMapping[file.name] = d;
                         numConverted++;
                     }).catch(err=>errorOccurred = err);
                 });
-                while(numConverted<filenamesArr.length && !errorOccurred){
+                while(numConverted<filesArr.length && !errorOccurred){
                     await new Promise((resolve, reject) => {
                         setTimeout(() => {
                             resolve('waiting...');
@@ -357,7 +356,6 @@ function buildConversation(conversationData={},remember=true){
             console.warn(`Uploaded file is too big`);
         }else {
             addUpload(attachmentsButton.parentNode.parentNode.id, lastFile);
-            console.log(getUploadedFiles(attachmentsButton.parentNode.parentNode.id))
             filenamesContainer.insertAdjacentHTML('afterbegin',
                 `<span class='filename'>${fileName}</span>`);
             filenamesContainer.style.display = "";
