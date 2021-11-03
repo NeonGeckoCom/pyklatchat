@@ -365,6 +365,7 @@ function buildConversation(conversationData={},remember=true){
         }
     });
     setParticipantsCount(conversationData['_id']);
+    setTimeout( () => currentConversation.getElementsByClassName('card-body')[0].getElementsByClassName('chat-list')[0].lastElementChild.scrollIntoView(true), 0);
 }
 
 /**
