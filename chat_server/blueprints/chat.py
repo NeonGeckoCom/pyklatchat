@@ -30,6 +30,7 @@ from fastapi.exceptions import HTTPException
 from pydantic import BaseModel
 from bson.objectid import ObjectId
 from starlette.responses import FileResponse
+from neon_utils import LOG
 
 from chat_server.constants.users import UserPatterns
 from chat_server.server_config import db_controller, app_config
@@ -248,7 +249,6 @@ async def send_file(cid: str,
     # todo: any file validation before storing it
 
     for file in files:
-
         async with aiofiles.open(os.path.join(app_config['FILE_STORING_LOCATION'], file.filename), 'wb') as out_file:
             content = file.file.read()  # async read
             await out_file.write(content)
@@ -256,13 +256,26 @@ async def send_file(cid: str,
     return JSONResponse(content={'success': '1'})
 
 
-@router.get("/{cid}/get_file/{filename}")
-def get_file(cid: str, filename: str):
+@router.get("/{msg_id}/get_file/{filename}")
+def get_file(msg_id: str, filename: str):
     """
         Gets file from the server
 
-        :param cid: desired conversation id
+        :param msg_id: parent message id
         :param filename: name of the file to get
     """
-    return FileResponse(path=os.path.join(app_config['FILE_STORING_LOCATION'], filename),
-                        media_type='application/octet-stream', filename=filename)
+    LOG.debug(f'{msg_id} - {filename}')
+    message_files = db_controller.exec_query(query={'document': 'shouts',
+                                                    'command': 'find_one',
+                                                    'data': {'_id': msg_id}})
+    if message_files:
+        attachment_data = [attachment for attachment in message_files['attachments'] if attachment['name'] == filename][0]
+        media_type = attachment_data['mime']
+        LOG.debug(f'Media type: {media_type}')
+        path = os.path.join(app_config['FILE_STORING_LOCATION'], filename)
+        LOG.debug(f'path: {path}')
+        return FileResponse(path=path,
+                            media_type=media_type,
+                            filename=filename)
+    else:
+        return JSONResponse({'msg': f'invalid message id: {msg_id}'}, 400)

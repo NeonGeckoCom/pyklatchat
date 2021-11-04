@@ -102,6 +102,7 @@ function buildUserMessageHTML(userData, messageID, messageText, timeCreated, isM
                     <div class="reply-placeholder mb-2 mt-1"></div>
                     <p class="message-text">${messageText}</p>
                     <span class="attachment-toggle icon-paperclip" style="display: none;"></span>
+                    <br>
                     <span class="attachments-placeholder" style="display: none;"></span>
                     <br>
                     <small>${messageTime}</small>
@@ -146,8 +147,8 @@ function resolveMessageAttachments(messageID,attachments = []){
             const attachmentPlaceholder = messageElem.getElementsByClassName('attachments-placeholder')[0];
             attachmentToggle.style.display = "";
             attachments.forEach(attachment => {
-                const attachmentHTML = `<span class="attachment-item" data-file-name="${attachment}">
-                                            ${shrinkToFit(attachment, 10)}
+                const attachmentHTML = `<span class="attachment-item" data-file-name="${attachment['name']}" data-mime="${attachment['mime']}" data-size="${attachment['size']}">
+                                            ${shrinkToFit(attachment['name'], 10)}
                                         </span>`;
                 attachmentPlaceholder.insertAdjacentHTML('afterbegin', attachmentHTML);
             });
@@ -196,13 +197,16 @@ function attachReplies(conversationData){
 function downloadAttachment(attachmentItem, cid, messageID){
     if(attachmentItem){
         const fileName = attachmentItem.getAttribute('data-file-name');
-        const getFileURL = `${configData['currentURLBase']}/chat_api/${cid}/get_file/${fileName}`;
-        fetch(getFileURL).then(response => {
+        const mime = attachmentItem.getAttribute('data-mime');
+        const getFileURL = `${configData['CHAT_SERVER_URL_BASE']}/chat_api/${messageID}/get_file/${fileName}`;
+        fetch(getFileURL).then(async response => {
             response.ok ?
-                download(response.data, fileName):
-            console.error(`No file data received for path:${cid}/${messageID}/${fileName}`)
-        })
-            .catch(err=>console.error(`Failed to fetch: ${getFileURL}: ${err}`));
+                download(response.body, fileName, mime)
+                :console.error(`No file data received for path, 
+                                  cid=${cid};\n
+                                  message_id=${messageID};\n
+                                  file_name=${fileName}`)
+        }).catch(err=>console.error(`Failed to fetch: ${getFileURL}: ${err}`));
     }
 }
 
@@ -214,12 +218,16 @@ function downloadAttachment(attachmentItem, cid, messageID){
  */
 function download(content, filename, contentType='application/octet-stream')
 {
-    const a = document.createElement('a');
-    const blob = new Blob([content], {'type':contentType});
-    a.href = window.URL.createObjectURL(blob);
-    a.target = 'blank';
-    a.download = filename;
-    a.click();
+    if(content) {
+        const a = document.createElement('a');
+        const blob = new Blob([content], {'type':contentType});
+        a.href = window.URL.createObjectURL(blob);
+        a.target = 'blank';
+        a.download = filename;
+        a.click();
+    }else{
+        console.warn('Skipping downloading as content is invalid')
+    }
 }
 
 /**
@@ -330,7 +338,7 @@ function buildConversation(conversationData={},remember=true){
                 const formData = new FormData();
                 filesArr.forEach(file=>{
                     const generatedFileName = `${generateUUID(10,'00041000')}.${file.name.split('.').pop()}`;
-                    attachments.push(generatedFileName);
+                    attachments.push({'name': generatedFileName, 'size': file.size, 'mime': file.type});
                     const renamedFile = new File([file], generatedFileName, {type: file.type});
                     formData.append('files', renamedFile);
                 });
