@@ -321,10 +321,6 @@ function buildConversation(conversationData={},remember=true){
                 filesArr.forEach(file=>{
                     const generatedFileName = `${generateUUID(10,'00041000')}.${file.name.split('.').pop()}`;
                     attachments.push(generatedFileName);
-                    Object.defineProperty(file, 'name', {
-                      writable: true,
-                      value: generatedFileName
-                    });
                     const renamedFile = new File([file], generatedFileName, {type: file.type});
                     formData.append('files', renamedFile);
                     numConverted++;
