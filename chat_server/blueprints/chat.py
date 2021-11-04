@@ -16,20 +16,23 @@
 # Specialized conversational reconveyance options from Conversation Processing Intelligence Corp.
 # US Patents 2008-2021: US7424516, US20140161250, US20140177813, US8638908, US8068604, US8553852, US10530923, US10530924
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
+import os
 from typing import List
 
+import aiofiles
 import requests
 
 from time import time
-from fastapi import APIRouter, Depends, status, Request, Query
+from fastapi import APIRouter, Depends, status, Request, Query, UploadFile, File, Form
 from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import HTTPException
 from pydantic import BaseModel
 from bson.objectid import ObjectId
+from starlette.responses import FileResponse
 
 from chat_server.constants.users import UserPatterns
-from chat_server.server_config import db_controller
+from chat_server.server_config import db_controller, app_config
 from chat_server.utils.auth import get_current_user
 from chat_server.utils.user_utils import create_from_pattern
 
@@ -228,3 +231,37 @@ def fetch_shouts(shout_ids: List[str] = Query(None)):
         result.append(shout_data)
     json_compatible_item_data = jsonable_encoder(result)
     return JSONResponse(content=json_compatible_item_data)
+
+
+@router.post("/{cid}/store_files")
+async def send_file(cid: str,
+                    files: List[UploadFile] = File(...)):
+    """
+        Stores received files in filesystem
+
+        :param cid: target conversation id
+        :param files: list of files to process
+
+        :returns JSON-formatted response from server
+    """
+    # todo: any file validation before storing it
+
+    for file in files:
+
+        async with aiofiles.open(os.path.join(app_config['FILE_STORING_LOCATION'], file.filename), 'wb') as out_file:
+            content = file.file.read()  # async read
+            await out_file.write(content)
+
+    return JSONResponse(content={'success': '1'})
+
+
+@router.get("/{cid}/get_file/{filename}")
+def get_file(cid: str, filename: str):
+    """
+        Gets file from the server
+
+        :param cid: desired conversation id
+        :param filename: name of the file to get
+    """
+    return FileResponse(path=os.path.join(app_config['FILE_STORING_LOCATION'], filename),
+                        media_type='application/octet-stream', filename=filename)
