@@ -315,7 +315,6 @@ function buildConversation(conversationData={},remember=true){
             const filesArr = getUploadedFiles(chatInputButton.getAttribute('data-target-cid'));
             if (filesArr.length > 0){
                 console.info('Processing attachments array...')
-                let numConverted = 0;
                 let errorOccurred = null;
                 const formData = new FormData();
                 filesArr.forEach(file=>{
@@ -323,7 +322,6 @@ function buildConversation(conversationData={},remember=true){
                     attachments.push(generatedFileName);
                     const renamedFile = new File([file], generatedFileName, {type: file.type});
                     formData.append('files', renamedFile);
-                    numConverted++;
                 });
                 console.log('Received attachments array: ', attachments)
                 const query_url = `${configData['currentURLBase']}/chats/${conversationData['_id']}/store_files`;
