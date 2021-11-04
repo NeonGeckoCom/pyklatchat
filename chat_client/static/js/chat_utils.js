@@ -582,6 +582,18 @@ function refreshChatView(){
     });
 }
 
+/**
+ * Gets all opened chats
+ * @return {[]} list of displayed chat ids
+ */
+function getOpenedChats(){
+    let cids = [];
+    Array.from(conversationBody.getElementsByClassName('conversationContainer')).forEach(conversationContainer=>{
+        cids.push(conversationContainer.getElementsByClassName('card')[0].id);
+    });
+    return cids;
+}
+
 document.addEventListener('DOMContentLoaded', (e)=>{
     document.addEventListener('currentUserLoaded',(e)=>{
         restoreChatAlignment();
@@ -591,7 +603,10 @@ document.addEventListener('DOMContentLoaded', (e)=>{
        e.preventDefault();
        if(conversationSearchInput.value!==""){
             getConversationDataByInput(conversationSearchInput.value).then(conversationData=>{
-                if(conversationData) {
+                console.log(retrieveItemsLayout())
+                if(getOpenedChats().includes(conversationData['_id'])){
+                    displayAlert(document.getElementById('importConversationModalBody'),'Desired chat is already displayed','danger');
+                }else if(conversationData) {
                     buildConversation(conversationData);
                 }else{
                     displayAlert(document.getElementById('importConversationModalBody'),'Cannot find conversation matching your search','danger');
