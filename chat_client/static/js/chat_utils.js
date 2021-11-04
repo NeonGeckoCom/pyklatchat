@@ -101,6 +101,8 @@ function buildUserMessageHTML(userData, messageID, messageText, timeCreated, isM
                     <p style="font-size: small;font-weight: bolder;" class="message-nickname">${userData['nickname']}</p>
                     <div class="reply-placeholder mb-2 mt-1"></div>
                     <p class="message-text">${messageText}</p>
+                    <span class="attachment-toggle icon-paperclip" style="display: none;"></span>
+                    <span class="attachments-placeholder" style="display: none;"></span>
                     <br>
                     <small>${messageTime}</small>
                 </div>
@@ -140,12 +142,17 @@ function resolveMessageAttachments(messageID,attachments = []){
     if(messageID && attachments.length > 0){
         const messageElem = document.getElementById(messageID);
         if(messageElem) {
+            const attachmentToggle = messageElem.getElementsByClassName('attachment-toggle')[0];
+            const attachmentPlaceholder = messageElem.getElementsByClassName('attachments-placeholder')[0];
+            attachmentToggle.style.display = "";
             attachments.forEach(attachment => {
-                const attachmentHTML = `<span class="attachment-item">
-                                            ${attachment}
+                const attachmentHTML = `<span class="attachment-item" data-file-name="${attachment}">
+                                            ${shrinkToFit(attachment, 10)}
                                         </span>`;
-                const attachmentPlaceholder = messageElem.getElementsByClassName('attachments-placeholder')[0];
                 attachmentPlaceholder.insertAdjacentHTML('afterbegin', attachmentHTML);
+            });
+            attachmentToggle.addEventListener('click', (e)=>{
+                attachmentPlaceholder.style.display = attachmentPlaceholder.style.display === "none"?"":"none";
             });
         }
     }
@@ -186,13 +193,15 @@ function attachReplies(conversationData){
  * @param cid: current conversation id
  * @param messageID: current message id
  */
-function addAttachmentDownload(attachmentItem, cid, messageID){
+function downloadAttachment(attachmentItem, cid, messageID){
     if(attachmentItem){
-        const fileName = attachmentItem.innerText;
-        const getFileURL = `${configData['currentURLBase']}/chats/${cid}/${messageID}/${fileName}`;
-        fetch(getFileURL).then(response =>
-            response.ok?response.formData().then(data => download(data, fileName))
-                :console.error(`No file data received for path:${cid}/${messageID}/${fileName}`))
+        const fileName = attachmentItem.getAttribute('data-file-name');
+        const getFileURL = `${configData['currentURLBase']}/chat_api/${cid}/get_file/${fileName}`;
+        fetch(getFileURL).then(response => {
+            response.ok ?
+                download(response.data, fileName):
+            console.error(`No file data received for path:${cid}/${messageID}/${fileName}`)
+        })
             .catch(err=>console.error(`Failed to fetch: ${getFileURL}: ${err}`));
     }
 }
@@ -211,7 +220,6 @@ function download(content, filename, contentType='application/octet-stream')
     a.target = 'blank';
     a.download = filename;
     a.click();
-    setTimeout(()=>document.removeChild(a), 0);
 }
 
 /**
@@ -224,7 +232,10 @@ function addAttachments(conversationData){
             resolveMessageAttachments(message['message_id'], message?.attachments);
         });
         Array.from(document.getElementsByClassName('attachment-item')).forEach(attachmentItem=>{
-            addAttachmentDownload(attachmentItem, conversationData['_id'], attachmentItem.parentNode.parentNode.id);
+            attachmentItem.addEventListener('click', (e)=>{
+               e.preventDefault();
+               downloadAttachment(attachmentItem, conversationData['_id'], attachmentItem.parentNode.parentNode.id);
+            });
         });
     }
 }

@@ -181,6 +181,7 @@ def get_conversation(request: Request, search_str: str, username: str = Depends(
                                   'created_on': users_data[i]['created_on'],
                                   'message_id': users_data[i]['message_id'],
                                   'message_text': users_data[i]['message_text'],
+                                  'attachments': users_data[i].get('attachments', []),
                                   'user_first_name': users_data[i]['first_name'],
                                   'user_last_name': users_data[i]['last_name'],
                                   'user_nickname': users_data[i]['nickname'],
