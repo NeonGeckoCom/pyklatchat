@@ -325,13 +325,6 @@ function buildConversation(conversationData={},remember=true){
                     formData.append('files', renamedFile);
                     numConverted++;
                 });
-                while(numConverted<filesArr.length && !errorOccurred) {
-                    await new Promise((resolve, reject) => {
-                        setTimeout(() => {
-                            resolve('waiting...');
-                        }, 1000);
-                    });
-                }
                 console.log('Received attachments array: ', attachments)
                 const query_url = `${configData['currentURLBase']}/chats/${conversationData['_id']}/store_files`;
                 await fetch(query_url, {method:'POST',
