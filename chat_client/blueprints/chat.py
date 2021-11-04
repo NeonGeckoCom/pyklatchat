@@ -16,14 +16,14 @@
 # Specialized conversational reconveyance options from Conversation Processing Intelligence Corp.
 # US Patents 2008-2021: US7424516, US20140161250, US20140177813, US8638908, US8068604, US8553852, US10530923, US10530924
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
-
+from typing import List, Type
 
 import jwt
 import requests
 
 from time import time
 from uuid import uuid4
-from fastapi import APIRouter, Request, status, Form
+from fastapi import APIRouter, Request, status, Form, File, UploadFile
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.exceptions import HTTPException
 from fastapi.templating import Jinja2Templates
@@ -108,3 +108,26 @@ async def chats(search_str: str):
 
     return JSONResponse(content=json_data, status_code=post_response.status_code)
 
+
+@router.post("/{cid}/store_files")
+async def send_file(cid: str,
+                    files: List[UploadFile] = File(...)):
+    """
+        Forwards new chat creation data to the server API and handles the returned response
+
+        :param cid: target conversation id
+        :param files: list of files to process
+
+        :returns JSON-formatted response from server
+    """
+    post_response = requests.post(f'{app_config["SERVER_URL"]}/chat_api/{cid}/store_files', data=files)
+
+    json_data = {}
+
+    if post_response.status_code == 200:
+
+        json_data = post_response.json()
+
+        LOG.debug(f'Chat creation response: {json_data}')
+
+    return JSONResponse(content=json_data, status_code=post_response.status_code)

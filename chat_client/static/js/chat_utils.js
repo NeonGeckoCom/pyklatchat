@@ -311,31 +311,44 @@ function buildConversation(conversationData={},remember=true){
     if(chatInputButton.hasAttribute('data-target-cid')) {
         chatInputButton.addEventListener('click', async (e)=>{
             const textInputElem = document.getElementById(conversationData['_id']+'-input');
-            let attachmentMapping = {};
+            let attachments = [];
             const filesArr = getUploadedFiles(chatInputButton.getAttribute('data-target-cid'));
             if (filesArr.length > 0){
                 console.info('Processing attachments array...')
                 let numConverted = 0;
                 let errorOccurred = null;
+                const formData = new FormData();
                 filesArr.forEach(file=>{
-                    toBase64(file).then(d => {
-                        attachmentMapping[file.name] = d;
-                        numConverted++;
-                    }).catch(err=>errorOccurred = err);
+                    const generatedFileName = `${generateUUID(10,'00041000')}.${file.name.split('.').pop()}`;
+                    attachments.push(generatedFileName);
+                    Object.defineProperty(file, 'name', {
+                      writable: true,
+                      value: generatedFileName
+                    });
+                    const renamedFile = new File([file], generatedFileName, {type: file.type});
+                    formData.append('files', renamedFile);
+                    numConverted++;
                 });
-                while(numConverted<filesArr.length && !errorOccurred){
+                while(numConverted<filesArr.length && !errorOccurred) {
                     await new Promise((resolve, reject) => {
                         setTimeout(() => {
                             resolve('waiting...');
                         }, 1000);
                     });
                 }
+                console.log('Received attachments array: ', attachments)
+                const query_url = `${configData['currentURLBase']}/chats/${conversationData['_id']}/store_files`;
+                await fetch(query_url, {method:'POST',
+                                            body:formData})
+                    .then(response => response.ok?console.log('File stored successfully'):null).catch(err=>{
+                        errorOccurred=err;
+                    });
                 if(errorOccurred){
-                    console.error(`Error during base64 conversion: ${errorOccurred}, skipping message sending`);
+                    console.error(`Error during attachments preparation: ${errorOccurred}, skipping message sending`);
                     return
                 }
             }
-            emitUserMessage(textInputElem, e.target.getAttribute('data-target-cid'),null, attachmentMapping);
+            emitUserMessage(textInputElem, e.target.getAttribute('data-target-cid'),null, attachments);
             textInputElem.value = "";
         });
     }
@@ -489,17 +502,17 @@ function strFmtDate(year, month, day, hours, minutes, seconds){
  * @param textInputElem: DOM Element with input text
  * @param cid: Conversation ID
  * @param repliedMessageID: ID of replied message
- * @param attachmentMapping: name to data mapping of attachments to add
+ * @param attachments: list of attachments file names
  */
-function emitUserMessage(textInputElem, cid, repliedMessageID=null, attachmentMapping= {}){
+function emitUserMessage(textInputElem, cid, repliedMessageID=null, attachments= []){
     if(textInputElem && textInputElem.value){
         const timeCreated = Math.floor(Date.now() / 1000);
         const messageText = textInputElem.value;
-        addMessage(cid, currentUser['_id'],null, messageText, timeCreated,repliedMessageID,Object.keys(attachmentMapping)).then(messageID=>{
+        addMessage(cid, currentUser['_id'],null, messageText, timeCreated,repliedMessageID,attachments).then(messageID=>{
             socket.emit('user_message', {'cid':cid,'userID':currentUser['_id'],
                               'messageText':messageText,
                               'messageID':messageID,
-                              'attachments': attachmentMapping,
+                              'attachments': attachments,
                               'timeCreated':timeCreated});
         });
         textInputElem.value = "";
