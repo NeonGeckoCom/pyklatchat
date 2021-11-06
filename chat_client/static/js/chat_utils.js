@@ -66,8 +66,7 @@ async function addMessage(cid, userID=null, messageID=null, messageText, timeCre
                 cidList.removeChild(blankChat[0]);
             }
             cidList.insertAdjacentHTML('beforeend', messageHTML);
-            const addedMessage = document.getElementById(messageID);
-            resolveMessageAttachments(addedMessage, attachments);
+            resolveMessageAttachments(messageID, attachments);
             resolveUserReply(messageID, repliedMessageID);
             addConversationParticipant(cid, userData['nickname'], true);
             setParticipantsCount(cid);
@@ -101,7 +100,7 @@ function buildUserMessageHTML(userData, messageID, messageText, timeCreated, isM
                     <p style="font-size: small;font-weight: bolder;" class="message-nickname">${userData['nickname']}</p>
                     <div class="reply-placeholder mb-2 mt-1"></div>
                     <p class="message-text">${messageText}</p>
-                    <span class="attachment-toggle icon-paperclip" style="display: none;"></span>
+                    <span class="attachment-toggle icon-paperclip"></span>
                     <br>
                     <span class="attachments-placeholder" style="display: none;"></span>
                     <br>
@@ -140,21 +139,26 @@ function resolveUserReply(replyID,repliedID){
  * @param attachments list of attachments received
  */
 function resolveMessageAttachments(messageID,attachments = []){
-    if(messageID && attachments.length > 0){
+    if(messageID) {
         const messageElem = document.getElementById(messageID);
         if(messageElem) {
             const attachmentToggle = messageElem.getElementsByClassName('attachment-toggle')[0];
-            const attachmentPlaceholder = messageElem.getElementsByClassName('attachments-placeholder')[0];
-            attachmentToggle.style.display = "";
-            attachments.forEach(attachment => {
-                const attachmentHTML = `<span class="attachment-item" data-file-name="${attachment['name']}" data-mime="${attachment['mime']}" data-size="${attachment['size']}">
+            if (attachments.length > 0) {
+                if (messageElem) {
+                    const attachmentPlaceholder = messageElem.getElementsByClassName('attachments-placeholder')[0];
+                    attachments.forEach(attachment => {
+                        const attachmentHTML = `<span class="attachment-item" data-file-name="${attachment['name']}" data-mime="${attachment['mime']}" data-size="${attachment['size']}">
                                             ${shrinkToFit(attachment['name'], 10)}
-                                        </span>`;
-                attachmentPlaceholder.insertAdjacentHTML('afterbegin', attachmentHTML);
-            });
-            attachmentToggle.addEventListener('click', (e)=>{
-                attachmentPlaceholder.style.display = attachmentPlaceholder.style.display === "none"?"":"none";
-            });
+                                        </span><br>`;
+                        attachmentPlaceholder.insertAdjacentHTML('afterbegin', attachmentHTML);
+                    });
+                    attachmentToggle.addEventListener('click', (e) => {
+                        attachmentPlaceholder.style.display = attachmentPlaceholder.style.display === "none" ? "" : "none";
+                    });
+                }
+            } else {
+                attachmentToggle.style.display = "none";
+            }
         }
     }
 }
@@ -225,7 +229,7 @@ function download(content, filename, contentType='application/octet-stream')
         a.target = 'blank';
         a.download = filename;
         a.click();
-        window.URL.revokeObjectURL(blob);
+        window.URL.revokeObjectURL(content);
     }else{
         console.warn('Skipping downloading as content is invalid')
     }
@@ -284,6 +288,19 @@ function getUploadedFiles(cid){
 }
 
 /**
+ * Cleans uploaded files per conversation
+ */
+function cleanUploadedFiles(cid){
+    if(__inputFileList.hasOwnProperty(cid)) {
+        delete __inputFileList[cid];
+    }
+    const attachmentsButton = document.getElementById('file-input-'+cid);
+    attachmentsButton.value = "";
+    const fileContainer = document.getElementById('filename-container-'+cid);
+    fileContainer.innerHTML = "";
+}
+
+/**
  * Adds File upload to specified cid
  * @param cid: mentioned cid
  * @param file: File object
@@ -332,7 +349,8 @@ function buildConversation(conversationData={},remember=true){
         chatInputButton.addEventListener('click', async (e)=>{
             const textInputElem = document.getElementById(conversationData['_id']+'-input');
             let attachments = [];
-            const filesArr = getUploadedFiles(chatInputButton.getAttribute('data-target-cid'));
+            const currCid = chatInputButton.getAttribute('data-target-cid');
+            const filesArr = getUploadedFiles(currCid);
             if (filesArr.length > 0){
                 console.info('Processing attachments array...')
                 let errorOccurred = null;
@@ -343,6 +361,8 @@ function buildConversation(conversationData={},remember=true){
                     const renamedFile = new File([file], generatedFileName, {type: file.type});
                     formData.append('files', renamedFile);
                 });
+                cleanUploadedFiles(currCid);
+
                 console.log('Received attachments array: ', attachments)
                 const query_url = `${configData['CHAT_SERVER_URL_BASE']}/chat_api/${conversationData['_id']}/store_files`;
                 await fetch(query_url, {method:'POST',
@@ -385,7 +405,7 @@ function buildConversation(conversationData={},remember=true){
         }
     });
     setParticipantsCount(conversationData['_id']);
-    setTimeout( () => currentConversation.getElementsByClassName('card-body')[0].getElementsByClassName('chat-list')[0].lastElementChild.scrollIntoView(true), 0);
+    setTimeout( () => currentConversation.getElementsByClassName('card-body')[0].getElementsByClassName('chat-list')[0].lastElementChild?.scrollIntoView(true), 0);
 }
 
 /**
