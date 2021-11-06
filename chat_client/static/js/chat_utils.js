@@ -100,10 +100,8 @@ function buildUserMessageHTML(userData, messageID, messageText, timeCreated, isM
                     <p style="font-size: small;font-weight: bolder;" class="message-nickname">${userData['nickname']}</p>
                     <div class="reply-placeholder mb-2 mt-1"></div>
                     <p class="message-text">${messageText}</p>
-                    <span class="attachment-toggle icon-paperclip"></span>
-                    <br>
-                    <span class="attachments-placeholder" style="display: none;"></span>
-                    <br>
+                    <span class="attachment-toggle icon-paperclip"><br></span>
+                    <span class="attachments-placeholder" style="display: none;"><br></span>
                     <small>${messageTime}</small>
                 </div>
              </div>`
