@@ -201,7 +201,7 @@ function downloadAttachment(attachmentItem, cid, messageID){
         const getFileURL = `${configData['CHAT_SERVER_URL_BASE']}/chat_api/${messageID}/get_file/${fileName}`;
         fetch(getFileURL).then(async response => {
             response.ok ?
-                download(response.body, fileName, mime)
+                download(await response.blob(), fileName, mime)
                 :console.error(`No file data received for path, 
                                   cid=${cid};\n
                                   message_id=${messageID};\n
@@ -225,6 +225,7 @@ function download(content, filename, contentType='application/octet-stream')
         a.target = 'blank';
         a.download = filename;
         a.click();
+        window.URL.revokeObjectURL(blob);
     }else{
         console.warn('Skipping downloading as content is invalid')
     }
