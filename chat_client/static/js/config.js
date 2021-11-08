@@ -1,11 +1,21 @@
 /**
+ * Collection of supported clients, current client is matched based on client configuration
+ * @type {{NANO: string, MAIN: string}}
+ */
+const CLIENTS = {
+    MAIN: 'main',
+    NANO: 'nano'
+}
+
+/**
  * JS Object containing frontend configuration data
- * @type {{cssBaseFolder: string, staticFolder: string, currentURLBase: string, currentURLFull: (string|string|string|SVGAnimatedString|*), imageBaseFolder: string, jsBaseFolder: string}}
+ * @type {{cssBaseFolder: string, staticFolder: string, currentURLBase: string, currentURLFull: (string|string|string|SVGAnimatedString|*), imageBaseFolder: string, jsBaseFolder: string, client: string}}
  */
 let configData = {
     'staticFolder': "../../static",
     'currentURLBase': extractURLBase(),
-    'currentURLFull': window.location.href
+    'currentURLFull': window.location.href,
+    'client': CLIENTS.MAIN
 };
 
 /**

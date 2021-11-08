@@ -324,15 +324,19 @@ function addUpload(cid, file){
  *         'created_on': 'creation time of the message'
  *     }, ... (num of user messages returned)]
  * }
+ * @param conversationParentID: ID of conversation parent
+ * @param client: Name of the client from "clients"
  * @param remember: to store this conversation into localStorage (defaults to true)
  */
-function buildConversation(conversationData={},remember=true){
+function buildConversation(conversationData={}, remember=true,conversationParentID = 'conversationsBody'){
    if(remember){
        addNewCID(conversationData['_id'], conversationAlignmentKey);
    }
-   conversationParticipants[conversationData['_id']] = {};
+   if(configData.client === CLIENTS.MAIN) {
+       conversationParticipants[conversationData['_id']] = {};
+   }
    const newConversationHTML = buildConversationHTML(conversationData);
-   const conversationsBody = document.getElementById('conversationsBody');
+   const conversationsBody = document.getElementById(conversationParentID);
    conversationsBody.insertAdjacentHTML('afterbegin', newConversationHTML);
    attachReplies(conversationData);
    addAttachments(conversationData);
@@ -429,7 +433,7 @@ function buildConversationHTML(conversationData = {}){
                         <span class="ml-3" id="participants-list-${conversationData['_id']}">
                             <i class="icon-user" aria-hidden="true"></i> <span id="participants-count-${conversationData['_id']}">0</span>
                         </span>
-                        <button type="button" id="close-${conversationData['_id']}" data-target-cid="${conversationData['_id']}" class="close-cid">
+                        <button type="button" id="close-${conversationData['_id']}" data-target-cid="${conversationData['_id']}" class="close-cid" style="display: ${configData.client === CLIENTS.NANO?'none':''};">
                             <span aria-hidden="true">×</span>
                         </button>
                     </div>
