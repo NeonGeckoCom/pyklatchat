@@ -47,6 +47,6 @@ function generateUUID(length=8, strPattern='00-0-4-1-000') {
  */
 function shrinkToFit(text, maxLength){
     if(text.length>maxLength){
-        text = text.substring(0, maxLength) + '...';
+        text = text.substring(0, maxLength/2) + '...' + text.substring(text.length - maxLength/2, text.length);
     }return text;
 }

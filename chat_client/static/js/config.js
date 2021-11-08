@@ -3,10 +3,7 @@
  * @type {{cssBaseFolder: string, staticFolder: string, currentURLBase: string, currentURLFull: (string|string|string|SVGAnimatedString|*), imageBaseFolder: string, jsBaseFolder: string}}
  */
 let configData = {
-    'staticFolder':'../../static',
-    'imageBaseFolder': '../../static/img',
-    'cssBaseFolder': '../../static/css',
-    'jsBaseFolder': '../../static/js',
+    'staticFolder': "../../static",
     'currentURLBase': extractURLBase(),
     'currentURLFull': window.location.href
 };
@@ -45,7 +42,7 @@ async function extractJsonData(filePath=""){
 }
 
 document.addEventListener('DOMContentLoaded', async (e)=>{
-    configData = Object.assign(configData, await extractJsonData(configData['jsBaseFolder']+'/runtime_config.json'));
+    configData = Object.assign(configData, await extractJsonData(configData['staticFolder']+'/runtime_config.json'));
     document.dispatchEvent(configFullLoadedEvent);
 });
 

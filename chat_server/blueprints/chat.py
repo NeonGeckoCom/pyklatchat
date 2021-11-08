@@ -16,20 +16,24 @@
 # Specialized conversational reconveyance options from Conversation Processing Intelligence Corp.
 # US Patents 2008-2021: US7424516, US20140161250, US20140177813, US8638908, US8068604, US8553852, US10530923, US10530924
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
+import os
 from typing import List
 
+import aiofiles
 import requests
 
 from time import time
-from fastapi import APIRouter, Depends, status, Request, Query
+from fastapi import APIRouter, Depends, status, Request, Query, UploadFile, File, Form
 from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import HTTPException
 from pydantic import BaseModel
 from bson.objectid import ObjectId
+from starlette.responses import FileResponse
+from neon_utils import LOG
 
 from chat_server.constants.users import UserPatterns
-from chat_server.server_config import db_controller
+from chat_server.server_config import db_controller, app_config
 from chat_server.utils.auth import get_current_user
 from chat_server.utils.user_utils import create_from_pattern
 
@@ -99,8 +103,11 @@ def get_conversation(request: Request, cid: str, username: str = Depends(get_cur
     conversation_data['_id'] = str(conversation_data['_id'])
 
     if conversation_data.get('chat_flow', None):
-        conversation_data['chat_flow'] = conversation_data['chat_flow'][chat_history_from:
-                                                                        chat_history_from + limit_chat_history]
+        if chat_history_from == 0:
+            conversation_data['chat_flow'] = conversation_data['chat_flow'][chat_history_from - limit_chat_history:]
+        else:
+            conversation_data['chat_flow'] = conversation_data['chat_flow'][chat_history_from - limit_chat_history:
+                                                                            -chat_history_from]
         users_data_request = requests.get('http://' + request.client.host + ':' + str(8000) +
                                           f'/users_api/bulk_fetch/?user_ids='
                                           f'{",".join([x["user_id"] for x in conversation_data["chat_flow"]])}',
@@ -156,9 +163,11 @@ def get_conversation(request: Request, search_str: str, username: str = Depends(
     conversation_data['_id'] = str(conversation_data['_id'])
 
     if conversation_data.get('chat_flow', None):
-        conversation_data['chat_flow'] = conversation_data['chat_flow'][chat_history_from:
-                                                                        chat_history_from + limit_chat_history]
-
+        if chat_history_from == 0:
+            conversation_data['chat_flow'] = conversation_data['chat_flow'][chat_history_from - limit_chat_history:]
+        else:
+            conversation_data['chat_flow'] = conversation_data['chat_flow'][chat_history_from - limit_chat_history:
+                                                                            -chat_history_from]
         request_url = f'http://' + request.client.host + ':' + str(8000) + \
                       f'/chat_api/fetch_shouts/?shout_ids=' + \
                       f'{",".join([str(msg_id) for msg_id in conversation_data["chat_flow"]])}'
@@ -173,6 +182,7 @@ def get_conversation(request: Request, search_str: str, username: str = Depends(
                                   'created_on': users_data[i]['created_on'],
                                   'message_id': users_data[i]['message_id'],
                                   'message_text': users_data[i]['message_text'],
+                                  'attachments': users_data[i].get('attachments', []),
                                   'user_first_name': users_data[i]['first_name'],
                                   'user_last_name': users_data[i]['last_name'],
                                   'user_nickname': users_data[i]['nickname'],
@@ -223,3 +233,49 @@ def fetch_shouts(shout_ids: List[str] = Query(None)):
         result.append(shout_data)
     json_compatible_item_data = jsonable_encoder(result)
     return JSONResponse(content=json_compatible_item_data)
+
+
+@router.post("/{cid}/store_files")
+async def send_file(cid: str,
+                    files: List[UploadFile] = File(...)):
+    """
+        Stores received files in filesystem
+
+        :param cid: target conversation id
+        :param files: list of files to process
+
+        :returns JSON-formatted response from server
+    """
+    # todo: any file validation before storing it
+
+    for file in files:
+        async with aiofiles.open(os.path.join(app_config['FILE_STORING_LOCATION'], file.filename), 'wb') as out_file:
+            content = file.file.read()  # async read
+            await out_file.write(content)
+
+    return JSONResponse(content={'success': '1'})
+
+
+@router.get("/{msg_id}/get_file/{filename}")
+def get_file(msg_id: str, filename: str):
+    """
+        Gets file from the server
+
+        :param msg_id: parent message id
+        :param filename: name of the file to get
+    """
+    LOG.debug(f'{msg_id} - {filename}')
+    message_files = db_controller.exec_query(query={'document': 'shouts',
+                                                    'command': 'find_one',
+                                                    'data': {'_id': msg_id}})
+    if message_files:
+        attachment_data = [attachment for attachment in message_files['attachments'] if attachment['name'] == filename][0]
+        media_type = attachment_data['mime']
+        LOG.debug(f'Media type: {media_type}')
+        path = os.path.join(app_config['FILE_STORING_LOCATION'], filename)
+        LOG.debug(f'path: {path}')
+        return FileResponse(path=path,
+                            media_type=media_type,
+                            filename=filename)
+    else:
+        return JSONResponse({'msg': f'invalid message id: {msg_id}'}, 400)

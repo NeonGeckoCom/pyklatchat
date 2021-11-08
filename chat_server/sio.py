@@ -81,6 +81,7 @@ async def user_message(sid, data):
                     'messageText': 'content of the user message',
                     'repliedMessage': 'id of replied message (optional)',
                     'bot': 'if the message is from bot (defaults to False)',
+                    'attachments': 'list of filenames that were send with message',
                     'context': 'message context (optional)',
                     'test': 'is test message (defaults to False)',
                     'timeCreated': 'timestamp on which message was created'}
@@ -114,6 +115,7 @@ async def user_message(sid, data):
         new_shout_data = {'_id': data['messageID'],
                           'user_id': data['userID'],
                           'message_text': data['messageText'],
+                          'attachments': data.get('attachments', []),
                           'replied_message': data.get('repliedMessage', ''),
                           'created_on': data['timeCreated']}
 

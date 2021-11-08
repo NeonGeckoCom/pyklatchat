@@ -16,14 +16,14 @@
 # Specialized conversational reconveyance options from Conversation Processing Intelligence Corp.
 # US Patents 2008-2021: US7424516, US20140161250, US20140177813, US8638908, US8068604, US8553852, US10530923, US10530924
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
-
+from typing import List, Type
 
 import jwt
 import requests
 
 from time import time
 from uuid import uuid4
-from fastapi import APIRouter, Request, status, Form
+from fastapi import APIRouter, Request, status, Form, File, UploadFile
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.exceptions import HTTPException
 from fastapi.templating import Jinja2Templates
@@ -85,26 +85,3 @@ async def create_chat(conversation_name: str = Form(...),
         LOG.debug(f'Chat creation response: {json_data}')
 
     return JSONResponse(content=json_data, status_code=post_response.status_code)
-
-
-@router.get('/search/{search_str}')
-async def chats(search_str: str):
-    """
-        Forwards chat searching to the server API and handles the returned response
-
-        :param search_str: input string to search against
-
-        :returns JSON response from server API
-    """
-    post_response = requests.get(f'{app_config["SERVER_URL"]}/chat_api/search/{search_str}')
-
-    json_data = {}
-
-    if post_response.status_code == 200:
-
-        json_data = jsonable_encoder(post_response.json())
-
-        LOG.debug(f'Chat search response: {json_data}')
-
-    return JSONResponse(content=json_data, status_code=post_response.status_code)
-
