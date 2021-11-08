@@ -326,12 +326,12 @@ function addUpload(cid, file){
  * }
  * @param remember: to store this conversation into localStorage (defaults to true)
  */
-function buildConversation(conversationData={},remember=true){
+async function buildConversation(conversationData={},remember=true){
    if(remember){
        addNewCID(conversationData['_id'], conversationAlignmentKey);
    }
    conversationParticipants[conversationData['_id']] = {};
-   const newConversationHTML = buildConversationHTML(conversationData);
+   const newConversationHTML = await buildConversationHTML(conversationData);
    const conversationsBody = document.getElementById('conversationsBody');
    conversationsBody.insertAdjacentHTML('afterbegin', newConversationHTML);
    attachReplies(conversationData);
@@ -420,44 +420,34 @@ function buildConversation(conversationData={},remember=true){
  *         'created_on': 'creation time of the message'
  *     }, ... (num of user messages returned)]
  * }
- * @returns {string} conversation HTML based on provided data (without replies)
+ * @returns {string} conversation HTML based on provided data
  */
-function buildConversationHTML(conversationData = {}){
-    let html = `<div class="conversationContainer col-xl-6 col-lg-6 col-md-6 col-sm-12 col-12 m-2">
-                <div class="card" id="${ conversationData['_id'] }">
-                    <div class="card-header">${ conversationData['conversation_name'] }
-                        <span class="ml-3" id="participants-list-${conversationData['_id']}">
-                            <i class="icon-user" aria-hidden="true"></i> <span id="participants-count-${conversationData['_id']}">0</span>
-                        </span>
-                        <button type="button" id="close-${conversationData['_id']}" data-target-cid="${conversationData['_id']}" class="close-cid">
-                            <span aria-hidden="true">×</span>
-                        </button>
-                    </div>
-                    <div class="card-body height3" style="overflow-y: auto; height: 450px!important;">
-                        <ul class="chat-list">`
-    if(conversationData.hasOwnProperty('chat_flow')) {
-        Array.from(conversationData['chat_flow']).forEach(message => {
-            const isMine = currentUser && message['user_nickname'] === currentUser['nickname'];
-            html += buildUserMessageHTML({'avatar':message['user_avatar'],'nickname':message['user_nickname']},message['message_id'], message['message_text'], message['created_on'],isMine);
-            addConversationParticipant(conversationData['_id'], message['user_nickname']);
+async function buildConversationHTML(conversationData = {}){
+    return await fetch(configData['staticFolder'] + '/components/conversation.html')
+        .then( (response) => {
+            return response.text();
+        })
+        .then((html) => {
+            const cid = conversationData['_id'];
+            const conversation_name = conversationData['conversation_name'];
+            html = html.replaceAll('{cid}', cid);
+            html = html.replaceAll('{conversation_name}', conversation_name);
+            let chatFlowHTML = "";
+            if(conversationData.hasOwnProperty('chat_flow')) {
+                Array.from(conversationData['chat_flow']).forEach(message => {
+                    const isMine = currentUser && message['user_nickname'] === currentUser['nickname'];
+                    chatFlowHTML += buildUserMessageHTML({'avatar':message['user_avatar'],'nickname':message['user_nickname']},message['message_id'], message['message_text'], message['created_on'],isMine);
+                    addConversationParticipant(conversationData['_id'], message['user_nickname']);
+                });
+            }else{
+                chatFlowHTML+=`<div class="blank_chat">No messages in this chat yet...</div>`;
+            }
+            html = html.replace('{chat_flow}', chatFlowHTML);
+            return html;
+        })
+        .catch(function(err) {
+            console.log('Failed to fetch page: ', err);
         });
-    }else{
-        html+=`<div class="blank_chat">No messages in this chat yet...</div>`;
-    }
-    html += `</ul>
-             </div>
-                   <div class="card-footer">
-                        <input class="user_input form-control" id="${conversationData['_id']}-input" type="text" placeholder='Write a Message to "${conversationData['conversation_name']}"'>
-                        <button class="send_user_input mt-2 btn btn-success" id="${conversationData['_id']}-send" data-target-cid="${conversationData['_id']}">Send Message</button>
-                        <label for="file-input-${conversationData['_id']}" class="attachment-label">
-                          <i class="icon-paperclip icon-large" aria-hidden="true"></i>
-                        </label>
-                        <input type="file" class="file-input fa fa-paperclip" data-target-cid="${conversationData['_id']}" style="display: none;" name="file-input" id="file-input-${conversationData['_id']}" multiple>
-                        <div class="filename-container" id="filename-container-${conversationData['_id']}" style="display: none"></div>
-                    </div>
-                </div>
-            </div>`
-    return html;
 }
 
 
@@ -471,7 +461,11 @@ async function getConversationDataByInput(input=""){
     if(input && typeof input === "string"){
         const query_url = `${configData['CHAT_SERVER_URL_BASE']}/chat_api/search/${input}`
         await fetch(query_url)
-            .then(response => response.ok?response.json():null)
+            .then(response => {
+                if(response.ok){
+                    return response.json();
+                }
+            })
             .then(data => {
                 conversationData = data;
             });
@@ -591,9 +585,9 @@ function removeCID(cid, keyName=conversationAlignmentKey){
 function restoreChatAlignment(keyName=conversationAlignmentKey){
     let itemsLayout = retrieveItemsLayout(keyName);
     for (const item of itemsLayout) {
-        getConversationDataByInput(item).then(conversationData=>{
+        getConversationDataByInput(item).then(async conversationData=>{
             if(conversationData) {
-                buildConversation(conversationData, false);
+                await buildConversation(conversationData, false);
             }else{
                 displayAlert(document.getElementById('conversationsBody'),'No matching conversation found','danger');
                 removeCID(item);
@@ -640,12 +634,11 @@ document.addEventListener('DOMContentLoaded', (e)=>{
     addBySearch.addEventListener('click', async (e)=>{
        e.preventDefault();
        if(conversationSearchInput.value!==""){
-            getConversationDataByInput(conversationSearchInput.value).then(conversationData=>{
-                console.log(retrieveItemsLayout())
+            getConversationDataByInput(conversationSearchInput.value).then(async conversationData=>{
                 if(getOpenedChats().includes(conversationData['_id'])){
                     displayAlert(document.getElementById('importConversationModalBody'),'Desired chat is already displayed','danger');
                 }else if(conversationData) {
-                    buildConversation(conversationData);
+                    await buildConversation(conversationData);
                 }else{
                     displayAlert(document.getElementById('importConversationModalBody'),'Cannot find conversation matching your search','danger');
                 }
@@ -670,7 +663,7 @@ document.addEventListener('DOMContentLoaded', (e)=>{
        fetch(`${configData['currentURLBase']}/chats/new`, {method: 'post', body: formData}).then( async response=>{
                 const responseJson = await response.json();
                 if(response.ok){
-                    buildConversation(responseJson);
+                    await buildConversation(responseJson);
                 }else{
                     displayAlert(document.getElementById('newConversationModalBody'),'Cannot add new conversation: '+ responseJson['detail'][0]['msg'],'danger');
                 }
