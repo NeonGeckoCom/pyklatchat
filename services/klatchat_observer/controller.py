@@ -76,12 +76,12 @@ class ChatObserver(MQConnector):
 
             Example:
             >>> response_data = ChatObserver.get_recipient_from_body('@Proctor hello dsfdsfsfds @Prompter')
-            >>> assert response_data == {'recipient': Recipients.CHATBOT_CONTROLLER, 'context': {'bots': ['proctor', 'prompter']}}
+            >>> assert response_data == {'recipient': Recipients.CHATBOT_CONTROLLER, 'context': {'bots': {'proctor', 'prompter'}}}
         """
         message = ' '+message
         bot_mentioning_regexp = r'[\s]+@[a-zA-Z]+[\w]+'
         bots = re.findall(bot_mentioning_regexp, message)
-        bots = list(set([bot.strip().replace('@', '').lower() for bot in bots]))
+        bots = set([bot.strip().replace('@', '').lower() for bot in bots])
         if len(bots) > 0:
             recipient = Recipients.CHATBOT_CONTROLLER
         else:
@@ -223,7 +223,8 @@ class ChatObserver(MQConnector):
                     with self.create_mq_connection(vhost='/chatbots') as mq_connection:
                         with mq_connection.channel() as connection_channel:
                             input_queue = 'chatbot_user_message'
-                            _data['bots'] = json.dumps(response_data.setdefault('context', {}).setdefault('bots', []))
+                            _data['bots'] = list(json.dumps(response_data.setdefault('context', {}).setdefault('bots',
+                                                                                                               [])))
                             connection_channel.queue_declare(queue=input_queue)
                             connection_channel.basic_publish(exchange='',
                                                              routing_key=input_queue,
