@@ -116,7 +116,7 @@ def create_unauthorized_user(response: Response, authorize: bool = True) -> dict
     return new_user
 
 
-def get_current_user(request: Request, response: Response, force_tmp: bool = False) -> str:
+def get_current_user(request: Request, response: Response, force_tmp: bool = False) -> dict:
     """
         Gets current user according to response cookies
 
@@ -136,8 +136,8 @@ def get_current_user(request: Request, response: Response, force_tmp: bool = Fal
             if (int(current_timestamp) - int(payload.get('creation_time', 0))) <= cookie_lifetime:
                 try:
                     user = db_controller.exec_query(query={'command': 'find_one',
-                                                          'document': 'users',
-                                                          'data': ({'_id': payload['sub']})})
+                                                           'document': 'users',
+                                                           'data': ({'_id': payload['sub']})})
                     if not user:
                         raise KeyError(f'{payload["sub"]} is not found among users, setting temporal user credentials')
                     user_id = user['_id']
@@ -148,6 +148,9 @@ def get_current_user(request: Request, response: Response, force_tmp: bool = Fal
                     LOG.warning(f'{err}')
     if not user_id or force_tmp:
         user = create_unauthorized_user(response=response)
+    user.pop('password', None)
+    user.pop('date_created', None)
+    user.pop('tokens', None)
     return user
 
 

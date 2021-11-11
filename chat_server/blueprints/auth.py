@@ -96,8 +96,8 @@ def login(username: str = Form(...), password: str = Form(...)):
         :returns JSON response with status corresponding to authorization status, sets session cookie with response
     """
     matching_user = db_controller.exec_query(query={'command': 'find_one',
-                                                   'document': 'users',
-                                                   'data': {'nickname': username}})
+                                                    'document': 'users',
+                                                    'data': {'nickname': username}})
     if not matching_user or matching_user['is_tmp']:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid username or password"
@@ -115,6 +115,26 @@ def login(username: str = Form(...), password: str = Form(...)):
 
     response.set_cookie("session", token, httponly=True)
 
+    return response
+
+
+@router.get("/login/{token}")
+def login(token: str):
+    """
+        Logs In user based on provided authorization token
+
+        :param token: provided authorization token
+
+        :returns JSON response with status corresponding to authorization status, sets session cookie with response
+    """
+    matching_user = db_controller.exec_query(query={'command': 'find_one',
+                                                    'document': 'users',
+                                                    'data': {'tokens': {'$all': [token]}}})
+    if not matching_user or matching_user['is_tmp']:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token provided"
+        )
+    response = JSONResponse(content=dict(login=True))
     return response
 
 

@@ -52,6 +52,21 @@ def current_user_data(response: Response, request: Request):
     return dict(data=get_current_user(request=request, response=response))
 
 
+@router.get("/current_user/{token}", response_class=JSONResponse)
+def current_user_data(token: str):
+    """
+        Gets current user data from session cookies
+
+        :param token: user's authorization token
+
+        :returns JSON response containing data of current user
+    """
+    matching_user = db_controller.exec_query(query={'command': 'find_one',
+                                                    'document': 'users',
+                                                    'data': {'tokens': {'$all': [token]}}})
+    return dict(data=matching_user)
+
+
 @router.get("/{user_id}", response_class=JSONResponse)
 def get_user(user_id: str):
     """

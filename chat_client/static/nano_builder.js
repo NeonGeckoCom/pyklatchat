@@ -16,9 +16,9 @@ class NanoBuilder {
         configData.client = CLIENTS.NANO;
         if(options?.cid){
             const cid = options.cid;
-            getConversationDataByInput(cid).then(conversationData=>{
+            getConversationDataByInput(cid).then(async conversationData=>{
                 if(conversationData) {
-                    this.buildNanoConversation(conversationData);
+                    await this.buildNanoConversation(conversationData);
                 }else{
                     console.error(`No conversation found matching provided id: ${cid}`);
                 }
@@ -26,7 +26,7 @@ class NanoBuilder {
         }
     }
 
-    buildNanoConversation(conversationData) {
-        buildConversation(conversationData, false, this.options?.parentID);
+    async buildNanoConversation(conversationData) {
+        await buildConversation(conversationData, false, this.options?.parentID);
     }
 }
