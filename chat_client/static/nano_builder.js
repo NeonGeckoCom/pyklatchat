@@ -28,6 +28,9 @@ class NanoBuilder {
         this.resolveCid(this.options);
     }
 
+    /**
+     * Applies configuration params based on declared handlers in "propertyHandlers"
+     */
     applyConfigs(){
         this.requiredProperties.forEach(property => {
            if(!this.options.hasOwnProperty(property)){
@@ -47,6 +50,10 @@ class NanoBuilder {
         }
     }
 
+    /**
+     * Resolves nano conversation ID based on options
+     * @param options: provided nano builder options
+     */
     resolveCid(options){
         const cid = options['cid'];
         getConversationDataByInput(cid).then(async conversationData=>{
@@ -58,11 +65,20 @@ class NanoBuilder {
         }).catch(err=> console.error(err));
     }
 
+    /**
+     * Resolves SIO properties based on provided options
+     * @param options: provided nano builder options
+     */
     resolveSIO(options){
         configData['SOCKET_IO_SERVER_URL'] = options.SOCKET_IO_SERVER_URL;
         document.dispatchEvent(configNanoLoadedEvent);
     }
 
+    /**
+     * Adds config to configData
+     * @param key: key to add
+     * @param value: value to add under @param key
+     */
     addConfig(key, value){
         configData[key] = value;
     }
