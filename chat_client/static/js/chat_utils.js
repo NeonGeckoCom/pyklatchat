@@ -635,45 +635,51 @@ document.addEventListener('DOMContentLoaded', (e)=>{
         restoreChatAlignment();
     });
 
-    addBySearch.addEventListener('click', async (e)=>{
-       e.preventDefault();
-       if(conversationSearchInput.value!==""){
-            getConversationDataByInput(conversationSearchInput.value).then(async conversationData=>{
-                if(getOpenedChats().includes(conversationData['_id'])){
-                    displayAlert(document.getElementById('importConversationModalBody'),'Desired chat is already displayed','danger');
-                }else if(conversationData) {
-                    await buildConversation(conversationData);
-                }else{
-                    displayAlert(document.getElementById('importConversationModalBody'),'Cannot find conversation matching your search','danger');
-                }
-                conversationSearchInput.value = "";
-            });
-       }
-    });
+    if (configData['client'] === CLIENTS.MAIN) {
 
-    addNewConversation.addEventListener('click', (e)=>{
-       e.preventDefault();
-       const newConversationID = document.getElementById('conversationID');
-       const newConversationName = document.getElementById('conversationName');
-       const isPrivate = document.getElementById('isPrivate');
+        addBySearch.addEventListener('click', async (e) => {
+            e.preventDefault();
+            if (conversationSearchInput.value !== "") {
+                getConversationDataByInput(conversationSearchInput.value).then(async conversationData => {
+                    if (getOpenedChats().includes(conversationData['_id'])) {
+                        displayAlert(document.getElementById('importConversationModalBody'), 'Desired chat is already displayed', 'danger');
+                    } else if (conversationData) {
+                        await buildConversation(conversationData);
+                    } else {
+                        displayAlert(document.getElementById('importConversationModalBody'), 'Cannot find conversation matching your search', 'danger');
+                    }
+                    conversationSearchInput.value = "";
+                });
+            }
+        });
 
-       let formData = new FormData();
+        addNewConversation.addEventListener('click', (e) => {
+            e.preventDefault();
+            const newConversationID = document.getElementById('conversationID');
+            const newConversationName = document.getElementById('conversationName');
+            const isPrivate = document.getElementById('isPrivate');
 
-       formData.append('conversation_name', newConversationName.value);
-       formData.append('conversation_id', newConversationID?newConversationID.value:null);
-       formData.append('is_private', isPrivate.checked)
+            let formData = new FormData();
+
+            formData.append('conversation_name', newConversationName.value);
+            formData.append('conversation_id', newConversationID ? newConversationID.value : null);
+            formData.append('is_private', isPrivate.checked)
 
 
-       fetch(`${configData['currentURLBase']}/chats/new`, {method: 'post', body: formData}).then( async response=>{
+            fetch(`${configData['currentURLBase']}/chats/new`, {
+                method: 'post',
+                body: formData
+            }).then(async response => {
                 const responseJson = await response.json();
-                if(response.ok){
+                if (response.ok) {
                     await buildConversation(responseJson);
-                }else{
-                    displayAlert(document.getElementById('newConversationModalBody'),'Cannot add new conversation: '+ responseJson['detail'][0]['msg'],'danger');
+                } else {
+                    displayAlert(document.getElementById('newConversationModalBody'), 'Cannot add new conversation: ' + responseJson['detail'][0]['msg'], 'danger');
                 }
-                newConversationName.value="";
+                newConversationName.value = "";
                 newConversationID.value = "";
                 isPrivate.checked = false;
             });
-    });
+        });
+    }
 });

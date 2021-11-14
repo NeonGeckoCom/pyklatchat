@@ -31,7 +31,12 @@ let currentUser = null;
  */
 async function getUserData(userID=null){
     let userData = {}
-    let query_url = `${configData["currentURLBase"]}/users/`
+    let query_url = '';
+    if(configData['clients'] === CLIENTS.NANO){
+        query_url = `${configData['CHAT_SERVER_URL_BASE']}/users_api`;
+    }else {
+        query_url = `${configData["currentURLBase"]}/users`;
+    }
     if(userID){
         query_url+='?user_id='+userID;
     }
@@ -171,41 +176,41 @@ function refreshCurrentUser(sendNotification=false, refreshChats=false){
 
 document.addEventListener('DOMContentLoaded', (e)=>{
     refreshCurrentUser(true, false);
-    currentUserNavDisplay.addEventListener('click', (e)=>{
-        e.preventDefault();
-        if(currentUser['is_tmp']){
+    if (configData['client'] === CLIENTS.MAIN) {
+        currentUserNavDisplay.addEventListener('click', (e) => {
+            e.preventDefault();
+            if (currentUser['is_tmp']) {
+                loginModal.modal('show');
+            } else {
+                logoutModal.modal('show');
+            }
+        });
+
+        logoutConfirm.addEventListener('click', (e) => {
+            e.preventDefault();
+            logoutUser().catch(err => console.error('Error while logging out user: ', err));
+        });
+
+        toggleLogin.addEventListener('click', (e) => {
+            e.preventDefault();
+            signupModal.modal('hide');
             loginModal.modal('show');
-        }else{
-            logoutModal.modal('show');
-        }
-    });
+        });
 
-    logoutConfirm.addEventListener('click', (e)=>{
-        e.preventDefault();
-        logoutUser().catch(err=>console.error('Error while logging out user: ',err));
-    });
+        loginButton.addEventListener('click', (e) => {
+            e.preventDefault();
+            loginUser().catch(err => console.error('Error while logging in user: ', err));
+        });
 
-    toggleLogin.addEventListener('click', (e)=>{
-        e.preventDefault();
-        signupModal.modal('hide');
-        loginModal.modal('show');
-    });
+        toggleSignup.addEventListener('click', (e) => {
+            e.preventDefault();
+            loginModal.modal('hide');
+            signupModal.modal('show');
+        });
 
-    loginButton.addEventListener('click', (e)=>{
-        e.preventDefault();
-        loginUser().catch(err=>console.error('Error while logging in user: ',err));
-    });
-
-    toggleSignup.addEventListener('click', (e)=>{
-        e.preventDefault();
-        loginModal.modal('hide');
-        signupModal.modal('show');
-    });
-
-    signupButton.addEventListener('click', (e)=>{
-        e.preventDefault();
-        createUser().catch(err=>console.error('Error while creating a user: ',err));
-    });
-
-
+        signupButton.addEventListener('click', (e) => {
+            e.preventDefault();
+            createUser().catch(err => console.error('Error while creating a user: ', err));
+        });
+    }
 });

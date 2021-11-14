@@ -45,7 +45,7 @@ def get_user(response: Response, request: Request, user_id: Optional[str] = None
         :returns JSON-formatted response from server
     """
     user_id = user_id or ''
-    get_user_response = requests.get(f'{app_config["SERVER_URL"]}/users_api/{user_id}', cookies=request.cookies)
+    get_user_response = requests.get(f'{app_config["SERVER_URL"]}/users_api?user_id={user_id}', cookies=request.cookies)
     if get_user_response.status_code != 200:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail=get_user_response.json()

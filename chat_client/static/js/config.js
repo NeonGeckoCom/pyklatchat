@@ -52,7 +52,9 @@ async function extractJsonData(filePath=""){
 }
 
 document.addEventListener('DOMContentLoaded', async (e)=>{
-    configData = Object.assign(configData, await extractJsonData(configData['staticFolder']+'/runtime_config.json'));
-    document.dispatchEvent(configFullLoadedEvent);
+    if (configData['client'] === CLIENTS.MAIN) {
+        configData = Object.assign(configData, await extractJsonData(configData['staticFolder'] + '/runtime_config.json'));
+        document.dispatchEvent(configFullLoadedEvent);
+    }
 });
 
