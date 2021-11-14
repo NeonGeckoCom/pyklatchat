@@ -4,7 +4,8 @@
  */
 const CLIENTS = {
     MAIN: 'main',
-    NANO: 'nano'
+    NANO: 'nano',
+    UNDEFINED: undefined
 }
 
 /**
@@ -15,7 +16,7 @@ let configData = {
     'staticFolder': "../../static",
     'currentURLBase': extractURLBase(),
     'currentURLFull': window.location.href,
-    'client': CLIENTS.MAIN
+    'client': CLIENTS.UNDEFINED
 };
 
 /**

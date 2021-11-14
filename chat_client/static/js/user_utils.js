@@ -32,7 +32,7 @@ let currentUser = null;
 async function getUserData(userID=null){
     let userData = {}
     let query_url = '';
-    if(configData['clients'] === CLIENTS.NANO){
+    if(configData['client'] === CLIENTS.NANO){
         query_url = `${configData['CHAT_SERVER_URL_BASE']}/users_api`;
     }else {
         query_url = `${configData["currentURLBase"]}/users`;
@@ -175,8 +175,8 @@ function refreshCurrentUser(sendNotification=false, refreshChats=false){
 
 
 document.addEventListener('DOMContentLoaded', (e)=>{
-    refreshCurrentUser(true, false);
     if (configData['client'] === CLIENTS.MAIN) {
+        refreshCurrentUser(true, false);
         currentUserNavDisplay.addEventListener('click', (e) => {
             e.preventDefault();
             if (currentUser['is_tmp']) {

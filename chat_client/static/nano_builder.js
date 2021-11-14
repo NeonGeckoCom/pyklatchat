@@ -7,10 +7,9 @@ class NanoBuilder {
 
     requiredProperties = ['cid', 'imageBaseFolder', 'SOCKET_IO_SERVER_URL', 'CHAT_SERVER_URL_BASE'];
     propertyHandlers = {
-        'cid': this.__resolveCid,
-        'SOCKET_IO_SERVER_URL': this.__resolveSIO,
-        'imageBaseFolder': this.__addConfig,
-        'CHAT_SERVER_URL_BASE': this.__addConfig
+        'SOCKET_IO_SERVER_URL': this.resolveSIO,
+        'imageBaseFolder': this.addConfig,
+        'CHAT_SERVER_URL_BASE': this.addConfig
     }
     /**
      * Constructing NanoBuilder instance
@@ -25,6 +24,8 @@ class NanoBuilder {
         this.options = options;
         configData.client = CLIENTS.NANO;
         this.applyConfigs();
+        refreshCurrentUser(true, false);
+        this.resolveCid(this.options);
     }
 
     applyConfigs(){
@@ -36,31 +37,33 @@ class NanoBuilder {
         for (const [key, value] of Object.entries(this.options)) {
             if(this.propertyHandlers.hasOwnProperty(key)){
                 const handler = this.propertyHandlers[key];
-                if (handler === this.__addConfig){
+                if (handler === this.addConfig){
                     handler(key, value);
                 }
-                this.propertyHandlers[key]();
+                else {
+                    this.propertyHandlers[key](this.options);
+                }
             }
         }
     }
 
-    __resolveCid(){
-        const cid = this.options['cid'];
+    resolveCid(options){
+        const cid = options['cid'];
         getConversationDataByInput(cid).then(async conversationData=>{
             if(conversationData) {
-                await buildConversation(conversationData, false, this.options?.parentID);
+                await buildConversation(conversationData, false, options?.parentID);
             }else{
                 console.error(`No conversation found matching provided id: ${cid}`);
             }
         }).catch(err=> console.error(err));
     }
 
-    __resolveSIO(){
-        this.__addConfig('SOCKET_IO_SERVER_URL', this.options.SIO_URL);
+    resolveSIO(options){
+        configData['SOCKET_IO_SERVER_URL'] = options.SOCKET_IO_SERVER_URL;
         document.dispatchEvent(configNanoLoadedEvent);
     }
 
-    __addConfig(key, value){
+    addConfig(key, value){
         configData[key] = value;
     }
 }
