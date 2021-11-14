@@ -325,7 +325,6 @@ function addUpload(cid, file){
  *     }, ... (num of user messages returned)]
  * }
  * @param conversationParentID: ID of conversation parent
- * @param client: Name of the client from "clients"
  * @param remember: to store this conversation into localStorage (defaults to true)
  */
 async function buildConversation(conversationData={}, remember=true,conversationParentID = 'conversationsBody'){
@@ -336,7 +335,7 @@ async function buildConversation(conversationData={}, remember=true,conversation
        conversationParticipants[conversationData['_id']] = {};
    }
    const newConversationHTML = await buildConversationHTML(conversationData);
-   const conversationsBody = document.getElementById('conversationsBody');
+   const conversationsBody = document.getElementById(conversationParentID);
    conversationsBody.insertAdjacentHTML('afterbegin', newConversationHTML);
    attachReplies(conversationData);
    addAttachments(conversationData);
@@ -427,7 +426,7 @@ async function buildConversation(conversationData={}, remember=true,conversation
  * @returns {string} conversation HTML based on provided data
  */
 async function buildConversationHTML(conversationData = {}){
-    return await fetch(configData['staticFolder'] + '/components/conversation.html')
+    return await fetch(configData['CHAT_SERVER_URL_BASE'] + '/components/conversation')
         .then( (response) => {
             return response.text();
         })
@@ -462,7 +461,6 @@ async function buildConversationHTML(conversationData = {}){
  */
 async function getConversationDataByInput(input=""){
     let conversationData = {};
-    console.log(input)
     if(input && typeof input === "string"){
         console.log(configData['CHAT_SERVER_URL_BASE'])
         const query_url = `${configData['CHAT_SERVER_URL_BASE']}/chat_api/search/${input}`
