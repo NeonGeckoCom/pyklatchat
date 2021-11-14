@@ -9,7 +9,7 @@ class UserPatterns(Enum):
         'nickname': 'deleted_user',
         'avatar': 'default_avatar.png'
     }
-    UNAUTHORIZED_USER = {
+    GUEST = {
         'first_name': 'The',
         'last_name': 'Guest',
         'avatar': 'default_avatar.png'
@@ -19,5 +19,11 @@ class UserPatterns(Enum):
         'last_name': 'AI',
         'nickname': 'neon',
         'avatar': 'neon.webp'
+    }
+    GUEST_NANO = {
+        'first_name': 'Nano',
+        'last_name': 'Guest',
+        'avatar': 'default_avatar.png',
+        'tokens': []
     }
 
