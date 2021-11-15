@@ -223,7 +223,7 @@ class ChatObserver(MQConnector):
                     with self.create_mq_connection(vhost='/chatbots') as mq_connection:
                         with mq_connection.channel() as connection_channel:
                             input_queue = 'chatbot_user_message'
-                            _data['bots'] = list(json.dumps(response_data.setdefault('context', {}).setdefault('bots',
+                            _data['bots'] = json.dumps(list(response_data.setdefault('context', {}).setdefault('bots',
                                                                                                                [])))
                             connection_channel.queue_declare(queue=input_queue)
                             connection_channel.basic_publish(exchange='',
