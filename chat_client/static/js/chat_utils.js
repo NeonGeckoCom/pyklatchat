@@ -482,13 +482,14 @@ async function getConversationDataByInput(input=""){
 function getTimeFromTimestamp(timestampCreated=0){
     const date = new Date(timestampCreated * 1000);
     const year = date.getFullYear().toString();
-    let month = date.getMonth();
-    month = month>=10?month:'0'+month;
-    let day = date.getDay();
-    day = day>=10?day:'0'+day;
-    const hours = date.getHours();
+    let month = date.getMonth()+1;
+    month = month>=10?month.toString():'0'+month.toString();
+    let day = date.getDate();
+
+    day = day>=10?day.toString():'0'+day.toString();
+    const hours = date.getHours().toString();
     let minutes = date.getMinutes();
-    minutes = minutes>=10?minutes:'0'+minutes;
+    minutes = minutes>=10?minutes.toString():'0'+minutes.toString();
     return strFmtDate(year, month, day, hours, minutes, null);
 }
 

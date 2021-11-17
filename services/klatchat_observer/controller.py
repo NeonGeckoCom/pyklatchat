@@ -16,6 +16,8 @@
 # Specialized conversational reconveyance options from Conversation Processing Intelligence Corp.
 # US Patents 2008-2021: US7424516, US20140161250, US20140177813, US8638908, US8068604, US8553852, US10530923, US10530924
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
+import json
+import re
 import time
 from threading import Event
 
@@ -37,6 +39,7 @@ from services.klatchat_observer.utils.neon_api_utils import resolve_neon_service
 class Recipients(Enum):
     """Enumeration of possible recipients"""
     NEON = 'neon'
+    CHATBOT_CONTROLLER = 'chatbot_controller'
     UNRESOLVED = 'unresolved'
 
 
@@ -44,20 +47,65 @@ class ChatObserver(MQConnector):
     """Observer of conversations states"""
 
     recipient_prefixes = {
-        Recipients.NEON: ['neon']
+        Recipients.NEON: ['neon'],
+        Recipients.UNRESOLVED: ['undefined']
     }
 
     @classmethod
-    def get_recipient_from_message(cls, message_prefix: str) -> Recipients:
+    def get_recipient_from_prefix(cls, message_prefix) -> dict:
+        """
+            Gets recipient from extracted prefix
+
+            :param message_prefix: extracted prefix
+            :returns extracted recipient
+        """
+        target_recipient = Recipients.UNRESOLVED
+        for recipient in list(cls.recipient_prefixes):
+            if any(message_prefix.lower() == x.lower() for x in cls.recipient_prefixes[recipient]):
+                target_recipient = recipient
+                break
+        return {'recipient': target_recipient, 'context': {}}
+
+    @classmethod
+    def get_recipient_from_body(cls, message: str) -> dict:
+        """
+            Gets recipients from message body
+
+            :param message: user's message
+            :returns extracted recipient
+
+            Example:
+            >>> response_data = ChatObserver.get_recipient_from_body('@Proctor hello dsfdsfsfds @Prompter')
+            >>> assert response_data == {'recipient': Recipients.CHATBOT_CONTROLLER, 'context': {'bots': {'proctor', 'prompter'}}}
+        """
+        message = ' '+message
+        bot_mentioning_regexp = r'[\s]+@[a-zA-Z]+[\w]+'
+        bots = re.findall(bot_mentioning_regexp, message)
+        bots = set([bot.strip().replace('@', '').lower() for bot in bots])
+        if len(bots) > 0:
+            recipient = Recipients.CHATBOT_CONTROLLER
+        else:
+            recipient = Recipients.UNRESOLVED
+        return {'recipient': recipient, 'context': {'bots': bots}}
+
+    @classmethod
+    def get_recipient_from_message(cls, message: str, prefix_separator: str) -> dict:
         """
             Gets recipient based on message
 
-            :param message_prefix: calling prefix of user message
+            :param prefix_separator: prefix of the user message
+            :param message: message text
+
+            :returns Dictionary of type: {"recipient": (instance of Recipients),
+                                          "context": dictionary with supportive context}
         """
-        for recipient in list(cls.recipient_prefixes):
-            if any(message_prefix.lower() == x.lower() for x in cls.recipient_prefixes[recipient]):
-                return recipient
-        return Recipients.UNRESOLVED
+        message_prefix = message.split(prefix_separator)[0].strip()
+        # Parsing message prefix
+        response_body = cls.get_recipient_from_prefix(message_prefix=message_prefix)
+        # Parsing message body
+        if response_body['recipient'] == Recipients.UNRESOLVED:
+            response_body = cls.get_recipient_from_body(message=message)
+        return response_body
 
     def __init__(self, config: dict, service_name: str = 'chat_observer', scan_neon_service: bool = False):
         super().__init__(config, service_name)
@@ -145,12 +193,13 @@ class ChatObserver(MQConnector):
         except Exception as ex:
             LOG.warning(f'Failed to deserialize received data: {_data}: {ex}')
         if _data and isinstance(_data, dict):
-            recipient = self.get_recipient_from_message(message_prefix=_data.get('messageText')
-                                                        .split(requesting_by_separator)[0])
+            response_data = self.get_recipient_from_message(message=_data.get('messageText'),
+                                                            prefix_separator=requesting_by_separator)
+            recipient = response_data['recipient']
             if recipient != Recipients.UNRESOLVED:
-                _data['messageText'] = requesting_by_separator.join(_data['messageText']
-                                                                    .split(requesting_by_separator)[1:]).strip()
                 if recipient == Recipients.NEON:
+                    _data['messageText'] = requesting_by_separator.join(_data['messageText']
+                                                                        .split(requesting_by_separator)[1:]).strip()
                     with self.create_mq_connection(vhost=self.vhost) as mq_connection:
                         with mq_connection.channel() as connection_channel:
                             service = resolve_neon_service(message_data=_data)
@@ -163,6 +212,19 @@ class ChatObserver(MQConnector):
                             if neon_service_id:
                                 input_queue = f'{input_queue}_{neon_service_id}'
                                 self.last_neon_request = int(time.time())
+                            connection_channel.queue_declare(queue=input_queue)
+                            connection_channel.basic_publish(exchange='',
+                                                             routing_key=input_queue,
+                                                             body=dict_to_b64(_data),
+                                                             properties=pika.BasicProperties(expiration='1000')
+                                                             )
+                elif recipient == Recipients.CHATBOT_CONTROLLER:
+                    LOG.info(f'Emitting message to Chatbot Controller: {response_data}')
+                    with self.create_mq_connection(vhost='/chatbots') as mq_connection:
+                        with mq_connection.channel() as connection_channel:
+                            input_queue = 'chatbot_user_message'
+                            _data['bots'] = json.dumps(list(response_data.setdefault('context', {}).setdefault('bots',
+                                                                                                               [])))
                             connection_channel.queue_declare(queue=input_queue)
                             connection_channel.basic_publish(exchange='',
                                                              routing_key=input_queue,
