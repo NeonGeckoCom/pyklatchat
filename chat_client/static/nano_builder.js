@@ -5,7 +5,7 @@ const configNanoLoadedEvent = new CustomEvent("configNanoLoaded", { "detail": "E
  */
 class NanoBuilder {
 
-    requiredProperties = ['cid', 'imageBaseFolder', 'SOCKET_IO_SERVER_URL', 'CHAT_SERVER_URL_BASE'];
+    requiredProperties = ['CHAT_DATA', 'imageBaseFolder', 'SOCKET_IO_SERVER_URL', 'CHAT_SERVER_URL_BASE'];
     propertyHandlers = {
         'SOCKET_IO_SERVER_URL': this.resolveSIO,
         'imageBaseFolder': this.addConfig,
@@ -25,7 +25,7 @@ class NanoBuilder {
         configData.client = CLIENTS.NANO;
         this.applyConfigs();
         refreshCurrentUser(true, false);
-        this.resolveCid(this.options);
+        this.resolveChatData(this.options);
     }
 
     /**
@@ -54,15 +54,17 @@ class NanoBuilder {
      * Resolves nano conversation ID based on options
      * @param options: provided nano builder options
      */
-    resolveCid(options){
-        const cid = options['cid'];
-        getConversationDataByInput(cid).then(async conversationData=>{
+    resolveChatData(options){
+        const chatData = options['CHAT_DATA'];
+        Array.from(chatData).forEach(chat => {
+            getConversationDataByInput(chat['CID']).then(async conversationData=>{
             if(conversationData) {
-                await buildConversation(conversationData, false, options?.parentID);
+                await buildConversation(conversationData, false, chat['PARENT_ID']);
             }else{
-                console.error(`No conversation found matching provided id: ${cid}`);
+                console.error(`No conversation found matching provided id: ${chat['CID']}`);
             }
         }).catch(err=> console.error(err));
+        })
     }
 
     /**
