@@ -16,7 +16,7 @@ let configData = {
     'staticFolder': "../../static",
     'currentURLBase': extractURLBase(),
     'currentURLFull': window.location.href,
-    'client': CLIENTS.UNDEFINED
+    'client': metaConfig? metaConfig?.client : CLIENTS.UNDEFINED
 };
 
 /**
