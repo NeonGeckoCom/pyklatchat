@@ -31,9 +31,9 @@ from neon_mq_connector.connector import MQConnector
 from pika.channel import Channel
 
 from version import __version__
-from chat_server.utils.auth import generate_uuid
-from services.klatchat_observer.constants.neon_api_constants import NeonServices
-from services.klatchat_observer.utils.neon_api_utils import resolve_neon_service
+from utils.common import generate_uuid
+from .constants.neon_api_constants import NeonServices
+from .utils.neon_api_utils import resolve_neon_service
 
 
 class Recipients(Enum):

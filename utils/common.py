@@ -16,23 +16,32 @@
 # Specialized conversational reconveyance options from Conversation Processing Intelligence Corp.
 # US Patents 2008-2021: US7424516, US20140161250, US20140177813, US8638908, US8068604, US8553852, US10530923, US10530924
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
-import os
 
-from typing import Optional
-from neon_utils import LOG
-from config import Configuration
-from services.neon_api.controller import NeonAPIMQConnector
+import hashlib
+from uuid import uuid4
 
 
-def main(config: Optional[dict] = None, testing=False):
-    connector = NeonAPIMQConnector(config=config)
-    connector.run()
+def generate_uuid(length=10) -> str:
+    """
+        Generates UUID string of desired length
+
+        :param length: length of the output UUID string
+
+        :returns UUID string of the desired length
+    """
+    return uuid4().hex[:length]
 
 
-if __name__ == '__main__':
-    try:
-        config_data = Configuration(from_files=[os.environ.get('NEON_API_CONNECTOR_CONFIG', 'config.json')]).config_data
-    except Exception as e:
-        LOG.error(e)
-        config_data = dict()
-    main(config=config_data)
+def get_hash(input_str: str, encoding='utf-8', algo='sha512') -> str:
+    """
+        Returns hashed version of input string corresponding to specified algorithm
+
+        :param input_str: input string to hash
+        :param encoding: encoding for string to be conformed to (defaults to UTF-8)
+        :param algo: hashing algorithm to use (defaults to SHA-512),
+                     should correspond to hashlib hashing methods,
+                     refer to: https://docs.python.org/3/library/hashlib.html
+
+        :returns hashed string from the provided input
+    """
+    return getattr(hashlib, algo)(input_str.encode(encoding)).hexdigest()
