@@ -12,11 +12,12 @@ const CLIENTS = {
  * JS Object containing frontend configuration data
  * @type {{cssBaseFolder: string, staticFolder: string, currentURLBase: string, currentURLFull: (string|string|string|SVGAnimatedString|*), imageBaseFolder: string, jsBaseFolder: string, client: string}}
  */
+
 let configData = {
     'staticFolder': "../../static",
     'currentURLBase': extractURLBase(),
     'currentURLFull': window.location.href,
-    'client': metaConfig? metaConfig?.client : CLIENTS.UNDEFINED
+    'client': typeof metaConfig !== 'undefined'? metaConfig?.client : CLIENTS.UNDEFINED
 };
 
 /**
