@@ -115,13 +115,10 @@ def main():
         python build_widget.py --weighted_dirs 1=['js'] --weighted_files 0=['nano_builder.js'] --save_to output.js --skip_files meta.js
     """
     args = parse_args()
-    if args != -1:
-        run(weighted_dirs=args.weighted_dirs,
-            weighted_files=args.weighted_files,
-            skip_files=args.skip_files,
-            save_to=args.save_to)
-    else:
-        sys.exit(-1)
+    run(weighted_dirs=args.weighted_dirs,
+        weighted_files=args.weighted_files,
+        skip_files=args.skip_files,
+        save_to=args.save_to)
 
 
 if __name__ == '__main__':
