@@ -10,6 +10,6 @@ RUN apt-get update && \
     && pip install wheel  \
     && pip install .
 
-ENV NEON_CONFIG_PATH /config
+ENV CONFIG_PATH /config
 
 CMD ["chat_server"]
