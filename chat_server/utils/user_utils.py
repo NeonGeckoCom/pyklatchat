@@ -20,7 +20,7 @@ import copy
 from time import time
 
 from chat_server.constants.users import UserPatterns
-from chat_server.utils.auth import get_hash, generate_uuid
+from utils.common import get_hash, generate_uuid
 from utils.database_utils import DatabaseController
 
 

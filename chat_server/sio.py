@@ -26,7 +26,7 @@ from neon_utils import LOG
 
 from chat_server.utils.user_utils import get_neon_data, get_bot_data
 from chat_server.server_config import db_controller
-from chat_server.utils.auth import generate_uuid
+from utils.common import generate_uuid
 
 
 sio = socketio.AsyncServer(cors_allowed_origins='*', async_mode='asgi')

@@ -21,13 +21,14 @@ import jwt
 
 from time import time
 
-from fastapi import APIRouter, Depends, Form, Response, status, Request
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi import APIRouter, Form, status, Request
+from fastapi.responses import JSONResponse
 from fastapi.exceptions import HTTPException
 
 from chat_server.server_config import db_controller
-from chat_server.utils.auth import get_current_user, secret_key, jwt_encryption_algo, get_hash, \
-    check_password_strength, generate_uuid
+from utils.common import get_hash, generate_uuid
+from chat_server.utils.auth import get_current_user, secret_key, jwt_encryption_algo, \
+    check_password_strength
 
 router = APIRouter(
     prefix="/auth",
