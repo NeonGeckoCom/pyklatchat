@@ -27,7 +27,7 @@ from fastapi.exceptions import HTTPException
 
 from chat_server.server_config import db_controller
 from utils.common import get_hash, generate_uuid
-from chat_server.utils.auth import get_current_user, secret_key, jwt_encryption_algo, \
+from chat_server.server_utils.auth import get_current_user, secret_key, jwt_encryption_algo, \
     check_password_strength
 
 router = APIRouter(

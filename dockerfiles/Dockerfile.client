@@ -1,6 +1,6 @@
 FROM python:3.8-slim-buster
 
-ADD . /chat_client
+COPY [^(utils|config.py)]* /chat_client
 WORKDIR .
 RUN apt-get update \
     && ls -l \

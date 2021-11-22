@@ -24,7 +24,7 @@ from bson.errors import InvalidId
 from bson.objectid import ObjectId
 from neon_utils import LOG
 
-from chat_server.utils.user_utils import get_neon_data, get_bot_data
+from chat_server.server_utils.user_utils import get_neon_data, get_bot_data
 from chat_server.server_config import db_controller
 from utils.common import generate_uuid
 

@@ -24,7 +24,7 @@ from fastapi.exceptions import HTTPException
 from fastapi.encoders import jsonable_encoder
 
 from chat_server.server_config import db_controller
-from chat_server.utils.auth import get_current_user
+from chat_server.server_utils.auth import get_current_user
 
 router = APIRouter(
     prefix="/users_api",

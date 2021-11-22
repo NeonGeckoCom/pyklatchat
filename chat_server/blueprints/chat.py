@@ -34,8 +34,8 @@ from neon_utils import LOG
 
 from chat_server.constants.users import UserPatterns
 from chat_server.server_config import db_controller, app_config
-from chat_server.utils.auth import get_current_user
-from chat_server.utils.user_utils import create_from_pattern
+from chat_server.server_utils.auth import get_current_user
+from chat_server.server_utils.user_utils import create_from_pattern
 
 router = APIRouter(
     prefix="/chat_api",
