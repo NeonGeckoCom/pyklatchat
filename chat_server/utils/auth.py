@@ -156,10 +156,11 @@ def get_current_user(request: Request, response: Response, force_tmp: bool = Fal
                                                            'data': ({'_id': payload['sub']})})
                     if not user:
                         LOG.info(f'{payload["sub"]} is not found among users, setting temporal user credentials')
-                    user_id = user['_id']
-                    if (int(current_timestamp) - int(payload.get('last_refresh_time', 0))) >= cookie_refresh_rate:
-                        refresh_cookie(payload=payload, response=response)
-                        LOG.info('Cookie was refreshed')
+                    else:
+                        user_id = user['_id']
+                        if (int(current_timestamp) - int(payload.get('last_refresh_time', 0))) >= cookie_refresh_rate:
+                            refresh_cookie(payload=payload, response=response)
+                            LOG.info('Cookie was refreshed')
     if not user_id or force_tmp:
         user = create_unauthorized_user(response=response)
     user.pop('password', None)
