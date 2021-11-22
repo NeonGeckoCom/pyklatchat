@@ -3,7 +3,7 @@ FROM python:3.8-slim-buster
 COPY [^(utils|config.py)]* /chat_server
 WORKDIR .
 RUN apt-get update \
-    && gcc \
+    && apt install build-essential \
     && ls -l \
     && pip install --upgrade pip  \
     && pip install wheel  \
