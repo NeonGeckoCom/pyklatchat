@@ -3,8 +3,8 @@ FROM python:3.8-slim-buster
 COPY [^(utils|config.py)]* /chat_server
 WORKDIR .
 RUN apt-get update \
-    && apt install build-essential \
-    && ls -l \
+    && apt-get install -y \
+    && apt install build-essential -y \
     && pip install --upgrade pip  \
     && pip install wheel  \
     && pip install --no-cache-dir -r ./chat_server/requirements.txt
