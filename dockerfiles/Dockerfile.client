@@ -10,6 +10,6 @@ RUN apt-get update && \
     && pip install wheel  \
     && pip install .
 
-ENV CONFIG_PATH /config
+ENV CHATCLIENT_CONFIG chat_client/client_config.json
 
 CMD ["chat_client"]

@@ -1,6 +1,6 @@
 FROM python:3.8
 
-ADD . /chat_server
+ADD . /klatchat_observer
 WORKDIR .
 RUN apt-get update && \
     apt-get install -y \
@@ -10,6 +10,6 @@ RUN apt-get update && \
     && pip install wheel  \
     && pip install .
 
-ENV CONFIG_PATH /config
+ENV KLATCHAT_OBSERVER_CONFIG config.json
 
-CMD ["chat_server"]
+CMD ["klatchat_observer"]
