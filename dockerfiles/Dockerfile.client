@@ -1,14 +1,12 @@
-FROM python:3.8
+FROM python:3.8-slim-buster
 
 ADD . /chat_client
 WORKDIR .
-RUN apt-get update && \
-    apt-get install -y \
-    gcc \
-    python3  \
-    python3-dev  \
+RUN apt-get update \
+    && ls -l \
+    && pip install --upgrade pip  \
     && pip install wheel  \
-    && pip install .
+    && pip install --no-cache-dir -r ./chat_client/requirements.txt
 
 ENV CHATCLIENT_CONFIG chat_client/client_config.json
 
