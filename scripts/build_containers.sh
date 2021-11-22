@@ -4,7 +4,7 @@ cp utils/common.py services/klatchat_observer/utils
 cp requirements/requirements.txt services/klatchat_observer
 cd services/klatchat_observer
 docker build -f ../../dockerfiles/Dockerfile.observer -t neon/klatchat_observer:latest .
-cd ../../scripts
+cd ../../
 echo "Building Chat Client"
 cp requirements/requirements.txt chat_client
 cp config.py chat_client

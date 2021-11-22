@@ -3,7 +3,7 @@ FROM python:3.8-slim-buster
 ADD . /klatchat_observer
 WORKDIR .
 RUN apt-get update \
-    && ls -l \
+    && gcc \
     && pip install --upgrade pip  \
     && pip install wheel  \
     && pip install --no-cache-dir -r ./klatchat_observer/requirements.txt
