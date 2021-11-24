@@ -90,7 +90,7 @@ async function buildUserMessageHTML(userData, messageID, messageText, timeCreate
     const messageTime = getTimeFromTimestamp(timeCreated);
     let imageComponent = "";
     if (userData.hasOwnProperty('avatar') && userData['avatar']){
-        imageComponent = `<img alt="Avatar" src="${configData["imageBaseFolder"]+'/'+userData['avatar']}">`
+        imageComponent = `<img alt="Avatar" src="${configData["CHAT_SERVER_URL_BASE"]}/users_api/${userData['_id']}/avatar">`
     }else{
         imageComponent = `<p>${userData['nickname'][0]}</p>`;
     }
@@ -447,7 +447,7 @@ async function buildConversationHTML(conversationData = {}){
     if(conversationData.hasOwnProperty('chat_flow')) {
         for (const message of Array.from(conversationData['chat_flow'])) {
             const isMine = currentUser && message['user_nickname'] === currentUser['nickname'];
-            chatFlowHTML += await buildUserMessageHTML({'avatar':message['user_avatar'],'nickname':message['user_nickname']},message['message_id'], message['message_text'], message['created_on'],isMine);
+            chatFlowHTML += await buildUserMessageHTML({'avatar':message['user_avatar'],'nickname':message['user_nickname'], '_id': message['user_id']},message['message_id'], message['message_text'], message['created_on'],isMine);
             addConversationParticipant(conversationData['_id'], message['user_nickname']);
         }
     }else{

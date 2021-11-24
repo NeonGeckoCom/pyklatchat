@@ -10,7 +10,7 @@ const CLIENTS = {
 
 /**
  * JS Object containing frontend configuration data
- * @type {{cssBaseFolder: string, staticFolder: string, currentURLBase: string, currentURLFull: (string|string|string|SVGAnimatedString|*), imageBaseFolder: string, jsBaseFolder: string, client: string}}
+ * @type {{staticFolder: string, currentURLBase: string, currentURLFull: (string|string|string|SVGAnimatedString|*), client: string}}
  */
 
 let configData = {

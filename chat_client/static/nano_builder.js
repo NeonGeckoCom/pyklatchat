@@ -5,10 +5,9 @@ const configNanoLoadedEvent = new CustomEvent("configNanoLoaded", { "detail": "E
  */
 class NanoBuilder {
 
-    requiredProperties = ['CHAT_DATA', 'imageBaseFolder', 'SOCKET_IO_SERVER_URL', 'CHAT_SERVER_URL_BASE'];
+    requiredProperties = ['CHAT_DATA', 'SOCKET_IO_SERVER_URL', 'CHAT_SERVER_URL_BASE'];
     propertyHandlers = {
         'SOCKET_IO_SERVER_URL': this.resolveSIO,
-        'imageBaseFolder': this.addConfig,
         'CHAT_SERVER_URL_BASE': this.addConfig
     }
     /**
