@@ -6,13 +6,11 @@ class UserPatterns(Enum):
     UNRECOGNIZED_USER = {
         'first_name': 'Deleted',
         'last_name': 'User',
-        'nickname': 'deleted_user',
-        'avatar': 'default_avatar.png'
+        'nickname': 'deleted_user'
     }
     GUEST = {
         'first_name': 'Klat',
-        'last_name': 'Guest',
-        'avatar': 'default_avatar.png'
+        'last_name': 'Guest'
     }
     NEON = {
         'first_name': 'Neon',
@@ -23,7 +21,6 @@ class UserPatterns(Enum):
     GUEST_NANO = {
         'first_name': 'Nano',
         'last_name': 'Guest',
-        'avatar': 'default_avatar.png',
         'tokens': []
     }
 

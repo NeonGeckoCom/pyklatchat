@@ -131,8 +131,7 @@ def get_matching_conversation(request: Request,
                                   'user_first_name': users_data[i]['first_name'],
                                   'user_last_name': users_data[i]['last_name'],
                                   'user_nickname': users_data[i]['nickname'],
-                                  'user_avatar': users_data[i].get('avatar',
-                                                                   'default_avatar.png')}
+                                  'user_avatar': users_data[i].get('avatar', '')}
                 conversation_data['chat_flow'].append(message_record)
 
     return conversation_data
