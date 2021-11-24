@@ -466,7 +466,6 @@ async function buildConversationHTML(conversationData = {}){
 async function getConversationDataByInput(input=""){
     let conversationData = {};
     if(input && typeof input === "string"){
-        console.log(configData['CHAT_SERVER_URL_BASE'])
         const query_url = `${configData['CHAT_SERVER_URL_BASE']}/chat_api/search/${input}`
         await fetch(query_url)
             .then(response => {

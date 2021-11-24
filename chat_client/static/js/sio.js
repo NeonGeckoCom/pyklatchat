@@ -8,12 +8,17 @@ sioTriggeringEvents.forEach(event=>{
    });
 });
 
-
+/**
+ * Inits socket io client listener by attaching relevant listeners on message channels
+ * @return {Socket} Socket IO client instance
+ */
 function initSIO(){
-    const socket = io("http://"+configData['SOCKET_IO_SERVER_URL']);
+
+    const sioServerURL = "http://"+configData['SOCKET_IO_SERVER_URL'];
+    const socket = io(sioServerURL);
 
     socket.on('connect', () => {
-         console.info('Connected to Server')
+         console.info(`Socket IO Connected to Server: ${sioServerURL}`)
     });
 
     socket.on('new_message', data => {
