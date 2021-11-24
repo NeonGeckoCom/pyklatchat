@@ -62,9 +62,8 @@ pymongo==3.12.0
 pyparsing==2.4.7
 python-dateutil==2.8.1
 python-dotenv==0.17.1
-python-engineio==4.2.0
 python-multipart==0.0.5
-python-socketio==5.3.0
+python-socketio==5.5.0
 pytzdata==2020.1
 pyxdg==0.27
 PyYAML==5.4.1
