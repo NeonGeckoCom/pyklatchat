@@ -34,7 +34,7 @@ from neon_utils import LOG
 
 from chat_server.constants.users import UserPatterns
 from chat_server.server_config import db_controller, app_config
-from chat_server.utils.auth import get_current_user
+from chat_server.utils.http_utils import get_file_response, save_file
 from chat_server.utils.user_utils import create_from_pattern
 
 router = APIRouter(
@@ -190,18 +190,14 @@ async def send_file(cid: str,
 
         :returns JSON-formatted response from server
     """
-    # todo: any file validation before storing it
-
+    # TODO: any file validation before storing it (Kirill)
     for file in files:
-        async with aiofiles.open(os.path.join(app_config['FILE_STORING_LOCATION'], file.filename), 'wb') as out_file:
-            content = file.file.read()  # async read
-            await out_file.write(content)
-
+        await save_file(location_prefix='attachments', file=file)
     return JSONResponse(content={'success': '1'})
 
 
 @router.get("/{msg_id}/get_file/{filename}")
-def get_file(msg_id: str, filename: str):
+def get_message_attachment(msg_id: str, filename: str):
     """
         Gets file from the server
 
@@ -215,11 +211,6 @@ def get_file(msg_id: str, filename: str):
     if message_files:
         attachment_data = [attachment for attachment in message_files['attachments'] if attachment['name'] == filename][0]
         media_type = attachment_data['mime']
-        LOG.debug(f'Media type: {media_type}')
-        path = os.path.join(app_config['FILE_STORING_LOCATION'], filename)
-        LOG.debug(f'path: {path}')
-        return FileResponse(path=path,
-                            media_type=media_type,
-                            filename=filename)
+        return get_file_response(filename=filename, media_type=media_type, location_prefix='attachments')
     else:
         return JSONResponse({'msg': f'invalid message id: {msg_id}'}, 400)

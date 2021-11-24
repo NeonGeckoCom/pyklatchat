@@ -22,9 +22,11 @@ from fastapi import APIRouter, Response, status, Request, Query
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import HTTPException
 from fastapi.encoders import jsonable_encoder
+from neon_utils import LOG
 
 from chat_server.server_config import db_controller
 from chat_server.utils.auth import get_current_user
+from chat_server.utils.http_utils import get_file_response
 
 router = APIRouter(
     prefix="/users_api",
@@ -61,6 +63,23 @@ def get_user(response: Response,
             status_code=status.HTTP_404_NOT_FOUND, detail='User not found'
         )
     return dict(data=user)
+
+
+@router.get("/{user_id}/avatar")
+def get_avatar(user_id: str):
+    """
+        Gets file from the server
+
+        :param user_id: target user id
+    """
+    LOG.debug(f'Getting avatar of user id: {user_id}')
+    user_data = db_controller.exec_query(query={'document': 'users',
+                                                'command': 'find_one',
+                                                'data': {'_id': user_id}})
+    if user_data and user_data.get('avatar', None):
+        return get_file_response(filename=user_data['avatar'], location_prefix='avatars')
+    else:
+        return JSONResponse({'msg': f'Failed to get avatar'}, 400)
 
 
 @router.get('/bulk_fetch/', response_class=JSONResponse)
