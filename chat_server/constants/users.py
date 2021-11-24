@@ -10,7 +10,7 @@ class UserPatterns(Enum):
         'avatar': 'default_avatar.png'
     }
     GUEST = {
-        'first_name': 'The',
+        'first_name': 'Klat',
         'last_name': 'Guest',
         'avatar': 'default_avatar.png'
     }

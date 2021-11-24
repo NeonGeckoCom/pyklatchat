@@ -98,7 +98,7 @@ def create_unauthorized_user(response: Response, authorize: bool = True, nano_to
 
         :param authorize: to authorize new user
         :param response: Starlet response object
-        :param nano_token: nano token to append to user (defaults to false)
+        :param nano_token: nano token to append to user on creation
 
         :returns: uuid of the new user
     """
