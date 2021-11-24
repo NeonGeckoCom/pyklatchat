@@ -40,15 +40,17 @@ class ParseKwargs(argparse.Action):
 class FileMerger:
     """
         File Merger is a convenience class for merging files dependencies
-        into the single considering the order of importance
+        into the single considering the order of insertion
     """
     DEFAULT_FILE_EXTENSION = '.js'
 
     def __init__(self,
+                 working_dir: str,
                  weighted_dirs: Dict[str, tuple],
                  weighted_files: Optional[Dict[str, tuple]] = None,
                  skip_files: Optional[List[str]] = None,
                  save_to: str = None):
+        self.working_dir = working_dir or '.'
         self.weighted_dirs = weighted_dirs or {}
         self.weighted_files = weighted_files or {}
         self.skip_files = skip_files or []
@@ -64,6 +66,7 @@ class FileMerger:
             - skip_files: list of files to skip
         """
         parser = argparse.ArgumentParser()
+        parser.add_argument('-wdir', '--working_dir', metavar='.')
         parser.add_argument('-dirs', '--weighted_dirs', nargs='*', action=ParseKwargs,
                             metavar='key1=["val1","val2"] ...')
         parser.add_argument('-files', '--weighted_files', nargs='*', action=ParseKwargs,
@@ -73,19 +76,19 @@ class FileMerger:
 
         script_args = parser.parse_args()
 
-        return FileMerger(weighted_dirs=script_args.weighted_dirs,
+        return FileMerger(working_dir=script_args.working_dir,
+                          weighted_dirs=script_args.weighted_dirs,
                           weighted_files=script_args.weighted_files,
                           skip_files=script_args.skip_files,
                           save_to=script_args.save_to)
 
-    @staticmethod
-    def get_content(from_file) -> str:
+    def get_content(self, from_file) -> str:
         """
             Gets content from file
             :param from_file: file to get content from
             :returns extracted content
         """
-        with open(from_file) as f:
+        with open(join(self.working_dir, from_file)) as f:
             lines = f.readlines()
             lines = [l.strip() for l in lines]
             lines = "\n".join(lines)
@@ -108,9 +111,9 @@ class FileMerger:
                     current_content += self.get_content(file)
             matching_dirs = self.weighted_dirs.get(str(weight), ())
             for folder in matching_dirs:
-                for file in [f for f in listdir(folder) if
-                             isfile(join(folder, f)) and f'{folder}/{f}' not in self.skip_files]:
-                    current_content += self.get_content(join(folder, file))
+                for file in [f for f in listdir(join(self.working_dir, folder)) if
+                             isfile(join(self.working_dir, folder, f)) and f'{folder}/{f}' not in self.skip_files]:
+                    current_content += self.get_content(join(self.working_dir, folder, file))
         with open(self.save_to, 'w') as f:
             f.write(current_content)
 
