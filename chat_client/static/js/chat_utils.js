@@ -92,7 +92,7 @@ async function buildUserMessageHTML(userData, messageID, messageText, timeCreate
     if (userData.hasOwnProperty('avatar') && userData['avatar']){
         imageComponent = `<img alt="Avatar" src="${configData["CHAT_SERVER_URL_BASE"]}/users_api/${userData['_id']}/avatar">`
     }else{
-        imageComponent = `<p>${userData['nickname'][0]}</p>`;
+        imageComponent = `<p>${userData['nickname'][0]}${userData['nickname'][userData['nickname'].length-1]}</p>`;
     }
     return await buildHTMLFromTemplate('user_message',
         {'is_mine': isMine?"in":"out",
