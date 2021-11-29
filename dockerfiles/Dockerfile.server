@@ -13,4 +13,4 @@ ENV CHATSERVER_CONFIG chat_server/server_config.json
 ENV DATABASE_CONFIG chat_server/server_config.json
 ENV SERVER_ENV PROD
 
-CMD ["chat_server"]
+CMD python -m chat_server

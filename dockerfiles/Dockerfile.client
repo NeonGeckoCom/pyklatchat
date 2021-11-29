@@ -11,4 +11,4 @@ RUN apt-get update \
 
 ENV CHATCLIENT_CONFIG chat_client/client_config.json
 
-CMD ["chat_client"]
+CMD python -m chat_client

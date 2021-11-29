@@ -11,4 +11,4 @@ RUN apt-get update \
 
 ENV KLATCHAT_OBSERVER_CONFIG config.json
 
-CMD ["klatchat_observer"]
+CMD python -m klatchat_observer
