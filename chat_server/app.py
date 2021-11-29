@@ -29,6 +29,7 @@ from fastapi.testclient import TestClient
 from neon_utils import LOG
 
 sys.path.append(os.path.pardir)
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from chat_server.sio import sio
 from chat_server.blueprints import auth as auth_blueprint, chat as chat_blueprint, users as users_blueprint
