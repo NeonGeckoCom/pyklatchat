@@ -24,9 +24,8 @@ import uvicorn
 
 from typing import Optional
 
-print(os.walk(os.getcwd()))
-sys.path.append(os.path.join(os.getcwd(), 'chat_client'))
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+print(list(os.walk(os.getcwd())))
+sys.path.append('chat_client')
 print(sys.path)
 
 from .app import create_asgi_app
