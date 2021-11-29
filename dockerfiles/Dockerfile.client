@@ -10,6 +10,6 @@ RUN apt-get update \
     && pip install --no-cache-dir -r ./chat_client/requirements.txt
 
 ENV CHATCLIENT_CONFIG="chat_client/client_config.json"
-ENV PYTHONPATH=/chat_client
+ENV PYTHONPATH "${PYTHONPATH}:/chat_client"
 
 CMD python -m chat_client
