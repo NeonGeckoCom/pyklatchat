@@ -1,3 +1,4 @@
+export DOCKER_BUILDKIT=1
 cd ..
 echo "Building Chat Observer"
 cp utils/common.py services/klatchat_observer/utils
