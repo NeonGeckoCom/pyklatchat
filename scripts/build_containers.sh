@@ -8,6 +8,7 @@ docker build -f ../../dockerfiles/Dockerfile.observer -t neon/klatchat_observer:
 cd ../../
 echo "Building Chat Client"
 cp requirements/requirements.txt chat_client
+cp -R utils chat_client
 cp config.py chat_client
 cd chat_client
 docker build -f ../dockerfiles/Dockerfile.client -t neon/chat_client:latest .
