@@ -12,4 +12,4 @@ RUN apt-get update \
 ENV CHATCLIENT_CONFIG chat_client/client_config.json
 ENV PYTHONPATH /app
 
-CMD python -m chat_client
+CMD python3 -m chat_client
