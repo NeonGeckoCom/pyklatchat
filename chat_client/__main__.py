@@ -17,13 +17,18 @@
 # US Patents 2008-2021: US7424516, US20140161250, US20140177813, US8638908, US8068604, US8553852, US10530923, US10530924
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
 import os
+import sys
 
 import socketio
 import uvicorn
 
 from typing import Optional
 
-print(os.getcwd())
+print(os.walk(os.getcwd()))
+sys.path.append(os.path.join(os.getcwd(), 'chat_client'))
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+print(sys.path)
+
 from .app import create_asgi_app
 
 
