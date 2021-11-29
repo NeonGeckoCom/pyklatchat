@@ -29,9 +29,9 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 sys.path.append(os.path.pardir)
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from chat_client.blueprints import chat as chat_blueprint, \
-                                   users as users_blueprint, \
-                                   auth as auth_blueprint
+from .blueprints import chat as chat_blueprint, \
+                        users as users_blueprint, \
+                        auth as auth_blueprint
 
 
 def create_asgi_app(app_version: str = None) -> FastAPI:
