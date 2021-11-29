@@ -29,6 +29,7 @@ from neon_utils import LOG
 
 from chat_server.constants.users import UserPatterns
 from chat_server.server_config import db_controller, app_config
+from utils.common import generate_uuid
 
 cookies_config = app_config.get('COOKIES', {})
 
@@ -75,7 +76,7 @@ def create_unauthorized_user(response: Response, authorize: bool = True) -> dict
 
         :returns: uuid of the new user
     """
-    from chat_server.utils.user_utils import create_from_pattern
+    from chat_server.server_utils.user_utils import create_from_pattern
 
     new_user = create_from_pattern(source=UserPatterns.UNAUTHORIZED_USER,
                                    override_defaults=dict(nickname=f'guest_{generate_uuid(length=8)}'))
