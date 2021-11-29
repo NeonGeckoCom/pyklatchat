@@ -23,6 +23,10 @@ import socketio
 import uvicorn
 
 from typing import Optional
+import chat_client
+
+for i in dir(chat_client):
+    print(i)
 
 from .app import create_asgi_app
 
