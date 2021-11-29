@@ -1,7 +1,7 @@
 FROM python:3.8-slim-buster
 
-ADD [^(utils|config.py)]* /chat_server/
-WORKDIR .
+COPY . /app/chat_client/
+WORKDIR /app
 RUN apt-get update \
     && apt-get install -y \
     && apt install build-essential -y \
@@ -13,4 +13,4 @@ ENV CHATSERVER_CONFIG chat_server/server_config.json
 ENV DATABASE_CONFIG chat_server/server_config.json
 ENV SERVER_ENV PROD
 
-CMD python -m chat_server
+CMD python3 -m chat_server
