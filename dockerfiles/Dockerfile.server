@@ -12,7 +12,7 @@ RUN apt-get update \
 
 ENV CHATSERVER_CONFIG chat_server/server_config.json
 ENV DATABASE_CONFIG chat_server/server_config.json
-ENV PYTHONPATH /app
+ENV PYTHONPATH="/app:/app/chat_server"
 ENV SERVER_ENV PROD
 
 CMD ["uvicorn", "chat_server.wsgi:app", "--host", "0.0.0.0", "--port", "8010"]
