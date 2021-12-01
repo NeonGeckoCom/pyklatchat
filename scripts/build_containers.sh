@@ -2,6 +2,7 @@ export DOCKER_BUILDKIT=1
 cd ..
 echo "Building Chat Observer"
 cp config.py services/klatchat_observer
+cp config.json services/klatchat_observer
 cp version.py services/klatchat_observer
 cp -R utils services/klatchat_observer
 cp requirements/requirements.txt services/klatchat_observer
