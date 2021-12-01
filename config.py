@@ -51,7 +51,7 @@ class Configuration:
         except Exception as ex:
             LOG.error(f'Exception occurred while extracting data from {file_path}: {ex}')
             extraction_result = dict()
-        LOG.info(f'Extracted config: {extraction_result}')
+        # LOG.info(f'Extracted config: {extraction_result}')
         return extraction_result
 
     def add_new_config_properties(self, new_config_dict: dict, at_key: str = None):
