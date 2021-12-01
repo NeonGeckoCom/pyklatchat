@@ -67,7 +67,6 @@ def signup(first_name: str = Form(...),
     new_user_record = dict(_id=generate_uuid(length=20),
                            first_name=first_name,
                            last_name=last_name,
-                           avatar='default_avatar.png',
                            password=get_hash(password),
                            nickname=nickname,
                            date_created=int(time()),
@@ -97,8 +96,8 @@ def login(username: str = Form(...), password: str = Form(...)):
         :returns JSON response with status corresponding to authorization status, sets session cookie with response
     """
     matching_user = db_controller.exec_query(query={'command': 'find_one',
-                                                   'document': 'users',
-                                                   'data': {'nickname': username}})
+                                                    'document': 'users',
+                                                    'data': {'nickname': username}})
     if not matching_user or matching_user['is_tmp']:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid username or password"

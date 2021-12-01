@@ -36,6 +36,7 @@ from chat_server.constants.users import UserPatterns
 from chat_server.server_config import db_controller, app_config
 from chat_server.server_utils.auth import get_current_user
 from chat_server.server_utils.user_utils import create_from_pattern
+from chat_server.server_utils.http_utils import get_file_response, save_file
 
 router = APIRouter(
     prefix="/chat_api",
@@ -44,6 +45,7 @@ router = APIRouter(
 
 
 class NewConversationData(BaseModel):
+    """Model for new conversation data"""
     id: str = None
     conversation_name: str
     is_private: bool = False
@@ -74,72 +76,16 @@ def new_conversation(request_data: NewConversationData):
     return JSONResponse(content=json_compatible_item_data)
 
 
-@router.get("/get/{cid}")
-def get_conversation(request: Request, cid: str, username: str = Depends(get_current_user),
-                     chat_history_from: int = 0,
-                     limit_chat_history: int = 100):
-    """
-        Gets conversation data by id
-
-        Note: soon will be depreciated, consider to replace with /search/{search_str} instead
-
-        :param request: client request
-        :param cid: desired conversation id
-        :param username: current user data
-        :param chat_history_from: upper time bound for messages
-        :param limit_chat_history: lower time bound for messages
-
-        :returns conversation data if found, 401 error code otherwise
-    """
-    if ObjectId.is_valid(cid):
-        cid = ObjectId(cid)
-    conversation_data = db_controller.exec_query(query={'command': 'find_one',
-                                                        'document': 'chats',
-                                                        'data': {'_id': cid}})
-    if not conversation_data:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail=f"Unable to get a chat with id: {cid}"
-        )
-    conversation_data['_id'] = str(conversation_data['_id'])
-
-    if conversation_data.get('chat_flow', None):
-        if chat_history_from == 0:
-            conversation_data['chat_flow'] = conversation_data['chat_flow'][chat_history_from - limit_chat_history:]
-        else:
-            conversation_data['chat_flow'] = conversation_data['chat_flow'][chat_history_from - limit_chat_history:
-                                                                            -chat_history_from]
-        users_data_request = requests.get('http://' + request.client.host + ':' + str(8000) +
-                                          f'/users_api/bulk_fetch/?user_ids='
-                                          f'{",".join([x["user_id"] for x in conversation_data["chat_flow"]])}',
-                                          cookies=request.cookies)
-        if users_data_request.status_code == 200:
-            users_data = users_data_request.json()
-            for idx in range(len(users_data)):
-                if len(list(users_data[idx])) > 0:
-                    conversation_data['chat_flow'][idx]['user_first_name'] = users_data[idx]['first_name']
-                    conversation_data['chat_flow'][idx]['user_last_name'] = users_data[idx]['last_name']
-                    conversation_data['chat_flow'][idx]['user_nickname'] = users_data[idx]['nickname']
-                    conversation_data['chat_flow'][idx]['user_avatar'] = users_data[idx]['avatar'] or \
-                                                                         'default_avatar.png'
-                else:
-                    conversation_data['chat_flow'][idx]['user_first_name'] = 'Deleted'
-                    conversation_data['chat_flow'][idx]['user_last_name'] = 'User'
-                    conversation_data['chat_flow'][idx]['user_nickname'] = 'deleted_user'
-                    conversation_data['chat_flow'][idx]['user_avatar'] = 'default_avatar.png'
-
-    return {"conversation_data": conversation_data, "current_user": username}
-
-
 @router.get("/search/{search_str}")
-def get_conversation(request: Request, search_str: str, username: str = Depends(get_current_user),
-                     chat_history_from: int = 0,
-                     limit_chat_history: int = 100):
+def get_matching_conversation(request: Request,
+                              search_str: str,
+                              chat_history_from: int = 0,
+                              limit_chat_history: int = 100):
     """
         Gets conversation data matching search string
 
         :param request: client request
         :param search_str: provided search string
-        :param username: current user data
         :param chat_history_from: upper time bound for messages
         :param limit_chat_history: lower time bound for messages
 
@@ -186,8 +132,7 @@ def get_conversation(request: Request, search_str: str, username: str = Depends(
                                   'user_first_name': users_data[i]['first_name'],
                                   'user_last_name': users_data[i]['last_name'],
                                   'user_nickname': users_data[i]['nickname'],
-                                  'user_avatar': users_data[i].get('avatar',
-                                                                   'default_avatar.png')}
+                                  'user_avatar': users_data[i].get('avatar', '')}
                 conversation_data['chat_flow'].append(message_record)
 
     return conversation_data
@@ -246,18 +191,14 @@ async def send_file(cid: str,
 
         :returns JSON-formatted response from server
     """
-    # todo: any file validation before storing it
-
+    # TODO: any file validation before storing it (Kirill)
     for file in files:
-        async with aiofiles.open(os.path.join(app_config['FILE_STORING_LOCATION'], file.filename), 'wb') as out_file:
-            content = file.file.read()  # async read
-            await out_file.write(content)
-
+        await save_file(location_prefix='attachments', file=file)
     return JSONResponse(content={'success': '1'})
 
 
 @router.get("/{msg_id}/get_file/{filename}")
-def get_file(msg_id: str, filename: str):
+def get_message_attachment(msg_id: str, filename: str):
     """
         Gets file from the server
 
@@ -271,11 +212,6 @@ def get_file(msg_id: str, filename: str):
     if message_files:
         attachment_data = [attachment for attachment in message_files['attachments'] if attachment['name'] == filename][0]
         media_type = attachment_data['mime']
-        LOG.debug(f'Media type: {media_type}')
-        path = os.path.join(app_config['FILE_STORING_LOCATION'], filename)
-        LOG.debug(f'path: {path}')
-        return FileResponse(path=path,
-                            media_type=media_type,
-                            filename=filename)
+        return get_file_response(filename=filename, media_type=media_type, location_prefix='attachments')
     else:
         return JSONResponse({'msg': f'invalid message id: {msg_id}'}, 400)

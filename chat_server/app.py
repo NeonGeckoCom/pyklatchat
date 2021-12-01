@@ -32,7 +32,10 @@ sys.path.append(os.path.pardir)
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from .sio import sio
-from .blueprints import auth as auth_blueprint, chat as chat_blueprint, users as users_blueprint
+from .blueprints import auth as auth_blueprint, \
+                                   chat as chat_blueprint, \
+                                   users as users_blueprint, \
+                                   components as components_blueprint
 
 
 def create_app(testing_mode: bool = False, sio_server: socketio.AsyncServer = sio) -> Union[FastAPI, socketio.ASGIApp]:
@@ -55,6 +58,7 @@ def create_app(testing_mode: bool = False, sio_server: socketio.AsyncServer = si
     chat_app.include_router(auth_blueprint.router)
     chat_app.include_router(chat_blueprint.router)
     chat_app.include_router(users_blueprint.router)
+    chat_app.include_router(components_blueprint.router)
 
     chat_app.add_middleware(
         CORSMiddleware,

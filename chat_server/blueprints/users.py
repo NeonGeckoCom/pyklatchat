@@ -17,14 +17,16 @@
 # US Patents 2008-2021: US7424516, US20140161250, US20140177813, US8638908, US8068604, US8553852, US10530923, US10530924
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
 
-from typing import List
+from typing import List, Optional
 from fastapi import APIRouter, Response, status, Request, Query
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import HTTPException
 from fastapi.encoders import jsonable_encoder
+from neon_utils import LOG
 
 from chat_server.server_config import db_controller
 from chat_server.server_utils.auth import get_current_user
+from chat_server.server_utils.http_utils import get_file_response
 
 router = APIRouter(
     prefix="/users_api",
@@ -33,36 +35,51 @@ router = APIRouter(
 
 
 @router.get("/", response_class=JSONResponse)
-def current_user_data(response: Response, request: Request):
+def get_user(response: Response,
+             request: Request,
+             nano_token: str = None,
+             user_id: Optional[str] = None):
     """
         Gets current user data from session cookies
 
         :param request: active client session request
         :param response: response object to be returned to user
+        :param nano_token: token from nano client (optional)
+        :param user_id: id of external user (optional, if not provided - current user is returned)
 
         :returns JSON response containing data of current user
     """
-    return dict(data=get_current_user(request=request, response=response))
-
-
-@router.get("/{user_id}", response_class=JSONResponse)
-def get_user(user_id: str):
-    """
-        Gets user by provided id
-
-        :param user_id: provided user id
-
-        :returns JSON response with fetched user data, 404 code otherwise
-    """
-    user = db_controller.exec_query(query={'document': 'users',
-                                          'command': 'find_one',
-                                          'data': {'_id': user_id}})
+    if user_id:
+        user = db_controller.exec_query(query={'document': 'users',
+                                               'command': 'find_one',
+                                               'data': {'_id': user_id}})
+        user.pop('password', None)
+        user.pop('date_created', None)
+        user.pop('tokens', None)
+    else:
+        user = get_current_user(request=request, response=response, nano_token=nano_token)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail='User not found'
         )
-    user.pop('password')
-    return {"data": user}
+    return dict(data=user)
+
+
+@router.get("/{user_id}/avatar")
+def get_avatar(user_id: str):
+    """
+        Gets file from the server
+
+        :param user_id: target user id
+    """
+    LOG.debug(f'Getting avatar of user id: {user_id}')
+    user_data = db_controller.exec_query(query={'document': 'users',
+                                                'command': 'find_one',
+                                                'data': {'_id': user_id}})
+    if user_data and user_data.get('avatar', None):
+        return get_file_response(filename=user_data['avatar'], location_prefix='avatars')
+    else:
+        return JSONResponse({'msg': f'Failed to get avatar'}, 400)
 
 
 @router.get('/bulk_fetch/', response_class=JSONResponse)
@@ -92,6 +109,8 @@ def fetch_received_user_ids(user_ids: List[str] = Query(None)):
         if len(list(desired_record)) > 0:
             desired_record.pop('password', None)
             desired_record.pop('is_tmp', None)
+            desired_record.pop('tokens', None)
+            desired_record.pop('date_created', None)
         result.append(desired_record)
     json_compatible_item_data = jsonable_encoder(result)
     return JSONResponse(content=json_compatible_item_data)

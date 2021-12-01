@@ -1,11 +1,24 @@
 let socket;
 
-document.addEventListener('configLoaded',(e)=>{
+const sioTriggeringEvents = ['configLoaded', 'configNanoLoaded'];
 
-    socket = io("http://"+configData['SOCKET_IO_SERVER_URL']);
+sioTriggeringEvents.forEach(event=>{
+   document.addEventListener(event,(e)=>{
+        socket = initSIO();
+   });
+});
+
+/**
+ * Inits socket io client listener by attaching relevant listeners on message channels
+ * @return {Socket} Socket IO client instance
+ */
+function initSIO(){
+
+    const sioServerURL = "http://"+configData['SOCKET_IO_SERVER_URL'];
+    const socket = io(sioServerURL);
 
     socket.on('connect', () => {
-         console.info('Connected to Server')
+         console.info(`Socket IO Connected to Server: ${sioServerURL}`)
     });
 
     socket.on('new_message', data => {
@@ -13,4 +26,6 @@ document.addEventListener('configLoaded',(e)=>{
         addMessage(msgData['cid'], msgData['userID'], msgData['messageID'], msgData['messageText'], msgData['timeCreated'], msgData['repliedMessage'],{})
             .catch(err=>console.error('Error occurred while adding new message: ',err));
     });
-});
+
+    return socket;
+}

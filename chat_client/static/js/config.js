@@ -1,11 +1,23 @@
 /**
- * JS Object containing frontend configuration data
- * @type {{cssBaseFolder: string, staticFolder: string, currentURLBase: string, currentURLFull: (string|string|string|SVGAnimatedString|*), imageBaseFolder: string, jsBaseFolder: string}}
+ * Collection of supported clients, current client is matched based on client configuration
+ * @type {{NANO: string, MAIN: string}}
  */
+const CLIENTS = {
+    MAIN: 'main',
+    NANO: 'nano',
+    UNDEFINED: undefined
+}
+
+/**
+ * JS Object containing frontend configuration data
+ * @type {{staticFolder: string, currentURLBase: string, currentURLFull: (string|string|string|SVGAnimatedString|*), client: string}}
+ */
+
 let configData = {
     'staticFolder': "../../static",
     'currentURLBase': extractURLBase(),
-    'currentURLFull': window.location.href
+    'currentURLFull': window.location.href,
+    'client': typeof metaConfig !== 'undefined'? metaConfig?.client : CLIENTS.UNDEFINED
 };
 
 /**
@@ -42,7 +54,9 @@ async function extractJsonData(filePath=""){
 }
 
 document.addEventListener('DOMContentLoaded', async (e)=>{
-    configData = Object.assign(configData, await extractJsonData(configData['staticFolder']+'/runtime_config.json'));
-    document.dispatchEvent(configFullLoadedEvent);
+    if (configData['client'] === CLIENTS.MAIN) {
+        configData = Object.assign(configData, await extractJsonData(configData['staticFolder'] + '/runtime_config.json'));
+        document.dispatchEvent(configFullLoadedEvent);
+    }
 });
 

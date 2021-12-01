@@ -17,41 +17,23 @@
 # US Patents 2008-2021: US7424516, US20140161250, US20140177813, US8638908, US8068604, US8553852, US10530923, US10530924
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
 
-
-import requests
-
-from typing import Optional
-from fastapi import Response, Request, status, APIRouter
-from fastapi.exceptions import HTTPException
-
-from chat_client.client_config import app_config
-
+from fastapi import APIRouter
+from starlette.requests import Request
+from starlette.templating import Jinja2Templates
 
 router = APIRouter(
-    prefix="/users",
-    responses={'404': {"description": "Unknown user"}},
+    prefix="/components",
+    responses={'404': {"description": "Unknown endpoint"}},
 )
 
+component_templates = Jinja2Templates(directory="chat_server/templates")
 
-@router.get("/")
-def get_user(response: Response, request: Request, user_id: Optional[str] = None):
+
+@router.get('/{template_name}')
+async def chats(request: Request, template_name: str):
     """
-        Forwards getting user by id to the server API and handles the response cookies
-
-        :param request: input request object
-        :param response: output response object with applied cookies from server response
-        :param user_id: requested user id
-
-        :returns JSON-formatted response from server
+        Renders chats page HTML as a response related to the input request
+        :returns chats conversation response
     """
-    user_id = user_id or ''
-    get_user_response = requests.get(f'{app_config["SERVER_URL"]}/users_api?user_id={user_id}', cookies=request.cookies)
-    if get_user_response.status_code != 200:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail=get_user_response.json()
-        )
-    else:
-        for cookie in get_user_response.cookies:
-            response.set_cookie(key=cookie.name, value=cookie.value, httponly=True)
-        return get_user_response.json()
 
+    return component_templates.TemplateResponse(f"components/{template_name}.html", {"request": request})
