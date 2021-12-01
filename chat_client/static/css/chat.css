@@ -24,6 +24,19 @@ body{
     width: 100%;
 }
 
+.chat-list .chat-img p {
+    -webkit-border-radius: 50px;
+    -moz-border-radius: 50px;
+    border-radius: 50px;
+    width: 100%;
+    background: #512DA8;
+    color: #fff;
+    text-align: center;
+    line-height: 50px;
+    user-select: none;
+    font-size: 14px;
+}
+
 .chat-list .chat-message {
     -webkit-border-radius: 10px;
     -moz-border-radius: 10px;
@@ -80,6 +93,11 @@ body{
 .chat-list .out .chat-body {
     float: right;
     text-align: right;
+    margin-right: 5px!important;
+}
+
+.chat-list .in .chat-body {
+    margin-left: 5px!important;
 }
 
 .chat-list .out .chat-message {

@@ -60,7 +60,7 @@ async function addMessage(cid, userID=null, messageID=null, messageText, timeCre
             if(!messageID) {
                 messageID = generateUUID();
             }
-            let messageHTML = buildUserMessageHTML(userData, messageID, messageText, timeCreated, isMine);
+            let messageHTML = await buildUserMessageHTML(userData, messageID, messageText, timeCreated, isMine);
             const blankChat = cidList.getElementsByClassName('blank_chat');
             if(blankChat.length>0){
                 cidList.removeChild(blankChat[0]);
@@ -86,27 +86,21 @@ async function addMessage(cid, userID=null, messageID=null, messageText, timeCre
  * @param isMine: if message was emitted by current user
  * @returns {string}: constructed HTML out of input params
  */
-function buildUserMessageHTML(userData, messageID, messageText, timeCreated, isMine){
-    let html = "";
-    const messageSideClass = isMine?"in":"out";
+async function buildUserMessageHTML(userData, messageID, messageText, timeCreated, isMine){
     const messageTime = getTimeFromTimestamp(timeCreated);
-    const avatarImage = userData.hasOwnProperty('avatar')?userData['avatar']:'default_avatar.png'
-    html += `<li class="${messageSideClass}">`
-    html += "<div class=\"chat-img\">\n" +
-            `   <img alt="Avatar" src="${configData["imageBaseFolder"]+'/'+avatarImage}">\n` +
-            "</div>"
-    html +=` <div class="chat-body">
-                <div class="chat-message" id="${messageID}">
-                    <p style="font-size: small;font-weight: bolder;" class="message-nickname">${userData['nickname']}</p>
-                    <div class="reply-placeholder mb-2 mt-1"></div>
-                    <p class="message-text">${messageText}</p>
-                    <span class="attachment-toggle icon-paperclip"><br></span>
-                    <span class="attachments-placeholder" style="display: none;"><br></span>
-                    <small>${messageTime}</small>
-                </div>
-             </div>`
-    html += "</li>"
-    return html;
+    let imageComponent = "";
+    if (userData.hasOwnProperty('avatar') && userData['avatar']){
+        imageComponent = `<img alt="Avatar" src="${configData["CHAT_SERVER_URL_BASE"]}/users_api/${userData['_id']}/avatar">`
+    }else{
+        imageComponent = `<p>${userData['nickname'][0]}${userData['nickname'][userData['nickname'].length-1]}</p>`;
+    }
+    return await buildHTMLFromTemplate('user_message',
+        {'is_mine': isMine?"in":"out",
+            'image_component': imageComponent,
+            'message_id':messageID,
+            'nickname': userData['nickname'],
+            'message_text':messageText,
+            'message_time': messageTime});
 }
 
 /**
@@ -324,15 +318,18 @@ function addUpload(cid, file){
  *         'created_on': 'creation time of the message'
  *     }, ... (num of user messages returned)]
  * }
+ * @param conversationParentID: ID of conversation parent
  * @param remember: to store this conversation into localStorage (defaults to true)
  */
-async function buildConversation(conversationData={},remember=true){
+async function buildConversation(conversationData={}, remember=true,conversationParentID = 'conversationsBody'){
    if(remember){
        addNewCID(conversationData['_id'], conversationAlignmentKey);
    }
-   conversationParticipants[conversationData['_id']] = {};
+   if(configData.client === CLIENTS.MAIN) {
+       conversationParticipants[conversationData['_id']] = {};
+   }
    const newConversationHTML = await buildConversationHTML(conversationData);
-   const conversationsBody = document.getElementById('conversationsBody');
+   const conversationsBody = document.getElementById(conversationParentID);
    conversationsBody.insertAdjacentHTML('afterbegin', newConversationHTML);
    attachReplies(conversationData);
    addAttachments(conversationData);
@@ -407,6 +404,27 @@ async function buildConversation(conversationData={},remember=true){
 }
 
 /**
+ * Builds HTML from passed params and template name
+ * @param templateName: name of the template to fetch
+ * @param templateContext: properties from template to fetch
+ * @returns built template string
+ */
+async function buildHTMLFromTemplate(templateName, templateContext = {}){
+    return await fetch(`${configData['CHAT_SERVER_URL_BASE']}/components/${templateName}`)
+        .then( (response) => {
+            if (response.ok) {
+                return response.text();
+            }throw `template unreachable (HTTP STATUS:${response.status}: ${response.statusText})`
+        })
+        .then((html) => {
+            for (const [key, value] of Object.entries(templateContext)) {
+                html = html.replaceAll('{'+key+'}', value);
+            }
+            return html;
+        }).catch(err=> console.warn(`Failed to fetch template for ${templateName}: ${err}`));
+}
+
+/**
  * Builds HTML for received conversation data
  * @param conversationData: JS Object containing conversation data of type:
  * {
@@ -423,31 +441,20 @@ async function buildConversation(conversationData={},remember=true){
  * @returns {string} conversation HTML based on provided data
  */
 async function buildConversationHTML(conversationData = {}){
-    return await fetch(configData['staticFolder'] + '/components/conversation.html')
-        .then( (response) => {
-            return response.text();
-        })
-        .then((html) => {
-            const cid = conversationData['_id'];
-            const conversation_name = conversationData['conversation_name'];
-            html = html.replaceAll('{cid}', cid);
-            html = html.replaceAll('{conversation_name}', conversation_name);
-            let chatFlowHTML = "";
-            if(conversationData.hasOwnProperty('chat_flow')) {
-                Array.from(conversationData['chat_flow']).forEach(message => {
-                    const isMine = currentUser && message['user_nickname'] === currentUser['nickname'];
-                    chatFlowHTML += buildUserMessageHTML({'avatar':message['user_avatar'],'nickname':message['user_nickname']},message['message_id'], message['message_text'], message['created_on'],isMine);
-                    addConversationParticipant(conversationData['_id'], message['user_nickname']);
-                });
-            }else{
-                chatFlowHTML+=`<div class="blank_chat">No messages in this chat yet...</div>`;
-            }
-            html = html.replace('{chat_flow}', chatFlowHTML);
-            return html;
-        })
-        .catch(function(err) {
-            console.log('Failed to fetch page: ', err);
-        });
+    const cid = conversationData['_id'];
+    const conversation_name = conversationData['conversation_name'];
+    let chatFlowHTML = "";
+    if(conversationData.hasOwnProperty('chat_flow')) {
+        for (const message of Array.from(conversationData['chat_flow'])) {
+            const isMine = currentUser && message['user_nickname'] === currentUser['nickname'];
+            chatFlowHTML += await buildUserMessageHTML({'avatar':message['user_avatar'],'nickname':message['user_nickname'], '_id': message['user_id']},message['message_id'], message['message_text'], message['created_on'],isMine);
+            addConversationParticipant(conversationData['_id'], message['user_nickname']);
+        }
+    }else{
+        chatFlowHTML+=`<div class="blank_chat">No messages in this chat yet...</div>`;
+    }
+    return await buildHTMLFromTemplate('conversation',
+        {'cid': cid, 'conversation_name':conversation_name, 'chat_flow': chatFlowHTML});
 }
 
 
@@ -632,45 +639,51 @@ document.addEventListener('DOMContentLoaded', (e)=>{
         restoreChatAlignment();
     });
 
-    addBySearch.addEventListener('click', async (e)=>{
-       e.preventDefault();
-       if(conversationSearchInput.value!==""){
-            getConversationDataByInput(conversationSearchInput.value).then(async conversationData=>{
-                if(getOpenedChats().includes(conversationData['_id'])){
-                    displayAlert(document.getElementById('importConversationModalBody'),'Desired chat is already displayed','danger');
-                }else if(conversationData) {
-                    await buildConversation(conversationData);
-                }else{
-                    displayAlert(document.getElementById('importConversationModalBody'),'Cannot find conversation matching your search','danger');
-                }
-                conversationSearchInput.value = "";
-            });
-       }
-    });
+    if (configData['client'] === CLIENTS.MAIN) {
 
-    addNewConversation.addEventListener('click', (e)=>{
-       e.preventDefault();
-       const newConversationID = document.getElementById('conversationID');
-       const newConversationName = document.getElementById('conversationName');
-       const isPrivate = document.getElementById('isPrivate');
+        addBySearch.addEventListener('click', async (e) => {
+            e.preventDefault();
+            if (conversationSearchInput.value !== "") {
+                getConversationDataByInput(conversationSearchInput.value).then(async conversationData => {
+                    if (getOpenedChats().includes(conversationData['_id'])) {
+                        displayAlert(document.getElementById('importConversationModalBody'), 'Desired chat is already displayed', 'danger');
+                    } else if (conversationData) {
+                        await buildConversation(conversationData);
+                    } else {
+                        displayAlert(document.getElementById('importConversationModalBody'), 'Cannot find conversation matching your search', 'danger');
+                    }
+                    conversationSearchInput.value = "";
+                });
+            }
+        });
 
-       let formData = new FormData();
+        addNewConversation.addEventListener('click', (e) => {
+            e.preventDefault();
+            const newConversationID = document.getElementById('conversationID');
+            const newConversationName = document.getElementById('conversationName');
+            const isPrivate = document.getElementById('isPrivate');
 
-       formData.append('conversation_name', newConversationName.value);
-       formData.append('conversation_id', newConversationID?newConversationID.value:null);
-       formData.append('is_private', isPrivate.checked)
+            let formData = new FormData();
+
+            formData.append('conversation_name', newConversationName.value);
+            formData.append('conversation_id', newConversationID ? newConversationID.value : null);
+            formData.append('is_private', isPrivate.checked)
 
 
-       fetch(`${configData['currentURLBase']}/chats/new`, {method: 'post', body: formData}).then( async response=>{
+            fetch(`${configData['currentURLBase']}/chats/new`, {
+                method: 'post',
+                body: formData
+            }).then(async response => {
                 const responseJson = await response.json();
-                if(response.ok){
+                if (response.ok) {
                     await buildConversation(responseJson);
-                }else{
-                    displayAlert(document.getElementById('newConversationModalBody'),'Cannot add new conversation: '+ responseJson['detail'][0]['msg'],'danger');
+                } else {
+                    displayAlert(document.getElementById('newConversationModalBody'), 'Cannot add new conversation: ' + responseJson['detail'][0]['msg'], 'danger');
                 }
-                newConversationName.value="";
+                newConversationName.value = "";
                 newConversationID.value = "";
                 isPrivate.checked = false;
             });
-    });
+        });
+    }
 });

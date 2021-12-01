@@ -16,3 +16,24 @@
 # Specialized conversational reconveyance options from Conversation Processing Intelligence Corp.
 # US Patents 2008-2021: US7424516, US20140161250, US20140177813, US8638908, US8068604, US8553852, US10530923, US10530924
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
+
+from fastapi import APIRouter
+from starlette.requests import Request
+from starlette.templating import Jinja2Templates
+
+router = APIRouter(
+    prefix="/components",
+    responses={'404': {"description": "Unknown endpoint"}},
+)
+
+component_templates = Jinja2Templates(directory="chat_server/templates")
+
+
+@router.get('/{template_name}')
+async def chats(request: Request, template_name: str):
+    """
+        Renders chats page HTML as a response related to the input request
+        :returns chats conversation response
+    """
+
+    return component_templates.TemplateResponse(f"components/{template_name}.html", {"request": request})
