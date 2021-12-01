@@ -1,7 +1,7 @@
 FROM python:3.8-slim-buster
 
-COPY config.py /app
-COPY /utils /app
+ADD config.py /app
+ADD /utils /app
 ADD . /app/klatchat_observer
 WORKDIR /app
 RUN apt-get update \
