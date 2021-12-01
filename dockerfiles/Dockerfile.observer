@@ -11,7 +11,7 @@ RUN apt-get update \
     && pip install wheel  \
     && pip install --no-cache-dir -r ./klatchat_observer/requirements.txt
 
-ENV KLATCHAT_OBSERVER_CONFIG config.json
+ENV KLATCHAT_OBSERVER_CONFIG klatchat_observer/config.json
 ENV PYTHONPATH="/app:/app/klatchat_observer/"
 
 
