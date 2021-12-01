@@ -1,5 +1,6 @@
 FROM python:3.8-slim-buster
 
+COPY utils /app
 COPY . /app/chat_client/
 WORKDIR /app
 RUN apt-get update \
