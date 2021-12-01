@@ -19,8 +19,7 @@
 import os.path
 import sys
 
-sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir))
-
+sys.path.insert(0, os.pardir)
 from .app import create_app
 
 app = create_app()
