@@ -16,7 +16,8 @@
 # Specialized conversational reconveyance options from Conversation Processing Intelligence Corp.
 # US Patents 2008-2021: US7424516, US20140161250, US20140177813, US8638908, US8068604, US8553852, US10530923, US10530924
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
-
+import json
+import os
 
 import jwt
 import requests
@@ -131,3 +132,16 @@ async def logout():
     LOG.info(f'Logout response: {json_data}')
 
     return response
+
+
+@router.get("/runtime_config", response_class=JSONResponse)
+async def fetch_runtime_config():
+    """Fetches runtime config from local JSON file in provided location"""
+    runtime_config_path = os.environ.get('RUNTIME_CONFIG_PATH', 'chat_client/static/runtime_config.json')
+    try:
+        with open(os.path.expanduser(runtime_config_path)) as f:
+            runtime_configs = json.load(f)
+    except Exception as ex:
+        LOG.error(f'Exception while fetching runtime configs: {ex}')
+        runtime_configs = {}
+    return JSONResponse(content=runtime_configs)

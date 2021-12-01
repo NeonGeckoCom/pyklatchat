@@ -41,12 +41,12 @@ function extractURLBase(){
 }
 
 /**
- * Extracts json data from provided file path
- * @param filePath: file path string
+ * Extracts json data from provided URL path
+ * @param urlPath: file path string
  * @returns {Promise<* | {}>} promise that resolves data obtained from file path
  */
-async function extractJsonData(filePath=""){
-    return fetch(filePath).then(response => {
+async function extractJsonData(urlPath=""){
+    return fetch(urlPath).then(response => {
         if (response.ok){
             return response.json();
         }return  {};
@@ -55,7 +55,7 @@ async function extractJsonData(filePath=""){
 
 document.addEventListener('DOMContentLoaded', async (e)=>{
     if (configData['client'] === CLIENTS.MAIN) {
-        configData = Object.assign(configData, await extractJsonData(configData['staticFolder'] + '/runtime_config.json'));
+        configData = Object.assign(configData, await extractJsonData(`${configData['currentURLBase']}/auth/runtime_config`));
         document.dispatchEvent(configFullLoadedEvent);
     }
 });
