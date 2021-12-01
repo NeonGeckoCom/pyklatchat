@@ -2,7 +2,7 @@ export DOCKER_BUILDKIT=1
 cd ..
 echo "Building Chat Observer"
 cp config.py services/klatchat_observer
-cp utils/common.py services/klatchat_observer/utils
+cp -R utils services/klatchat_observer
 cp requirements/requirements.txt services/klatchat_observer
 cd services/klatchat_observer
 docker build -f ../../dockerfiles/Dockerfile.observer -t neon/klatchat_observer:latest .
