@@ -28,6 +28,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.testclient import TestClient
 from neon_utils import LOG
 
+from utils.common import get_version
+
 sys.path.append(os.path.pardir)
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
@@ -45,16 +47,11 @@ def create_app(testing_mode: bool = False, sio_server: socketio.AsyncServer = si
         :param testing_mode: to run application in testing mode (defaults to False)
         :param sio_server: socket io server instance (optional)
     """
-    version = None
-    with open('chat_server/version.py') as f:
-        lines = f.readlines()
-        for line in lines:
-            if line.startswith('__version__'):
-                version = line.split('=')[1].strip().strip('"').strip("'")
-                break
-    LOG.info(f'Starting Klatchat Server v{version}')
+    app_version = get_version('chat_server/version.py')
+
+    LOG.info(f'Starting Klatchat Server v{app_version}')
     chat_app = FastAPI(title="Klatchat Server API",
-                       version=version)
+                       version=app_version)
     chat_app.include_router(auth_blueprint.router)
     chat_app.include_router(chat_blueprint.router)
     chat_app.include_router(users_blueprint.router)

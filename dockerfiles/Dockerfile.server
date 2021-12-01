@@ -1,6 +1,6 @@
 FROM python:3.8-slim-buster
 
-COPY . /app/chat_client/
+COPY . /app/chat_server/
 WORKDIR /app
 RUN apt-get update \
     && apt-get install -y \

@@ -45,3 +45,16 @@ def get_hash(input_str: str, encoding='utf-8', algo='sha512') -> str:
         :returns hashed string from the provided input
     """
     return getattr(hashlib, algo)(input_str.encode(encoding)).hexdigest()
+
+
+def get_version(from_path: str = None):
+    """Gets version from provided path
+        :param from_path: path to get version from"""
+    with open(from_path, "r", encoding="utf-8") as v:
+        for line in v.readlines():
+            if line.startswith("__version__"):
+                if '"' in line:
+                    version = line.split('"')[1]
+                else:
+                    version = line.split("'")[1]
+    return version

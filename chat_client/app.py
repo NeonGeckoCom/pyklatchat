@@ -26,6 +26,8 @@ from starlette import status
 from starlette.responses import RedirectResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from utils.common import get_version
+
 sys.path.append(os.path.pardir)
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
@@ -34,12 +36,11 @@ from .blueprints import chat as chat_blueprint, \
                         auth as auth_blueprint
 
 
-def create_asgi_app(app_version: str = None) -> FastAPI:
+def create_app() -> FastAPI:
     """
         Application factory for the Klatchat Client
-
-        :param app_version: application version
     """
+    app_version = get_version('chat_client/version.py')
     LOG.info(f'Starting Klatchat Client v{app_version}')
     chat_app = FastAPI(title="Klatchat Client",
                        version=app_version)

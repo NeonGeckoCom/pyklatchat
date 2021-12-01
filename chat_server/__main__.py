@@ -19,7 +19,7 @@
 
 import uvicorn
 
-from chat_server.app import create_app
+from .wsgi import app
 
 if __name__ == '__main__':
-    uvicorn.run(app=create_app())
+    uvicorn.run(app=app)
