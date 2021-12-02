@@ -21,6 +21,10 @@ function initSIO(){
          console.info(`Socket IO Connected to Server: ${sioServerURL}`)
     });
 
+    socket.on("connect_error", (err) => {
+      console.log(`connect_error due to ${err.message}`);
+    });
+
     socket.on('new_message', data => {
         const msgData = JSON.parse(data);
         addMessage(msgData['cid'], msgData['userID'], msgData['messageID'], msgData['messageText'], msgData['timeCreated'], msgData['repliedMessage'],{})

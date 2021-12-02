@@ -486,7 +486,7 @@ async function getConversationDataByInput(input=""){
     let conversationData = {};
     if(input && typeof input === "string"){
         const query_url = `${configData['CHAT_SERVER_URL_BASE']}/chat_api/search/${input}`
-        await fetch(query_url)
+        await fetch(query_url, {credentials: "same-origin"})
             .then(response => {
                 if(response.ok){
                     return response.json();
