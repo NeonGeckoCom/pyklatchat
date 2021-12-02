@@ -114,7 +114,7 @@ def get_matching_conversation(request: Request,
         else:
             conversation_data['chat_flow'] = conversation_data['chat_flow'][chat_history_from - limit_chat_history:
                                                                             -chat_history_from]
-        request_url = f'http://' + request.client.host + ':' + str(8000) + \
+        request_url = f'http://' + request.client.host + ':' + str(os.environ.get('PORT', 8000)) + \
                       f'/chat_api/fetch_shouts/?shout_ids=' + \
                       f'{",".join([str(msg_id) for msg_id in conversation_data["chat_flow"]])}'
         users_data_request = requests.get(request_url,

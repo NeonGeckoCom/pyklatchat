@@ -14,7 +14,7 @@ sioTriggeringEvents.forEach(event=>{
  */
 function initSIO(){
 
-    const sioServerURL = "http://"+configData['SOCKET_IO_SERVER_URL'];
+    const sioServerURL = configData['CHAT_SERVER_URL_BASE'];
     const socket = io(sioServerURL);
 
     socket.on('connect', () => {
