@@ -404,24 +404,43 @@ async function buildConversation(conversationData={}, remember=true,conversation
 }
 
 /**
+ * Fetches template context into provided html template
+ * @param html: HTML template
+ * @param templateContext: object containing context to fetch
+ * @return {string} HTML with fetched context
+ */
+function fetchTemplateContext(html, templateContext){
+    for (const [key, value] of Object.entries(templateContext)) {
+        html = html.replaceAll('{'+key+'}', value);
+    }
+    return html;
+}
+
+/**
  * Builds HTML from passed params and template name
  * @param templateName: name of the template to fetch
  * @param templateContext: properties from template to fetch
  * @returns built template string
  */
 async function buildHTMLFromTemplate(templateName, templateContext = {}){
-    return await fetch(`${configData['CHAT_SERVER_URL_BASE']}/components/${templateName}`)
-        .then( (response) => {
-            if (response.ok) {
-                return response.text();
-            }throw `template unreachable (HTTP STATUS:${response.status}: ${response.statusText})`
-        })
-        .then((html) => {
-            for (const [key, value] of Object.entries(templateContext)) {
-                html = html.replaceAll('{'+key+'}', value);
-            }
-            return html;
-        }).catch(err=> console.warn(`Failed to fetch template for ${templateName}: ${err}`));
+    if(!configData['DISABLE_CACHING'] && loadedComponents.hasOwnProperty(templateName)){
+        const html = loadedComponents[templateName];
+        return fetchTemplateContext(html, templateContext);
+    }else {
+        return await fetch(`${configData['CHAT_SERVER_URL_BASE']}/components/${templateName}`)
+            .then((response) => {
+                if (response.ok) {
+                    return response.text();
+                }
+                throw `template unreachable (HTTP STATUS:${response.status}: ${response.statusText})`
+            })
+            .then((html) => {
+                if (!(configData['DISABLE_CACHING'] || loadedComponents.hasOwnProperty(templateName))) {
+                    loadedComponents[templateName] = html;
+                }
+                return fetchTemplateContext(html, templateContext);
+            }).catch(err => console.warn(`Failed to fetch template for ${templateName}: ${err}`));
+    }
 }
 
 /**
