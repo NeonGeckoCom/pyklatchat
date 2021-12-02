@@ -26,6 +26,7 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from neon_utils import LOG
 from starlette import status
+from starlette.middleware.cors import CORSMiddleware
 from starlette.requests import Request
 from starlette.responses import RedirectResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
@@ -79,5 +80,13 @@ def create_app() -> FastAPI:
     chat_app.include_router(chat_blueprint.router)
     chat_app.include_router(users_blueprint.router)
     chat_app.include_router(auth_blueprint.router)
+
+    chat_app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
     return chat_app
