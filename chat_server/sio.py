@@ -29,7 +29,7 @@ from chat_server.server_config import db_controller
 from utils.common import generate_uuid
 
 
-sio = socketio.AsyncServer(cors_allowed_origins='*', async_mode='asgi')
+sio = socketio.AsyncServer(cors_allowed_origins='*', async_mode='asgi', cors_credentials=True)
 
 
 @sio.event
