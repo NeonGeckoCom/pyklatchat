@@ -494,7 +494,7 @@ async function getConversationDataByInput(input=""){
             })
             .then(data => {
                 conversationData = data;
-            });
+            }).catch(err=> console.warn('Failed to fulfill request due to error:',err));
     }
     return conversationData;
 }
