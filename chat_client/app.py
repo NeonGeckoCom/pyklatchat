@@ -81,12 +81,4 @@ def create_app() -> FastAPI:
     chat_app.include_router(users_blueprint.router)
     chat_app.include_router(auth_blueprint.router)
 
-    chat_app.add_middleware(
-        CORSMiddleware,
-        allow_origins=["*"],
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
-
     return chat_app
