@@ -114,6 +114,7 @@ def get_matching_conversation(request: Request,
         request_url = f'http://' + str(app_config.get('SERVER_IP', '127.0.0.1')) + ':' + str(os.environ.get('PORT', 8000)) + \
                       f'/chat_api/fetch_shouts/?shout_ids=' + \
                       f'{",".join([str(msg_id) for msg_id in conversation_data["chat_flow"]])}'
+        LOG.info(f'Requesting shouts from URL: {request_url}')
         users_data_request = requests.get(request_url,
                                           cookies=request.cookies)
         if users_data_request.status_code == 200:
