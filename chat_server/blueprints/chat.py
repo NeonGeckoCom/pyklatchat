@@ -32,6 +32,7 @@ from neon_utils import LOG
 
 from chat_server.constants.users import UserPatterns
 from chat_server.server_config import db_controller, app_config
+from chat_server.server_utils.message_utils import fetch_shouts
 from chat_server.server_utils.user_utils import create_from_pattern
 from chat_server.server_utils.http_utils import get_file_response, save_file
 
@@ -111,14 +112,9 @@ def get_matching_conversation(request: Request,
         else:
             conversation_data['chat_flow'] = conversation_data['chat_flow'][chat_history_from - limit_chat_history:
                                                                             -chat_history_from]
-        request_url = f'http://' + str(app_config.get('SERVER_IP', '127.0.0.1')) + ':' + str(os.environ.get('PORT', 8000)) + \
-                      f'/chat_api/fetch_shouts/?shout_ids=' + \
-                      f'{",".join([str(msg_id) for msg_id in conversation_data["chat_flow"]])}'
-        LOG.info(f'Requesting shouts from URL: {request_url}')
-        users_data_request = requests.get(request_url,
-                                          cookies=request.cookies)
-        if users_data_request.status_code == 200:
-            users_data = users_data_request.json()
+        shout_ids = [str(msg_id) for msg_id in conversation_data["chat_flow"]]
+        if shout_ids:
+            users_data = fetch_shouts(shout_ids=shout_ids)
             users_data = sorted(users_data, key=lambda user_shout: user_shout['created_on'])
             conversation_data['chat_flow'] = []
             for i in range(len(users_data)):
@@ -134,48 +130,6 @@ def get_matching_conversation(request: Request,
                 conversation_data['chat_flow'].append(message_record)
 
     return conversation_data
-
-
-@router.get('/fetch_shouts/', response_class=JSONResponse)
-def fetch_shouts(shout_ids: List[str] = Query(None)):
-    """
-        Gets shout data based on provided shout ids
-
-        :param shout_ids: list of provided shout ids
-
-        :returns JSON response containing array of fetched shout data
-    """
-    shout_ids = shout_ids[0].split(',')
-    shouts = db_controller.exec_query(query={'document': 'shouts',
-                                             'command': 'find',
-                                             'data': {'_id': {'$in': list(set(shout_ids))}}})
-    shouts = list(shouts)
-
-    user_ids = list(set([shout['user_id'] for shout in shouts]))
-
-    users_from_shouts = db_controller.exec_query(query={'document': 'users',
-                                                        'command': 'find',
-                                                        'data': {'_id': {'$in': user_ids}}})
-
-    formatted_users = dict()
-    for users_from_shout in users_from_shouts:
-        user_id = users_from_shout.pop('_id', None)
-        formatted_users[user_id] = users_from_shout
-
-    result = list()
-
-    for shout in shouts:
-        matching_user = formatted_users.get(shout['user_id'], {})
-        if not matching_user:
-            matching_user = create_from_pattern(UserPatterns.UNRECOGNIZED_USER)
-
-        matching_user.pop('password', None)
-        matching_user.pop('is_tmp', None)
-        shout['message_id'] = shout['_id']
-        shout_data = {**shout, **matching_user}
-        result.append(shout_data)
-    json_compatible_item_data = jsonable_encoder(result)
-    return JSONResponse(content=json_compatible_item_data)
 
 
 @router.post("/{cid}/store_files")

@@ -615,7 +615,7 @@ function restoreChatAlignment(keyName=conversationAlignmentKey){
     let itemsLayout = retrieveItemsLayout(keyName);
     for (const item of itemsLayout) {
         getConversationDataByInput(item).then(async conversationData=>{
-            if(conversationData && conversationData.length > 0) {
+            if(conversationData && Object.keys(conversationData).length > 0) {
                 await buildConversation(conversationData, false);
             }else{
                 displayAlert(document.getElementById('conversationsBody'),'No matching conversation found','danger');
@@ -668,7 +668,7 @@ document.addEventListener('DOMContentLoaded', (e)=>{
                 getConversationDataByInput(conversationSearchInput.value).then(async conversationData => {
                     if (getOpenedChats().includes(conversationData['_id'])) {
                         displayAlert(document.getElementById('importConversationModalBody'), 'Chat is already displayed', 'danger');
-                    } else if (conversationData && conversationData.length > 0) {
+                    } else if (conversationData && Object.keys(conversationData).length > 0) {
                         await buildConversation(conversationData);
                     } else {
                         displayAlert(document.getElementById('importConversationModalBody'), 'Cannot find conversation matching your search', 'danger');
