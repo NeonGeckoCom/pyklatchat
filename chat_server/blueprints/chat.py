@@ -19,22 +19,19 @@
 import os
 from typing import List
 
-import aiofiles
 import requests
 
 from time import time
-from fastapi import APIRouter, Depends, status, Request, Query, UploadFile, File, Form
+from fastapi import APIRouter, status, Request, Query, UploadFile, File
 from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import HTTPException
 from pydantic import BaseModel
 from bson.objectid import ObjectId
-from starlette.responses import FileResponse
 from neon_utils import LOG
 
 from chat_server.constants.users import UserPatterns
 from chat_server.server_config import db_controller, app_config
-from chat_server.server_utils.auth import get_current_user
 from chat_server.server_utils.user_utils import create_from_pattern
 from chat_server.server_utils.http_utils import get_file_response, save_file
 
@@ -114,7 +111,7 @@ def get_matching_conversation(request: Request,
         else:
             conversation_data['chat_flow'] = conversation_data['chat_flow'][chat_history_from - limit_chat_history:
                                                                             -chat_history_from]
-        request_url = f'http://' + str(os.environ.get('HOST', '127.0.0.1')) + ':' + str(os.environ.get('PORT', 8000)) + \
+        request_url = f'http://' + str(app_config.get('SERVER_IP', '127.0.0.1')) + ':' + str(os.environ.get('PORT', 8000)) + \
                       f'/chat_api/fetch_shouts/?shout_ids=' + \
                       f'{",".join([str(msg_id) for msg_id in conversation_data["chat_flow"]])}'
         users_data_request = requests.get(request_url,
