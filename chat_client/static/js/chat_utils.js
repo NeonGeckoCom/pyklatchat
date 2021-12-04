@@ -77,9 +77,11 @@ async function addMessage(cid, userID=null, messageID=null, messageText, timeCre
     return -1;
 }
 
-const checkLink = async (url) => (await fetch(url).then(async response=>{
-    return await JSON.stringify(response.json()) === '';
-}));
+function handleImgError(image) {
+    image.parentElement.insertAdjacentHTML('afterbegin',`<p>${image.getAttribute('alt')}</p>`);
+    image.parentElement.removeChild(image);
+    return true;
+}
 
 /**
  * Builds user message HTML
@@ -93,12 +95,9 @@ const checkLink = async (url) => (await fetch(url).then(async response=>{
 async function buildUserMessageHTML(userData, messageID, messageText, timeCreated, isMine){
     const messageTime = getTimeFromTimestamp(timeCreated);
     let imageComponent = "";
+    let shortedNick = `${userData['nickname'][0]}${userData['nickname'][userData['nickname'].length - 1]}`;
     if (userData.hasOwnProperty('avatar') && userData['avatar']){
-        const imgURL = `${configData["CHAT_SERVER_URL_BASE"]}/users_api/${userData['_id']}/avatar`;
-        const isOk = await checkLink(imgURL);
-        if(isOk){
-            imageComponent = `<img alt="Avatar" src="${configData["CHAT_SERVER_URL_BASE"]}/users_api/${userData['_id']}/avatar">`
-        }
+        imageComponent = `<img alt="${shortedNick}" onerror="handleImgError(this);" src="${configData["CHAT_SERVER_URL_BASE"]}/users_api/${userData['_id']}/avatar">`
     }
     if (!imageComponent) {
         imageComponent = `<p>${userData['nickname'][0]}${userData['nickname'][userData['nickname'].length - 1]}</p>`;
