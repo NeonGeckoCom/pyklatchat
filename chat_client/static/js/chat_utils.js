@@ -77,6 +77,10 @@ async function addMessage(cid, userID=null, messageID=null, messageText, timeCre
     return -1;
 }
 
+const checkLink = async (url) => (await fetch(url).then(async response=>{
+    return await JSON.stringify(response.json()) === '';
+}));
+
 /**
  * Builds user message HTML
  * @param userData: data of message sender
@@ -90,9 +94,14 @@ async function buildUserMessageHTML(userData, messageID, messageText, timeCreate
     const messageTime = getTimeFromTimestamp(timeCreated);
     let imageComponent = "";
     if (userData.hasOwnProperty('avatar') && userData['avatar']){
-        imageComponent = `<img alt="Avatar" src="${configData["CHAT_SERVER_URL_BASE"]}/users_api/${userData['_id']}/avatar">`
-    }else{
-        imageComponent = `<p>${userData['nickname'][0]}${userData['nickname'][userData['nickname'].length-1]}</p>`;
+        const imgURL = `${configData["CHAT_SERVER_URL_BASE"]}/users_api/${userData['_id']}/avatar`;
+        const isOk = await checkLink(imgURL);
+        if(isOk){
+            imageComponent = `<img alt="Avatar" src="${configData["CHAT_SERVER_URL_BASE"]}/users_api/${userData['_id']}/avatar">`
+        }
+    }
+    if (!imageComponent) {
+        imageComponent = `<p>${userData['nickname'][0]}${userData['nickname'][userData['nickname'].length - 1]}</p>`;
     }
     return await buildHTMLFromTemplate('user_message',
         {'is_mine': isMine?"in":"out",
@@ -558,10 +567,10 @@ function emitUserMessage(textInputElem, cid, repliedMessageID=null, attachments=
         const messageText = textInputElem.value;
         addMessage(cid, currentUser['_id'],null, messageText, timeCreated,repliedMessageID,attachments).then(messageID=>{
             socket.emit('user_message', {'cid':cid,'userID':currentUser['_id'],
-                              'messageText':messageText,
-                              'messageID':messageID,
-                              'attachments': attachments,
-                              'timeCreated':timeCreated});
+                        'messageText':messageText,
+                        'messageID':messageID,
+                        'attachments': attachments,
+                        'timeCreated':timeCreated});
         });
         textInputElem.value = "";
     }
