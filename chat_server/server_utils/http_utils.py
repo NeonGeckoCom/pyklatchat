@@ -38,6 +38,8 @@ async def save_file(file: UploadFile, location_prefix: str = ''):
         :param file: file to save
         :param location_prefix: subdirectory for file to get
     """
-    async with aiofiles.open(os.path.join(app_config['FILE_STORING_LOCATION'], location_prefix, file.filename), 'wb') as out_file:
+    storing_path = os.path.expanduser(os.path.join(app_config['FILE_STORING_LOCATION'], location_prefix))
+    os.makedirs(storing_path, exist_ok=True)
+    async with aiofiles.open(os.path.join(storing_path, file.filename), 'wb') as out_file:
         content = file.file.read()  # async read
         await out_file.write(content)

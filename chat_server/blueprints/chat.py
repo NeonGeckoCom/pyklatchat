@@ -164,6 +164,9 @@ def get_message_attachment(msg_id: str, filename: str):
     if message_files:
         attachment_data = [attachment for attachment in message_files['attachments'] if attachment['name'] == filename][0]
         media_type = attachment_data['mime']
-        return get_file_response(filename=filename, media_type=media_type, location_prefix='attachments')
+        file_response = get_file_response(filename=filename, media_type=media_type, location_prefix='attachments')
+        if file_response is None:
+            return JSONResponse({'msg': 'Missing attachments in destination'}, 400)
+        return file_response
     else:
         return JSONResponse({'msg': f'invalid message id: {msg_id}'}, 400)

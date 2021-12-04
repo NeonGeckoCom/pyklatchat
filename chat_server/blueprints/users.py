@@ -76,10 +76,10 @@ def get_avatar(user_id: str):
     user_data = db_controller.exec_query(query={'document': 'users',
                                                 'command': 'find_one',
                                                 'data': {'_id': user_id}})
+    file_response = None
     if user_data and user_data.get('avatar', None):
-        return get_file_response(filename=user_data['avatar'], location_prefix='avatars')
-    else:
-        return JSONResponse({'msg': f'Failed to get avatar'}, 400)
+        file_response = get_file_response(filename=user_data['avatar'], location_prefix='avatars')
+    return file_response if file_response is not None else JSONResponse({'msg': f'Failed to get avatar'}, 400)
 
 
 @router.get('/bulk_fetch/', response_class=JSONResponse)

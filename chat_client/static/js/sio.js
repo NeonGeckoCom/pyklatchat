@@ -25,7 +25,8 @@ function initSIO(){
       console.log(`connect_error due to ${err.message}`);
     });
 
-    socket.on('new_message', data => {
+    socket.on('new_message', (data) => {
+        console.log('new_message: ', data)
         const msgData = JSON.parse(data);
         addMessage(msgData['cid'], msgData['userID'], msgData['messageID'], msgData['messageText'], msgData['timeCreated'], msgData['repliedMessage'],{})
             .catch(err=>console.error('Error occurred while adding new message: ',err));
