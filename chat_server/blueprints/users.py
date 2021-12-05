@@ -79,7 +79,7 @@ def get_avatar(user_id: str):
     file_response = None
     if user_data and user_data.get('avatar', None):
         file_response = get_file_response(filename=user_data['avatar'], location_prefix='avatars')
-    return file_response if file_response is not None else JSONResponse({'msg': f'Failed to get avatar'})
+    return file_response if file_response is not None else 'Failed to get avatar'
 
 
 @router.get('/bulk_fetch/', response_class=JSONResponse)
