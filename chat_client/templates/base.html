@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="referrer" content="unsafe-url">
+    <meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">
     <title>{% if title is defined %}{{ title }}{% else %}Klatchat{% endif %}</title>
     <embed src="../static/copyright.txt" id="NeonGeckoCopyright" hidden>
     {% block css_imports %}
