@@ -34,7 +34,6 @@ from starlette.requests import Request
 
 from utils.common import get_version
 
-sys.path.append(os.path.pardir)
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from .sio import sio
