@@ -16,18 +16,13 @@
 # Specialized conversational reconveyance options from Conversation Processing Intelligence Corp.
 # US Patents 2008-2021: US7424516, US20140161250, US20140177813, US8638908, US8068604, US8553852, US10530923, US10530924
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
-from typing import List, Type
-
-import jwt
 import requests
 
 from time import time
 from uuid import uuid4
-from fastapi import APIRouter, Request, status, Form, File, UploadFile
-from fastapi.responses import HTMLResponse, JSONResponse
-from fastapi.exceptions import HTTPException
+from fastapi import APIRouter, Request, Form
+from fastapi.responses import JSONResponse
 from fastapi.templating import Jinja2Templates
-from fastapi.encoders import jsonable_encoder
 from neon_utils import LOG
 
 from chat_client.client_config import app_config
@@ -52,7 +47,9 @@ async def chats(request: Request):
     return conversation_templates.TemplateResponse("conversation/base.html",
                                                    {"request": request,
                                                     'section': 'Followed Conversations',
-                                                    'add_sio': True})
+                                                    'add_sio': True,
+                                                    'redirect_to_https':
+                                                        app_config.get('FORCE_HTTPS', False)})
 
 
 @router.post("/new", response_class=JSONResponse)
