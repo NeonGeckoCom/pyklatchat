@@ -137,10 +137,8 @@ async def logout():
 @router.get("/runtime_config", response_class=JSONResponse)
 async def fetch_runtime_config():
     """Fetches runtime config from local JSON file in provided location"""
-    runtime_config_path = os.environ.get('RUNTIME_CONFIG_PATH', 'chat_client/static/runtime_config.json')
     try:
-        with open(os.path.expanduser(runtime_config_path)) as f:
-            runtime_configs = json.load(f)
+        runtime_configs = app_config.get('RUNTIME_CONFIG', {})
     except Exception as ex:
         LOG.error(f'Exception while fetching runtime configs: {ex}')
         runtime_configs = {}
