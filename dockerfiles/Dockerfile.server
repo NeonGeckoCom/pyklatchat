@@ -10,9 +10,9 @@ RUN apt-get update \
     && pip install wheel  \
     && pip install --no-cache-dir -r ./chat_server/requirements.txt
 
-ENV CHATSERVER_CONFIG chat_server/server_config.json
-ENV DATABASE_CONFIG chat_server/server_config.json
-ENV PYTHONPATH="/app:/app/chat_server/"
 ENV SERVER_ENV PROD
+ENV CHATSERVER_CONFIG /app/config/config.json
+ENV DATABASE_CONFIG /app/config/config.json
+ENV PYTHONPATH="/app:/app/chat_server/"
 
 CMD python -m chat_server
