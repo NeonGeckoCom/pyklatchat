@@ -16,27 +16,59 @@
 # Specialized conversational reconveyance options from Conversation Processing Intelligence Corp.
 # US Patents 2008-2021: US7424516, US20140161250, US20140177813, US8638908, US8068604, US8553852, US10530923, US10530924
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
+import random
+import string
+import sys
+import os
+import time
+
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from neon_utils import LOG
 from starlette import status
+from starlette.middleware.cors import CORSMiddleware
+from starlette.requests import Request
 from starlette.responses import RedirectResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from chat_client.blueprints import chat as chat_blueprint, \
-                                   users as users_blueprint, \
-                                   auth as auth_blueprint
+from utils.common import get_version
+
+sys.path.append(os.path.pardir)
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
+from .blueprints import chat as chat_blueprint, \
+                        users as users_blueprint, \
+                        auth as auth_blueprint
 
 
-def create_asgi_app(app_version: str = None) -> FastAPI:
+def create_app() -> FastAPI:
     """
         Application factory for the Klatchat Client
-
-        :param app_version: application version
     """
+    app_version = get_version('chat_client/version.py')
+    LOG.name = os.environ.get('LOG_NAME', 'client_err')
+    LOG.base_path = os.environ.get('LOG_BASE_PATH', '.')
+    LOG.init(config={'level': os.environ.get('LOG_LEVEL', 'INFO'), 'path': os.environ.get('LOG_PATH', os.getcwd())})
+    LOG.create_logger('chat_client')
     LOG.info(f'Starting Klatchat Client v{app_version}')
     chat_app = FastAPI(title="Klatchat Client",
                        version=app_version)
+
+    @chat_app.middleware("http")
+    async def log_requests(request: Request, call_next):
+        """Logs requests and gracefully handles Internal Server Errors"""
+        idem = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+        LOG.info(f"rid={idem} start request path={request.url.path}")
+        start_time = time.time()
+        try:
+            response = await call_next(request)
+            process_time = (time.time() - start_time) * 1000
+            formatted_process_time = '{0:.2f}'.format(process_time)
+            LOG.info(f"rid={idem} completed_in={formatted_process_time}ms status_code={response.status_code}")
+            return response
+        except Exception as ex:
+            LOG.error(f"rid={idem} received an exception {ex}")
+        return None
 
     # Redirects any not found pages to chats page
     @chat_app.exception_handler(StarletteHTTPException)

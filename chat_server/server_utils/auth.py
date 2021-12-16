@@ -29,6 +29,7 @@ from neon_utils import LOG
 
 from chat_server.constants.users import UserPatterns
 from chat_server.server_config import db_controller, app_config
+from utils.common import generate_uuid
 
 cookies_config = app_config.get('COOKIES', {})
 
@@ -54,32 +55,6 @@ def check_password_strength(password: str) -> str:
         return 'OK'
 
 
-def generate_uuid(length=10) -> str:
-    """
-        Generates UUID string of desired length
-
-        :param length: length of the output UUID string
-
-        :returns UUID string of the desired length
-    """
-    return uuid4().hex[:length]
-
-
-def get_hash(input_str: str, encoding='utf-8', algo='sha512') -> str:
-    """
-        Returns hashed version of input string corresponding to specified algorithm
-
-        :param input_str: input string to hash
-        :param encoding: encoding for string to be conformed to (defaults to UTF-8)
-        :param algo: hashing algorithm to use (defaults to SHA-512),
-                     should correspond to hashlib hashing methods,
-                     refer to: https://docs.python.org/3/library/hashlib.html
-
-        :returns hashed string from the provided input
-    """
-    return getattr(hashlib, algo)(input_str.encode(encoding)).hexdigest()
-
-
 def get_cookie_from_request(request: Request, cookie_name: str) -> Optional[str]:
     """
         Gets cookie from response by its name
@@ -102,7 +77,7 @@ def create_unauthorized_user(response: Response, authorize: bool = True, nano_to
 
         :returns: uuid of the new user
     """
-    from chat_server.utils.user_utils import create_from_pattern
+    from chat_server.server_utils.user_utils import create_from_pattern
 
     guest_nickname = f'guest_{generate_uuid(length=8)}'
 

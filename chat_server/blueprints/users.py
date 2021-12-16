@@ -25,8 +25,8 @@ from fastapi.encoders import jsonable_encoder
 from neon_utils import LOG
 
 from chat_server.server_config import db_controller
-from chat_server.utils.auth import get_current_user
-from chat_server.utils.http_utils import get_file_response
+from chat_server.server_utils.auth import get_current_user
+from chat_server.server_utils.http_utils import get_file_response
 
 router = APIRouter(
     prefix="/users_api",
@@ -76,10 +76,10 @@ def get_avatar(user_id: str):
     user_data = db_controller.exec_query(query={'document': 'users',
                                                 'command': 'find_one',
                                                 'data': {'_id': user_id}})
+    file_response = None
     if user_data and user_data.get('avatar', None):
-        return get_file_response(filename=user_data['avatar'], location_prefix='avatars')
-    else:
-        return JSONResponse({'msg': f'Failed to get avatar'}, 400)
+        file_response = get_file_response(filename=user_data['avatar'], location_prefix='avatars')
+    return file_response if file_response is not None else 'Failed to get avatar'
 
 
 @router.get('/bulk_fetch/', response_class=JSONResponse)

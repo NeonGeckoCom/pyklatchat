@@ -16,10 +16,13 @@
 # Specialized conversational reconveyance options from Conversation Processing Intelligence Corp.
 # US Patents 2008-2021: US7424516, US20140161250, US20140177813, US8638908, US8068604, US8553852, US10530923, US10530924
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
-
+import copy
 import os
+import random
+import string
 import sys
-from typing import Union
+import time
+from typing import Union, AsyncIterator
 
 import socketio
 
@@ -27,14 +30,23 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.testclient import TestClient
 from neon_utils import LOG
+from starlette.requests import Request
 
-sys.path.append(os.path.pardir)
+from utils.common import get_version
 
-from chat_server.sio import sio
-from chat_server.blueprints import auth as auth_blueprint, \
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
+from .sio import sio
+from .blueprints import auth as auth_blueprint, \
                                    chat as chat_blueprint, \
                                    users as users_blueprint, \
                                    components as components_blueprint
+
+async def read_bytes(generator: AsyncIterator[bytes]) -> bytes:
+    body = b""
+    async for data in generator:
+        body += data
+    return body
 
 
 def create_app(testing_mode: bool = False, sio_server: socketio.AsyncServer = sio) -> Union[FastAPI, socketio.ASGIApp]:
@@ -44,16 +56,32 @@ def create_app(testing_mode: bool = False, sio_server: socketio.AsyncServer = si
         :param testing_mode: to run application in testing mode (defaults to False)
         :param sio_server: socket io server instance (optional)
     """
-    version = None
-    with open('chat_server/version.py') as f:
-        lines = f.readlines()
-        for line in lines:
-            if line.startswith('__version__'):
-                version = line.split('=')[1].strip().strip('"').strip("'")
-                break
-    LOG.info(f'Starting Klatchat Server v{version}')
+    app_version = get_version('chat_server/version.py')
+    LOG.name = os.environ.get('LOG_NAME', 'server_err')
+    LOG.base_path = os.environ.get('LOG_BASE_PATH', '.')
+    LOG.init(config={'level': os.environ.get('LOG_LEVEL', 'INFO'), 'path': os.environ.get('LOG_PATH', os.getcwd())})
+    LOG.create_logger('chat_server')
+    LOG.info(f'Starting Klatchat Server v{app_version}')
     chat_app = FastAPI(title="Klatchat Server API",
-                       version=version)
+                       version=app_version)
+
+    @chat_app.middleware("http")
+    async def log_requests(request: Request, call_next):
+        """Logs requests and gracefully handles Internal Server Errors"""
+        idem = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+        LOG.info(f"rid={idem} start request path={request.url.path}")
+        start_time = time.time()
+        try:
+            response = await call_next(request)
+            process_time = (time.time() - start_time) * 1000
+            formatted_process_time = '{0:.2f}'.format(process_time)
+            log_message = f"rid={idem} completed_in={formatted_process_time}ms status_code={response.status_code}"
+            LOG.info(log_message)
+            return response
+        except Exception as ex:
+            LOG.error(f"rid={idem} received an exception {ex}")
+        return None
+
     chat_app.include_router(auth_blueprint.router)
     chat_app.include_router(chat_blueprint.router)
     chat_app.include_router(users_blueprint.router)

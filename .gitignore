@@ -1,9 +1,5 @@
 # Configuration file
-/config.json
+/*config.json
 
-# Collection of helper scripts
-/scripts/
-/chat_client/client_config.json
-/chat_server/server_config.json
-/chat_client/static/runtime_config.json
-/ssh_config.json
+# Logs
+/*.log

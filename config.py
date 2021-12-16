@@ -33,7 +33,7 @@ class Configuration:
 
     def __init__(self, from_files: List[str]):
         self._config_data = dict()
-        for source_file in [file for file in from_files if file]:
+        for source_file in [file for file in list(set(from_files)) if file]:
             self.add_new_config_properties(self.extract_config_from_path(source_file))
 
     @staticmethod
@@ -51,6 +51,7 @@ class Configuration:
         except Exception as ex:
             LOG.error(f'Exception occurred while extracting data from {file_path}: {ex}')
             extraction_result = dict()
+        # LOG.info(f'Extracted config: {extraction_result}')
         return extraction_result
 
     def add_new_config_properties(self, new_config_dict: dict, at_key: str = None):

@@ -28,7 +28,7 @@ from neon_utils import LOG
 from uvicorn import Config
 
 from chat_server.tests.beans.server import ASGITestServer
-from chat_server.utils.auth import generate_uuid
+from chat_server.server_utils.auth import generate_uuid
 from chat_server.server_config import db_controller
 
 SERVER_ADDRESS = "http://127.0.0.1:8888"

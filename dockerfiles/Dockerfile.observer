@@ -1,0 +1,18 @@
+FROM python:3.8-slim-buster
+
+COPY /utils /app
+ADD config.py /app/
+ADD . /app/klatchat_observer/
+WORKDIR /app
+RUN apt-get update \
+    && apt-get install -y \
+    && apt install build-essential -y \
+    && pip install --upgrade pip  \
+    && pip install wheel  \
+    && pip install --no-cache-dir -r ./klatchat_observer/requirements.txt
+
+ENV KLATCHAT_OBSERVER_CONFIG /app/config/config.json
+ENV PYTHONPATH="/app:/app/klatchat_observer/"
+
+
+CMD python -m klatchat_observer

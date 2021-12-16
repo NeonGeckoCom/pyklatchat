@@ -22,7 +22,7 @@ import sys
 from typing import Optional
 from neon_utils import LOG
 from config import Configuration
-from services.klatchat_observer.controller import ChatObserver
+from .controller import ChatObserver
 
 
 def main(config: Optional[dict] = None, testing=False):

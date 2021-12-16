@@ -77,6 +77,12 @@ async function addMessage(cid, userID=null, messageID=null, messageText, timeCre
     return -1;
 }
 
+function handleImgError(image) {
+    image.parentElement.insertAdjacentHTML('afterbegin',`<p>${image.getAttribute('alt')}</p>`);
+    image.parentElement.removeChild(image);
+    return true;
+}
+
 /**
  * Builds user message HTML
  * @param userData: data of message sender
@@ -88,11 +94,13 @@ async function addMessage(cid, userID=null, messageID=null, messageText, timeCre
  */
 async function buildUserMessageHTML(userData, messageID, messageText, timeCreated, isMine){
     const messageTime = getTimeFromTimestamp(timeCreated);
-    let imageComponent = "";
+    let imageComponent;
+    let shortedNick = `${userData['nickname'][0]}${userData['nickname'][userData['nickname'].length - 1]}`;
     if (userData.hasOwnProperty('avatar') && userData['avatar']){
-        imageComponent = `<img alt="Avatar" src="${configData["CHAT_SERVER_URL_BASE"]}/users_api/${userData['_id']}/avatar">`
-    }else{
-        imageComponent = `<p>${userData['nickname'][0]}${userData['nickname'][userData['nickname'].length-1]}</p>`;
+        imageComponent = `<img alt="${shortedNick}" onerror="handleImgError(this);" src="${configData["CHAT_SERVER_URL_BASE"]}/users_api/${userData['_id']}/avatar">`
+    }
+    else{
+        imageComponent = `<p>${userData['nickname'][0]}${userData['nickname'][userData['nickname'].length - 1]}</p>`;
     }
     return await buildHTMLFromTemplate('user_message',
         {'is_mine': isMine?"in":"out",
@@ -404,24 +412,43 @@ async function buildConversation(conversationData={}, remember=true,conversation
 }
 
 /**
+ * Fetches template context into provided html template
+ * @param html: HTML template
+ * @param templateContext: object containing context to fetch
+ * @return {string} HTML with fetched context
+ */
+function fetchTemplateContext(html, templateContext){
+    for (const [key, value] of Object.entries(templateContext)) {
+        html = html.replaceAll('{'+key+'}', value);
+    }
+    return html;
+}
+
+/**
  * Builds HTML from passed params and template name
  * @param templateName: name of the template to fetch
  * @param templateContext: properties from template to fetch
  * @returns built template string
  */
 async function buildHTMLFromTemplate(templateName, templateContext = {}){
-    return await fetch(`${configData['CHAT_SERVER_URL_BASE']}/components/${templateName}`)
-        .then( (response) => {
-            if (response.ok) {
-                return response.text();
-            }throw `template unreachable (HTTP STATUS:${response.status}: ${response.statusText})`
-        })
-        .then((html) => {
-            for (const [key, value] of Object.entries(templateContext)) {
-                html = html.replaceAll('{'+key+'}', value);
-            }
-            return html;
-        }).catch(err=> console.warn(`Failed to fetch template for ${templateName}: ${err}`));
+    if(!configData['DISABLE_CACHING'] && loadedComponents.hasOwnProperty(templateName)){
+        const html = loadedComponents[templateName];
+        return fetchTemplateContext(html, templateContext);
+    }else {
+        return await fetch(`${configData['CHAT_SERVER_URL_BASE']}/components/${templateName}`)
+            .then((response) => {
+                if (response.ok) {
+                    return response.text();
+                }
+                throw `template unreachable (HTTP STATUS:${response.status}: ${response.statusText})`
+            })
+            .then((html) => {
+                if (!(configData['DISABLE_CACHING'] || loadedComponents.hasOwnProperty(templateName))) {
+                    loadedComponents[templateName] = html;
+                }
+                return fetchTemplateContext(html, templateContext);
+            }).catch(err => console.warn(`Failed to fetch template for ${templateName}: ${err}`));
+    }
 }
 
 /**
@@ -471,11 +498,13 @@ async function getConversationDataByInput(input=""){
             .then(response => {
                 if(response.ok){
                     return response.json();
+                }else{
+                    throw response.statusText;
                 }
             })
             .then(data => {
                 conversationData = data;
-            });
+            }).catch(err=> console.warn('Failed to fulfill request due to error:',err));
     }
     return conversationData;
 }
@@ -537,10 +566,10 @@ function emitUserMessage(textInputElem, cid, repliedMessageID=null, attachments=
         const messageText = textInputElem.value;
         addMessage(cid, currentUser['_id'],null, messageText, timeCreated,repliedMessageID,attachments).then(messageID=>{
             socket.emit('user_message', {'cid':cid,'userID':currentUser['_id'],
-                              'messageText':messageText,
-                              'messageID':messageID,
-                              'attachments': attachments,
-                              'timeCreated':timeCreated});
+                        'messageText':messageText,
+                        'messageID':messageID,
+                        'attachments': attachments,
+                        'timeCreated':timeCreated});
         });
         textInputElem.value = "";
     }
@@ -594,7 +623,7 @@ function restoreChatAlignment(keyName=conversationAlignmentKey){
     let itemsLayout = retrieveItemsLayout(keyName);
     for (const item of itemsLayout) {
         getConversationDataByInput(item).then(async conversationData=>{
-            if(conversationData) {
+            if(conversationData && Object.keys(conversationData).length > 0) {
                 await buildConversation(conversationData, false);
             }else{
                 displayAlert(document.getElementById('conversationsBody'),'No matching conversation found','danger');
@@ -646,8 +675,8 @@ document.addEventListener('DOMContentLoaded', (e)=>{
             if (conversationSearchInput.value !== "") {
                 getConversationDataByInput(conversationSearchInput.value).then(async conversationData => {
                     if (getOpenedChats().includes(conversationData['_id'])) {
-                        displayAlert(document.getElementById('importConversationModalBody'), 'Desired chat is already displayed', 'danger');
-                    } else if (conversationData) {
+                        displayAlert(document.getElementById('importConversationModalBody'), 'Chat is already displayed', 'danger');
+                    } else if (conversationData && Object.keys(conversationData).length > 0) {
                         await buildConversation(conversationData);
                     } else {
                         displayAlert(document.getElementById('importConversationModalBody'), 'Cannot find conversation matching your search', 'danger');

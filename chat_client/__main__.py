@@ -16,24 +16,13 @@
 # Specialized conversational reconveyance options from Conversation Processing Intelligence Corp.
 # US Patents 2008-2021: US7424516, US20140161250, US20140177813, US8638908, US8068604, US8553852, US10530923, US10530924
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
+import os
 
-import socketio
 import uvicorn
-
-from typing import Optional
-from chat_client.app import create_asgi_app
-
-
-def create_chat_client(config_data: Optional[dict], app_version: str = None):
-    return create_asgi_app(app_version=app_version)
+from chat_client.wsgi import app
 
 
 if __name__ == '__main__':
-    version = None
-    with open('chat_client/version.py') as f:
-        lines = f.readlines()
-        for line in lines:
-            if line.startswith('__version__'):
-                version = line.split('=')[1].strip().strip('"').strip("'")
-                break
-    uvicorn.run(app=create_chat_client(config_data=None, app_version=version), port=8001)
+    uvicorn.run(app=app, host=os.environ.get('HOST', '127.0.0.1'),
+                port=int(os.environ.get('PORT', 8001)),
+                log_level=os.environ.get('LOG_LEVEL', 'INFO').lower())
