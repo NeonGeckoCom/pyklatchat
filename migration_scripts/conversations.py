@@ -50,8 +50,19 @@ def index_nicks(mongo_controller, received_nicks: List[str]) -> Tuple[dict, List
     return nicks_mapping, nicks_to_consider
 
 def remove_date_from_conversation_name(string):
-    result = re.search("-\[(.*?)\](.*)", string).group()
-    clean_string =  string.split(result)[0]
+    regex = re.search("-\[(.*?)\](.*)", string)
+    if (regex is not None):
+        result = regex.group()
+        clean_string =  string.split(result)[0]
+        return clean_string
+    
+    regex = re.search("auto-create (.*) - (.*)-", string)
+    if (regex is not None):
+        result = regex.group()
+        clean_string =  string.split(result)[1]
+        return clean_string
+
+    clean_string = string
     return clean_string
 
 def migrate_conversations(old_db_controller, new_db_controller,
