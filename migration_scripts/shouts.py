@@ -60,7 +60,7 @@ def migrate_shouts(old_db_controller, new_db_controller, nick_to_uuid_mapping: d
     for record in result:
 
         for k in list(record):
-            if isinstance(record[k], bytearray):
+            if isinstance(record[k], (bytearray, bytes)):
                 record[k] = str(record[k].decode('utf-8'))
 
         formed_result.append(ReplaceOne({'_id': str(record['shout_id'])},
