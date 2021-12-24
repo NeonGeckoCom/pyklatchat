@@ -3,3 +3,15 @@
 
 # Logs
 /*.log
+
+# Pycache
+__pycache__
+
+# VS Code
+.vscode
+
+# Passed migrations
+passed_migrations
+
+# Virtualenv
+.env
