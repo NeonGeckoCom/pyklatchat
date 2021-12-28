@@ -50,13 +50,13 @@ def index_nicks(mongo_controller, received_nicks: List[str]) -> Tuple[dict, List
     return nicks_mapping, nicks_to_consider
 
 def remove_date_from_conversation_name(string):
-    regex = re.search("-\[(.*?)\](.*)", string)
+    regex = re.search("-\[(.*?)\](.*)$", string)
     if (regex is not None):
         result = regex.group()
         clean_string =  string.split(result)[0]
         return clean_string
     
-    regex = re.search("auto-create (.*) - (.*)-", string)
+    regex = re.search("^auto-create (.*) - (.*)-", string)
     if (regex is not None):
         result = regex.group()
         clean_string =  string.split(result)[1]
