@@ -528,8 +528,14 @@ async function getConversationDataByInput(input=""){
  * @returns {string} string time (hours:minutes)
  */
 function getTimeFromTimestamp(timestampCreated=0){
-    const date = new Date(timestampCreated * 1000);
-    const year = date.getFullYear().toString();
+    let date = new Date(timestampCreated * 1000);
+    let year = date.getFullYear();
+    if(year >= 9999){
+        console.debug('Timestamp is in millis, reducing it 10^3 times');
+        date = new Date(timestampCreated);
+        year = date.getFullYear();
+    }
+    year = year.toString();
     let month = date.getMonth()+1;
     month = month>=10?month.toString():'0'+month.toString();
     let day = date.getDate();
