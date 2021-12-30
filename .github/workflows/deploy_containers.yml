@@ -1,11 +1,11 @@
 name: Deploy Images to GHCR
 
 on:
-  pull_request:
   push:
     branches:
       - dev
       - main
+  pull_request:
 
 jobs:
   publish-images:
@@ -24,7 +24,7 @@ jobs:
         cd scripts && bash build_containers.sh
     - name: Push Images
       run: |
-        for IMAGE in $IMAGES; do docker tag neon/$IMAGE:latest ghcr.io/NeonGeckoCom/$IMAGE:$VERSION && docker push ghcr.io/NeonGeckoCom/$IMAGE:$VERSION; done
+        for IMAGE in $IMAGES; do docker tag neon/$IMAGE:latest ghcr.io/NeonGeckoCom/$IMAGE:latest && docker push ghcr.io/NeonGeckoCom/$IMAGE:latest; done
       env:
         IMAGES: klatchat_observer chat_client chat_server
         VERSION: ${{ github.event.pull_request.base.ref }}
