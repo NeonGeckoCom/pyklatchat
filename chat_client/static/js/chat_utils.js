@@ -66,10 +66,9 @@ async function addMessage(cid, userID=null, messageID=null, messageText, timeCre
                 cidList.removeChild(blankChat[0]);
             }
             cidList.insertAdjacentHTML('beforeend', messageHTML);
-            resolveMessageAttachments(messageID, attachments);
+            resolveMessageAttachments(cid, messageID, attachments);
             resolveUserReply(messageID, repliedMessageID);
             addConversationParticipant(cid, userData['nickname'], true);
-            setParticipantsCount(cid);
             cidList.lastChild.scrollIntoView();
             return messageID;
         }
@@ -135,10 +134,11 @@ function resolveUserReply(replyID,repliedID){
 
 /**
  * Resolves attachments to the message
+ * @param cid: id of conversation
  * @param messageID: id of user message
  * @param attachments list of attachments received
  */
-function resolveMessageAttachments(messageID,attachments = []){
+function resolveMessageAttachments(cid, messageID,attachments = []){
     if(messageID) {
         const messageElem = document.getElementById(messageID);
         if(messageElem) {
@@ -155,6 +155,7 @@ function resolveMessageAttachments(messageID,attachments = []){
                     attachmentToggle.addEventListener('click', (e) => {
                         attachmentPlaceholder.style.display = attachmentPlaceholder.style.display === "none" ? "" : "none";
                     });
+                    activateAttachments(cid, attachmentPlaceholder);
                 }
             } else {
                 attachmentToggle.style.display = "none";
@@ -242,15 +243,26 @@ function download(content, filename, contentType='application/octet-stream')
 function addAttachments(conversationData){
     if(conversationData.hasOwnProperty('chat_flow')) {
         Array.from(conversationData['chat_flow']).forEach(message => {
-            resolveMessageAttachments(message['message_id'], message?.attachments);
-        });
-        Array.from(document.getElementsByClassName('attachment-item')).forEach(attachmentItem=>{
-            attachmentItem.addEventListener('click', (e)=>{
-               e.preventDefault();
-               downloadAttachment(attachmentItem, conversationData['_id'], attachmentItem.parentNode.parentNode.id);
-            });
+            resolveMessageAttachments(conversationData['_id'], message['message_id'], message?.attachments);
         });
     }
+}
+
+/**
+ * Activates attachments event listeners for message attachments in specified conversation
+ * @param cid: desired conversation id
+ * @param elem: parent element for attachment (defaults to document)
+ */
+function activateAttachments(cid, elem=null){
+    if (!elem){
+        elem = document;
+    }
+    Array.from(elem.getElementsByClassName('attachment-item')).forEach(attachmentItem=>{
+        attachmentItem.addEventListener('click', (e)=>{
+           e.preventDefault();
+           downloadAttachment(attachmentItem, cid, attachmentItem.parentNode.parentNode.id);
+        });
+    });
 }
 
 /**
@@ -516,8 +528,14 @@ async function getConversationDataByInput(input=""){
  * @returns {string} string time (hours:minutes)
  */
 function getTimeFromTimestamp(timestampCreated=0){
-    const date = new Date(timestampCreated * 1000);
-    const year = date.getFullYear().toString();
+    let date = new Date(timestampCreated * 1000);
+    let year = date.getFullYear();
+    if(year >= 9999){
+        console.debug('Timestamp is in millis, reducing it 10^3 times');
+        date = new Date(timestampCreated);
+        year = date.getFullYear();
+    }
+    year = year.toString();
     let month = date.getMonth()+1;
     month = month>=10?month.toString():'0'+month.toString();
     let day = date.getDate();

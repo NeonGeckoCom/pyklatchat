@@ -17,13 +17,11 @@
 # US Patents 2008-2021: US7424516, US20140161250, US20140177813, US8638908, US8068604, US8553852, US10530923, US10530924
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
 
-import hashlib
 from typing import Optional
 
 import jwt
 
 from time import time
-from uuid import uuid4
 from fastapi import Response, Request
 from neon_utils import LOG
 
@@ -121,21 +119,24 @@ def get_current_user(request: Request, response: Response, force_tmp: bool = Fal
                 LOG.info('Creating new user for nano agent')
                 user = create_unauthorized_user(response=response, nano_token=nano_token, authorize=False)
         else:
-            session = get_cookie_from_request(request, 'session')
-            if session:
-                payload = jwt.decode(jwt=session, key=secret_key, algorithms=jwt_encryption_algo)
-                current_timestamp = time()
-                if (int(current_timestamp) - int(payload.get('creation_time', 0))) <= cookie_lifetime:
-                    user = db_controller.exec_query(query={'command': 'find_one',
-                                                           'document': 'users',
-                                                           'data': ({'_id': payload['sub']})})
-                    if not user:
-                        LOG.info(f'{payload["sub"]} is not found among users, setting temporal user credentials')
-                    else:
-                        user_id = user['_id']
-                        if (int(current_timestamp) - int(payload.get('last_refresh_time', 0))) >= cookie_refresh_rate:
-                            refresh_cookie(payload=payload, response=response)
-                            LOG.info('Cookie was refreshed')
+            try:
+                session = get_cookie_from_request(request, 'session')
+                if session:
+                    payload = jwt.decode(jwt=session, key=secret_key, algorithms=jwt_encryption_algo)
+                    current_timestamp = time()
+                    if (int(current_timestamp) - int(payload.get('creation_time', 0))) <= cookie_lifetime:
+                        user = db_controller.exec_query(query={'command': 'find_one',
+                                                               'document': 'users',
+                                                               'data': ({'_id': payload['sub']})})
+                        if not user:
+                            LOG.info(f'{payload["sub"]} is not found among users, setting temporal user credentials')
+                        else:
+                            user_id = user['_id']
+                            if (int(current_timestamp) - int(payload.get('last_refresh_time', 0))) >= cookie_refresh_rate:
+                                refresh_cookie(payload=payload, response=response)
+                                LOG.info('Cookie was refreshed')
+            except BaseException as ex:
+                LOG.warning(f'Problem resolving current user: {ex}, setting tmp user credentials')
     if not user_id or force_tmp:
         user = create_unauthorized_user(response=response)
     user.pop('password', None)
