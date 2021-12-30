@@ -22,9 +22,9 @@ jobs:
     - name: Build Images
       run: |
         cd scripts && bash build_containers.sh
-    - name: Push Klatchat Observer
+    - name: Push Images
       run: |
-        for IMAGE in $IMAGES; do docker tag neon/$IMAGE:$VERSION ghcr.io/NeonGeckoCom/$IMAGE:$VERSION && docker push ghcr.io/NeonGeckoCom/$IMAGE:$VERSION; done
+        for IMAGE in $IMAGES; do docker tag neon/$IMAGE:latest ghcr.io/NeonGeckoCom/$IMAGE:$VERSION && docker push ghcr.io/NeonGeckoCom/$IMAGE:$VERSION; done
       env:
         IMAGES: klatchat_observer chat_client chat_server
         VERSION: ${{ github.event.pull_request.base.ref }}
