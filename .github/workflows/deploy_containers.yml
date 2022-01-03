@@ -13,7 +13,10 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
-
+    - name: Extract branch name
+      shell: bash
+      run: echo "##[set-output name=branch;]$(echo ${GITHUB_REF#refs/heads/})"
+      id: extract_branch
     - name: Authorize Github Token
       run: |
         echo $CR_PAT | docker login ghcr.io -u neongeckocom --password-stdin
@@ -27,4 +30,4 @@ jobs:
         for IMAGE in $IMAGES; do docker tag neon/$IMAGE:latest ghcr.io/neongeckocom/$IMAGE:$VERSION && docker push ghcr.io/neongeckocom/$IMAGE:$VERSION; done
       env:
         IMAGES: klatchat_observer chat_client chat_server
-        VERSION: ${{ github.ref }}
+        VERSION: ${{ steps.extract_branch.outputs.branch }}
