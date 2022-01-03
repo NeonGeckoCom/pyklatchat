@@ -16,7 +16,7 @@ jobs:
 
     - name: Authorize Github Token
       run: |
-        echo $CR_PAT | docker login ghcr.io -u NeonGeckoCom --password-stdin
+        echo $CR_PAT | docker login ghcr.io -u neongeckocom --password-stdin
       env:
         CR_PAT: ${{ secrets.CR_PAT }}
     - name: Build Images
@@ -24,7 +24,7 @@ jobs:
         cd scripts && bash build_containers.sh
     - name: Push Images
       run: |
-        for IMAGE in $IMAGES; do docker tag neon/$IMAGE:0.0.1 ghcr.io/NeonGeckoCom/$IMAGE:0.0.1 && docker push ghcr.io/NeonGeckoCom/$IMAGE:0.0.1; done
+        for IMAGE in $IMAGES; do docker tag neon/$IMAGE:0.0.1 ghcr.io/neongeckocom/$IMAGE:$VERSION && docker push ghcr.io/neongeckocom/$IMAGE:$VERSION; done
       env:
         IMAGES: klatchat_observer chat_client chat_server
         VERSION: ${{ github.event.pull_request.base.ref }}
