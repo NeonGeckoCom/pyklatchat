@@ -27,4 +27,4 @@ jobs:
         for IMAGE in $IMAGES; do docker tag neon/$IMAGE:latest ghcr.io/neongeckocom/$IMAGE:$VERSION && docker push ghcr.io/neongeckocom/$IMAGE:$VERSION; done
       env:
         IMAGES: klatchat_observer chat_client chat_server
-        VERSION: ${{ github.event.pull_request.base.ref }}
+        VERSION: ${{ github.ref }}
