@@ -24,7 +24,7 @@ jobs:
         cd scripts && bash build_containers.sh
     - name: Push Images
       run: |
-        for IMAGE in $IMAGES; do docker tag neon/$IMAGE:latest ghcr.io/NeonGeckoCom/$IMAGE:latest && docker push ghcr.io/NeonGeckoCom/$IMAGE:latest; done
+        for IMAGE in $IMAGES; do docker tag neon/$IMAGE:0.0.1 ghcr.io/NeonGeckoCom/$IMAGE:0.0.1 && docker push ghcr.io/NeonGeckoCom/$IMAGE:0.0.1; done
       env:
         IMAGES: klatchat_observer chat_client chat_server
         VERSION: ${{ github.event.pull_request.base.ref }}
