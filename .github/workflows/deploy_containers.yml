@@ -34,17 +34,17 @@ jobs:
     - name: Apply Workflow Dispatch Environments
       if: github.event_name == 'workflow_dispatch'
       run: |
-        echo ${{ github.event.inputs.version }} >> $VERSION
+        echo "${{ github.event.inputs.version }}" >> $VERSION
 #        echo ${{ github.event.inputs.images }} >> $IMAGES
     - name: Apply Pull Request Environments
       if: github.event_name == 'pull_request'
       run: |
-        echo ${{ github.event.pull_request.base.ref }} >> $VERSION
+        echo "${{ github.event.pull_request.base.ref }}" >> $VERSION
 #        echo klatchat_observer chat_client chat_server >> $IMAGES
     - name: Apply Push Environments
       if: github.event_name == 'push'
       run: |
-        echo $(echo ${GITHUB_REF#refs/heads/} | tr / -) >> $VERSION
+        echo "$(echo ${GITHUB_REF#refs/heads/} | tr / -)" >> $VERSION
 #        echo klatchat_observer chat_client chat_server >> $IMAGES
     - name: Push Images
       run: |
