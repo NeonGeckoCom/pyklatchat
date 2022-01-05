@@ -25,9 +25,9 @@ jobs:
     - uses: actions/checkout@v2
     - name: Authorize Github Token
       run: |
-        echo $CR_PAT | docker login ghcr.io -u neongeckocom --password-stdin
+        echo $GITHUB_TOKEN | docker login ghcr.io -u neongeckocom --password-stdin
       env:
-        CR_PAT: ${{ secrets.CR_PAT }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     - name: Build Images
       run: |
         cd scripts && bash build_containers.sh
