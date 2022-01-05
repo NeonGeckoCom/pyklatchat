@@ -53,7 +53,7 @@ jobs:
 #        echo klatchat_observer chat_client chat_server >> $IMAGES
     - name: Push Images
       run: |
-        for IMAGE in $IMAGES; do docker tag neon/$IMAGE:latest ${{ steps.version.outputs.version }} && docker tag neon/$IMAGE:latest ghcr.io/neongeckocom/$IMAGE:$VERSION && docker push --all-tags ghcr.io/neongeckocom/$IMAGE:$VERSION; done
+        for IMAGE in $IMAGES; do docker tag neon/$IMAGE:latest ghcr.io/neongeckocom/$IMAGE:${{ steps.version.outputs.version }} && docker tag neon/$IMAGE:latest ghcr.io/neongeckocom/$IMAGE:$VERSION && docker push -a ghcr.io/neongeckocom/$IMAGE:$VERSION; done
       env:
         VERSION: ${{ env.VERSION }}
         IMAGES: klatchat_observer chat_client chat_server
