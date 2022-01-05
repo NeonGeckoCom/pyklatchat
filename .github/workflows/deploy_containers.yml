@@ -34,20 +34,21 @@ jobs:
     - name: Apply Workflow Dispatch Environments
       if: github.event_name == 'workflow_dispatch'
       run: |
-        echo "${{ github.event.inputs.version }}" >> $VERSION
+        echo "VERSION=${{ github.event.inputs.version }}" >> $GITHUB_ENV
 #        echo ${{ github.event.inputs.images }} >> $IMAGES
     - name: Apply Pull Request Environments
       if: github.event_name == 'pull_request'
       run: |
-        echo "${{ github.event.pull_request.base.ref }}" >> $VERSION
+        echo "VERSION=${{ github.event.pull_request.base.ref }}" >> $GITHUB_ENV
 #        echo klatchat_observer chat_client chat_server >> $IMAGES
     - name: Apply Push Environments
       if: github.event_name == 'push'
       run: |
-        echo "$(echo ${GITHUB_REF#refs/heads/} | tr / -)" >> $VERSION
+        echo "VERSION=$(echo ${GITHUB_HEAD_REF} | tr / -)" >> $GITHUB_ENV
 #        echo klatchat_observer chat_client chat_server >> $IMAGES
     - name: Push Images
       run: |
         for IMAGE in $IMAGES; do docker tag neon/$IMAGE:latest ghcr.io/neongeckocom/$IMAGE:$VERSION && docker push ghcr.io/neongeckocom/$IMAGE:$VERSION; done
       env:
+        VERSION: ${{ env.VERSION }}
         IMAGES: klatchat_observer chat_client chat_server
