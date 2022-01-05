@@ -6,6 +6,16 @@ on:
       - dev
       - main
   pull_request:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Images tag'
+        required: true
+        default: 'dev'
+#      images:
+#        description: 'Include Images (klatchat_observer|chat_client|chat_server) space-separated'
+#        required: false
+#        default: klatchat_observer chat_client chat_server
 
 jobs:
   publish-images:
@@ -13,10 +23,6 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
-    - name: Extract branch name
-      shell: bash
-      run: echo "##[set-output name=branch;]$(echo ${GITHUB_REF#refs/heads/})"
-      id: extract_branch
     - name: Authorize Github Token
       run: |
         echo $CR_PAT | docker login ghcr.io -u neongeckocom --password-stdin
@@ -25,9 +31,23 @@ jobs:
     - name: Build Images
       run: |
         cd scripts && bash build_containers.sh
+    - name: Apply Workflow Dispatch Environments
+      if: github.event_name == 'workflow_dispatch'
+      run: |
+        echo ${{ github.event.inputs.version }} >> $VERSION
+#        echo ${{ github.event.inputs.images }} >> $IMAGES
+    - name: Apply Pull Request Environments
+      if: github.event_name == 'pull_request'
+      run: |
+        echo ${{ github.event.pull_request.base.ref }} >> $VERSION
+#        echo klatchat_observer chat_client chat_server >> $IMAGES
+    - name: Apply Push Environments
+      if: github.event_name == 'push'
+      run: |
+        echo $(echo ${GITHUB_REF#refs/heads/} | tr / -) >> $VERSION
+#        echo klatchat_observer chat_client chat_server >> $IMAGES
     - name: Push Images
       run: |
         for IMAGE in $IMAGES; do docker tag neon/$IMAGE:latest ghcr.io/neongeckocom/$IMAGE:$VERSION && docker push ghcr.io/neongeckocom/$IMAGE:$VERSION; done
       env:
         IMAGES: klatchat_observer chat_client chat_server
-        VERSION: ${{ steps.extract_branch.outputs.branch }}
