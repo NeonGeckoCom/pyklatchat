@@ -19,6 +19,7 @@
 import datetime
 import time
 import uuid
+import re
 from typing import List, Dict, Tuple
 
 from neon_utils import LOG
@@ -48,6 +49,21 @@ def index_nicks(mongo_controller, received_nicks: List[str]) -> Tuple[dict, List
 
     return nicks_mapping, nicks_to_consider
 
+def remove_date_from_conversation_name(string):
+    regex = re.search("-\[(.*?)\](.*)$", string)
+    if (regex is not None):
+        result = regex.group()
+        clean_string =  string.split(result)[0]
+        return clean_string
+    
+    regex = re.search("^auto-create (.*) - (.*)-", string)
+    if (regex is not None):
+        result = regex.group()
+        clean_string =  string.split(result)[1]
+        return clean_string
+
+    clean_string = string
+    return clean_string
 
 def migrate_conversations(old_db_controller, new_db_controller,
                           time_since: int = 1577829600) -> Tuple[List[str], Dict[str, str], List[str]]:
@@ -96,7 +112,7 @@ def migrate_conversations(old_db_controller, new_db_controller,
                                     'domain': record['domain'],
                                     'image': record['image_url'],
                                     'password': record['password'],
-                                    'conversation_name': record['title'],
+                                    'conversation_name': remove_date_from_conversation_name(record['title']),
                                     'chat_flow': [],
                                     'creator': nicknames_mapping.get(record['creator'], record['creator']),
                                     'created_on': int(record['created'])
