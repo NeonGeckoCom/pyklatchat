@@ -111,6 +111,7 @@ class ChatObserver(MQConnector):
         super().__init__(config, service_name)
 
         self.vhost = '/neon_api'
+        self.chatbots_vhost = '/chatbots'
         self._sio = None
         self.sio_url = config['SIO_URL']
         self.connect_sio()
@@ -118,6 +119,12 @@ class ChatObserver(MQConnector):
                                vhost=self.vhost,
                                queue='neon_api_output',
                                callback=self.handle_neon_response,
+                               on_error=self.default_error_handler,
+                               auto_ack=False)
+        self.register_consumer(name='chatbot_response_consumer',
+                               vhost=self.chatbots_vhost,
+                               queue='chatbot_response',
+                               callback=self.handle_chatbot_response,
                                on_error=self.default_error_handler,
                                auto_ack=False)
         self.__neon_service_id = ''
@@ -266,7 +273,7 @@ class ChatObserver(MQConnector):
                              properties: pika.spec.BasicProperties,
                              body: bytes):
         """
-            Handles input requests from MQ to Neon API
+            Handles responses from Neon API
 
             :param channel: MQ channel object (pika.channel.Channel)
             :param method: MQ return method (pika.spec.Basic.Return)
@@ -292,6 +299,40 @@ class ChatObserver(MQConnector):
             else:
                 LOG.warning(f'Skipping received data {dict_data} as it lacks one of the required keys: '
                             f'({",".join(response_required_keys)})')
+        else:
+            raise TypeError(f'Invalid body received, expected: bytes string; got: {type(body)}')
+
+    def handle_chatbot_response(self,
+                                channel: pika.channel.Channel,
+                                method: pika.spec.Basic.Return,
+                                properties: pika.spec.BasicProperties,
+                                body: bytes):
+        """
+            Handles input requests from Chatbots
+
+            :param channel: MQ channel object (pika.channel.Channel)
+            :param method: MQ return method (pika.spec.Basic.Return)
+            :param properties: MQ properties (pika.spec.BasicProperties)
+            :param body: request body (bytes)
+
+        """
+        if body and isinstance(body, bytes):
+            dict_data = b64_to_dict(body)
+
+            response_required_keys = ('userID', 'cid', 'messageText', 'bot', 'timeCreated', )
+
+            if all(required_key in list(dict_data) for required_key in response_required_keys):
+                self.sio.emit('user_message', data=dict_data)
+            else:
+                error_msg = f'Skipping received data {dict_data} as it lacks one of the required keys: ' \
+                            f'({",".join(response_required_keys)})'
+                LOG.warning(error_msg)
+                with self.create_mq_connection(self.chatbots_vhost) as mq_connection:
+                    self.emit_mq_message(connection=mq_connection,
+                                         queue='chatbot_response_error',
+                                         request_data={'msg': error_msg},
+                                         exchange='',
+                                         expiration=3000)
         else:
             raise TypeError(f'Invalid body received, expected: bytes string; got: {type(body)}')
 
