@@ -16,54 +16,13 @@
 # Specialized conversational reconveyance options from Conversation Processing Intelligence Corp.
 # US Patents 2008-2021: US7424516, US20140161250, US20140177813, US8638908, US8068604, US8553852, US10530923, US10530924
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
-import datetime
-import time
-import uuid
-import re
 from typing import List, Dict, Tuple
 
 from neon_utils import LOG
 from pymongo import ReplaceOne
 
-from utils.database_utils.mongo_utils.user_utils import get_existing_nicks_to_id
+from migration_scripts.utils.conversation_utils import clean_conversation_name, index_nicks
 
-
-def index_nicks(mongo_controller, received_nicks: List[str]) -> Tuple[dict, List[str]]:
-    """
-        Assigns unique id to each nick that is not present in new db
-
-        :param mongo_controller: controller to active mongo collection
-        :param received_nicks: received nicks from mysql controller
-    """
-
-    # Excluding existing nicks from loop
-    nicks_mapping = get_existing_nicks_to_id(mongo_controller)
-
-    nicks_to_consider = list(set(received_nicks) - set(list(nicks_mapping)))
-
-    # Generating UUID for each nick that is not present in new db
-    for nick in nicks_to_consider:
-        nicks_mapping[nick] = uuid.uuid4().hex
-
-    LOG.info(f'Created nicks mapping for {len(list(nicks_mapping))} records')
-
-    return nicks_mapping, nicks_to_consider
-
-def remove_date_from_conversation_name(string):
-    regex = re.search("-\[(.*?)\](.*)$", string)
-    if (regex is not None):
-        result = regex.group()
-        clean_string =  string.split(result)[0]
-        return clean_string
-    
-    regex = re.search("^auto-create (.*) - (.*)-", string)
-    if (regex is not None):
-        result = regex.group()
-        clean_string =  string.split(result)[1]
-        return clean_string
-
-    clean_string = string
-    return clean_string
 
 def migrate_conversations(old_db_controller, new_db_controller,
                           time_since: int = 1577829600) -> Tuple[List[str], Dict[str, str], List[str]]:
@@ -112,7 +71,7 @@ def migrate_conversations(old_db_controller, new_db_controller,
                                     'domain': record['domain'],
                                     'image': record['image_url'],
                                     'password': record['password'],
-                                    'conversation_name': remove_date_from_conversation_name(record['title']),
+                                    'conversation_name': f"{clean_conversation_name(record['title'])}_{record['cid']}",
                                     'chat_flow': [],
                                     'creator': nicknames_mapping.get(record['creator'], record['creator']),
                                     'created_on': int(record['created'])

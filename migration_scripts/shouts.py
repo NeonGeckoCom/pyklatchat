@@ -21,6 +21,7 @@ import copy
 from neon_utils import LOG
 from pymongo import ReplaceOne
 
+from migration_scripts.utils.shout_utils import prepare_nicks_for_sql
 from migration_scripts.utils.sql_utils import iterable_to_sql_array, sql_arr_is_null
 
 
@@ -39,7 +40,7 @@ def migrate_shouts(old_db_controller, new_db_controller, nick_to_uuid_mapping: d
 
     LOG.info('Starting shouts migration')
 
-    users = iterable_to_sql_array([nick.replace("'", "") for nick in list(nick_to_uuid_mapping)])
+    users = iterable_to_sql_array(prepare_nicks_for_sql(list(nick_to_uuid_mapping)))
     filter_str = f"WHERE nick IN {users} "
 
     existing_shout_ids = iterable_to_sql_array([str(shout['_id']) for shout in list(existing_shouts)])
