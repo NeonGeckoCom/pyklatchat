@@ -27,7 +27,7 @@ jobs:
       run: |
         echo $GITHUB_TOKEN | docker login ghcr.io -u neongeckocom --password-stdin
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITHUB_TOKEN: ${{ secrets.CR_PAT }}
     - name: Get Version
       id: version
       run: |
