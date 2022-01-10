@@ -78,7 +78,7 @@ class ChatObserver(MQConnector):
             >>> response_data = ChatObserver.get_recipient_from_body('@Proctor hello dsfdsfsfds @Prompter')
             >>> assert response_data == {'recipient': Recipients.CHATBOT_CONTROLLER, 'context': {'bots': {'proctor', 'prompter'}}}
         """
-        message = ' '+message
+        message = ' ' + message
         bot_mentioning_regexp = r'[\s]+@[a-zA-Z]+[\w]+'
         bots = re.findall(bot_mentioning_regexp, message)
         bots = set([bot.strip().replace('@', '').lower() for bot in bots])
@@ -110,15 +110,21 @@ class ChatObserver(MQConnector):
     def __init__(self, config: dict, service_name: str = 'chat_observer', scan_neon_service: bool = False):
         super().__init__(config, service_name)
 
-        self.vhost = '/neon_api'
+        self.neon_vhost = '/neon_chat_api'
         self.chatbots_vhost = '/chatbots'
         self._sio = None
         self.sio_url = config['SIO_URL']
         self.connect_sio()
         self.register_consumer(name='neon_response_consumer',
-                               vhost=self.vhost,
-                               queue='neon_api_output',
+                               vhost=self.neon_vhost,
+                               queue='neon_api_response',
                                callback=self.handle_neon_response,
+                               on_error=self.default_error_handler,
+                               auto_ack=False)
+        self.register_consumer(name='neon_response_error',
+                               vhost=self.neon_vhost,
+                               queue='neon_api_error',
+                               callback=self.handle_neon_error,
                                on_error=self.default_error_handler,
                                auto_ack=False)
         self.register_consumer(name='chatbot_response_consumer',
@@ -149,10 +155,10 @@ class ChatObserver(MQConnector):
         self.neon_service_event = Event()
         self.register_consumer(name='neon_service_sync_consumer',
                                callback=self.handle_neon_sync,
-                               vhost=self.vhost,
+                               vhost=self.neon_vhost,
                                on_error=self.default_error_handler,
                                auto_ack=False,
-                               queue='neon_api_connector_sync')
+                               queue='chat_api_proxy_sync')
         sync_consumer = self.consumers['neon_service_sync_consumer']
         sync_consumer.start()
         self.neon_service_event.wait(wait_timeout)
@@ -207,14 +213,23 @@ class ChatObserver(MQConnector):
                 if recipient == Recipients.NEON:
                     _data['messageText'] = requesting_by_separator.join(_data['messageText']
                                                                         .split(requesting_by_separator)[1:]).strip()
-                    with self.create_mq_connection(vhost=self.vhost) as mq_connection:
+                    with self.create_mq_connection(vhost=self.neon_vhost) as mq_connection:
                         with mq_connection.channel() as connection_channel:
-                            service = resolve_neon_service(message_data=_data)
-                            if service == NeonServices.WOLFRAM:
-                                _data['query'] = _data.pop('messageText', '')
-                            _data['service'] = service.value
                             _data['agent'] = f'pyklatchat v{__version__}'
-                            input_queue = 'neon_api_input'
+                            request_dict = {
+                                'data': {
+                                    'utterances': [_data.pop('messageText', '')],
+                                    'lang': _data.get('userLanguage', 'en-us'),
+                                },
+                                'context': {
+                                    'request_skills': ['tts'],
+                                    'ident': generate_uuid(),
+                                    'username': _data.pop('nick', 'guest'),
+                                    **_data
+                                }
+                            }
+                            input_queue = 'neon_api_request'
+
                             neon_service_id = self.neon_service_id
                             if neon_service_id:
                                 input_queue = f'{input_queue}_{neon_service_id}'
@@ -222,7 +237,7 @@ class ChatObserver(MQConnector):
                             connection_channel.queue_declare(queue=input_queue)
                             connection_channel.basic_publish(exchange='',
                                                              routing_key=input_queue,
-                                                             body=dict_to_b64(_data),
+                                                             body=dict_to_b64(request_dict),
                                                              properties=pika.BasicProperties(expiration='1000')
                                                              )
                 elif recipient == Recipients.CHATBOT_CONTROLLER:
@@ -302,6 +317,26 @@ class ChatObserver(MQConnector):
         else:
             raise TypeError(f'Invalid body received, expected: bytes string; got: {type(body)}')
 
+    def handle_neon_error(self,
+                          channel: pika.channel.Channel,
+                          method: pika.spec.Basic.Return,
+                          properties: pika.spec.BasicProperties,
+                          body: bytes):
+        """
+            Handles responses from Neon API
+
+            :param channel: MQ channel object (pika.channel.Channel)
+            :param method: MQ return method (pika.spec.Basic.Return)
+            :param properties: MQ properties (pika.spec.BasicProperties)
+            :param body: request body (bytes)
+
+        """
+        if body and isinstance(body, bytes):
+            dict_data = b64_to_dict(body)
+            LOG.error(f'Error response from Neon API: {dict_data}')
+        else:
+            raise TypeError(f'Invalid body received, expected: bytes string; got: {type(body)}')
+
     def handle_chatbot_response(self,
                                 channel: pika.channel.Channel,
                                 method: pika.spec.Basic.Return,
@@ -319,7 +354,7 @@ class ChatObserver(MQConnector):
         if body and isinstance(body, bytes):
             dict_data = b64_to_dict(body)
 
-            response_required_keys = ('userID', 'cid', 'messageText', 'bot', 'timeCreated', )
+            response_required_keys = ('userID', 'cid', 'messageText', 'bot', 'timeCreated',)
 
             if all(required_key in list(dict_data) for required_key in response_required_keys):
                 self.sio.emit('user_message', data=dict_data)
