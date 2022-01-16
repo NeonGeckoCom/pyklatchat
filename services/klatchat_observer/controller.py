@@ -117,13 +117,13 @@ class ChatObserver(MQConnector):
         self.connect_sio()
         self.register_consumer(name='neon_response_consumer',
                                vhost=self.neon_vhost,
-                               queue='neon_api_response',
+                               queue='neon_chat_api_response',
                                callback=self.handle_neon_response,
                                on_error=self.default_error_handler,
                                auto_ack=False)
         self.register_consumer(name='neon_response_error',
                                vhost=self.neon_vhost,
-                               queue='neon_api_error',
+                               queue='neon_chat_api_error',
                                callback=self.handle_neon_error,
                                on_error=self.default_error_handler,
                                auto_ack=False)
@@ -222,13 +222,13 @@ class ChatObserver(MQConnector):
                                     'lang': _data.get('userLanguage', 'en-us'),
                                 },
                                 'context': {
-                                    'request_skills': ['tts'],
+                                    'request_skills': _data.get('request_skills', []),
                                     'ident': generate_uuid(),
                                     'username': _data.pop('nick', 'guest'),
-                                    **_data
+                                    'sender_context': _data
                                 }
                             }
-                            input_queue = 'neon_api_request'
+                            input_queue = 'neon_chat_api_request'
 
                             neon_service_id = self.neon_service_id
                             if neon_service_id:
@@ -297,25 +297,25 @@ class ChatObserver(MQConnector):
 
         """
         if body and isinstance(body, bytes):
-            dict_data = b64_to_dict(body)
-
-            response_required_keys = ('cid', 'content',)
-
-            if all(required_key in list(dict_data) for required_key in response_required_keys):
+            try:
+                dict_data = b64_to_dict(body)
+                data = dict_data['data']
+                context = dict_data['context']
+                # TODO: multilingual support
+                response_lang = list(data['responses'])[0]
                 send_data = {
-                    'cid': dict_data['cid'],
+                    'cid': context['sender_context']['cid'],
                     'userID': 'neon',
                     'messageID': generate_uuid(),
-                    'repliedMessage': dict_data.get('replied_message', ''),
-                    'messageText': dict_data['content'],
+                    'repliedMessage': context['sender_context'].get('messageID', ''),
+                    'messageText': data['responses'][response_lang]['sentence'],
                     'timeCreated': time.time()
                 }
                 self.sio.emit('user_message', data=send_data)
-            else:
-                LOG.warning(f'Skipping received data {dict_data} as it lacks one of the required keys: '
-                            f'({",".join(response_required_keys)})')
+            except Exception as ex:
+                LOG.error(f'Failed to emit Neon Chat API response: {ex}')
         else:
-            raise TypeError(f'Invalid body received, expected: bytes string; got: {type(body)}')
+            LOG.error(f'Invalid body received, expected: bytes string; got: {type(body)}')
 
     def handle_neon_error(self,
                           channel: pika.channel.Channel,
@@ -370,6 +370,3 @@ class ChatObserver(MQConnector):
                                          expiration=3000)
         else:
             raise TypeError(f'Invalid body received, expected: bytes string; got: {type(body)}')
-
-    def run(self, run_consumers: bool = True, run_sync: bool = True, **kwargs):
-        super().run(run_sync=False)
