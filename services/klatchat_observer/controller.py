@@ -64,7 +64,9 @@ class ChatObserver(MQConnector):
             if any(message_prefix.lower() == x.lower() for x in cls.recipient_prefixes[recipient]):
                 target_recipient = recipient
                 break
-        return {'recipient': target_recipient, 'context': {}}
+        if message_prefix.startswith('!prompt:'):
+            target_recipient = Recipients.CHATBOT_CONTROLLER
+        return {'recipient': target_recipient, 'context': {'bots': {'proctor'}}}
 
     @classmethod
     def get_recipient_from_body(cls, message: str) -> dict:
