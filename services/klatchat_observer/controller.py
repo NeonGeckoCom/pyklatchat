@@ -59,14 +59,16 @@ class ChatObserver(MQConnector):
             :param message_prefix: extracted prefix
             :returns extracted recipient
         """
-        target_recipient = Recipients.UNRESOLVED
-        for recipient in list(cls.recipient_prefixes):
-            if any(message_prefix.lower() == x.lower() for x in cls.recipient_prefixes[recipient]):
-                target_recipient = recipient
-                break
+        callback = dict(recipient=Recipients.UNRESOLVED, context={})
         if message_prefix.startswith('!prompt:'):
-            target_recipient = Recipients.CHATBOT_CONTROLLER
-        return {'recipient': target_recipient, 'context': {'bots': {'proctor'}}}
+            callback['recipient'] = Recipients.CHATBOT_CONTROLLER
+            callback['context'] = {'bots': ['proctor']}
+        else:
+            for recipient in list(cls.recipient_prefixes):
+                if any(message_prefix.lower() == x.lower() for x in cls.recipient_prefixes[recipient]):
+                    callback['recipient'] = recipient
+                    break
+        return callback
 
     @classmethod
     def get_recipient_from_body(cls, message: str) -> dict:
@@ -78,7 +80,7 @@ class ChatObserver(MQConnector):
 
             Example:
             >>> response_data = ChatObserver.get_recipient_from_body('@Proctor hello dsfdsfsfds @Prompter')
-            >>> assert response_data == {'recipient': Recipients.CHATBOT_CONTROLLER, 'context': {'bots': {'proctor', 'prompter'}}}
+            >>> assert response_data == {'recipient': Recipients.CHATBOT_CONTROLLER, 'context': {'bots': ['proctor', 'prompter']}}
         """
         message = ' ' + message
         bot_mentioning_regexp = r'[\s]+@[a-zA-Z]+[\w]+'
