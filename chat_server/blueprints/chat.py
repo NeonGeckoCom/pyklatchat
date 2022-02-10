@@ -115,11 +115,11 @@ def get_matching_conversation(request: Request,
         shout_ids = [str(msg_id) for msg_id in conversation_data["chat_flow"]]
         if shout_ids:
             users_data = fetch_shouts(shout_ids=shout_ids)
-            users_data = sorted(users_data, key=lambda user_shout: user_shout['created_on'])
+            users_data = sorted(users_data, key=lambda user_shout: int(user_shout['created_on']))
             conversation_data['chat_flow'] = []
             for i in range(len(users_data)):
                 message_record = {'user_id': users_data[i]['user_id'],
-                                  'created_on': users_data[i]['created_on'],
+                                  'created_on': int(users_data[i]['created_on']),
                                   'message_id': users_data[i]['message_id'],
                                   'message_text': users_data[i]['message_text'],
                                   'attachments': users_data[i].get('attachments', []),

@@ -117,7 +117,7 @@ async def user_message(sid, data):
                           'message_text': data['messageText'],
                           'attachments': data.get('attachments', []),
                           'replied_message': data.get('repliedMessage', ''),
-                          'created_on': data['timeCreated']}
+                          'created_on': int(data['timeCreated'])}
 
         push_expression = {'$push': {'chat_flow': new_shout_data['_id']}}
 
