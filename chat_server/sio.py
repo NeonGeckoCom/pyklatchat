@@ -119,11 +119,10 @@ async def user_message(sid, data):
                           'replied_message': data.get('repliedMessage', ''),
                           'created_on': int(data['timeCreated'])}
 
-        push_expression = {'$push': {'chat_flow': new_shout_data['_id']}}
-
-        db_controller.exec_query({'command': 'insert_one', 'document': 'shouts', 'data': new_shout_data})
-
         if not data.get('test', False):
+            db_controller.exec_query({'command': 'insert_one', 'document': 'shouts', 'data': new_shout_data})
+
+            push_expression = {'$push': {'chat_flow': new_shout_data['_id']}}
             db_controller.exec_query({'command': 'update', 'document': 'chats', 'data': (filter_expression,
                                                                                          push_expression,)})
             await sio.emit('new_message', data=json.dumps(data), skip_sid=[sid])

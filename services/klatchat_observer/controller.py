@@ -244,7 +244,7 @@ class ChatObserver(MQConnector):
                                                              )
                 elif recipient == Recipients.CHATBOT_CONTROLLER:
                     LOG.info(f'Emitting message to Chatbot Controller: {response_data}')
-                    with self.create_mq_connection(vhost='/chatbots') as mq_connection:
+                    with self.create_mq_connection(vhost=self.chatbots_vhost) as mq_connection:
                         with mq_connection.channel() as connection_channel:
                             input_queue = 'chatbot_user_message'
                             _data['bots'] = json.dumps(list(response_data.setdefault('context', {}).setdefault('bots',
