@@ -1,0 +1,59 @@
+name: Deploy Images to GHCR
+
+on:
+  push:
+    branches:
+      - dev
+      - main
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Images tag'
+        required: true
+        default: 'dev'
+#      images:
+#        description: 'Include Images (klatchat_observer|chat_client|chat_server) space-separated'
+#        required: false
+#        default: klatchat_observer chat_client chat_server
+
+jobs:
+  publish-images:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Authorize Github Token
+      run: |
+        echo $GITHUB_TOKEN | docker login ghcr.io -u neongeckocom --password-stdin
+      env:
+        GITHUB_TOKEN: ${{ secrets.CR_PAT }}
+    - name: Get Version
+      id: version
+      run: |
+        VERSION=$(sed "s/a/-a./" <<< $(python setup.py --version))
+        echo ::set-output name=version::${VERSION}
+    - name: Build Images
+      run: |
+        cd scripts && bash build_containers.sh
+    - name: Apply Workflow Dispatch Environments
+      if: github.event_name == 'workflow_dispatch'
+      run: |
+        echo "VERSION=${{ github.event.inputs.version }}" >> $GITHUB_ENV
+#        echo ${{ github.event.inputs.images }} >> $IMAGES
+    - name: Apply Pull Request Environments
+      if: github.event_name == 'pull_request'
+      run: |
+        echo "VERSION=${{ github.event.pull_request.base.ref }}" >> $GITHUB_ENV
+#        echo klatchat_observer chat_client chat_server >> $IMAGES
+    - name: Apply Push Environments
+      if: github.event_name == 'push'
+      run: |
+        echo "VERSION=$(echo ${GITHUB_HEAD_REF} | tr / -)" >> $GITHUB_ENV
+#        echo klatchat_observer chat_client chat_server >> $IMAGES
+    - name: Push Images
+      run: |
+        for IMAGE in $IMAGES; do docker tag neon/$IMAGE:latest ghcr.io/neongeckocom/$IMAGE:${{ steps.version.outputs.version }} && docker tag neon/$IMAGE:latest ghcr.io/neongeckocom/$IMAGE:$VERSION && docker image push ghcr.io/neongeckocom/$IMAGE:$VERSION; done
+      env:
+        VERSION: ${{ env.VERSION }}
+        IMAGES: klatchat_observer chat_client chat_server
