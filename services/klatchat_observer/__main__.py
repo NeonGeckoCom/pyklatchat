@@ -26,19 +26,19 @@ from .controller import ChatObserver
 
 
 def main(config: Optional[dict] = None, testing=False):
-    connector = ChatObserver(config=config, scan_neon_service=True)
-    connector.run()
-
-
-if __name__ == '__main__':
     try:
-        config_data = Configuration(from_files=[os.environ.get('KLATCHAT_OBSERVER_CONFIG', 'config.json')]).config_data
+        config = config or Configuration(
+            from_files=[os.environ.get('KLATCHAT_OBSERVER_CONFIG',
+                                       'config.json')]).config_data
     except Exception as e:
         LOG.error(e)
-        config_data = dict()
-    LOG.info(f'Starting Chat Observer Listener (pid: {os.getpid()})...')
     try:
-        main(config=config_data)
+        connector = ChatObserver(config=config, scan_neon_service=True)
+        connector.run()
     except Exception as ex:
         LOG.info(f'Chat Observer Execution Interrupted (pid: {os.getpid()}) due to exception: {ex}')
         sys.exit(-1)
+
+
+if __name__ == '__main__':
+    main()

@@ -87,3 +87,4 @@ virtualenv==20.4.7
 watchgod==0.7
 websocket-client==0.54.0
 websockets==9.1
+neon_utils~=0.14

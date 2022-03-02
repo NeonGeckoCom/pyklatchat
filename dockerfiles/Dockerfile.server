@@ -10,6 +10,8 @@ RUN apt-get update \
     && pip install wheel  \
     && pip install --no-cache-dir -r ./chat_server/requirements.txt
 
+ENV LOG_PATH="stdout"
+ENV LOG_NAME="chat_server"
 ENV SERVER_ENV PROD
 ENV CHATSERVER_CONFIG /app/config/config.json
 ENV DATABASE_CONFIG /app/config/config.json

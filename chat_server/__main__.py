@@ -20,9 +20,18 @@ import os
 
 import uvicorn
 
-from .wsgi import app
+from chat_server.wsgi import app
+
+
+def main():
+    default_log_config = \
+        os.path.join(os.path.dirname(__file__), "uvicorn_logging.yaml")
+    uvicorn.run(app=app, root_path=os.environ.get('URL_PREFIX', ''),
+                host=os.environ.get('HOST', '127.0.0.1'),
+                port=int(os.environ.get('PORT', 8000)),
+                log_level=os.environ.get('LOG_LEVEL', 'INFO').lower(),
+                log_config=os.environ.get('LOG_CONFIG', default_log_config))
+
 
 if __name__ == '__main__':
-    uvicorn.run(app=app, root_path=os.environ.get('URL_PREFIX', ''), host=os.environ.get('HOST', '127.0.0.1'),
-                port=int(os.environ.get('PORT', 8000)),
-                log_level=os.environ.get('LOG_LEVEL', 'INFO').lower())
+    main()

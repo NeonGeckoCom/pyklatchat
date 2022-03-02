@@ -11,6 +11,8 @@ RUN apt-get update \
     && pip install wheel  \
     && pip install --no-cache-dir -r ./klatchat_observer/requirements.txt
 
+ENV LOG_PATH="stdout"
+ENV LOG_NAME="chat_observer"
 ENV KLATCHAT_OBSERVER_CONFIG /app/config/config.json
 ENV PYTHONPATH="/app:/app/klatchat_observer/"
 
