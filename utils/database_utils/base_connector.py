@@ -54,7 +54,7 @@ class DatabaseConnector(ABC):
         pass
 
     @abstractmethod
-    def exec_raw_query(self, query: str, *args) -> Optional[object]:
+    def exec_raw_query(self, query: str, *args, **kwargs) -> Optional[object]:
         """
             Executes raw query returns result if needed
             :param query: query to execute

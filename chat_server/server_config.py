@@ -34,4 +34,8 @@ app_config = config.config_data.get('CHAT_SERVER', {}).get(server_env, {})
 
 LOG.info(f'App config: {app_config}')
 
+# TODO: This should come from config!
 db_controller = config.get_db_controller(name='pyklatchat_3333')
+if not db_controller:
+    raise RuntimeError("No db_controller created!")
+LOG.info(f"Loaded db_controller with config={db_controller.config_data}")

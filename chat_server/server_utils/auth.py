@@ -31,7 +31,7 @@ from utils.common import generate_uuid
 
 cookies_config = app_config.get('COOKIES', {})
 
-secret_key = cookies_config.get('SECRET', None)
+secret_key = cookies_config.get('SECRET', "")
 
 cookie_lifetime = int(cookies_config.get('LIFETIME', 60 * 60))
 cookie_refresh_rate = int(cookies_config.get('REFRESH_RATE', 5 * 60))
@@ -45,7 +45,8 @@ def check_password_strength(password: str) -> str:
 
         :param password: input string
 
-        :returns: 'OK' if input string is strong enough, unfulfilled condition otherwise
+        :returns: 'OK' if input string is strong enough,
+            unfulfilled condition otherwise
     """
     if len(password) < 8:
         return 'Password should be longer than 8 symbols'
@@ -53,7 +54,8 @@ def check_password_strength(password: str) -> str:
         return 'OK'
 
 
-def get_cookie_from_request(request: Request, cookie_name: str) -> Optional[str]:
+def get_cookie_from_request(request: Request,
+                            cookie_name: str) -> Optional[str]:
     """
         Gets cookie from response by its name
 
@@ -65,7 +67,8 @@ def get_cookie_from_request(request: Request, cookie_name: str) -> Optional[str]
     return request.cookies.get(cookie_name)
 
 
-def create_unauthorized_user(response: Response, authorize: bool = True, nano_token: str = None) -> dict:
+def create_unauthorized_user(response: Response, authorize: bool = True,
+                             nano_token: str = None) -> dict:
     """
         Creates unauthorized user and sets its credentials to cookies
 
@@ -78,26 +81,33 @@ def create_unauthorized_user(response: Response, authorize: bool = True, nano_to
     from chat_server.server_utils.user_utils import create_from_pattern
 
     guest_nickname = f'guest_{generate_uuid(length=8)}'
-
+    LOG.debug(f"Generated guest nick: {guest_nickname}")
     if nano_token:
-        new_user = create_from_pattern(source=UserPatterns.GUEST_NANO,
-                                       override_defaults=dict(nickname=guest_nickname,
-                                                              tokens=[nano_token]))
+        new_user = create_from_pattern(
+            source=UserPatterns.GUEST_NANO,
+            override_defaults=dict(nickname=guest_nickname,
+                                   tokens=[nano_token]))
     else:
-        new_user = create_from_pattern(source=UserPatterns.GUEST,
-                                       override_defaults=dict(nickname=guest_nickname))
+        new_user = create_from_pattern(
+            source=UserPatterns.GUEST,
+            override_defaults=dict(nickname=guest_nickname))
+    LOG.debug(f"Inserting new_user: {new_user}")
     db_controller.exec_query(query={'document': 'users',
                                     'command': 'insert_one',
                                     'data': new_user})
     if authorize:
+        LOG.debug(f"Authorizing new_user: {new_user}")
         token = jwt.encode({"sub": new_user['_id'],
                             'creation_time': time(),
                             'last_refresh_time': time()}, secret_key)
+        LOG.debug(f"Adding session token: {token}")
         response.set_cookie('session', token, httponly=True)
+    LOG.debug(f"Returning new_user: {new_user}")
     return new_user
 
 
-def get_current_user(request: Request, response: Response, force_tmp: bool = False, nano_token: str = None) -> dict:
+def get_current_user(request: Request, response: Response,
+                     force_tmp: bool = False, nano_token: str = None) -> dict:
     """
         Gets current user according to response cookies
 
@@ -105,43 +115,56 @@ def get_current_user(request: Request, response: Response, force_tmp: bool = Fal
         :param response: Starlet response object
         :param force_tmp: to force setting temporal credentials
         :param nano_token: token from nano client (optional)
-
-        :returns user id based on received cookies or sets temporal user cookies if not found
+        :returns user id based on received cookies or sets
+            temporal user cookies if not found
     """
     user_id = None
     user = {}
     if not force_tmp:
         if nano_token:
-            user = db_controller.exec_query(query={'command': 'find_one',
-                                                   'document': 'users',
-                                                   'data': {'tokens': {'$all': [nano_token]}}})
+            user = db_controller.exec_query(
+                query={'command': 'find_one',
+                       'document': 'users',
+                       'data': {'tokens': {'$all': [nano_token]}}})
             if not user:
                 LOG.info('Creating new user for nano agent')
-                user = create_unauthorized_user(response=response, nano_token=nano_token, authorize=False)
+                user = create_unauthorized_user(response=response,
+                                                nano_token=nano_token,
+                                                authorize=False)
         else:
             try:
                 session = get_cookie_from_request(request, 'session')
                 if session:
-                    payload = jwt.decode(jwt=session, key=secret_key, algorithms=jwt_encryption_algo)
+                    payload = jwt.decode(jwt=session, key=secret_key,
+                                         algorithms=jwt_encryption_algo)
                     current_timestamp = time()
-                    if (int(current_timestamp) - int(payload.get('creation_time', 0))) <= cookie_lifetime:
-                        user = db_controller.exec_query(query={'command': 'find_one',
-                                                               'document': 'users',
-                                                               'data': ({'_id': payload['sub']})})
+                    if (int(current_timestamp) -
+                        int(payload.get('creation_time', 0))) <= \
+                            cookie_lifetime:
+                        user = db_controller.exec_query(
+                            query={'command': 'find_one',
+                                   'document': 'users',
+                                   'data': ({'_id': payload['sub']})})
                         if not user:
-                            LOG.info(f'{payload["sub"]} is not found among users, setting temporal user credentials')
+                            LOG.info(f'{payload["sub"]} is not found in users,'
+                                     f' setting temporal user credentials')
                         else:
                             user_id = user['_id']
-                            if (int(current_timestamp) - int(payload.get('last_refresh_time', 0))) >= cookie_refresh_rate:
-                                refresh_cookie(payload=payload, response=response)
+                            if (int(current_timestamp) -
+                                int(payload.get('last_refresh_time', 0))) >= \
+                                    cookie_refresh_rate:
+                                refresh_cookie(payload=payload,
+                                               response=response)
                                 LOG.info('Cookie was refreshed')
             except BaseException as ex:
-                LOG.warning(f'Problem resolving current user: {ex}, setting tmp user credentials')
+                LOG.warning(f'Problem resolving current user: {ex},'
+                            f' setting tmp user credentials')
     if not user_id or force_tmp:
         user = create_unauthorized_user(response=response)
     user.pop('password', None)
     user.pop('date_created', None)
     user.pop('tokens', None)
+    LOG.debug(f"Returning user={user}")
     return user
 
 
