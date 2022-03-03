@@ -82,19 +82,23 @@ class Configuration:
 
     def get_db_config_from_key(self, key: str):
         """Gets DB configuration by key"""
-        return self.config_data.get('DATABASE_CONFIG', {}).get(os.environ.get('SERVER_ENV', 'LOCALHOST'), {}).get(key, {})
+        LOG.debug(f"Getting {key} from:"
+                  f" {self.config_data.get('DATABASE_CONFIG')}")
+        return self.config_data.get('DATABASE_CONFIG', {})\
+            .get(os.environ.get('SERVER_ENV', 'LOCALHOST'), {}).get(key, {})
 
     def get_db_controller(self, name: str,
                           override: bool = False,
                           override_args: dict = None) -> DatabaseController:
         """
-            Returns an new instance of Database Controller for specified dialect (creates new one if not present)
+        Returns a new instance of Database Controller for specified dialect
+        (creates new one if not present)
 
-            :param name: db connection name from config
-            :param override: to override existing instance under :param dialect (defaults to False)
-            :param override_args: dict with arguments to override (optional)
+        :param name: db connection name from config
+        :param override: to override existing instance under
+        :param override_args: dict with arguments to override (optional)
 
-            :returns instance of Database Controller
+        :returns instance of Database Controller
         """
         db_controller = self.db_controllers.get(name, None)
         if not db_controller or override:
