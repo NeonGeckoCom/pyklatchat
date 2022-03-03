@@ -21,13 +21,15 @@ from typing import Optional
 from pymongo import MongoClient
 from neon_utils import LOG
 
-from utils.database_utils.base_connector import DatabaseConnector, DatabaseTypes
+from utils.database_utils.base_connector import DatabaseConnector,\
+    DatabaseTypes
 
 
 class MongoDBConnector(DatabaseConnector):
 
-    mongo_recognised_commands = ('insert_one', 'insert_many', 'delete_one', 'bulk_write',
-                                 'delete_many', 'find', 'find_one', 'update')
+    mongo_recognised_commands = ('insert_one', 'insert_many', 'delete_one',
+                                 'bulk_write', 'delete_many', 'find',
+                                 'find_one', 'update')
 
     @property
     def database_type(self) -> DatabaseTypes:
@@ -42,25 +44,34 @@ class MongoDBConnector(DatabaseConnector):
 
     def exec_raw_query(self, query: dict, *args, **kwargs) -> Optional[dict]:
         """
-            Generic method for executing query over mongo db
+        Generic method for executing query over mongo db
 
-            :param query: dictionary with query instruction has to contain following parameters:
-                - "document": target document for query
-                - "command": member of the self.mongo_recognised_commands
-                - "data": query data, represented as a tuple of (List[dict] if bulk insert, dict otherwise)
+        :param query: dictionary with query instruction has to contain
+            the following parameters:
+            - "document": target document for query
+            - "command": member of the self.mongo_recognised_commands
+            - "data": query data, represented as a tuple
+                of (List[dict] if bulk insert, dict otherwise)
 
-            :returns result of the query execution if any
+        :returns result of the query execution if any
         """
         received_command = query.get('command', 'find')
         if received_command not in self.mongo_recognised_commands:
-            raise NotImplementedError(f'Query command: {received_command} is not supported, '
+            raise NotImplementedError(f'Query command: {received_command} '
+                                      f'is not supported, '
                                       f'please use one of the following: '
                                       f'{self.mongo_recognised_commands}')
-        db_command = getattr(self.connection[query.get('document')], query.get('command'))
+        db_command = getattr(self.connection[query.get('document')],
+                             query.get('command'))
+        LOG.debug(f"Resolved db_command:{db_command}")
         if not isinstance(query.get('data'), tuple):
-            # LOG.warning('Received wrong param type for query data, using default conversion to tuple')
+            LOG.debug('Received wrong param type for query data, '
+                      'using default conversion to tuple')
             query['data'] = (query.get('data', {}),)
+        LOG.debug(f"Executing command with args: "
+                  f"{query.get('data')}, {args}, {kwargs}")
         query_output = db_command(*query.get('data'), *args, **kwargs)
+        LOG.debug(f"query_output={query_output}")
         if received_command == 'find' and query.get('sort', None):
             query_output = query_output.sort(query['sort'])
         return query_output
