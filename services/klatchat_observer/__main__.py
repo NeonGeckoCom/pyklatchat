@@ -36,7 +36,8 @@ def main(config: Optional[dict] = None, testing=False):
         connector = ChatObserver(config=config, scan_neon_service=True)
         connector.run()
     except Exception as ex:
-        LOG.info(f'Chat Observer Execution Interrupted (pid: {os.getpid()}) due to exception: {ex}')
+        LOG.error(f'Chat Observer Execution Interrupted (pid: {os.getpid()})')
+        LOG.exception(ex)
         sys.exit(-1)
 
 
