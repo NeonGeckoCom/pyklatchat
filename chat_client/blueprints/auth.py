@@ -142,4 +142,5 @@ async def fetch_runtime_config():
     except Exception as ex:
         LOG.error(f'Exception while fetching runtime configs: {ex}')
         runtime_configs = {}
+    LOG.debug(f"Returning RUNTIME_CONFIG={runtime_configs}")
     return JSONResponse(content=runtime_configs)
