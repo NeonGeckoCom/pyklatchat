@@ -39,23 +39,34 @@
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+from neon_utils.logger import LOG
+
 from config import Configuration
 from utils.connection_utils import create_ssh_tunnel
+from utils.database_utils import DatabaseController
 
 
-def setup_db_connectors(configuration: Configuration, old_db_key: str, new_db_key: str):
+def setup_db_connectors(configuration: Configuration,
+                        old_db_key: str, new_db_key: str) -> \
+        (DatabaseController, DatabaseController):
     """
         Migrating users from old database to new one
         :param configuration: active configuration
         :param old_db_key: old database key
         :param new_db_key: new database key
+        :returns: old_db controller, new_db controller
     """
+    # TODO: Handle key-based auth
     ssh_configs = configuration.config_data.get('SSH_CONFIG')
-    tunnel_connection = create_ssh_tunnel(server_address=ssh_configs['ADDRESS'],
-                                          username=ssh_configs['USER'],
-                                          password=ssh_configs['PASSWORD'],
-                                          remote_bind_address=('127.0.0.1', 3306))
-    mysql_connector = configuration.get_db_controller(name=old_db_key,
-                                                      override_args={'port': tunnel_connection.local_bind_address[1]})
+    tunnel_connection = create_ssh_tunnel(
+        server_address=ssh_configs['ADDRESS'],
+        username=ssh_configs['USER'],
+        password=ssh_configs['PASSWORD'],
+        remote_bind_address=('127.0.0.1', 3306))
+    mysql_connector = configuration.get_db_controller(
+        name=old_db_key,
+        override_args={'port': tunnel_connection.local_bind_address[1]})
+    LOG.info(f"Established mysql connection: {mysql_connector.config_data}")
     mongo_connector = configuration.get_db_controller(name=new_db_key)
+    LOG.info(f"Established mongo connection: {mongo_connector.config_data}")
     return mysql_connector, mongo_connector
