@@ -16,16 +16,15 @@
 # Specialized conversational reconveyance options from Conversation Processing Intelligence Corp.
 # US Patents 2008-2021: US7424516, US20140161250, US20140177813, US8638908, US8068604, US8553852, US10530923, US10530924
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
-import copy
+
 import os
 import random
 import string
 import sys
 import time
-from typing import Union, AsyncIterator
-
 import socketio
 
+from typing import Union, AsyncIterator
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.testclient import TestClient
@@ -42,6 +41,7 @@ from .blueprints import auth as auth_blueprint, \
                                    users as users_blueprint, \
                                    components as components_blueprint
 
+
 async def read_bytes(generator: AsyncIterator[bytes]) -> bytes:
     body = b""
     async for data in generator:
@@ -49,7 +49,9 @@ async def read_bytes(generator: AsyncIterator[bytes]) -> bytes:
     return body
 
 
-def create_app(testing_mode: bool = False, sio_server: socketio.AsyncServer = sio) -> Union[FastAPI, socketio.ASGIApp]:
+def create_app(testing_mode: bool = False,
+               sio_server: socketio.AsyncServer = sio) -> \
+        Union[FastAPI, socketio.ASGIApp]:
     """
         Application factory for the Klatchat Server
 
@@ -59,7 +61,8 @@ def create_app(testing_mode: bool = False, sio_server: socketio.AsyncServer = si
     app_version = get_version('chat_server/version.py')
     LOG.name = os.environ.get('LOG_NAME', 'server_err')
     LOG.base_path = os.environ.get('LOG_BASE_PATH', '.')
-    LOG.init(config={'level': os.environ.get('LOG_LEVEL', 'INFO'), 'path': os.environ.get('LOG_PATH', os.getcwd())})
+    LOG.init(config={'level': os.environ.get('LOG_LEVEL', 'INFO'),
+                     'path': os.environ.get('LOG_PATH', os.getcwd())})
     LOG.create_logger('chat_server')
     LOG.info(f'Starting Klatchat Server v{app_version}')
     chat_app = FastAPI(title="Klatchat Server API",
