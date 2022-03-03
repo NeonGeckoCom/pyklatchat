@@ -58,7 +58,7 @@ def create_app() -> FastAPI:
     async def log_requests(request: Request, call_next):
         """Logs requests and gracefully handles Internal Server Errors"""
         idem = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
-        LOG.info(f"rid={idem} start request path={request.url.path}")
+        LOG.debug(f"rid={idem} start request path={request.url.path}")
         start_time = time.time()
         try:
             response = await call_next(request)
