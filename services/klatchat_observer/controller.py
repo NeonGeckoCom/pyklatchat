@@ -107,7 +107,8 @@ class ChatObserver(MQConnector):
             response_body = cls.get_recipient_from_body(message=message)
         return response_body
 
-    def __init__(self, config: dict, service_name: str = 'chat_observer', scan_neon_service: bool = False):
+    def __init__(self, config: dict, service_name: str = 'chat_observer',
+                 scan_neon_service: bool = False):
         super().__init__(config, service_name)
 
         self.neon_vhost = '/neon_chat_api'
@@ -201,6 +202,7 @@ class ChatObserver(MQConnector):
             :param _data: Received user data
             :param requesting_by_separator: character to consider for requesting e.g. Neon, how are you? is for comma
         """
+        LOG.debug(f"evaluating user message: {_data}")
         try:
             _data = eval(_data)
         except Exception as ex:
