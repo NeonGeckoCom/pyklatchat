@@ -49,6 +49,7 @@ def get_user(response: Response,
 
         :returns JSON response containing data of current user
     """
+    LOG.debug(f"Getting user for {user_id}")
     if user_id:
         user = db_controller.exec_query(query={'document': 'users',
                                                'command': 'find_one',
@@ -57,11 +58,13 @@ def get_user(response: Response,
         user.pop('date_created', None)
         user.pop('tokens', None)
     else:
-        user = get_current_user(request=request, response=response, nano_token=nano_token)
+        user = get_current_user(request=request,
+                                response=response, nano_token=nano_token)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail='User not found'
         )
+    LOG.debug(f"Got user: {user}")
     return dict(data=user)
 
 
@@ -114,5 +117,4 @@ def fetch_received_user_ids(user_ids: List[str] = Query(None)):
         result.append(desired_record)
     json_compatible_item_data = jsonable_encoder(result)
     return JSONResponse(content=json_compatible_item_data)
-
 
