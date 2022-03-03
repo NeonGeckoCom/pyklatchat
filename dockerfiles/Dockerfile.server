@@ -13,8 +13,8 @@ RUN apt-get update \
 ENV LOG_PATH="stdout"
 ENV LOG_NAME="chat_server"
 ENV SERVER_ENV PROD
-ENV CHATSERVER_CONFIG /app/config/config.json
-ENV DATABASE_CONFIG /app/config/config.json
+ENV CHATSERVER_CONFIG /config/config.json
+ENV DATABASE_CONFIG /config/config.json
 ENV PYTHONPATH="/app:/app/chat_server/"
 
 CMD python -m chat_server
