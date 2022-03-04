@@ -28,7 +28,7 @@ from neon_utils import LOG
 from starlette import status
 from starlette.middleware.cors import CORSMiddleware
 from starlette.requests import Request
-from starlette.responses import RedirectResponse
+from starlette.responses import RedirectResponse, Response
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from utils.common import get_version
@@ -66,6 +66,10 @@ def create_app() -> FastAPI:
             formatted_process_time = '{0:.2f}'.format(process_time)
             LOG.info(f"rid={idem} completed_in={formatted_process_time}ms status_code={response.status_code}")
             return response
+        except ConnectionError as ex:
+            LOG.error(ex)
+            from .client_config import app_config
+            return Response(f'Connection error : {app_config["SERVER_URL"]}', status_code=404)
         except Exception as ex:
             LOG.error(f"rid={idem} received an exception {ex}")
         return None
