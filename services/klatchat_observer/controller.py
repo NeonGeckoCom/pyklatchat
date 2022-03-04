@@ -113,7 +113,7 @@ class ChatObserver(MQConnector):
         super().__init__(config, service_name)
 
         self.neon_vhost = '/neon_chat_api'
-        self.chatbots_vhost = '/chatbots'
+        self.chatbots_vhost = '/test_chatbots'
         self._sio = None
         self.sio_url = config['SIO_URL']
         self.connect_sio()
