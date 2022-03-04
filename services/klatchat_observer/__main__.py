@@ -32,6 +32,25 @@ def main(config: Optional[dict] = None, testing=False):
                                        'config.json')]).config_data
     except Exception as e:
         LOG.error(e)
+
+    LOG.info(os.environ.get("WAIT_FOR_SERVER_START"))
+    if os.environ.get("WAIT_FOR_SERVER_START") == "true":
+        import socketio
+        from socketio.exceptions import ConnectionError
+        from time import sleep
+        sio_url = config['SIO_URL']
+        max_attempts = 10
+        attempt = 0
+        while attempt < max_attempts:
+            try:
+                _sio = socketio.Client()
+                _sio.connect(url=sio_url)
+                LOG.info(f"SocketIO Connected")
+                break
+            except socketio.exceptions.ConnectionError:
+                LOG.debug("SocketIO Connection Failed, retrying")
+                sleep(2)
+                attempt += 1
     try:
         connector = ChatObserver(config=config, scan_neon_service=True)
         connector.run()

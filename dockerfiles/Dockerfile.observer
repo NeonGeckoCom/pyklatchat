@@ -14,6 +14,7 @@ RUN apt-get update \
 ENV LOG_PATH="stdout"
 ENV LOG_NAME="chat_observer"
 ENV KLATCHAT_OBSERVER_CONFIG /config/config.json
+ENV WAIT_FOR_SERVER_START="true"
 ENV PYTHONPATH="/app:/app/klatchat_observer/"
 
 
