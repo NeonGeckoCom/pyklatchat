@@ -21,6 +21,9 @@ import copy
 from neon_utils import LOG
 from pymongo import ReplaceOne
 
+from migration_scripts.utils.shout_utils import prepare_nicks_for_sql
+from migration_scripts.utils.sql_utils import iterable_to_sql_array, sql_arr_is_null
+
 
 def migrate_shouts(old_db_controller, new_db_controller, nick_to_uuid_mapping: dict, from_cids: list):
     """
@@ -37,22 +40,18 @@ def migrate_shouts(old_db_controller, new_db_controller, nick_to_uuid_mapping: d
 
     LOG.info('Starting shouts migration')
 
-    users = ', '.join(["'" + nick.replace("'", "") + "'" for nick in list(nick_to_uuid_mapping)])
+    users = iterable_to_sql_array(prepare_nicks_for_sql(list(nick_to_uuid_mapping)))
+    filter_str = f"WHERE nick IN {users} "
 
-    filter_str = f"WHERE nick IN ({users}) "
+    existing_shout_ids = iterable_to_sql_array([str(shout['_id']) for shout in list(existing_shouts)])
+    if not sql_arr_is_null(existing_shout_ids):
+        filter_str += f"AND shout_id NOT IN {existing_shout_ids}"
 
-    existing_shout_ids = ', '.join(["'" + shout['_id'] + "'" for shout in list(existing_shouts)])
-
-    if existing_shout_ids:
-        filter_str += f"AND shout_id NOT IN ({existing_shout_ids}) "
-
-    considered_cids = ', '.join(["'" + str(cid) + "'" for cid in from_cids])
-
-    if considered_cids:
-        filter_str += f"AND cid IN ({considered_cids})"
+    considered_cids = iterable_to_sql_array([str(cid).strip() for cid in from_cids])
+    if not sql_arr_is_null(considered_cids):
+        filter_str += f"AND cid IN {considered_cids}"
 
     get_shouts_query = f""" SELECT * FROM shoutbox {filter_str};"""
-
     result = old_db_controller.exec_query(get_shouts_query)
 
     LOG.info(f'Received {len(list(result))} shouts')
@@ -61,8 +60,9 @@ def migrate_shouts(old_db_controller, new_db_controller, nick_to_uuid_mapping: d
 
     for record in result:
 
-        if isinstance(record['nick'], bytearray):
-            record['nick'] = str(record['nick'].decode('utf-8'))
+        for k in list(record):
+            if isinstance(record[k], (bytearray, bytes)):
+                record[k] = str(record[k].decode('utf-8'))
 
         formed_result.append(ReplaceOne({'_id': str(record['shout_id'])},
                                 {
@@ -70,7 +70,7 @@ def migrate_shouts(old_db_controller, new_db_controller, nick_to_uuid_mapping: d
                                     'domain': record['domain'],
                                     'user_id': nick_to_uuid_mapping.get(record['nick'], 'undefined'),
                                     'created_on': int(record['created']),
-                                    'shout': record['shout'],
+                                    'message_text': record['shout'],
                                     'language': record['language'],
                                     'cid': str(record['cid'])
                                 }, upsert=True))
@@ -86,12 +86,10 @@ def migrate_shouts(old_db_controller, new_db_controller, nick_to_uuid_mapping: d
     for record in result:
 
         try:
-
             new_db_controller.exec_query(query=dict(document='chats',
                                                     command='update',
                                                     data=({'_id': record['cid']},
                                                           {'$push': {'chat_flow': str(record['shout_id'])}})))
-
         except Exception as ex:
             LOG.error(f'Skipping processing of shout data "{record}" due to exception: {ex}')
             continue
