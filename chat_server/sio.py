@@ -78,6 +78,7 @@ async def user_message(sid, data):
             data = {'cid':'conversation id',
                     'userID': 'emitted user id',
                     'messageID': 'id of emitted message',
+                    'promptID': 'id of related prompt (optional)',
                     'messageText': 'content of the user message',
                     'repliedMessage': 'id of replied message (optional)',
                     'bot': 'if the message is from bot (defaults to False)',
@@ -114,6 +115,7 @@ async def user_message(sid, data):
 
         new_shout_data = {'_id': data['messageID'],
                           'user_id': data['userID'],
+                          'prompt_id': data.get('promptID', ''),
                           'message_text': data['messageText'],
                           'attachments': data.get('attachments', []),
                           'replied_message': data.get('repliedMessage', ''),
