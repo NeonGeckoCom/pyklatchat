@@ -26,7 +26,7 @@ import socketio
 
 from enum import Enum
 from neon_utils import LOG
-from neon_utils.socket_utils import b64_to_dict, dict_to_b64
+from neon_utils.socket_utils import b64_to_dict
 from neon_mq_connector.connector import MQConnector
 from pika.channel import Channel
 
@@ -60,7 +60,7 @@ class ChatObserver(MQConnector):
         callback = dict(recipient=Recipients.UNRESOLVED, context={})
         if message_prefix.startswith('!prompt:'):
             callback['recipient'] = Recipients.CHATBOT_CONTROLLER
-            callback['context'] = {'bots': ['proctor']}
+            callback['context'] = {'requested_participants': ['proctor']}
         else:
             for recipient in list(cls.recipient_prefixes):
                 if any(message_prefix.lower() == x.lower() for x in cls.recipient_prefixes[recipient]):
@@ -78,7 +78,7 @@ class ChatObserver(MQConnector):
 
             Example:
             >>> response_data = ChatObserver.get_recipient_from_body('@Proctor hello dsfdsfsfds @Prompter')
-            >>> assert response_data == {'recipient': Recipients.CHATBOT_CONTROLLER, 'context': {'bots': ['proctor', 'prompter']}}
+            >>> assert response_data == {'recipient': Recipients.CHATBOT_CONTROLLER, 'context': {'requested_participants': ['proctor', 'prompter']}}
         """
         message = ' ' + message
         bot_mentioning_regexp = r'[\s]+@[a-zA-Z]+[\w]+'
@@ -88,7 +88,7 @@ class ChatObserver(MQConnector):
             recipient = Recipients.CHATBOT_CONTROLLER
         else:
             recipient = Recipients.UNRESOLVED
-        return {'recipient': recipient, 'context': {'bots': bots}}
+        return {'recipient': recipient, 'context': {'requested_participants': bots}}
 
     @classmethod
     def get_recipient_from_message(cls, message: str, prefix_separator: str) -> dict:
@@ -109,11 +109,12 @@ class ChatObserver(MQConnector):
             response_body = cls.get_recipient_from_body(message=message)
         return response_body
 
-    def __init__(self, config: dict, service_name: str = 'chat_observer', scan_neon_service: bool = False):
+    def __init__(self, config: dict, service_name: str = 'chat_observer', vhosts: dict = None, scan_neon_service: bool = False):
         super().__init__(config, service_name)
-
-        self.neon_vhost = '/neon_chat_api'
-        self.chatbots_vhost = '/test_chatbots'
+        if not vhosts:
+            vhosts = {}
+        self.neon_vhost = self.apply_testing_prefix(vhosts.get('neon_api', '/neon_chat_api'))
+        self.chatbots_vhost = self.apply_testing_prefix(vhosts.get('chatbots', '/chatbots'))
         self._sio = None
         self.sio_url = config['SIO_URL']
         self.connect_sio()
@@ -129,10 +130,10 @@ class ChatObserver(MQConnector):
                                callback=self.handle_neon_error,
                                on_error=self.default_error_handler,
                                auto_ack=False)
-        self.register_consumer(name='chatbot_response_consumer',
+        self.register_consumer(name='submind_response_consumer',
                                vhost=self.chatbots_vhost,
-                               queue='chatbot_response',
-                               callback=self.handle_chatbot_response,
+                               queue='submind_response',
+                               callback=self.handle_submind_response,
                                on_error=self.default_error_handler,
                                auto_ack=False)
         self.__neon_service_id = ''
@@ -196,6 +197,18 @@ class ChatObserver(MQConnector):
             self.connect_sio()
         return self._sio
 
+    def apply_testing_prefix(self, vhost):
+        """
+        Applies testing prefix to target vhost
+        :param vhost: MQ virtual host to validate
+        """
+        #TODO: implement this method in the base class
+        if self.testing_mode and self.testing_prefix not in vhost.split('_')[0]:
+            vhost = f'/{self.testing_prefix}_{vhost[1:]}'
+            if vhost.endswith('_'):
+                vhost = vhost[:-1]
+        return vhost
+
     def handle_user_message(self, _data, requesting_by_separator: str = ','):
         """
             Handles input requests from MQ to Neon API
@@ -216,45 +229,39 @@ class ChatObserver(MQConnector):
                     _data['messageText'] = requesting_by_separator.join(_data['messageText']
                                                                         .split(requesting_by_separator)[1:]).strip()
                     with self.create_mq_connection(vhost=self.neon_vhost) as mq_connection:
-                        with mq_connection.channel() as connection_channel:
-                            _data['agent'] = f'pyklatchat v{__version__}'
-                            request_dict = {
-                                'data': {
-                                    'utterances': [_data.pop('messageText', '')],
-                                    'lang': _data.get('userLanguage', 'en-us'),
-                                },
-                                'context': {
-                                    'request_skills': _data.get('request_skills', []),
-                                    'ident': generate_uuid(),
-                                    'username': _data.pop('nick', 'guest'),
-                                    'sender_context': _data
-                                }
+                        _data['agent'] = f'pyklatchat v{__version__}'
+                        request_dict = {
+                            'data': {
+                                'utterances': [_data.pop('messageText', '')],
+                                'lang': _data.get('userLanguage', 'en-us'),
+                            },
+                            'context': {
+                                'request_skills': _data.get('request_skills', []),
+                                'ident': generate_uuid(),
+                                'username': _data.pop('nick', 'guest'),
+                                'sender_context': _data
                             }
-                            input_queue = 'neon_chat_api_request'
+                        }
+                        input_queue = 'neon_chat_api_request'
 
-                            neon_service_id = self.neon_service_id
-                            if neon_service_id:
-                                input_queue = f'{input_queue}_{neon_service_id}'
-                                self.last_neon_request = int(time.time())
-                            connection_channel.queue_declare(queue=input_queue)
-                            connection_channel.basic_publish(exchange='',
-                                                             routing_key=input_queue,
-                                                             body=dict_to_b64(request_dict),
-                                                             properties=pika.BasicProperties(expiration='1000')
-                                                             )
+                        neon_service_id = self.neon_service_id
+                        if neon_service_id:
+                            input_queue = f'{input_queue}_{neon_service_id}'
+                            self.last_neon_request = int(time.time())
+                        self.emit_mq_message(connection=mq_connection,
+                                             request_data=request_dict,
+                                             queue=input_queue,
+                                             expiration=3000)
                 elif recipient == Recipients.CHATBOT_CONTROLLER:
                     LOG.info(f'Emitting message to Chatbot Controller: {response_data}')
                     with self.create_mq_connection(vhost=self.chatbots_vhost) as mq_connection:
-                        with mq_connection.channel() as connection_channel:
-                            input_queue = 'chatbot_user_message'
-                            _data['bots'] = json.dumps(list(response_data.setdefault('context', {}).setdefault('bots',
-                                                                                                               [])))
-                            connection_channel.queue_declare(queue=input_queue)
-                            connection_channel.basic_publish(exchange='',
-                                                             routing_key=input_queue,
-                                                             body=dict_to_b64(_data),
-                                                             properties=pika.BasicProperties(expiration='1000')
-                                                             )
+                        queue = 'external_shout'
+                        _data['requested_participants'] = json.dumps(list(response_data.setdefault('context', {})
+                                                          .setdefault('requested_participants', [])))
+                        self.emit_mq_message(connection=mq_connection,
+                                             request_data=_data,
+                                             queue=queue,
+                                             expiration=3000)
             else:
                 LOG.debug('No recipient found in user message, skipping')
         else:
@@ -339,13 +346,13 @@ class ChatObserver(MQConnector):
         else:
             raise TypeError(f'Invalid body received, expected: bytes string; got: {type(body)}')
 
-    def handle_chatbot_response(self,
+    def handle_submind_response(self,
                                 channel: pika.channel.Channel,
                                 method: pika.spec.Basic.Return,
                                 properties: pika.spec.BasicProperties,
                                 body: bytes):
         """
-            Handles input requests from Chatbots
+            Handles responses from subminds
 
             :param channel: MQ channel object (pika.channel.Channel)
             :param method: MQ return method (pika.spec.Basic.Return)
@@ -368,7 +375,6 @@ class ChatObserver(MQConnector):
                     self.emit_mq_message(connection=mq_connection,
                                          queue='chatbot_response_error',
                                          request_data={'msg': error_msg},
-                                         exchange='',
                                          expiration=3000)
         else:
             raise TypeError(f'Invalid body received, expected: bytes string; got: {type(body)}')

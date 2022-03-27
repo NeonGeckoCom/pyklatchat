@@ -25,7 +25,7 @@ from config import Configuration
 from .controller import ChatObserver
 
 
-def main(config: Optional[dict] = None, testing=False):
+def main(config: Optional[dict] = None):
     connector = ChatObserver(config=config, scan_neon_service=True)
     connector.run(run_sync=False)
 
