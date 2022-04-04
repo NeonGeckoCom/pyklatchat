@@ -1,3 +1,4 @@
+import time
 from enum import Enum
 
 
@@ -24,3 +25,12 @@ class UserPatterns(Enum):
         'tokens': []
     }
 
+
+class ChatPatterns(Enum):
+    """Collection of chat patterns used for create conversations"""
+    TEST_CHAT = {
+        "_id": '-1',
+        "conversation_name": "test",
+        "is_private": False,
+        "created_on": int(time.time())
+    }

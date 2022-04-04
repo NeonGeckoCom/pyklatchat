@@ -27,11 +27,13 @@ from threading import Event
 from neon_utils import LOG
 from uvicorn import Config
 
+from chat_server.constants.users import ChatPatterns
 from chat_server.tests.beans.server import ASGITestServer
 from chat_server.server_utils.auth import generate_uuid
 from chat_server.server_config import db_controller
 
 SERVER_ADDRESS = "http://127.0.0.1:8888"
+TEST_CID = '-1'
 
 
 @pytest.fixture(scope="session")
@@ -64,6 +66,22 @@ class TestSIO(unittest.TestCase):
     def tearDown(self) -> None:
         if self.sio:
             self.sio.disconnect()
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        matching_conversation = db_controller.exec_query(query={'command': 'find_one',
+                                                                'document': 'chats',
+                                                                'data': {'_id': TEST_CID}})
+        if not matching_conversation:
+            db_controller.exec_query(query={'document': 'chats',
+                                            'command': 'insert_one',
+                                            'data': ChatPatterns.TEST_CHAT.value})
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        db_controller.exec_query(query={'document': 'chats',
+                                        'command': 'delete_one',
+                                        'data': {'_id': ChatPatterns.TEST_CHAT.value}})
 
     @pytest.mark.usefixtures('create_server')
     def test_01_ping_server(self):

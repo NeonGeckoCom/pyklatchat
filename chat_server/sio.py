@@ -96,12 +96,11 @@ async def user_message(sid, data):
             LOG.warning('Received invalid id for ObjectId, trying to apply str')
             filter_expression = dict(_id=data['cid'])
 
-        if not data.get('test', False):
-            cid_data = db_controller.exec_query({'command': 'find_one', 'document': 'chats', 'data': filter_expression})
-            if not cid_data:
-                msg = 'Shouting to non-existent conversation, skipping further processing'
-                await emit_error(sid=sid, message=msg)
-                return
+        cid_data = db_controller.exec_query({'command': 'find_one', 'document': 'chats', 'data': filter_expression})
+        if not cid_data:
+            msg = 'Shouting to non-existent conversation, skipping further processing'
+            await emit_error(sid=sid, message=msg)
+            return
 
         LOG.info(f'Received user message data: {data}')
         if not data.get('messageID', False):
@@ -121,13 +120,12 @@ async def user_message(sid, data):
                           'replied_message': data.get('repliedMessage', ''),
                           'created_on': int(data['timeCreated'])}
 
-        if not data.get('test', False):
-            db_controller.exec_query({'command': 'insert_one', 'document': 'shouts', 'data': new_shout_data})
+        db_controller.exec_query({'command': 'insert_one', 'document': 'shouts', 'data': new_shout_data})
 
-            push_expression = {'$push': {'chat_flow': new_shout_data['_id']}}
-            db_controller.exec_query({'command': 'update', 'document': 'chats', 'data': (filter_expression,
-                                                                                         push_expression,)})
-            await sio.emit('new_message', data=json.dumps(data), skip_sid=[sid])
+        push_expression = {'$push': {'chat_flow': new_shout_data['_id']}}
+        db_controller.exec_query({'command': 'update', 'document': 'chats', 'data': (filter_expression,
+                                                                                     push_expression,)})
+        await sio.emit('new_message', data=json.dumps(data), skip_sid=[sid])
     except Exception as ex:
         LOG.error(f'Exception on sio processing: {ex}')
         await emit_error(sid=sid, message=f'Unable to process request "user_message" with data: {data}')
