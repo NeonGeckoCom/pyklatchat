@@ -18,6 +18,8 @@ on:
 #        default: klatchat_observer chat_client chat_server
 
 permissions:
+  contents: write
+  pull-requests: write
   packages: write
 
 jobs:
