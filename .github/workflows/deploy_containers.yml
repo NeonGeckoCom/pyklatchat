@@ -17,6 +17,11 @@ on:
 #        required: false
 #        default: klatchat_observer chat_client chat_server
 
+permissions:
+  contents: write
+  pull-requests: write
+  packages: write
+
 jobs:
   publish-images:
     runs-on: ubuntu-latest
@@ -27,7 +32,7 @@ jobs:
       run: |
         echo $GITHUB_TOKEN | docker login ghcr.io -u neongeckocom --password-stdin
       env:
-        GITHUB_TOKEN: ${{ secrets.CR_PAT }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     - name: Get Version
       id: version
       run: |
