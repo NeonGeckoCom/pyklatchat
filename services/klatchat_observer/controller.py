@@ -118,7 +118,7 @@ class ChatObserver(MQConnector):
         self._sio = None
         self.sio_url = config['SIO_URL']
         self.connect_sio()
-        self.register_consumer(name='neon_response_consumer',
+        self.register_consumer(name='neon_response',
                                vhost=self.neon_vhost,
                                queue='neon_chat_api_response',
                                callback=self.handle_neon_response,
@@ -130,10 +130,22 @@ class ChatObserver(MQConnector):
                                callback=self.handle_neon_error,
                                on_error=self.default_error_handler,
                                auto_ack=False)
-        self.register_consumer(name='submind_response_consumer',
+        self.register_consumer(name='submind_response',
                                vhost=self.chatbots_vhost,
                                queue='submind_response',
                                callback=self.handle_submind_response,
+                               on_error=self.default_error_handler,
+                               auto_ack=False)
+        self.register_consumer(name='save_prompt_data',
+                               vhost=self.chatbots_vhost,
+                               queue='save_prompt',
+                               callback=self.handle_saving_prompt_data,
+                               on_error=self.default_error_handler,
+                               auto_ack=False)
+        self.register_consumer(name='get_prompt_data',
+                               vhost=self.chatbots_vhost,
+                               queue='get_prompt',
+                               callback=self.handle_get_prompt,
                                on_error=self.default_error_handler,
                                auto_ack=False)
         self.__neon_service_id = ''
@@ -174,6 +186,7 @@ class ChatObserver(MQConnector):
     def register_sio_handlers(self):
         """Convenience method for setting up Socket IO listeners"""
         self._sio.on('new_message', handler=self.handle_user_message)
+        self._sio.on('prompt_data', handler=self.forward_prompt_data)
 
     def connect_sio(self, refresh=False):
         """
@@ -266,6 +279,41 @@ class ChatObserver(MQConnector):
                 LOG.debug('No recipient found in user message, skipping')
         else:
             raise TypeError(f'Malformed data received: {_data}')
+
+    def forward_prompt_data(self, data: dict):
+        """Forwards received prompt data to the destination observer"""
+        with self.create_mq_connection(vhost=self.chatbots_vhost) as mq_connection:
+            requested_nick = data.pop('receiver', None)
+            if not requested_nick:
+                LOG.warning('Forwarding to unknown recipient, skipping')
+                return -1
+            self.emit_mq_message(connection=mq_connection,
+                                 request_data=data,
+                                 queue=f'{requested_nick}_prompt_data',
+                                 expiration=3000)
+
+    def handle_get_prompt(self,
+                          channel: pika.channel.Channel,
+                          method: pika.spec.Basic.Return,
+                          properties: pika.spec.BasicProperties,
+                          body: bytes):
+        """
+            Handles get request for the prompt data
+
+            :param channel: MQ channel object (pika.channel.Channel)
+            :param method: MQ return method (pika.spec.Basic.Return)
+            :param properties: MQ properties (pika.spec.BasicProperties)
+            :param body: request body (bytes)
+        """
+        if body and isinstance(body, bytes):
+            dict_data = b64_to_dict(body)
+            requested_nick = dict_data.get('userID', None)
+            if not requested_nick:
+                LOG.warning('Request from unknown sender, skipping')
+                return -1
+            self.sio.emit('get_prompt_data', data=dict_data)
+        else:
+            raise TypeError(f'Invalid body received, expected: bytes string; got: {type(body)}')
 
     def handle_neon_sync(self,
                          channel: pika.channel.Channel,
@@ -371,6 +419,39 @@ class ChatObserver(MQConnector):
                 error_msg = f'Skipping received data {dict_data} as it lacks one of the required keys: ' \
                             f'({",".join(response_required_keys)})'
                 LOG.warning(error_msg)
+                with self.create_mq_connection(self.chatbots_vhost) as mq_connection:
+                    self.emit_mq_message(connection=mq_connection,
+                                         queue='chatbot_response_error',
+                                         request_data={'msg': error_msg},
+                                         expiration=3000)
+        else:
+            raise TypeError(f'Invalid body received, expected: bytes string; got: {type(body)}')
+
+    def handle_saving_prompt_data(self,
+                                  channel: pika.channel.Channel,
+                                  method: pika.spec.Basic.Return,
+                                  properties: pika.spec.BasicProperties,
+                                  body: bytes):
+        """
+            Handles requests for saving prompt data
+
+            :param channel: MQ channel object (pika.channel.Channel)
+            :param method: MQ return method (pika.spec.Basic.Return)
+            :param properties: MQ properties (pika.spec.BasicProperties)
+            :param body: request body (bytes)
+
+        """
+        if body and isinstance(body, bytes):
+            dict_data = b64_to_dict(body)
+
+            response_required_keys = ('userID', 'cid', 'messageText', 'bot', 'timeCreated', 'context', )
+
+            if all(required_key in list(dict_data) for required_key in response_required_keys):
+                self.sio.emit('save_prompt_data', data=dict_data)
+            else:
+                error_msg = f'Skipping received data {dict_data} as it lacks one of the required keys: ' \
+                            f'({",".join(response_required_keys)})'
+                LOG.error(error_msg)
                 with self.create_mq_connection(self.chatbots_vhost) as mq_connection:
                     self.emit_mq_message(connection=mq_connection,
                                          queue='chatbot_response_error',
