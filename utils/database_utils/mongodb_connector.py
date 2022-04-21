@@ -48,6 +48,7 @@ class MongoDBConnector(DatabaseConnector):
                 - "document": target document for query
                 - "command": member of the self.mongo_recognised_commands
                 - "data": query data, represented as a tuple of (List[dict] if bulk insert, dict otherwise)
+                - "filters": mapping of filters to apply in chain after the main command (e.g. limit or sort )
 
             :returns result of the query execution if any
         """
@@ -61,6 +62,8 @@ class MongoDBConnector(DatabaseConnector):
             # LOG.warning('Received wrong param type for query data, using default conversion to tuple')
             query['data'] = (query.get('data', {}),)
         query_output = db_command(*query.get('data'), *args, **kwargs)
-        if received_command == 'find' and query.get('sort', None):
-            query_output = query_output.sort(query['sort'])
+        if received_command == 'find':
+            filters = query.get('filters', {})
+            for name, value in filters.items():
+                query_output = getattr(query_output, name)(value)
         return query_output
