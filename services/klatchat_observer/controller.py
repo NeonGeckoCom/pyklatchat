@@ -58,9 +58,12 @@ class ChatObserver(MQConnector):
             :returns extracted recipient
         """
         callback = dict(recipient=Recipients.UNRESOLVED, context={})
-        if message_prefix.startswith('!prompt:'):
+        if message_prefix.lower().startswith('!prompt:'):
             callback['recipient'] = Recipients.CHATBOT_CONTROLLER
             callback['context'] = {'requested_participants': ['proctor']}
+        elif message_prefix.lower().startswith('show score:'):
+            callback['recipient'] = Recipients.CHATBOT_CONTROLLER
+            callback['context'] = {'requested_participants': ['scorekeeper']}
         else:
             for recipient in list(cls.recipient_prefixes):
                 if any(message_prefix.lower() == x.lower() for x in cls.recipient_prefixes[recipient]):
@@ -307,7 +310,7 @@ class ChatObserver(MQConnector):
         """
         if body and isinstance(body, bytes):
             dict_data = b64_to_dict(body)
-            requested_nick = dict_data.get('userID', None)
+            requested_nick = dict_data.get('nick', None)
             if not requested_nick:
                 LOG.warning('Request from unknown sender, skipping')
                 return -1

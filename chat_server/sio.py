@@ -148,13 +148,21 @@ async def save_prompt_data(sid, data):
                         }
             ```
         """
-    new_prompt_data = {
-        '_id': data['promptID'],
-        'cid': data['cid'],
-        'data': data['context'],
-        'created_on': int(data['timeCreated'])
-    }
-    db_controller.exec_query({'command': 'insert_one', 'document': 'prompts', 'data': new_prompt_data})
+    prompt_id = data['context']['prompt']['prompt_id']
+    existing_prompt = db_controller.exec_query({'command': 'find_one', 'document': 'prompts',
+                                                'data': {'_id': prompt_id}})
+    if existing_prompt:
+        LOG.warning(f'Failed to save prompt: prompt id {existing_prompt["_id"]} already exists')
+    else:
+        prompt_summary_keys = ['available_subminds', 'participating_subminds', 'proposed_responses',
+                               'submind_opinions', 'votes', 'votes_per_submind', 'winner']
+        prompt_summary_agg = {
+            '_id': data['context']['prompt']['prompt_id'],
+            'cid': data['cid'],
+            'data': {k: v for k, v in data['context'].items() if k in prompt_summary_keys},
+            'created_on': int(data['timeCreated'])
+        }
+        db_controller.exec_query({'command': 'insert_one', 'document': 'prompts', 'data': prompt_summary_agg})
 
 
 @sio.event
@@ -176,14 +184,17 @@ async def get_prompt_data(sid, data):
             '_id': data['prompt_id'],
             'cid': data['cid']
         }
-        prompt_data = db_controller.exec_query({'command': 'find_one', 'document': 'prompts', 'data': filter_expr}).get('data')
+        prompt_data = db_controller.exec_query({'command': 'find_one', 'document': 'prompts', 'data': filter_expr})
+        prompt_data = {'_id': prompt_data['_id'], **prompt_data.get('data')}
     else:
         limit = data.get('limit', 5)
-        prompt_data = db_controller.exec_query({'command': 'find_one', 'document': 'prompts',
+        _prompt_data = db_controller.exec_query({'command': 'find', 'document': 'prompts',
                                                 'filters': {'sort': [('created_on', pymongo.DESCENDING)],
                                                             'limit': limit}})
-        prompt_data = [item['data'] for item in prompt_data]
-    result = dict(data=prompt_data, receiver=data['userID'])
+        prompt_data = []
+        for item in _prompt_data:
+            prompt_data.append({'_id': item['_id'], 'created_on': item['created_on'], **item['data']})
+    result = dict(data=prompt_data, receiver=data['nick'], cid=data['cid'], request_id=data['request_id'],)
     await sio.emit('prompt_data', data=result)
 
 
