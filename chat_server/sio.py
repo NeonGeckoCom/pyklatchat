@@ -19,6 +19,7 @@
 
 import json
 
+import pymongo
 import socketio
 from bson.errors import InvalidId
 from bson.objectid import ObjectId
@@ -129,6 +130,72 @@ async def user_message(sid, data):
     except Exception as ex:
         LOG.error(f'Exception on sio processing: {ex}')
         await emit_error(sid=sid, message=f'Unable to process request "user_message" with data: {data}')
+
+
+@sio.event
+async def save_prompt_data(sid, data):
+    """
+            SIO event fired on new prompt data saving request
+
+            :param sid: connected instance id
+            :param data: user message data
+            Example:
+            ```
+                data = {'cid':'conversation id',
+                        'promptID': 'id of related prompt',
+                        'context': 'message context (optional)',
+                        'timeCreated': 'timestamp on which message was created'
+                        }
+            ```
+        """
+    prompt_id = data['context']['prompt']['prompt_id']
+    existing_prompt = db_controller.exec_query({'command': 'find_one', 'document': 'prompts',
+                                                'data': {'_id': prompt_id}})
+    if existing_prompt:
+        LOG.warning(f'Failed to save prompt: prompt id {existing_prompt["_id"]} already exists')
+    else:
+        prompt_summary_keys = ['available_subminds', 'participating_subminds', 'proposed_responses',
+                               'submind_opinions', 'votes', 'votes_per_submind', 'winner']
+        prompt_summary_agg = {
+            '_id': data['context']['prompt']['prompt_id'],
+            'cid': data['cid'],
+            'data': {k: v for k, v in data['context'].items() if k in prompt_summary_keys},
+            'created_on': int(data['timeCreated'])
+        }
+        db_controller.exec_query({'command': 'insert_one', 'document': 'prompts', 'data': prompt_summary_agg})
+
+
+@sio.event
+async def get_prompt_data(sid, data):
+    """
+        SIO event fired getting prompt data request
+
+        :param sid: connected instance id
+        :param data: user message data
+        Example:
+        ```
+            data = {'userID': 'emitted user id',
+                    'cid':'conversation id',
+                    'promptID': 'id of related prompt'}
+        ```
+    """
+    if data.get('prompt_id'):
+        filter_expr = {
+            '_id': data['prompt_id'],
+            'cid': data['cid']
+        }
+        prompt_data = db_controller.exec_query({'command': 'find_one', 'document': 'prompts', 'data': filter_expr})
+        prompt_data = {'_id': prompt_data['_id'], **prompt_data.get('data')}
+    else:
+        limit = data.get('limit', 5)
+        _prompt_data = db_controller.exec_query({'command': 'find', 'document': 'prompts',
+                                                'filters': {'sort': [('created_on', pymongo.DESCENDING)],
+                                                            'limit': limit}})
+        prompt_data = []
+        for item in _prompt_data:
+            prompt_data.append({'_id': item['_id'], 'created_on': item['created_on'], **item['data']})
+    result = dict(data=prompt_data, receiver=data['nick'], cid=data['cid'], request_id=data['request_id'],)
+    await sio.emit('prompt_data', data=result)
 
 
 async def emit_error(sid: str, message: str):
