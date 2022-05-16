@@ -166,8 +166,12 @@ function refreshCurrentUser(sendNotification=false, refreshChats=false){
         }
         updateNavbar();
         if(refreshChats) {
+            let preferredLanguage = null;
             if (configData['currentURLFull'].includes('chats')) {
-                refreshChatView();
+                if (currentUser?.preferences?.preferred_language){
+                    preferredLanguage = currentUser['preferences']['preferred_language'];
+                }
+                refreshChatView(preferredLanguage);
             }
         }
     });

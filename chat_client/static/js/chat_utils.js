@@ -343,7 +343,7 @@ function addUpload(cid, file){
  */
 async function buildConversation(conversationData={}, remember=true,conversationParentID = 'conversationsBody'){
    if(remember){
-       addNewCID(conversationData['_id'], conversationAlignmentKey);
+       addNewCID(conversationData['_id']);
    }
    if(configData.client === CLIENTS.MAIN) {
        conversationParticipants[conversationData['_id']] = {};
@@ -605,9 +605,9 @@ function retrieveItemsLayout(keyName=conversationAlignmentKey){
 /**
  * Adds new conversation id to local storage
  * @param cid: conversation id to add
- * @param keyName: local storage key to add to
  */
-function addNewCID(cid, keyName=conversationAlignmentKey){
+function addNewCID(cid){
+    const keyName = conversationAlignmentKey;
     let itemLayout = retrieveItemsLayout(keyName);
     itemLayout.push(cid);
     localStorage.setItem(keyName,JSON.stringify(itemLayout));
@@ -616,9 +616,9 @@ function addNewCID(cid, keyName=conversationAlignmentKey){
 /**
  * Removed conversation id from local storage
  * @param cid: conversation id to remove
- * @param keyName: local storage key to remove from
  */
-function removeCID(cid, keyName=conversationAlignmentKey){
+function removeCID(cid){
+    const keyName = conversationAlignmentKey;
     let itemLayout = retrieveItemsLayout(keyName);
     itemLayout = itemLayout.filter(function(value, index, arr){
         return value !== cid;
@@ -646,14 +646,80 @@ function restoreChatAlignment(keyName=conversationAlignmentKey){
 }
 
 /**
+ * Gets array of messages for provided conversation id
+ * @param cid: target conversation id
+ * @return array of message DOM objects under given conversation
+ */
+function getMessagesOfCID(cid){
+    const conversation = document.getElementById(cid);
+    if(conversation){
+        return  conversation.getElementsByClassName('card')[0]
+                            .getElementsByClassName('card-body')[0]
+                            .getElementsByClassName('chat-list')[0]
+                            .getElementsByTagName('li');
+    }
+    return [];
+}
+
+/**
+ * Applies translation based on received data
+ * @param data: translation object received
+ * Note: data should be of format:
+ * {
+ *     'cid': {'message1':'translation of message 1',
+ *             'message2':'translation of message 2'}
+ * }
+ */
+function applyTranslation(data){
+    for (const [cid, messageTranslations] of Object.entries(data)) {
+        console.info(`Fetching translation of ${cid}`);
+        const messages = getMessagesOfCID(cid);
+        Array.from(messages).forEach(message => {
+            const messageID = message.id;
+            let repliedMessage = null;
+            let repliedMessageID = null;
+            try {
+                repliedMessage = message.getElementsByClassName('reply-placeholder')[0].getElementsByClassName('reply-text')[0];
+                repliedMessageID = repliedMessage.getAttribute('data-replied-id')
+            }catch (e) {
+                console.debug(`replied message not found for ${messageID}`);
+            }
+            if (messageID in messageTranslations){
+                message.getElementsByClassName('message-text')[0].innerText = messageTranslations[messageID];
+            }
+            if (repliedMessageID && repliedMessageID in messageTranslations){
+                repliedMessage.innerText = messageTranslations[repliedMessageID];
+            }
+        });
+    }
+}
+
+/**
+ * Sends request for updating target cids content to the desired language
+ */
+function sendLanguageUpdateRequest(language, cids){
+    if (Array.isArray(cids)){
+        cids = cids.join(",");
+    }
+    console.log(`sendLanguageUpdateRequest(${language}, ${cids});`);
+    const query_url = `${configData["CHAT_SERVER_URL_BASE"]}/chat_api/update_language?lang=${language}&cids=${cids}`;
+    fetch(query_url).then(response =>
+        response.ok?
+            response.json().then(data=>applyTranslation(data)):
+            console.warn(`${query_url} returned status=${response.status} - data=${response.statusText}`))
+        .catch(err=>{console.error(`sendLanguageUpdateRequest() -> ${err}`);});
+}
+
+/**
  * Refreshes chat view (e.g. when user session gets updated)
  */
-function refreshChatView(){
+function refreshChatView(preferredLanguage){
+    if (preferredLanguage){
+        const displayedCIDs = JSON.parse(localStorage.getItem(conversationAlignmentKey));
+        sendLanguageUpdateRequest(preferredLanguage, displayedCIDs);
+    }
     Array.from(conversationBody.getElementsByClassName('conversationContainer')).forEach(conversation=>{
-       const messages = conversation.getElementsByClassName('card')[0]
-           .getElementsByClassName('card-body')[0]
-           .getElementsByClassName('chat-list')[0]
-           .getElementsByTagName('li');
+       const messages = getMessagesOfCID(conversation.id);
        Array.from(messages).forEach(message=>{
           if(message.hasAttribute('data-sender')){
               const messageSenderNickname = message.getAttribute('data-sender');
