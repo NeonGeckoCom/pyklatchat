@@ -1,9 +1,16 @@
 <div class="conversationContainer col-xl-6 col-lg-6 col-md-6 col-sm-12 col-12 m-2">
-    <div class="card" id="{cid}">
+    <div class="card non-selectable" id="{cid}">
         <div class="card-header">{conversation_name}
             <span class="ml-3" id="participants-list-{cid}">
                 <i class="icon-user" aria-hidden="true"></i> <span id="participants-count-{cid}">0</span>
             </span>
+            <div class="dropdown language ml-3" style="display: inline!important;">
+                <button class="btn btn-secondary dropdown-toggle" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" id="language-selected-{cid}">
+                    English <span class="flag-icon flag-icon-us" data-lang="en"></span>
+                </button>
+                <div class="dropdown-menu dropdown-menu-right text-right language" id="language-list-{cid}">
+                </div>
+            </div>
             <button type="button" id="close-{cid}" data-target-cid="{cid}" class="close-cid">
                 <span aria-hidden="true">×</span>
             </button>
