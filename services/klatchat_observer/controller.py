@@ -19,7 +19,7 @@
 import json
 import re
 import time
-from threading import Event
+from threading import Event, Timer
 
 import pika
 import socketio
@@ -121,6 +121,7 @@ class ChatObserver(MQConnector):
         self._sio = None
         self.sio_url = config['SIO_URL']
         self.connect_sio()
+        self.__translation_requests = {}
         self.register_consumer(name='neon_response',
                                vhost=self.neon_vhost,
                                queue='neon_chat_api_response',
@@ -190,6 +191,7 @@ class ChatObserver(MQConnector):
         """Convenience method for setting up Socket IO listeners"""
         self._sio.on('new_message', handler=self.handle_user_message)
         self._sio.on('prompt_data', handler=self.forward_prompt_data)
+        self._sio.on('request_neon_translations', handler=self.request_neon_translations)
 
     def connect_sio(self, refresh=False):
         """
@@ -294,6 +296,33 @@ class ChatObserver(MQConnector):
                                  request_data=data,
                                  queue=f'{requested_nick}_prompt_data',
                                  expiration=3000)
+
+    def request_neon_translations(self, data: dict):
+        """ Requests translations from neon """
+        self.__translation_requests[data['request_id']] = {'void_callback_timer': Timer(interval=2 * 60,
+                                                                                        function=self.send_translation_response,
+                                                                                        args=({'request_id': data['request_id'],
+                                                                                               'translations': {}}))}
+        self.__translation_requests[data['request_id']]['void_callback_timer'].start()
+        # TODO: Make an MQ call here
+        MOCK_URL = "http://127.0.0.1:5000/pyklatchat"
+        import requests
+        resp = requests.post(url=MOCK_URL, json=data['data'])
+        if resp.ok:
+            self.send_translation_response(data={'request_id': data['request_id'],
+                                                 'translations': resp.json()})
+
+    def send_translation_response(self, data: dict):
+        """
+            Sends translation response back to klatchat
+            :param data: translation data to send
+        """
+        request_id = data.get('request_id', None)
+        if request_id and self.__translation_requests.pop(request_id, None):
+            self.sio.emit('get_neon_translations', data=data)
+        else:
+            LOG.warning(f'Neon translation response was not sent, '
+                        f'as request_id={request_id} was not found amount translation requests')
 
     def handle_get_prompt(self,
                           channel: pika.channel.Channel,
