@@ -161,18 +161,12 @@ const currentUserLoaded = new CustomEvent("currentUserLoaded", { "detail": "Even
 function refreshCurrentUser(sendNotification=false, refreshChats=false){
     getUserData().then(data=>{
         currentUser = data;
+        updateNavbar();
+        if(refreshChats && configData['currentURLFull'].includes('chats')) {
+            refreshChatView();
+        }
         if(sendNotification) {
             document.dispatchEvent(currentUserLoaded);
-        }
-        updateNavbar();
-        if(refreshChats) {
-            let preferredLanguage = null;
-            if (configData['currentURLFull'].includes('chats')) {
-                if (currentUser?.preferences?.preferred_language){
-                    preferredLanguage = currentUser['preferences']['preferred_language'];
-                }
-                refreshChatView(preferredLanguage);
-            }
         }
     });
 }
