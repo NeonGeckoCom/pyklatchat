@@ -50,7 +50,8 @@ body{
 }
 
 .chat-list .chat-message .message-text {
-    max-height: 100px!important;
+    max-height: 150px!important;
+    min-height: 25px!important;
     overflow-y: auto!important;
 }
 
@@ -229,4 +230,22 @@ body{
 
 .attachment-label {
     margin-left: 10px!important;
+}
+
+.non-selectable {
+  -webkit-touch-callout: none; /* iOS Safari */
+    -webkit-user-select: none; /* Safari */
+       -moz-user-select: none; /* Old versions of Firefox */
+        -ms-user-select: none; /* Internet Explorer/Edge */
+            user-select: none; /* Non-prefixed version, currently
+                                  supported by Chrome, Edge, Opera and Firefox */
+}
+
+.selectable {
+    -webkit-touch-callout: initial; /* iOS Safari */
+    -webkit-user-select: text!important; /* Safari */
+       -moz-user-select: text!important; /* Old versions of Firefox */
+        -ms-user-select: text!important; /* Internet Explorer/Edge */
+            user-select: text!important; /* Non-prefixed version, currently
+                                  supported by Chrome, Edge, Opera and Firefox */
 }
