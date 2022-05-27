@@ -49,8 +49,7 @@ def connect(sid, environ: dict, auth):
 async def ping(sid, data):
     """
         SIO event fired on client ping request
-
-        :param sid: connected instance id
+        :param sid: client session id
         :param data: user message data
     """
     LOG.info(f'Received ping request from "{sid}"')
@@ -62,7 +61,7 @@ def disconnect(sid):
     """
         SIO event fired on client disconnect
 
-        :param sid: connected instance id
+        :param sid: client session id
     """
     LOG.info(f'{sid} disconnected')
 
@@ -71,8 +70,7 @@ def disconnect(sid):
 async def user_message(sid, data):
     """
         SIO event fired on new user message in chat
-
-        :param sid: connected instance id
+        :param sid: client session id
         :param data: user message data
         Example:
         ```
@@ -135,19 +133,18 @@ async def user_message(sid, data):
 @sio.event
 async def save_prompt_data(sid, data):
     """
-            SIO event fired on new prompt data saving request
-
-            :param sid: connected instance id
-            :param data: user message data
-            Example:
-            ```
-                data = {'cid':'conversation id',
-                        'promptID': 'id of related prompt',
-                        'context': 'message context (optional)',
-                        'timeCreated': 'timestamp on which message was created'
-                        }
-            ```
-        """
+        SIO event fired on new prompt data saving request
+        :param sid: client session id
+        :param data: user message data
+        Example:
+        ```
+            data = {'cid':'conversation id',
+                    'promptID': 'id of related prompt',
+                    'context': 'message context (optional)',
+                    'timeCreated': 'timestamp on which message was created'
+                    }
+        ```
+    """
     prompt_id = data['context']['prompt']['prompt_id']
     existing_prompt = db_controller.exec_query({'command': 'find_one', 'document': 'prompts',
                                                 'data': {'_id': prompt_id}})
@@ -169,8 +166,7 @@ async def save_prompt_data(sid, data):
 async def get_prompt_data(sid, data):
     """
         SIO event fired getting prompt data request
-
-        :param sid: connected instance id
+        :param sid: client session id
         :param data: user message data
         Example:
         ```
@@ -201,7 +197,7 @@ async def get_prompt_data(sid, data):
 async def emit_error(sid: str, message: str):
     """
         Emits error message to provided sid
-        :param sid: desired sid
+        :param sid: client session id
         :param message: message to emit
     """
     await sio.emit('klatchat_sio_error', data=json.dumps(dict(msg=message)), to=[sid])
