@@ -24,11 +24,13 @@ import socketio
 from bson.errors import InvalidId
 from bson.objectid import ObjectId
 from neon_utils import LOG
+from neon_utils.cache_utils import LRUCache
 
+from chat_server.server_utils.cache_utils import CacheFactory
+from chat_server.server_utils.db_utils import DbUtils
 from chat_server.server_utils.user_utils import get_neon_data, get_bot_data
 from chat_server.server_config import db_controller
-from utils.common import generate_uuid
-
+from utils.common import generate_uuid, deep_merge
 
 sio = socketio.AsyncServer(cors_allowed_origins='*', async_mode='asgi')
 
@@ -37,8 +39,7 @@ sio = socketio.AsyncServer(cors_allowed_origins='*', async_mode='asgi')
 def connect(sid, environ: dict, auth):
     """
         SIO event fired on client connect
-
-        :param sid: connected instance id
+        :param sid: client session id
         :param environ: connection environment dict
         :param auth: authorization method (None if was not provided)
     """
@@ -192,6 +193,57 @@ async def get_prompt_data(sid, data):
             prompt_data.append({'_id': item['_id'], 'created_on': item['created_on'], **item['data']})
     result = dict(data=prompt_data, receiver=data['nick'], cid=data['cid'], request_id=data['request_id'],)
     await sio.emit('prompt_data', data=result)
+
+
+@sio.event
+async def request_translate(sid, data):
+    """
+        Handles requesting for cid translation
+        :param sid: client session id
+        :param data: mapping of cid to desired translation language
+    """
+    if not data:
+        LOG.warning('Missing request translate data, skipping...')
+    else:
+        populated_translations, missing_translations = DbUtils.get_translations(translation_mapping=data)
+        if populated_translations and not missing_translations:
+            await sio.emit('translation_response', data=populated_translations, to=sid)
+        else:
+            LOG.info('Not every translation is contained in db, sending out request to Neon')
+            request_id = generate_uuid()
+            caching_instance = {'translations': populated_translations, 'sid': sid}
+            CacheFactory.get('translation_cache', cache_type=LRUCache).put(key=request_id, value=caching_instance)
+            await sio.emit('request_neon_translations', data={'request_id': request_id, 'data': missing_translations},)
+
+
+@sio.event
+async def get_neon_translations(sid, data):
+    """
+        Handles received translations from Neon Translation Service
+        :param sid: client session id
+        :param data: received translations data
+        Example of translations data:
+        ```
+            data = {
+                    'request_id': (emitted request id),
+                    'translations':(dictionary containing mapping of shout id to translations)
+                   }
+        ```
+    """
+    request_id = data.get('request_id')
+    if not request_id:
+        LOG.error('Missing "request id" in response dict')
+    else:
+        try:
+            cached_data = CacheFactory.get('translation_cache').get(key=request_id)
+            if not cached_data:
+                LOG.warning('Failed to get matching cached data')
+            sid = cached_data.get('sid')
+            DbUtils.save_translations(data.get('translations', {}))
+            populated_translations = deep_merge(data.get('translations', {}), cached_data.get('translations', {}))
+            await sio.emit('translation_response', data=populated_translations, to=sid)
+        except KeyError as err:
+            LOG.error(f'No translation cache detected under request_id={request_id} (err={err})')
 
 
 async def emit_error(sid: str, message: str):

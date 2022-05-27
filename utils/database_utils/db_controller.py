@@ -16,6 +16,7 @@
 # Specialized conversational reconveyance options from Conversation Processing Intelligence Corp.
 # US Patents 2008-2021: US7424516, US20140161250, US20140177813, US8638908, US8068604, US8553852, US10530923, US10530924
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
+from neon_utils import LOG
 
 from utils.database_utils.mongodb_connector import MongoDBConnector
 from utils.database_utils.mysql_connector import MySQLConnector
@@ -24,6 +25,10 @@ from utils.database_utils.base_connector import DatabaseConnector, DatabaseTypes
 
 
 class DatabaseController:
+    """
+        Database Controller class acting as a single point of any incoming db connection
+        Allows to encapsulate particular database type / dialect with abstract database API
+    """
 
     database_class_mapping = {'mongo': MongoDBConnector,
                               'mysql': MySQLConnector}
@@ -34,7 +39,15 @@ class DatabaseController:
 
     @property
     def connector(self) -> DatabaseConnector:
+        """ Database connector instance """
         return self._connector
+
+    @connector.setter
+    def connector(self, val):
+        if self._connector:
+            LOG.error('DB Connection is already established - detach connector first')
+        else:
+            self._connector = val
 
     def attach_connector(self, dialect: str):
         """
@@ -42,9 +55,10 @@ class DatabaseController:
 
             :param dialect: name of the dialect to for connection
         """
-        if dialect not in list(self.database_class_mapping):
+        db_class = self.database_class_mapping.get(dialect)
+        if not db_class:
             raise AssertionError(f'Invalid dialect provided, supported are: {list(self.database_class_mapping)}')
-        self._connector = self.database_class_mapping[dialect](config_data=self.config_data)
+        self.connector = db_class(config_data=self.config_data)
 
     def detach_connector(self, graceful_termination_func: callable = None):
         """
@@ -58,13 +72,17 @@ class DatabaseController:
             self._connector = None
 
     def exec_query(self, query, *args, **kwargs):
+        """ Executes query on connector's database """
         return self.connector.exec_raw_query(query=query, *args, **kwargs)
 
     def connect(self):
+        """ Connects attached connector """
         self.connector.create_connection()
 
     def disconnect(self):
+        """ Disconnects attached connector """
         self.connector.abort_connection()
 
     def get_type(self) -> DatabaseTypes:
+        """ Gets type of Database connected to given controller """
         return self.connector.database_type

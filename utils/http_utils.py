@@ -16,47 +16,16 @@
 # Specialized conversational reconveyance options from Conversation Processing Intelligence Corp.
 # US Patents 2008-2021: US7424516, US20140161250, US20140177813, US8638908, US8068604, US8553852, US10530923, US10530924
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
-
-from abc import ABC, abstractmethod
-from typing import Optional, Union
-from enum import Enum
+from starlette.responses import JSONResponse
 
 
-class DatabaseTypes(Enum):
-    RELATIONAL = 1
-    NOSQL = 2
+def respond(msg: str, status_code: int = 200) -> JSONResponse:
+    """
+        Sending responds with unified pattern
 
+        :param msg: message to send
+        :param status_code: HTTP status code
 
-class DatabaseConnector(ABC):
-    """Base class for database"""
-
-    def __init__(self, config_data: dict):
-        self.config_data = config_data
-        self._cnx = None
-
-    @property
-    @abstractmethod
-    def database_type(self) -> DatabaseTypes:
-        pass
-
-    @property
-    def connection(self):
-        return self._cnx
-
-    @abstractmethod
-    def create_connection(self):
-        """Creates new database connection"""
-        pass
-
-    @abstractmethod
-    def abort_connection(self):
-        """Aborts existing connection"""
-        pass
-
-    @abstractmethod
-    def exec_raw_query(self, query: Union[str, dict], *args, **kwargs) -> Optional[Union[list, dict]]:
-        """
-            Executes raw query returns result if needed
-            :param query: query to execute
-        """
-        pass
+        :returns JSON response containing provided message
+    """
+    return JSONResponse({'msg': msg}, status_code)
