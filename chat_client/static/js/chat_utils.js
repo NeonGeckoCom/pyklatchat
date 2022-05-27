@@ -76,12 +76,6 @@ async function addMessage(cid, userID=null, messageID=null, messageText, timeCre
     return -1;
 }
 
-function handleImgError(image) {
-    image.parentElement.insertAdjacentHTML('afterbegin',`<p>${image.getAttribute('alt')}</p>`);
-    image.parentElement.removeChild(image);
-    return true;
-}
-
 /**
  * Builds user message HTML
  * @param userData: data of message sender
@@ -216,27 +210,6 @@ function downloadAttachment(attachmentItem, cid, messageID){
 }
 
 /**
- * Downloads desired content
- * @param content: content to download
- * @param filename: name of the file to download
- * @param contentType: type of the content
- */
-function download(content, filename, contentType='application/octet-stream')
-{
-    if(content) {
-        const a = document.createElement('a');
-        const blob = new Blob([content], {'type':contentType});
-        a.href = window.URL.createObjectURL(blob);
-        a.target = 'blank';
-        a.download = filename;
-        a.click();
-        window.URL.revokeObjectURL(content);
-    }else{
-        console.warn('Skipping downloading as content is invalid')
-    }
-}
-
-/**
  * Attaches message replies to initialized conversation
  * @param conversationData: conversation data object
  */
@@ -264,26 +237,6 @@ function activateAttachments(cid, elem=null){
         });
     });
 }
-
-/**
- * Extracts filename from path
- * @param path: path to extract from
- */
-function getFilenameFromPath(path){
-    return path.replace(/.*[\/\\]/, '');
-}
-
-/**
- * Converts file to base64
- * @param file: desired file
- * @return {Promise}
- */
-const toBase64 = file => new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = error => reject(error);
-});
 
 
 let __inputFileList = {};
@@ -340,6 +293,8 @@ function addUpload(cid, file){
  * }
  * @param conversationParentID: ID of conversation parent
  * @param remember: to store this conversation into localStorage (defaults to true)
+ *
+ * @return id of the built conversation
  */
 async function buildConversation(conversationData={}, remember=true,conversationParentID = 'conversationsBody'){
    if(remember){
@@ -421,46 +376,7 @@ async function buildConversation(conversationData={}, remember=true,conversation
     });
     setParticipantsCount(conversationData['_id']);
     setTimeout( () => currentConversation.getElementsByClassName('card-body')[0].getElementsByClassName('chat-list')[0].lastElementChild?.scrollIntoView(true), 0);
-}
-
-/**
- * Fetches template context into provided html template
- * @param html: HTML template
- * @param templateContext: object containing context to fetch
- * @return {string} HTML with fetched context
- */
-function fetchTemplateContext(html, templateContext){
-    for (const [key, value] of Object.entries(templateContext)) {
-        html = html.replaceAll('{'+key+'}', value);
-    }
-    return html;
-}
-
-/**
- * Builds HTML from passed params and template name
- * @param templateName: name of the template to fetch
- * @param templateContext: properties from template to fetch
- * @returns built template string
- */
-async function buildHTMLFromTemplate(templateName, templateContext = {}){
-    if(!configData['DISABLE_CACHING'] && loadedComponents.hasOwnProperty(templateName)){
-        const html = loadedComponents[templateName];
-        return fetchTemplateContext(html, templateContext);
-    }else {
-        return await fetch(`${configData['CHAT_SERVER_URL_BASE']}/components/${templateName}`)
-            .then((response) => {
-                if (response.ok) {
-                    return response.text();
-                }
-                throw `template unreachable (HTTP STATUS:${response.status}: ${response.statusText})`
-            })
-            .then((html) => {
-                if (!(configData['DISABLE_CACHING'] || loadedComponents.hasOwnProperty(templateName))) {
-                    loadedComponents[templateName] = html;
-                }
-                return fetchTemplateContext(html, templateContext);
-            }).catch(err => console.warn(`Failed to fetch template for ${templateName}: ${err}`));
-    }
+    return conversationData['_id'];
 }
 
 /**
@@ -511,6 +427,7 @@ async function getConversationDataByInput(input=""){
                 if(response.ok){
                     return response.json();
                 }else{
+                    console.log('here')
                     throw response.statusText;
                 }
             })
@@ -519,50 +436,6 @@ async function getConversationDataByInput(input=""){
             }).catch(err=> console.warn('Failed to fulfill request due to error:',err));
     }
     return conversationData;
-}
-
-
-/**
- * Gets time object from provided UNIX timestamp
- * @param timestampCreated: UNIX timestamp (in seconds)
- * @returns {string} string time (hours:minutes)
- */
-function getTimeFromTimestamp(timestampCreated=0){
-    let date = new Date(timestampCreated * 1000);
-    let year = date.getFullYear().toString();
-    let month = date.getMonth()+1;
-    month = month>=10?month.toString():'0'+month.toString();
-    let day = date.getDate();
-
-    day = day>=10?day.toString():'0'+day.toString();
-    const hours = date.getHours().toString();
-    let minutes = date.getMinutes();
-    minutes = minutes>=10?minutes.toString():'0'+minutes.toString();
-    return strFmtDate(year, month, day, hours, minutes, null);
-}
-
-/**
- * Composes date based on input params
- * @param year: desired year
- * @param month: desired month
- * @param day: desired day
- * @param hours: num of hours
- * @param minutes: minutes
- * @param seconds: seconds
- * @return date string
- */
-function strFmtDate(year, month, day, hours, minutes, seconds){
-    let finalDate = "";
-    if(year && month && day){
-        finalDate+=`${year}-${month}-${day}`
-    }
-    if(hours && minutes) {
-        finalDate += ` ${hours}:${minutes}`
-        if (seconds) {
-            finalDate += `:${seconds}`
-        }
-    }
-    return finalDate;
 }
 
 /**
@@ -582,6 +455,7 @@ function emitUserMessage(textInputElem, cid, repliedMessageID=null, attachments=
                         'messageID':messageID,
                         'attachments': attachments,
                         'timeCreated':timeCreated});
+            sendLanguageUpdateRequest(cid, messageID)
         });
         textInputElem.value = "";
     }
@@ -627,14 +501,20 @@ function removeCID(cid){
 }
 
 /**
+ * Custom Event fired on supported languages init
+ * @type {CustomEvent<string>}
+ */
+const chatAlignmentRestoredEvent = new CustomEvent("chatAlignmentRestored", { "detail": "Event that is fired when chat alignment is restored" });
+
+/**
  * Restores chats alignment from the local storage
  *
  * @param keyName: name of the local storage key
 **/
-function restoreChatAlignment(keyName=conversationAlignmentKey){
+async function restoreChatAlignment(keyName=conversationAlignmentKey){
     let itemsLayout = retrieveItemsLayout(keyName);
     for (const item of itemsLayout) {
-        getConversationDataByInput(item).then(async conversationData=>{
+        await getConversationDataByInput(item).then(async conversationData=>{
             if(conversationData && Object.keys(conversationData).length > 0) {
                 await buildConversation(conversationData, false);
             }else{
@@ -643,6 +523,7 @@ function restoreChatAlignment(keyName=conversationAlignmentKey){
             }
         });
     }
+    document.dispatchEvent(chatAlignmentRestoredEvent);
 }
 
 /**
@@ -651,78 +532,34 @@ function restoreChatAlignment(keyName=conversationAlignmentKey){
  * @return array of message DOM objects under given conversation
  */
 function getMessagesOfCID(cid){
+    let messages = []
     const conversation = document.getElementById(cid);
     if(conversation){
-        return  conversation.getElementsByClassName('card')[0]
-                            .getElementsByClassName('card-body')[0]
-                            .getElementsByClassName('chat-list')[0]
-                            .getElementsByTagName('li');
-    }
-    return [];
-}
-
-/**
- * Applies translation based on received data
- * @param data: translation object received
- * Note: data should be of format:
- * {
- *     'cid': {'message1':'translation of message 1',
- *             'message2':'translation of message 2'}
- * }
- */
-function applyTranslation(data){
-    for (const [cid, messageTranslations] of Object.entries(data)) {
-        console.info(`Fetching translation of ${cid}`);
-        const messages = getMessagesOfCID(cid);
-        Array.from(messages).forEach(message => {
-            const messageID = message.id;
-            let repliedMessage = null;
-            let repliedMessageID = null;
-            try {
-                repliedMessage = message.getElementsByClassName('reply-placeholder')[0].getElementsByClassName('reply-text')[0];
-                repliedMessageID = repliedMessage.getAttribute('data-replied-id')
-            }catch (e) {
-                console.debug(`replied message not found for ${messageID}`);
-            }
-            if (messageID in messageTranslations){
-                message.getElementsByClassName('message-text')[0].innerText = messageTranslations[messageID];
-            }
-            if (repliedMessageID && repliedMessageID in messageTranslations){
-                repliedMessage.innerText = messageTranslations[repliedMessageID];
-            }
+        const listItems =  conversation.getElementsByClassName('card-body')[0]
+                                       .getElementsByClassName('chat-list')[0]
+                                       .getElementsByTagName('li');
+        Array.from(listItems).forEach(li=>{
+           if(li.classList.contains('in') || li.classList.contains('out')){
+               const messageNode = li.getElementsByClassName('chat-body')[0].getElementsByClassName('chat-message')[0];
+               // console.debug(`pushing shout_id=${messageNode.id}`)
+               messages.push(messageNode);
+           }
         });
     }
-}
-
-/**
- * Sends request for updating target cids content to the desired language
- */
-function sendLanguageUpdateRequest(language, cids){
-    if (Array.isArray(cids)){
-        cids = cids.join(",");
-    }
-    console.log(`sendLanguageUpdateRequest(${language}, ${cids});`);
-    const query_url = `${configData["CHAT_SERVER_URL_BASE"]}/chat_api/update_language?lang=${language}&cids=${cids}`;
-    fetch(query_url).then(response =>
-        response.ok?
-            response.json().then(data=>applyTranslation(data)):
-            console.warn(`${query_url} returned status=${response.status} - data=${response.statusText}`))
-        .catch(err=>{console.error(`sendLanguageUpdateRequest() -> ${err}`);});
+    return messages;
 }
 
 /**
  * Refreshes chat view (e.g. when user session gets updated)
  */
-function refreshChatView(preferredLanguage){
-    if (preferredLanguage){
-        const displayedCIDs = JSON.parse(localStorage.getItem(conversationAlignmentKey));
-        sendLanguageUpdateRequest(preferredLanguage, displayedCIDs);
-    }
+function refreshChatView(){
+    requestChatsLanguageRefresh();
     Array.from(conversationBody.getElementsByClassName('conversationContainer')).forEach(conversation=>{
        const messages = getMessagesOfCID(conversation.id);
        Array.from(messages).forEach(message=>{
           if(message.hasAttribute('data-sender')){
               const messageSenderNickname = message.getAttribute('data-sender');
+              console.log(`messageSenderNickname=${messageSenderNickname}`)
               message.className = currentUser && messageSenderNickname === currentUser['nickname']?'in':'out';
           }
        });
@@ -741,13 +578,71 @@ function getOpenedChats(){
     return cids;
 }
 
+async function setSelectedLang(clickedItem, cid){
+    const selectedLangNode = document.getElementById(`language-selected-${cid}`);
+    const selectedLangList = document.getElementById(`language-list-${cid}`);
+
+    // console.log('emitted lang update')
+    const preferredLang = getPreferredLanguage(cid);
+    console.log(`cid=${cid};preferredLang=${preferredLang}`)
+    const preferredLangProps = configData['supportedLanguages'][preferredLang];
+    const newKey = clickedItem.getAttribute('data-lang');
+    const newPreferredLangProps = configData['supportedLanguages'][newKey];
+    selectedLangNode.innerHTML = await buildHTMLFromTemplate('selected_lang', {'key': newKey, 'name': newPreferredLangProps['name'], 'icon': newPreferredLangProps['icon']})
+    selectedLangList.insertAdjacentHTML('beforeend', await buildLangOptionHTML(preferredLang, preferredLangProps['name'], preferredLangProps['icon']));
+    clickedItem.parentNode.removeChild(clickedItem);
+    console.log(`cid=${cid};new preferredLang=${newKey}`)
+    setPreferredLanguage(cid, newKey);
+    const insertedNode = document.getElementById(getLangOptionID(preferredLang));
+    sendLanguageUpdateRequest(cid, null, newKey);
+    insertedNode.addEventListener('click', async (e)=> {
+        await setSelectedLang(insertedNode, cid);
+    });
+}
+
+/**
+ * Initialize language selector for conversation
+ * @param cid: target conversation id
+ */
+async function initLanguageSelector(cid){
+   let preferredLang = getPreferredLanguage(cid);
+   const supportedLanguages = configData['supportedLanguages'];
+   if (!supportedLanguages.hasOwnProperty(preferredLang)){
+       preferredLang = 'en';
+   }
+   const selectedLangNode = document.getElementById(`language-selected-${cid}`);
+   const selectedLangList = document.getElementById(`language-list-${cid}`);
+
+   selectedLangList.innerHTML = "";
+   for (const [key, value] of Object.entries(supportedLanguages)) {
+
+      if (key === preferredLang){
+          selectedLangNode.innerHTML = await buildHTMLFromTemplate('selected_lang',
+              {'key': key, 'name': value['name'], 'icon': value['icon']})
+      }else{
+          selectedLangList.insertAdjacentHTML('beforeend', await buildLangOptionHTML(key, value['name'], value['icon']));
+          const itemNode = document.getElementById(getLangOptionID(key));
+          itemNode.addEventListener('click', async (e)=>{
+              await setSelectedLang(itemNode, cid)
+          });
+      }
+   }
+}
+
 document.addEventListener('DOMContentLoaded', (e)=>{
-    document.addEventListener('currentUserLoaded',(e)=>{
-        restoreChatAlignment();
+
+    document.addEventListener('currentUserLoaded',async (e)=>{
+        await restoreChatAlignment();
+    });
+    document.addEventListener('supportedLanguagesLoaded', (e)=>{
+       const cids = getOpenedChats();
+       console.log(cids);
+       Array.from(cids).forEach(cid=>{
+           initLanguageSelector(cid);
+       });
     });
 
     if (configData['client'] === CLIENTS.MAIN) {
-
         addBySearch.addEventListener('click', async (e) => {
             e.preventDefault();
             if (conversationSearchInput.value !== "") {
@@ -755,7 +650,10 @@ document.addEventListener('DOMContentLoaded', (e)=>{
                     if (getOpenedChats().includes(conversationData['_id'])) {
                         displayAlert(document.getElementById('importConversationModalBody'), 'Chat is already displayed', 'danger');
                     } else if (conversationData && Object.keys(conversationData).length > 0) {
-                        await buildConversation(conversationData);
+                        await buildConversation(conversationData).then(cid=>{
+                            initLanguageSelector(cid);
+                            console.log(`inited language selector for ${cid}`)
+                        });
                     } else {
                         displayAlert(document.getElementById('importConversationModalBody'), 'Cannot find conversation matching your search', 'danger');
                     }
@@ -763,7 +661,6 @@ document.addEventListener('DOMContentLoaded', (e)=>{
                 });
             }
         });
-
         addNewConversation.addEventListener('click', (e) => {
             e.preventDefault();
             const newConversationID = document.getElementById('conversationID');
@@ -783,7 +680,10 @@ document.addEventListener('DOMContentLoaded', (e)=>{
             }).then(async response => {
                 const responseJson = await response.json();
                 if (response.ok) {
-                    await buildConversation(responseJson);
+                    await buildConversation(responseJson).then(cid=>{
+                        initLanguageSelector(cid);
+                        console.log(`inited language selector for ${cid}`);
+                    });
                 } else {
                     displayAlert(document.getElementById('newConversationModalBody'), 'Cannot add new conversation: ' + responseJson['detail'][0]['msg'], 'danger');
                 }
