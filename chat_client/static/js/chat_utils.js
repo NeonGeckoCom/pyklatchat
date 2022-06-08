@@ -575,6 +575,7 @@ function getOpenedChats(){
     Array.from(conversationBody.getElementsByClassName('conversationContainer')).forEach(conversationContainer=>{
         cids.push(conversationContainer.getElementsByClassName('card')[0].id);
     });
+    console.log(`getOpenedChats() = ${cids}`)
     return cids;
 }
 
@@ -614,6 +615,7 @@ async function initLanguageSelector(cid){
    const selectedLangList = document.getElementById(`language-list-${cid}`);
 
    selectedLangList.innerHTML = "";
+   selectedLangNode.innerHTML = "";
    for (const [key, value] of Object.entries(supportedLanguages)) {
 
       if (key === preferredLang){
@@ -635,11 +637,11 @@ document.addEventListener('DOMContentLoaded', (e)=>{
         await restoreChatAlignment();
     });
     document.addEventListener('supportedLanguagesLoaded', (e)=>{
-       const cids = getOpenedChats();
-       console.log(cids);
-       Array.from(cids).forEach(cid=>{
-           initLanguageSelector(cid);
-       });
+        refreshCurrentUser(false, true);
+        const cids = getOpenedChats();
+        Array.from(cids).forEach(async cid=>{
+           await initLanguageSelector(cid);
+        });
     });
 
     if (configData['client'] === CLIENTS.MAIN) {

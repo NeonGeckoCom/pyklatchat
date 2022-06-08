@@ -205,7 +205,8 @@ async def request_translate(sid, data):
     if not data:
         LOG.warning('Missing request translate data, skipping...')
     else:
-        populated_translations, missing_translations = DbUtils.get_translations(translation_mapping=data)
+        populated_translations, missing_translations = DbUtils.get_translations(translation_mapping=data['chat_mapping'],
+                                                                                user_id=data['user'])
         if populated_translations and not missing_translations:
             await sio.emit('translation_response', data=populated_translations, to=sid)
         else:

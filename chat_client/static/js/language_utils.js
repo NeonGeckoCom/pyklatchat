@@ -7,7 +7,7 @@
 function getPreferredLanguage(cid){
     let preferredLang;
     try {
-        preferredLang = configData['chatLanguageMapping'][cid];
+        preferredLang = configData['chatLanguageMapping'][cid]['lang'];
     }catch {
         preferredLang = 'en'
     }
@@ -22,7 +22,10 @@ function getPreferredLanguage(cid){
 function setPreferredLanguage(cid, lang){
     if (!configData.hasOwnProperty('chatLanguageMapping')){
         configData['chatLanguageMapping'] = {};
-    }configData['chatLanguageMapping'][cid] = lang;
+    } if(!configData['chatLanguageMapping'].hasOwnProperty('lang')){
+        configData['chatLanguageMapping']['lang'] = {};
+    }
+    configData['chatLanguageMapping'][cid]['lang'] = lang;
 }
 
 /**
@@ -49,16 +52,18 @@ async function fetchSupportedLanguages(){
  * Sends request for updating target cids content to the desired language
  */
 function sendLanguageUpdateRequest(cid=null, shouts=null, lang=null){
-    let requestBody = configData['chatLanguageMapping'];
+    let requestBody = {chat_mapping: {}};
     if(cid && getOpenedChats().includes(cid)){
         const preferredLang = getPreferredLanguage(cid)
-        requestBody = {}
         if(shouts && !Array.isArray(shouts)){
             shouts = [shouts];
         }
-        requestBody[cid] = {'lang': lang || preferredLang, 'shouts': shouts || []}
+        requestBody.chat_mapping[cid] = {'lang': lang || preferredLang, 'shouts': shouts || []}
+    }else{
+        requestBody.chat_mapping = configData['chatLanguageMapping'];
     }
-    console.log(`chatLanguageMapping = ${JSON.stringify(requestBody)}`);
+    requestBody['user'] = currentUser['_id'];
+    console.debug(`requestBody = ${JSON.stringify(requestBody)}`);
     socket.emit('request_translate', requestBody);
 }
 
@@ -68,11 +73,12 @@ function sendLanguageUpdateRequest(cid=null, shouts=null, lang=null){
  */
 function requestChatsLanguageRefresh(){
     const languageMapping = currentUser?.preferences?.chat_languages || {};
-    const displayedCIDs = getOpenedChats();
+    console.log(`languageMapping=${JSON.stringify(languageMapping)}`)
     configData['chatLanguageMapping'] = {}
-    Array.from(displayedCIDs).forEach(cid => {
-        configData['chatLanguageMapping'][cid] = {'lang': languageMapping[cid] || 'en'};
-    });
+    for (const [key, value] of Object.entries(languageMapping)) {
+        configData['chatLanguageMapping'][key] = {'lang': value || 'en'};
+    }
+    console.log(`chatLanguageMapping=${JSON.stringify(configData['chatLanguageMapping'])}`)
     sendLanguageUpdateRequest();
 }
 
@@ -85,7 +91,7 @@ function requestChatsLanguageRefresh(){
  *             'message2':'translation of message 2'}
  * }
  */
-function applyTranslations(data){
+async function applyTranslations(data){
     for (const [cid, messageTranslations] of Object.entries(data)) {
 
         console.log(`Fetching translation of ${cid}`);
@@ -111,6 +117,7 @@ function applyTranslations(data){
                 repliedMessage.innerHTML = messageTranslationsShouts[repliedMessageID];
             }
         });
+        await initLanguageSelector(cid);
     }
 }
 

@@ -102,17 +102,26 @@ class DbUtils(metaclass=Singleton):
         return result
 
     @classmethod
-    def get_translations(cls, translation_mapping: dict) -> Tuple[dict, dict]:
+    def get_translations(cls, translation_mapping: dict, user_id=None) -> Tuple[dict, dict]:
         """
             Gets translation from db based on provided mapping
+
             :param translation_mapping: mapping of cid to desired translation language
+            :param user_id: id of the initiator user
 
             :return translations fetched from db
         """
         populated_translations = {}
         missing_translations = {}
+        bulk_update_preferences = []
+        prefs = cls.get_user_preferences(user_id=user_id, create_if_not_exists=True)
+        if not prefs:
+            LOG.warning('No preferences fetched, user data will not be updated')
         for cid, cid_data in translation_mapping.items():
             lang = cid_data.get('lang', 'en')
+            if prefs:
+                bulk_update_preferences.append(UpdateOne({'_id': user_id},
+                                                         {'$set': {f'chat_languages.{cid}': lang}}))
             conversation_data, status_code = cls.get_conversation_data(search_str=cid)
             if status_code != 200:
                 LOG.error(f'Failed to fetch conversation data - {conversation_data} (status={status_code})')
@@ -130,6 +139,10 @@ class DbUtils(metaclass=Singleton):
                     missing_translations.setdefault(cid, {}).setdefault('shouts', {})[shout['_id']] = message_text
             if missing_translations.get(cid):
                 missing_translations[cid]['lang'] = lang
+        if len(bulk_update_preferences) > 0:
+            cls.db_controller.exec_query(query=dict(document='user_preferences',
+                                                    command='bulk_write',
+                                                    data=bulk_update_preferences))
         return populated_translations, missing_translations
 
     @classmethod
@@ -169,8 +182,20 @@ class DbUtils(metaclass=Singleton):
                 LOG.info('Apply translations skipped -> lang=en')
 
     @classmethod
-    def get_user_preferences(cls, user_id):
+    def get_user_preferences(cls, user_id, create_if_not_exists: bool = False):
         """ Gets preferences of specified user """
-        return cls.db_controller.exec_query(query={'document': 'user_preferences',
-                                                   'command': 'find_one',
-                                                   'data': {'_id': user_id}}) or {}
+        prefs = {}
+        if user_id:
+            prefs = cls.db_controller.exec_query(query={'document': 'user_preferences',
+                                                        'command': 'find_one',
+                                                        'data': {'_id': user_id}}) or {}
+            if not prefs and create_if_not_exists:
+                prefs = {
+                    '_id': user_id,
+                    'chat_languages': {}
+                }
+                cls.db_controller.exec_query(query=dict(document='user_preferences',
+                                                        command='insert_one', data=prefs))
+        else:
+            LOG.warning('user_id is None')
+        return prefs

@@ -33,9 +33,9 @@ function initSIO(){
             .catch(err=>console.error('Error occurred while adding new message: ',err));
     });
 
-    socket.on('translation_response', (data) => {
+    socket.on('translation_response', async (data) => {
         console.log('translation_response: ', data)
-        applyTranslations(data);
+        await applyTranslations(data);
     });
 
     return socket;

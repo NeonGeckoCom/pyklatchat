@@ -56,6 +56,7 @@ def get_user(response: Response,
         user.pop('password', None)
         user.pop('date_created', None)
         user.pop('tokens', None)
+        LOG.info(f'Fetched user data (id={user_id}): {user}')
     else:
         user = get_current_user(request=request, response=response, nano_token=nano_token)
     if not user:

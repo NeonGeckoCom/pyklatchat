@@ -128,6 +128,13 @@ def get_current_user(request: Request, response: Response, force_tmp: bool = Fal
                         user = db_controller.exec_query(query={'command': 'find_one',
                                                                'document': 'users',
                                                                'data': ({'_id': payload['sub']})})
+                        LOG.info(f'Fetched user data: {user}')
+                        user_preference_data = db_controller.exec_query(query={'document': 'user_preferences',
+                                                                               'command': 'find_one',
+                                                                               'data': {'_id': payload['sub']}})
+                        user_preference_data.pop('_id', None)
+                        user['preferences'] = user_preference_data
+                        LOG.info(f'Fetched user preferences data: {user["preferences"]}')
                         if not user:
                             LOG.info(f'{payload["sub"]} is not found among users, setting temporal user credentials')
                         else:
