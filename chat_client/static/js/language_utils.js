@@ -22,8 +22,8 @@ function getPreferredLanguage(cid){
 function setPreferredLanguage(cid, lang){
     if (!configData.hasOwnProperty('chatLanguageMapping')){
         configData['chatLanguageMapping'] = {};
-    } if(!configData['chatLanguageMapping'].hasOwnProperty('lang')){
-        configData['chatLanguageMapping']['lang'] = {};
+    } if(!configData['chatLanguageMapping'].hasOwnProperty(cid)){
+        configData['chatLanguageMapping'][cid] = {};
     }
     configData['chatLanguageMapping'][cid]['lang'] = lang;
 }
