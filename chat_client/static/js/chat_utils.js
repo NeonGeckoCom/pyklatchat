@@ -501,6 +501,15 @@ function removeCID(cid){
 }
 
 /**
+ * Checks if cid is in local storage
+ * @param cid
+ * @return true if cid is displayed, false otherwise
+ */
+function isDisplayed(cid){
+    return retrieveItemsLayout().includes(cid);
+}
+
+/**
  * Custom Event fired on supported languages init
  * @type {CustomEvent<string>}
  */
@@ -575,7 +584,6 @@ function getOpenedChats(){
     Array.from(conversationBody.getElementsByClassName('conversationContainer')).forEach(conversationContainer=>{
         cids.push(conversationContainer.getElementsByClassName('card')[0].id);
     });
-    console.log(`getOpenedChats() = ${cids}`)
     return cids;
 }
 
@@ -585,18 +593,18 @@ async function setSelectedLang(clickedItem, cid){
 
     // console.log('emitted lang update')
     const preferredLang = getPreferredLanguage(cid);
-    console.log(`cid=${cid};preferredLang=${preferredLang}`)
     const preferredLangProps = configData['supportedLanguages'][preferredLang];
     const newKey = clickedItem.getAttribute('data-lang');
     const newPreferredLangProps = configData['supportedLanguages'][newKey];
     selectedLangNode.innerHTML = await buildHTMLFromTemplate('selected_lang', {'key': newKey, 'name': newPreferredLangProps['name'], 'icon': newPreferredLangProps['icon']})
-    selectedLangList.insertAdjacentHTML('beforeend', await buildLangOptionHTML(preferredLang, preferredLangProps['name'], preferredLangProps['icon']));
+    selectedLangList.insertAdjacentHTML('beforeend', await buildLangOptionHTML(cid, preferredLang, preferredLangProps['name'], preferredLangProps['icon']));
     clickedItem.parentNode.removeChild(clickedItem);
     console.log(`cid=${cid};new preferredLang=${newKey}`)
     setPreferredLanguage(cid, newKey);
-    const insertedNode = document.getElementById(getLangOptionID(preferredLang));
+    const insertedNode = document.getElementById(getLangOptionID(cid, preferredLang));
     sendLanguageUpdateRequest(cid, null, newKey);
     insertedNode.addEventListener('click', async (e)=> {
+        e.preventDefault();
         await setSelectedLang(insertedNode, cid);
     });
 }
@@ -614,17 +622,20 @@ async function initLanguageSelector(cid){
    const selectedLangNode = document.getElementById(`language-selected-${cid}`);
    const selectedLangList = document.getElementById(`language-list-${cid}`);
 
-   selectedLangList.innerHTML = "";
-   selectedLangNode.innerHTML = "";
+   if (selectedLangList){
+      selectedLangList.innerHTML = "";
+   }
+   // selectedLangNode.innerHTML = "";
    for (const [key, value] of Object.entries(supportedLanguages)) {
 
       if (key === preferredLang){
           selectedLangNode.innerHTML = await buildHTMLFromTemplate('selected_lang',
               {'key': key, 'name': value['name'], 'icon': value['icon']})
       }else{
-          selectedLangList.insertAdjacentHTML('beforeend', await buildLangOptionHTML(key, value['name'], value['icon']));
-          const itemNode = document.getElementById(getLangOptionID(key));
+          selectedLangList.insertAdjacentHTML('beforeend', await buildLangOptionHTML(cid, key, value['name'], value['icon']));
+          const itemNode = document.getElementById(getLangOptionID(cid, key));
           itemNode.addEventListener('click', async (e)=>{
+              e.preventDefault();
               await setSelectedLang(itemNode, cid)
           });
       }
@@ -638,10 +649,6 @@ document.addEventListener('DOMContentLoaded', (e)=>{
     });
     document.addEventListener('supportedLanguagesLoaded', (e)=>{
         refreshCurrentUser(false, true);
-        const cids = getOpenedChats();
-        Array.from(cids).forEach(async cid=>{
-           await initLanguageSelector(cid);
-        });
     });
 
     if (configData['client'] === CLIENTS.MAIN) {
@@ -652,9 +659,8 @@ document.addEventListener('DOMContentLoaded', (e)=>{
                     if (getOpenedChats().includes(conversationData['_id'])) {
                         displayAlert(document.getElementById('importConversationModalBody'), 'Chat is already displayed', 'danger');
                     } else if (conversationData && Object.keys(conversationData).length > 0) {
-                        await buildConversation(conversationData).then(cid=>{
-                            initLanguageSelector(cid);
-                            console.log(`inited language selector for ${cid}`)
+                        await buildConversation(conversationData).then(async cid=>{
+                            await initLanguageSelector(cid);
                         });
                     } else {
                         displayAlert(document.getElementById('importConversationModalBody'), 'Cannot find conversation matching your search', 'danger');
@@ -682,8 +688,8 @@ document.addEventListener('DOMContentLoaded', (e)=>{
             }).then(async response => {
                 const responseJson = await response.json();
                 if (response.ok) {
-                    await buildConversation(responseJson).then(cid=>{
-                        initLanguageSelector(cid);
+                    await buildConversation(responseJson).then(async cid=>{
+                        await initLanguageSelector(cid);
                         console.log(`inited language selector for ${cid}`);
                     });
                 } else {

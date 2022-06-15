@@ -94,6 +94,11 @@ function requestChatsLanguageRefresh(){
 async function applyTranslations(data){
     for (const [cid, messageTranslations] of Object.entries(data)) {
 
+        if(!isDisplayed(cid)){
+            console.log(`cid=${cid} is not displayed, skipping translations population`)
+            continue;
+        }
+
         console.log(`Fetching translation of ${cid}`);
         console.debug(`translations=${JSON.stringify(messageTranslations)}`)
 
