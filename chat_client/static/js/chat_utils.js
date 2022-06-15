@@ -660,7 +660,7 @@ document.addEventListener('DOMContentLoaded', (e)=>{
                         displayAlert(document.getElementById('importConversationModalBody'), 'Chat is already displayed', 'danger');
                     } else if (conversationData && Object.keys(conversationData).length > 0) {
                         await buildConversation(conversationData).then(async cid=>{
-                            await initLanguageSelector(cid);
+                            await sendLanguageUpdateRequest(cid);
                         });
                     } else {
                         displayAlert(document.getElementById('importConversationModalBody'), 'Cannot find conversation matching your search', 'danger');
