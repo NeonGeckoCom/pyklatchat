@@ -249,3 +249,15 @@ body{
             user-select: text!important; /* Non-prefixed version, currently
                                   supported by Chrome, Edge, Opera and Firefox */
 }
+
+.chat-loading {
+  filter: blur(2px);
+  pointer-events:none;
+}
+
+.chat-spinner {
+    position: absolute;
+    left: 35%;
+    top: 40%;
+    z-index: 999;
+}

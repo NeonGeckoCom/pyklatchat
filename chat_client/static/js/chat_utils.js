@@ -642,6 +642,36 @@ async function initLanguageSelector(cid){
    }
 }
 
+const CHAT_STATES = ['active', 'updating'];
+
+/**
+ * Sets state to the desired cid
+ * @param cid: desired conversation id
+ * @param state: desired state
+ * @param state_msg: message following state transition (e.g. why chat is updating)
+ */
+function setChatState(cid, state='active', state_msg = ''){
+
+    console.log(`cid=${cid}, state=${state_msg}, state_msg=${state_msg}`)
+    if (!CHAT_STATES.includes(state)){
+        console.error(`Invalid transition state provided, should be one of ${CHAT_STATES}`);
+        return -1;
+    }else{
+        const cidNode = document.getElementById(cid);
+        const spinner = document.getElementById(`${cid}-spinner`);
+        const spinnerUpdateMsg = document.getElementById(`${cid}-update-msg`);
+        if (state === 'updating'){
+            cidNode.classList.add('chat-loading');
+            spinner.style.setProperty('display', 'flex', 'important');
+            spinnerUpdateMsg.innerText = state_msg;
+        }else if(state === 'active'){
+            cidNode.classList.remove('chat-loading');
+            spinner.style.setProperty('display', 'none', 'important');
+            spinnerUpdateMsg.innerText = '';
+        }
+    }
+}
+
 document.addEventListener('DOMContentLoaded', (e)=>{
 
     document.addEventListener('currentUserLoaded',async (e)=>{

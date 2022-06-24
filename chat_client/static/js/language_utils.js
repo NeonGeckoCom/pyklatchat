@@ -54,6 +54,7 @@ async function fetchSupportedLanguages(){
 function sendLanguageUpdateRequest(cid=null, shouts=null, lang=null){
     let requestBody = {chat_mapping: {}};
     if(cid && getOpenedChats().includes(cid)){
+        setChatState(cid, 'updating', 'Applying New Language...');
         const preferredLang = getPreferredLanguage(cid)
         if(shouts && !Array.isArray(shouts)){
             shouts = [shouts];
@@ -98,6 +99,8 @@ async function applyTranslations(data){
             console.log(`cid=${cid} is not displayed, skipping translations population`)
             continue;
         }
+
+        setChatState(cid, 'active');
 
         console.log(`Fetching translation of ${cid}`);
         console.debug(`translations=${JSON.stringify(messageTranslations)}`)
