@@ -313,8 +313,9 @@ class ChatObserver(MQConnector):
         """ Requests translations from neon """
         self.__translation_requests[data['request_id']] = {'void_callback_timer': Timer(interval=2 * 60,
                                                                                         function=self.send_translation_response,
-                                                                                        args=({'request_id': data['request_id'],
-                                                                                               'translations': {}}))}
+                                                                                        kwargs=
+                                                                                        {'data': {'request_id': data['request_id'],
+                                                                                                  'translations': {}}})}
         self.__translation_requests[data['request_id']]['void_callback_timer'].start()
         self.send_message(request_data={'data': data['data'],
                                         'request_id': data['request_id']},
@@ -341,7 +342,7 @@ class ChatObserver(MQConnector):
             self.sio.emit('get_neon_translations', data=data)
         else:
             LOG.warning(f'Neon translation response was not sent, '
-                        f'as request_id={request_id} was not found amount translation requests')
+                        f'as request_id={request_id} was not found among translation requests')
 
     @create_mq_callback()
     def handle_get_prompt(self, body: dict):

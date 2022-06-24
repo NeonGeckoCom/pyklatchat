@@ -652,7 +652,7 @@ const CHAT_STATES = ['active', 'updating'];
  */
 function setChatState(cid, state='active', state_msg = ''){
 
-    console.log(`cid=${cid}, state=${state_msg}, state_msg=${state_msg}`)
+    console.log(`cid=${cid}, state=${state}, state_msg=${state_msg}`)
     if (!CHAT_STATES.includes(state)){
         console.error(`Invalid transition state provided, should be one of ${CHAT_STATES}`);
         return -1;
@@ -663,11 +663,11 @@ function setChatState(cid, state='active', state_msg = ''){
         if (state === 'updating'){
             cidNode.classList.add('chat-loading');
             spinner.style.setProperty('display', 'flex', 'important');
-            spinnerUpdateMsg.innerText = state_msg;
+            spinnerUpdateMsg.innerHTML = state_msg;
         }else if(state === 'active'){
             cidNode.classList.remove('chat-loading');
             spinner.style.setProperty('display', 'none', 'important');
-            spinnerUpdateMsg.innerText = '';
+            spinnerUpdateMsg.innerHTML = '';
         }
     }
 }
