@@ -38,7 +38,7 @@ MarkupSafe==2.0.1
 memory-tempfile==2.2.3
 mycroft-messagebus-client==0.9.1
 mysql-connector==2.2.9
-neon-mq-connector~=0.4
+neon-mq-connector==0.5.0
 neon-utils~=0.6
 netifaces==0.10.9
 nltk==3.6.2
