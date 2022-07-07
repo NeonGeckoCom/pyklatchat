@@ -8,7 +8,7 @@ done
 
 readonly VERSION=${version:-dev}
 
-echo 'Build version = $VERSION';
+echo "Build version = $VERSION";
 
 cd ..
 

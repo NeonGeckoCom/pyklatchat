@@ -9,7 +9,7 @@ done
 
 readonly VERSION=${version:-dev}
 
-echo 'Build version = $VERSION';
+echo "Build version = $VERSION";
 
 cd ..
 echo "Building Chat Observer"
@@ -21,7 +21,7 @@ cp requirements/requirements.txt services/klatchat_observer
 cd services/klatchat_observer
 
 # replacing base image version
-sed -i "1 s|.*|FROM ghcr.io/neongeckocom/pyklatchat_base:${sourceRegistryUrl}|" ../../dockerfiles/Dockerfile.observer
+sed -i "1 s|.*|FROM ghcr.io/neongeckocom/pyklatchat_base:${VERSION}|" ../../dockerfiles/Dockerfile.observer
 
 docker build -f ../../dockerfiles/Dockerfile.observer -t ghcr.io/neongeckocom/klatchat_observer:$VERSION .
 cd ../../
@@ -45,7 +45,7 @@ cp uvicorn_logging.yaml chat_server
 cd chat_server
 
 # replacing base image version
-sed -i "1 s|.*|FROM ghcr.io/neongeckocom/pyklatchat_base:${sourceRegistryUrl}|" ../dockerfiles/Dockerfile.server
+sed -i "1 s|.*|FROM ghcr.io/neongeckocom/pyklatchat_base:${VERSION}|" ../dockerfiles/Dockerfile.server
 docker build -f ../dockerfiles/Dockerfile.server -t ghcr.io/neongeckocom/chat_server:$VERSION .
 
 cd ../scripts
