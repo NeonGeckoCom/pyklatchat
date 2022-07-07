@@ -24,6 +24,7 @@ import copy
 from typing import List
 from neon_utils import LOG
 
+from chat_server.server_utils.db_utils import DbUtils
 from utils.database_utils import DatabaseController
 
 
@@ -109,4 +110,5 @@ class Configuration:
                 db_controller = DatabaseController(config_data=db_config)
                 db_controller.attach_connector(dialect=dialect)
                 db_controller.connect()
+                DbUtils.init(db_controller)
         return db_controller

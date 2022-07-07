@@ -19,16 +19,16 @@
 import json
 import re
 import time
-from threading import Event
+from threading import Event, Timer
 
-import pika
 import socketio
 
 from enum import Enum
+
+from neon_mq_connector.utils.rabbit_utils import create_mq_callback
 from neon_utils import LOG
 from neon_utils.socket_utils import b64_to_dict
 from neon_mq_connector.connector import MQConnector
-from pika.channel import Channel
 
 from version import __version__
 from utils.common import generate_uuid
@@ -47,6 +47,12 @@ class ChatObserver(MQConnector):
     recipient_prefixes = {
         Recipients.NEON: ['neon'],
         Recipients.UNRESOLVED: ['undefined']
+    }
+
+    vhosts = {
+        'neon_api': '/neon_chat_api',
+        'chatbots': '/chatbots',
+        'translation': '/translation'
     }
 
     @classmethod
@@ -116,41 +122,41 @@ class ChatObserver(MQConnector):
         super().__init__(config, service_name)
         if not vhosts:
             vhosts = {}
-        self.neon_vhost = self.apply_testing_prefix(vhosts.get('neon_api', '/neon_chat_api'))
-        self.chatbots_vhost = self.apply_testing_prefix(vhosts.get('chatbots', '/chatbots'))
+        self.vhosts = {**vhosts, **self.vhosts}
         self._sio = None
         self.sio_url = config['SIO_URL']
         self.connect_sio()
+        self.__translation_requests = {}
         self.register_consumer(name='neon_response',
-                               vhost=self.neon_vhost,
+                               vhost=self.get_vhost('neon_api'),
                                queue='neon_chat_api_response',
                                callback=self.handle_neon_response,
-                               on_error=self.default_error_handler,
-                               auto_ack=False)
+                               on_error=self.default_error_handler)
         self.register_consumer(name='neon_response_error',
-                               vhost=self.neon_vhost,
+                               vhost=self.get_vhost('neon_api'),
                                queue='neon_chat_api_error',
                                callback=self.handle_neon_error,
-                               on_error=self.default_error_handler,
-                               auto_ack=False)
+                               on_error=self.default_error_handler)
         self.register_consumer(name='submind_response',
-                               vhost=self.chatbots_vhost,
+                               vhost=self.get_vhost('chatbots'),
                                queue='submind_response',
                                callback=self.handle_submind_response,
-                               on_error=self.default_error_handler,
-                               auto_ack=False)
+                               on_error=self.default_error_handler)
         self.register_consumer(name='save_prompt_data',
-                               vhost=self.chatbots_vhost,
+                               vhost=self.get_vhost('chatbots'),
                                queue='save_prompt',
                                callback=self.handle_saving_prompt_data,
-                               on_error=self.default_error_handler,
-                               auto_ack=False)
+                               on_error=self.default_error_handler)
         self.register_consumer(name='get_prompt_data',
-                               vhost=self.chatbots_vhost,
+                               vhost=self.get_vhost('chatbots'),
                                queue='get_prompt',
                                callback=self.handle_get_prompt,
-                               on_error=self.default_error_handler,
-                               auto_ack=False)
+                               on_error=self.default_error_handler)
+        self.register_consumer(name='get_neon_translation_response',
+                               vhost=self.get_vhost('translation'),
+                               queue='get_libre_translations',
+                               callback=self.on_neon_translations_response,
+                               on_error=self.default_error_handler)
         self.__neon_service_id = ''
         self.neon_detection_enabled = scan_neon_service
         self.neon_service_event = None
@@ -173,7 +179,7 @@ class ChatObserver(MQConnector):
         self.neon_service_event = Event()
         self.register_consumer(name='neon_service_sync_consumer',
                                callback=self.handle_neon_sync,
-                               vhost=self.neon_vhost,
+                               vhost=self.get_vhost('neon_api'),
                                on_error=self.default_error_handler,
                                auto_ack=False,
                                queue='chat_api_proxy_sync')
@@ -190,6 +196,7 @@ class ChatObserver(MQConnector):
         """Convenience method for setting up Socket IO listeners"""
         self._sio.on('new_message', handler=self.handle_user_message)
         self._sio.on('prompt_data', handler=self.forward_prompt_data)
+        self._sio.on('request_neon_translations', handler=self.request_neon_translations)
 
     def connect_sio(self, refresh=False):
         """
@@ -225,6 +232,14 @@ class ChatObserver(MQConnector):
                 vhost = vhost[:-1]
         return vhost
 
+    def get_vhost(self, name: str):
+        """ Gets actual vhost based on provided string """
+        if name not in list(self.vhosts):
+            LOG.error(f'Invalid vhost specified - {name}')
+            return name
+        else:
+            return self.apply_testing_prefix(vhost=self.vhosts.get(name))
+
     def handle_user_message(self, _data, requesting_by_separator: str = ','):
         """
             Handles input requests from MQ to Neon API
@@ -244,7 +259,7 @@ class ChatObserver(MQConnector):
                 if recipient == Recipients.NEON:
                     _data['messageText'] = requesting_by_separator.join(_data['messageText']
                                                                         .split(requesting_by_separator)[1:]).strip()
-                    with self.create_mq_connection(vhost=self.neon_vhost) as mq_connection:
+                    with self.create_mq_connection(vhost=self.get_vhost('neon_api')) as mq_connection:
                         _data['agent'] = f'pyklatchat v{__version__}'
                         request_dict = {
                             'data': {
@@ -270,7 +285,7 @@ class ChatObserver(MQConnector):
                                              expiration=3000)
                 elif recipient == Recipients.CHATBOT_CONTROLLER:
                     LOG.info(f'Emitting message to Chatbot Controller: {response_data}')
-                    with self.create_mq_connection(vhost=self.chatbots_vhost) as mq_connection:
+                    with self.create_mq_connection(vhost=self.get_vhost('chatbots')) as mq_connection:
                         queue = 'external_shout'
                         _data['requested_participants'] = json.dumps(list(response_data.setdefault('context', {})
                                                           .setdefault('requested_participants', [])))
@@ -285,180 +300,151 @@ class ChatObserver(MQConnector):
 
     def forward_prompt_data(self, data: dict):
         """Forwards received prompt data to the destination observer"""
-        with self.create_mq_connection(vhost=self.chatbots_vhost) as mq_connection:
-            requested_nick = data.pop('receiver', None)
-            if not requested_nick:
-                LOG.warning('Forwarding to unknown recipient, skipping')
-                return -1
-            self.emit_mq_message(connection=mq_connection,
-                                 request_data=data,
-                                 queue=f'{requested_nick}_prompt_data',
-                                 expiration=3000)
+        requested_nick = data.pop('receiver', None)
+        if not requested_nick:
+            LOG.warning('Forwarding to unknown recipient, skipping')
+            return -1
+        self.send_message(request_data=data,
+                          vhost=self.get_vhost('chatbots'),
+                          queue=f'{requested_nick}_prompt_data',
+                          expiration=3000)
 
-    def handle_get_prompt(self,
-                          channel: pika.channel.Channel,
-                          method: pika.spec.Basic.Return,
-                          properties: pika.spec.BasicProperties,
-                          body: bytes):
+    def request_neon_translations(self, data: dict):
+        """ Requests translations from neon """
+        self.__translation_requests[data['request_id']] = {'void_callback_timer': Timer(interval=2 * 60,
+                                                                                        function=self.send_translation_response,
+                                                                                        kwargs=
+                                                                                        {'data': {'request_id': data['request_id'],
+                                                                                                  'translations': {}}})}
+        self.__translation_requests[data['request_id']]['void_callback_timer'].start()
+        self.send_message(request_data={'data': data['data'],
+                                        'request_id': data['request_id']},
+                          vhost=self.get_vhost('translation'),
+                          queue='request_libre_translations', expiration=3000)
+
+    @create_mq_callback()
+    def on_neon_translations_response(self, body: dict):
+        """
+            Translations response from neon
+
+            :param body: request body (dict)
+        """
+        self.send_translation_response(data={'request_id': body['request_id'],
+                                             'translations': body['data']})
+
+    def send_translation_response(self, data: dict):
+        """
+            Sends translation response back to klatchat
+            :param data: translation data to send
+        """
+        request_id = data.get('request_id', None)
+        if request_id and self.__translation_requests.pop(request_id, None):
+            self.sio.emit('get_neon_translations', data=data)
+        else:
+            LOG.warning(f'Neon translation response was not sent, '
+                        f'as request_id={request_id} was not found among translation requests')
+
+    @create_mq_callback()
+    def handle_get_prompt(self, body: dict):
         """
             Handles get request for the prompt data
 
-            :param channel: MQ channel object (pika.channel.Channel)
-            :param method: MQ return method (pika.spec.Basic.Return)
-            :param properties: MQ properties (pika.spec.BasicProperties)
-            :param body: request body (bytes)
+            :param body: request body (dict)
         """
-        if body and isinstance(body, bytes):
-            dict_data = b64_to_dict(body)
-            requested_nick = dict_data.get('nick', None)
-            if not requested_nick:
-                LOG.warning('Request from unknown sender, skipping')
-                return -1
-            self.sio.emit('get_prompt_data', data=dict_data)
-        else:
-            raise TypeError(f'Invalid body received, expected: bytes string; got: {type(body)}')
+        requested_nick = body.get('nick', None)
+        if not requested_nick:
+            LOG.warning('Request from unknown sender, skipping')
+            return -1
+        self.sio.emit('get_prompt_data', data=body)
 
-    def handle_neon_sync(self,
-                         channel: pika.channel.Channel,
-                         method: pika.spec.Basic.Return,
-                         properties: pika.spec.BasicProperties,
-                         body: bytes):
+    @create_mq_callback()
+    def handle_neon_sync(self, body: dict):
         """
             Handles input neon api sync requests from MQ
 
-            :param channel: MQ channel object (pika.channel.Channel)
-            :param method: MQ return method (pika.spec.Basic.Return)
-            :param properties: MQ properties (pika.spec.BasicProperties)
-            :param body: request body (bytes)
+            :param body: request body (dict)
 
         """
-        if body and isinstance(body, bytes):
-            dict_data = b64_to_dict(body)
-            service_id = dict_data.get('service_id', None)
-            if service_id:
-                LOG.info(f'Received neon service id: {service_id}')
-                self.__neon_service_id = service_id
-                self.neon_service_event.set()
+        service_id = body.get('service_id', None)
+        if service_id:
+            LOG.info(f'Received neon service id: {service_id}')
+            self.__neon_service_id = service_id
+            self.neon_service_event.set()
         else:
-            raise TypeError(f'Invalid body received, expected: bytes string; got: {type(body)}')
+            LOG.error('No service id specified - neon api is not synchronized')
 
-    def handle_neon_response(self,
-                             channel: pika.channel.Channel,
-                             method: pika.spec.Basic.Return,
-                             properties: pika.spec.BasicProperties,
-                             body: bytes):
+    @create_mq_callback()
+    def handle_neon_response(self, body: dict):
         """
             Handles responses from Neon API
 
-            :param channel: MQ channel object (pika.channel.Channel)
-            :param method: MQ return method (pika.spec.Basic.Return)
-            :param properties: MQ properties (pika.spec.BasicProperties)
-            :param body: request body (bytes)
+            :param body: request body (dict)
 
         """
-        if body and isinstance(body, bytes):
-            try:
-                dict_data = b64_to_dict(body)
-                data = dict_data['data']
-                context = dict_data['context']
-                # TODO: multilingual support
-                response_lang = list(data['responses'])[0]
-                send_data = {
-                    'cid': context['sender_context']['cid'],
-                    'userID': 'neon',
-                    'messageID': generate_uuid(),
-                    'repliedMessage': context['sender_context'].get('messageID', ''),
-                    'messageText': data['responses'][response_lang]['sentence'],
-                    'timeCreated': time.time()
-                }
-                self.sio.emit('user_message', data=send_data)
-            except Exception as ex:
-                LOG.error(f'Failed to emit Neon Chat API response: {ex}')
-        else:
-            LOG.error(f'Invalid body received, expected: bytes string; got: {type(body)}')
+        try:
+            data = body['data']
+            context = body['context']
+            # TODO: multilingual support
+            response_lang = list(data['responses'])[0]
+            send_data = {
+                'cid': context['sender_context']['cid'],
+                'userID': 'neon',
+                'messageID': generate_uuid(),
+                'repliedMessage': context['sender_context'].get('messageID', ''),
+                'messageText': data['responses'][response_lang]['sentence'],
+                'timeCreated': time.time()
+            }
+            self.sio.emit('user_message', data=send_data)
+        except Exception as ex:
+            LOG.error(f'Failed to emit Neon Chat API response: {ex}')
 
-    def handle_neon_error(self,
-                          channel: pika.channel.Channel,
-                          method: pika.spec.Basic.Return,
-                          properties: pika.spec.BasicProperties,
-                          body: bytes):
+    @create_mq_callback()
+    def handle_neon_error(self, body: dict):
         """
             Handles responses from Neon API
 
-            :param channel: MQ channel object (pika.channel.Channel)
-            :param method: MQ return method (pika.spec.Basic.Return)
-            :param properties: MQ properties (pika.spec.BasicProperties)
             :param body: request body (bytes)
 
         """
-        if body and isinstance(body, bytes):
-            dict_data = b64_to_dict(body)
-            LOG.error(f'Error response from Neon API: {dict_data}')
-        else:
-            raise TypeError(f'Invalid body received, expected: bytes string; got: {type(body)}')
+        LOG.error(f'Error response from Neon API: {body}')
 
-    def handle_submind_response(self,
-                                channel: pika.channel.Channel,
-                                method: pika.spec.Basic.Return,
-                                properties: pika.spec.BasicProperties,
-                                body: bytes):
+    @create_mq_callback()
+    def handle_submind_response(self, body: dict):
         """
             Handles responses from subminds
 
-            :param channel: MQ channel object (pika.channel.Channel)
-            :param method: MQ return method (pika.spec.Basic.Return)
-            :param properties: MQ properties (pika.spec.BasicProperties)
-            :param body: request body (bytes)
+            :param body: request body (dict)
 
         """
-        if body and isinstance(body, bytes):
-            dict_data = b64_to_dict(body)
 
-            response_required_keys = ('userID', 'cid', 'messageText', 'bot', 'timeCreated',)
+        response_required_keys = ('userID', 'cid', 'messageText', 'bot', 'timeCreated',)
 
-            if all(required_key in list(dict_data) for required_key in response_required_keys):
-                self.sio.emit('user_message', data=dict_data)
-            else:
-                error_msg = f'Skipping received data {dict_data} as it lacks one of the required keys: ' \
-                            f'({",".join(response_required_keys)})'
-                LOG.warning(error_msg)
-                with self.create_mq_connection(self.chatbots_vhost) as mq_connection:
-                    self.emit_mq_message(connection=mq_connection,
-                                         queue='chatbot_response_error',
-                                         request_data={'msg': error_msg},
-                                         expiration=3000)
+        if all(required_key in list(body) for required_key in response_required_keys):
+            self.sio.emit('user_message', data=body)
         else:
-            raise TypeError(f'Invalid body received, expected: bytes string; got: {type(body)}')
+            error_msg = f'Skipping received data {body} as it lacks one of the required keys: ' \
+                        f'({",".join(response_required_keys)})'
+            LOG.warning(error_msg)
+            self.send_message(request_data={'msg': error_msg}, vhost=self.get_vhost('chatbots'),
+                              queue='chatbot_response_error', expiration=3000)
 
-    def handle_saving_prompt_data(self,
-                                  channel: pika.channel.Channel,
-                                  method: pika.spec.Basic.Return,
-                                  properties: pika.spec.BasicProperties,
-                                  body: bytes):
+    @create_mq_callback()
+    def handle_saving_prompt_data(self, body: bytes):
         """
             Handles requests for saving prompt data
 
-            :param channel: MQ channel object (pika.channel.Channel)
-            :param method: MQ return method (pika.spec.Basic.Return)
-            :param properties: MQ properties (pika.spec.BasicProperties)
             :param body: request body (bytes)
 
         """
-        if body and isinstance(body, bytes):
-            dict_data = b64_to_dict(body)
+        dict_data = b64_to_dict(body)
 
-            response_required_keys = ('userID', 'cid', 'messageText', 'bot', 'timeCreated', 'context', )
+        response_required_keys = ('userID', 'cid', 'messageText', 'bot', 'timeCreated', 'context', )
 
-            if all(required_key in list(dict_data) for required_key in response_required_keys):
-                self.sio.emit('save_prompt_data', data=dict_data)
-            else:
-                error_msg = f'Skipping received data {dict_data} as it lacks one of the required keys: ' \
-                            f'({",".join(response_required_keys)})'
-                LOG.error(error_msg)
-                with self.create_mq_connection(self.chatbots_vhost) as mq_connection:
-                    self.emit_mq_message(connection=mq_connection,
-                                         queue='chatbot_response_error',
-                                         request_data={'msg': error_msg},
-                                         expiration=3000)
+        if all(required_key in list(dict_data) for required_key in response_required_keys):
+            self.sio.emit('save_prompt_data', data=dict_data)
         else:
-            raise TypeError(f'Invalid body received, expected: bytes string; got: {type(body)}')
+            error_msg = f'Skipping received data {dict_data} as it lacks one of the required keys: ' \
+                        f'({",".join(response_required_keys)})'
+            LOG.error(error_msg)
+            self.send_message(request_data={'msg': error_msg}, vhost=self.get_vhost('chatbots'),
+                              queue='chatbot_response_error', expiration=3000)

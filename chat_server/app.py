@@ -40,13 +40,8 @@ from .sio import sio
 from .blueprints import auth as auth_blueprint, \
                                    chat as chat_blueprint, \
                                    users as users_blueprint, \
-                                   components as components_blueprint
-
-async def read_bytes(generator: AsyncIterator[bytes]) -> bytes:
-    body = b""
-    async for data in generator:
-        body += data
-    return body
+                                   components as components_blueprint, \
+                                   languages as languages_blueprint
 
 
 def create_app(testing_mode: bool = False, sio_server: socketio.AsyncServer = sio) -> Union[FastAPI, socketio.ASGIApp]:
@@ -86,6 +81,7 @@ def create_app(testing_mode: bool = False, sio_server: socketio.AsyncServer = si
     chat_app.include_router(chat_blueprint.router)
     chat_app.include_router(users_blueprint.router)
     chat_app.include_router(components_blueprint.router)
+    chat_app.include_router(languages_blueprint.router)
 
     chat_app.add_middleware(
         CORSMiddleware,

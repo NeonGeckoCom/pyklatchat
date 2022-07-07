@@ -53,7 +53,6 @@ async function extractJsonData(urlPath=""){
     });
 }
 
-let loadedComponents = {}
 
 document.addEventListener('DOMContentLoaded', async (e)=>{
     if (configData['client'] === CLIENTS.MAIN) {

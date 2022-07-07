@@ -161,14 +161,12 @@ const currentUserLoaded = new CustomEvent("currentUserLoaded", { "detail": "Even
 function refreshCurrentUser(sendNotification=false, refreshChats=false){
     getUserData().then(data=>{
         currentUser = data;
+        updateNavbar();
+        if(refreshChats && configData['currentURLFull'].includes('chats')) {
+            refreshChatView();
+        }
         if(sendNotification) {
             document.dispatchEvent(currentUserLoaded);
-        }
-        updateNavbar();
-        if(refreshChats) {
-            if (configData['currentURLFull'].includes('chats')) {
-                refreshChatView();
-            }
         }
     });
 }

@@ -17,46 +17,26 @@
 # US Patents 2008-2021: US7424516, US20140161250, US20140177813, US8638908, US8068604, US8553852, US10530923, US10530924
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
 
-from abc import ABC, abstractmethod
-from typing import Optional, Union
-from enum import Enum
+from typing import Type
 
 
-class DatabaseTypes(Enum):
-    RELATIONAL = 1
-    NOSQL = 2
+class CacheFactory:
+    """ Cache creation factory """
 
+    __active_caches = {}
 
-class DatabaseConnector(ABC):
-    """Base class for database"""
-
-    def __init__(self, config_data: dict):
-        self.config_data = config_data
-        self._cnx = None
-
-    @property
-    @abstractmethod
-    def database_type(self) -> DatabaseTypes:
-        pass
-
-    @property
-    def connection(self):
-        return self._cnx
-
-    @abstractmethod
-    def create_connection(self):
-        """Creates new database connection"""
-        pass
-
-    @abstractmethod
-    def abort_connection(self):
-        """Aborts existing connection"""
-        pass
-
-    @abstractmethod
-    def exec_raw_query(self, query: Union[str, dict], *args, **kwargs) -> Optional[Union[list, dict]]:
+    @classmethod
+    def get(cls, name: str, cache_type: Type = None, **kwargs):
         """
-            Executes raw query returns result if needed
-            :param query: query to execute
+            Get cache instance based on name and type
+
+            :param name: name of the cache to retrieve
+            :param cache_type: type of the cache to create if not found
+            :param kwargs: keyword args to provide along with cache instance creation
         """
-        pass
+        if not cls.__active_caches.get(name):
+            if cache_type:
+                cls.__active_caches[name] = cache_type(**kwargs)
+            else:
+                raise KeyError(f'Missing cache instance under {name}')
+        return cls.__active_caches[name]

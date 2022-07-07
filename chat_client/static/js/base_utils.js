@@ -50,3 +50,24 @@ function shrinkToFit(text, maxLength){
         text = text.substring(0, maxLength/2) + '...' + text.substring(text.length - maxLength/2, text.length);
     }return text;
 }
+
+
+/**
+ * Converts file to base64
+ * @param file: desired file
+ * @return {Promise}
+ */
+const toBase64 = file => new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = error => reject(error);
+});
+
+/**
+ * Extracts filename from path
+ * @param path: path to extract from
+ */
+function getFilenameFromPath(path){
+    return path.replace(/.*[\/\\]/, '');
+}

@@ -17,46 +17,12 @@
 # US Patents 2008-2021: US7424516, US20140161250, US20140177813, US8638908, US8068604, US8553852, US10530923, US10530924
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
 
-from abc import ABC, abstractmethod
-from typing import Optional, Union
-from enum import Enum
+class Singleton(type):
+    """ Metaclass for Singleton Implementation"""
+    _instances = {}
 
-
-class DatabaseTypes(Enum):
-    RELATIONAL = 1
-    NOSQL = 2
-
-
-class DatabaseConnector(ABC):
-    """Base class for database"""
-
-    def __init__(self, config_data: dict):
-        self.config_data = config_data
-        self._cnx = None
-
-    @property
-    @abstractmethod
-    def database_type(self) -> DatabaseTypes:
-        pass
-
-    @property
-    def connection(self):
-        return self._cnx
-
-    @abstractmethod
-    def create_connection(self):
-        """Creates new database connection"""
-        pass
-
-    @abstractmethod
-    def abort_connection(self):
-        """Aborts existing connection"""
-        pass
-
-    @abstractmethod
-    def exec_raw_query(self, query: Union[str, dict], *args, **kwargs) -> Optional[Union[list, dict]]:
-        """
-            Executes raw query returns result if needed
-            :param query: query to execute
-        """
-        pass
+    def __call__(cls, *args, **kwargs):
+        update = kwargs.pop('update', False)
+        if cls not in cls._instances or update:
+            cls._instances[cls] = super(Singleton, cls).__call__(*args, **kwargs)
+        return cls._instances[cls]

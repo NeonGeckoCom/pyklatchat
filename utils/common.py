@@ -58,3 +58,16 @@ def get_version(from_path: str = None):
                 else:
                     version = line.split("'")[1]
     return version
+
+
+def deep_merge(source: dict, destination: dict) -> dict:
+    """ Deeply merges source dict into destination """
+    for key, value in source.items():
+        if isinstance(value, dict):
+            # get node or create one
+            node = destination.setdefault(key, {})
+            deep_merge(value, node)
+        else:
+            destination[key] = value
+
+    return destination

@@ -28,8 +28,14 @@ function initSIO(){
     socket.on('new_message', (data) => {
         console.log('new_message: ', data)
         const msgData = JSON.parse(data);
+        sendLanguageUpdateRequest()
         addMessage(msgData['cid'], msgData['userID'], msgData['messageID'], msgData['messageText'], msgData['timeCreated'], msgData['repliedMessage'], msgData['attachments'])
             .catch(err=>console.error('Error occurred while adding new message: ',err));
+    });
+
+    socket.on('translation_response', async (data) => {
+        console.log('translation_response: ', data)
+        await applyTranslations(data);
     });
 
     return socket;
