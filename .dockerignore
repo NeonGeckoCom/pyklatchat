@@ -1,8 +1,0 @@
-# NOTE: this dockerignore is used EXCLUSIVELY by base image, utilizing it with derived images will cause build issues
-
-# Ignore everything
-*
-
-# Allow requirements
-!/requirements/requirements.txt
-
