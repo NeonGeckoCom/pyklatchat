@@ -40,10 +40,10 @@ jobs:
         echo ::set-output name=version::${VERSION}
     - name: Build Base Image
       run: |
-        cd scripts && bash build_base_image.sh -version ${{ steps.version.outputs.version }}
+        cd scripts && bash build_base_image.sh -v ${{ steps.version.outputs.version }}
     - name: Build Pyklatchat Images
       run: |
-        cd scripts && bash build_pyklatchat_images.sh -version ${{ steps.version.outputs.version }}
+        cd scripts && bash build_pyklatchat_images.sh -v ${{ steps.version.outputs.version }}
     - name: Apply Workflow Dispatch Environments
       if: github.event_name == 'workflow_dispatch'
       run: |
