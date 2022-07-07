@@ -9,4 +9,4 @@ RUN apt-get update \
     && apt install build-essential -y \
     && pip install --upgrade pip  \
     && pip install wheel  \
-    && pip install --no-cache-dir -r ./requirements/requirements.txt
+    && pip install --no-cache-dir -r ./requirements.txt
