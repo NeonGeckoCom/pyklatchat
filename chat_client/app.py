@@ -80,9 +80,11 @@ def create_app() -> FastAPI:
         if exc.status_code == status.HTTP_404_NOT_FOUND:
             return RedirectResponse("/chats")
 
+    __cors_allowed_origins = os.environ.get('COST_ALLOWED_ORIGINS', '').split(',') or ['*']
+
     chat_app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],
+        allow_origins=__cors_allowed_origins,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
