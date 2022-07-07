@@ -1,10 +1,9 @@
 export DOCKER_BUILDKIT=1
 
-while getopts version: flag
-do
-    case "${flag}" in
-        version) version=${OPTARG};;
-    esac
+while getopts v: opts; do
+   case ${opts} in
+      v) version=${OPTARG} ;;
+   esac
 done
 
 readonly VERSION=${version:-dev}
