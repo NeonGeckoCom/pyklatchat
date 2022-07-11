@@ -252,7 +252,7 @@ class ChatObserver(MQConnector):
         if request_skills == 'default':
             request_dict = {
                 'data': {
-                    'utterances': [msg_data.pop('messageText', '')],
+                    'utterances': [msg_data['message_body']],
                 },
                 'context': {
                     'sender_context': msg_data
@@ -261,7 +261,7 @@ class ChatObserver(MQConnector):
         elif request_skills == 'tts':
             request_dict = {
                 'data': {
-                    'utterance': msg_data.pop('messageText', ''),
+                    'utterance': msg_data['message_body'],
                 },
                 'context': {
                     'sender_context': msg_data
@@ -270,13 +270,14 @@ class ChatObserver(MQConnector):
         elif request_skills == 'stt':
             request_dict = {
                 'data': {
-                    'audio_file': msg_data.pop('audio_data', ''),
+                    'audio_file': msg_data.pop('audio_data', msg_data['message_body']),
                 }
             }
         return request_dict
 
     def __handle_neon_recipient(self, recipient_data: dict, msg_data: dict):
-        msg_data['messageText'] = self.mention_separator.join(msg_data['messageText'].split(self.mention_separator)[1:]).strip()
+        msg_data.setdefault('message_body', msg_data.pop('messageText', ''))
+        msg_data['message_body'] = self.mention_separator.join(msg_data['message_body'].split(self.mention_separator)[1:]).strip()
         msg_data.setdefault('agent', f'pyklatchat v{__version__}')
         request_dict = self.get_structure_based_on_type(msg_data)
         request_dict.setdefault('data', {})
@@ -329,7 +330,7 @@ class ChatObserver(MQConnector):
         if data and isinstance(data, dict):
             recipient_data = {}
             if not data.get('skip_recipient_detection'):
-                recipient_data = self.get_recipient_from_message(message=data.get('messageText'),
+                recipient_data = self.get_recipient_from_message(message=data.get('messageText') or data.get('message_body'),
                                                                  prefix_separator=self.mention_separator)
             recipient = recipient_data.get('recipient') or data.get('recipient') or Recipients.UNRESOLVED
             handler_method = self.recipient_to_handler_method.get(recipient)
