@@ -83,13 +83,13 @@ def create_app(testing_mode: bool = False, sio_server: socketio.AsyncServer = si
     chat_app.include_router(components_blueprint.router)
     chat_app.include_router(languages_blueprint.router)
 
-    # chat_app.add_middleware(
-    #     CORSMiddleware,
-    #     allow_origins=["*"],
-    #     allow_credentials=True,
-    #     allow_methods=["*"],
-    #     allow_headers=["*"],
-    # )
+    chat_app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
     if testing_mode:
         chat_app = TestClient(chat_app)
