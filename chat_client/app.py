@@ -80,6 +80,18 @@ def create_app() -> FastAPI:
         if exc.status_code == status.HTTP_404_NOT_FOUND:
             return RedirectResponse("/chats")
 
+    __cors_allowed_origins = os.environ.get('COST_ALLOWED_ORIGINS', '').split(',') or ['*']
+
+    LOG.info(f'CORS_ALLOWED_ORIGINS={__cors_allowed_origins}')
+
+    chat_app.add_middleware(
+        CORSMiddleware,
+        allow_origins=__cors_allowed_origins,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
     chat_app.mount("/static", StaticFiles(directory="chat_client/static"), name="static")
     chat_app.include_router(chat_blueprint.router)
     chat_app.include_router(users_blueprint.router)

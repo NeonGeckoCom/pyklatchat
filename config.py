@@ -24,7 +24,6 @@ import copy
 from typing import List
 from neon_utils import LOG
 
-from chat_server.server_utils.db_utils import DbUtils
 from utils.database_utils import DatabaseController
 
 
@@ -97,6 +96,8 @@ class Configuration:
 
             :returns instance of Database Controller
         """
+        from chat_server.server_utils.db_utils import DbUtils
+
         db_controller = self.db_controllers.get(name, None)
         if not db_controller or override:
             db_config = self.get_db_config_from_key(key=name)
