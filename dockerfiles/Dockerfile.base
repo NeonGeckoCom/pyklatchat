@@ -6,7 +6,6 @@ WORKDIR /app
 
 RUN apt-get update \
     && apt-get install -y \
-    && apt install build-essential -y \
     && pip install --upgrade pip  \
     && pip install wheel  \
     && pip install --no-cache-dir -r ./requirements.txt
