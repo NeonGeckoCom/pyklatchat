@@ -87,13 +87,15 @@ def create_app(testing_mode: bool = False, sio_server: socketio.AsyncServer = si
     #
     # LOG.info(f'CORS_ALLOWED_ORIGINS={__cors_allowed_origins}')
     #
+    chat_app.user_middleware.clear()
     # chat_app.add_middleware(
     #     CORSMiddleware,
-    #     allow_origins=__cors_allowed_origins,
+    #     allow_origins=['*'],
     #     allow_credentials=True,
     #     allow_methods=["*"],
     #     allow_headers=["*"],
     # )
+    chat_app.middleware_stack = chat_app.build_middleware_stack()
 
     if testing_mode:
         chat_app = TestClient(chat_app)
