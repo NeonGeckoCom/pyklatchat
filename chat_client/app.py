@@ -84,24 +84,6 @@ def create_app() -> FastAPI:
 
     LOG.info(f'CORS_ALLOWED_ORIGINS={__cors_allowed_origins}')
 
-    chat_app.user_middleware.clear()
-    # chat_app.add_middleware(
-    #     CORSMiddleware,
-    #     allow_origins=['*'],
-    #     allow_credentials=True,
-    #     allow_methods=["*"],
-    #     allow_headers=["*"],
-    # )
-    chat_app.middleware_stack = chat_app.build_middleware_stack()
-
-    # chat_app.add_middleware(
-    #     CORSMiddleware,
-    #     allow_origins=__cors_allowed_origins,
-    #     allow_credentials=True,
-    #     allow_methods=["*"],
-    #     allow_headers=["*"],
-    # )
-
     chat_app.mount("/static", StaticFiles(directory="chat_client/static"), name="static")
     chat_app.include_router(chat_blueprint.router)
     chat_app.include_router(users_blueprint.router)
