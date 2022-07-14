@@ -98,7 +98,7 @@ def login(username: str = Form(...), password: str = Form(...)):
     matching_user = db_controller.exec_query(query={'command': 'find_one',
                                                     'document': 'users',
                                                     'data': {'nickname': username}})
-    if not matching_user or matching_user['is_tmp']:
+    if not matching_user or matching_user.get('is_tmp', False):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid username or password"
         )
