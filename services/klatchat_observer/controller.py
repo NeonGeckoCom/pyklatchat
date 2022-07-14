@@ -55,6 +55,63 @@ class ChatObserver(MQConnector):
         'translation': '/translation'
     }
 
+    def __init__(self, config: dict, service_name: str = 'chat_observer', vhosts: dict = None, scan_neon_service: bool = False):
+        super().__init__(config, service_name)
+        if not vhosts:
+            vhosts = {}
+        self.vhosts = {**vhosts, **self.vhosts}
+        self._sio = None
+        self.sio_url = config['SIO_URL']
+        try:
+            self.connect_sio()
+        except Exception as ex:
+            err = f'Failed to connect Socket IO at {self.sio_url} due to exception={str(ex)}, observing will not be run'
+            LOG.warning(err)
+            if not self.testing_mode:
+                raise ConnectionError(err)
+        self.__translation_requests = {}
+        self.register_consumer(name='neon_response',
+                               vhost=self.get_vhost('neon_api'),
+                               queue='neon_chat_api_response',
+                               callback=self.handle_neon_response,
+                               on_error=self.default_error_handler)
+        self.register_consumer(name='neon_response_error',
+                               vhost=self.get_vhost('neon_api'),
+                               queue='neon_chat_api_error',
+                               callback=self.handle_neon_error,
+                               on_error=self.default_error_handler)
+        self.register_consumer(name='submind_response',
+                               vhost=self.get_vhost('chatbots'),
+                               queue='submind_response',
+                               callback=self.handle_submind_response,
+                               on_error=self.default_error_handler)
+        self.register_consumer(name='save_prompt_data',
+                               vhost=self.get_vhost('chatbots'),
+                               queue='save_prompt',
+                               callback=self.handle_saving_prompt_data,
+                               on_error=self.default_error_handler)
+        self.register_consumer(name='get_prompt_data',
+                               vhost=self.get_vhost('chatbots'),
+                               queue='get_prompt',
+                               callback=self.handle_get_prompt,
+                               on_error=self.default_error_handler)
+        self.register_consumer(name='get_neon_translation_response',
+                               vhost=self.get_vhost('translation'),
+                               queue='get_libre_translations',
+                               callback=self.on_neon_translations_response,
+                               on_error=self.default_error_handler)
+        self.__neon_service_id = ''
+        self.neon_detection_enabled = scan_neon_service
+        self.neon_service_event = None
+        self.last_neon_request: int = 0
+        self.neon_service_refresh_interval = 60  # seconds
+        self.mention_separator = ','
+        self.recipient_to_handler_method = {
+            Recipients.NEON: self.__handle_neon_recipient,
+            Recipients.CHATBOT_CONTROLLER: self.__handle_chatbot_recipient
+        }
+        self.__handle_neon_recipient(recipient_data={}, msg_data={'request_skills': 'tts', 'utterance': 'Hello, this is a test run over the TTS API'})
+
     @classmethod
     def get_recipient_from_prefix(cls, message_prefix) -> dict:
         """
@@ -114,56 +171,6 @@ class ChatObserver(MQConnector):
         if response_body['recipient'] == Recipients.UNRESOLVED:
             response_body = self.get_recipient_from_body(message=message)
         return response_body
-
-    def __init__(self, config: dict, service_name: str = 'chat_observer', vhosts: dict = None, scan_neon_service: bool = False):
-        super().__init__(config, service_name)
-        if not vhosts:
-            vhosts = {}
-        self.vhosts = {**vhosts, **self.vhosts}
-        self._sio = None
-        self.sio_url = config['SIO_URL']
-        self.connect_sio()
-        self.__translation_requests = {}
-        self.register_consumer(name='neon_response',
-                               vhost=self.get_vhost('neon_api'),
-                               queue='neon_chat_api_response',
-                               callback=self.handle_neon_response,
-                               on_error=self.default_error_handler)
-        self.register_consumer(name='neon_response_error',
-                               vhost=self.get_vhost('neon_api'),
-                               queue='neon_chat_api_error',
-                               callback=self.handle_neon_error,
-                               on_error=self.default_error_handler)
-        self.register_consumer(name='submind_response',
-                               vhost=self.get_vhost('chatbots'),
-                               queue='submind_response',
-                               callback=self.handle_submind_response,
-                               on_error=self.default_error_handler)
-        self.register_consumer(name='save_prompt_data',
-                               vhost=self.get_vhost('chatbots'),
-                               queue='save_prompt',
-                               callback=self.handle_saving_prompt_data,
-                               on_error=self.default_error_handler)
-        self.register_consumer(name='get_prompt_data',
-                               vhost=self.get_vhost('chatbots'),
-                               queue='get_prompt',
-                               callback=self.handle_get_prompt,
-                               on_error=self.default_error_handler)
-        self.register_consumer(name='get_neon_translation_response',
-                               vhost=self.get_vhost('translation'),
-                               queue='get_libre_translations',
-                               callback=self.on_neon_translations_response,
-                               on_error=self.default_error_handler)
-        self.__neon_service_id = ''
-        self.neon_detection_enabled = scan_neon_service
-        self.neon_service_event = None
-        self.last_neon_request: int = 0
-        self.neon_service_refresh_interval = 60  # seconds
-        self.mention_separator = ','
-        self.recipient_to_handler_method = {
-            Recipients.NEON: self.__handle_neon_recipient,
-            Recipients.CHATBOT_CONTROLLER: self.__handle_chatbot_recipient
-        }
 
     @property
     def neon_service_id(self):
@@ -259,9 +266,11 @@ class ChatObserver(MQConnector):
                 }
             }
         elif request_skills == 'tts':
+            utterance = msg_data.pop('utterance', '') or msg_data.pop('text', '')
             request_dict = {
                 'data': {
-                    'utterance': msg_data['message_body'],
+                    'utterance': utterance,
+                    'text': utterance,
                 },
                 'context': {
                     'sender_context': msg_data
@@ -270,7 +279,7 @@ class ChatObserver(MQConnector):
         elif request_skills == 'stt':
             request_dict = {
                 'data': {
-                    'audio_file': msg_data.pop('audio_data', msg_data['message_body']),
+                    'audio_data': msg_data.pop('audio_data', msg_data['message_body']),
                 }
             }
         return request_dict
@@ -281,11 +290,10 @@ class ChatObserver(MQConnector):
         msg_data.setdefault('agent', f'pyklatchat v{__version__}')
         request_dict = self.get_structure_based_on_type(msg_data)
         request_dict.setdefault('data', {})
-        request_dict['data']['lang'] = msg_data.get('userLanguage') or msg_data.get('lang') or 'en-us',
+        request_dict['data']['lang'] = msg_data.get('lang', 'en-us')
         request_dict.setdefault('context', {})
         request_dict['context'] = {**recipient_data.get('context', {}),
-                                   **{'ident': generate_uuid(),
-                                      'source': 'mq_api',
+                                   **{'source': 'mq_api',
                                       'request_skills': [msg_data.get('request_skills', 'default').lower()],
                                       'username': msg_data.pop('nick', 'guest')}}
         input_queue = 'neon_chat_api_request'
