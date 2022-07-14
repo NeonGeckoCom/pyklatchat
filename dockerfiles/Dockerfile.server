@@ -1,14 +1,7 @@
-FROM python:3.8-slim-buster
+FROM ghcr.io/neongeckocom/pyklatchat_base:dev
 
 COPY /utils /app
 COPY . /app/chat_server/
-WORKDIR /app
-RUN apt-get update \
-    && apt-get install -y \
-    && apt install build-essential -y \
-    && pip install --upgrade pip  \
-    && pip install wheel  \
-    && pip install --no-cache-dir -r ./chat_server/requirements.txt
 
 ENV SERVER_ENV PROD
 ENV CHATSERVER_CONFIG /app/config/config.json

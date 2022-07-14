@@ -38,9 +38,12 @@ jobs:
       run: |
         VERSION=$(sed "s/a/-a./" <<< $(python setup.py --version))
         echo ::set-output name=version::${VERSION}
-    - name: Build Images
+    - name: Build Base Image
       run: |
-        cd scripts && bash build_containers.sh
+        cd scripts && bash build_base_image.sh -v ${{ steps.version.outputs.version }}
+    - name: Build Pyklatchat Images
+      run: |
+        cd scripts && bash build_pyklatchat_images.sh -v ${{ steps.version.outputs.version }}
     - name: Apply Workflow Dispatch Environments
       if: github.event_name == 'workflow_dispatch'
       run: |
@@ -59,13 +62,12 @@ jobs:
     - name: Push Images
       run: |
         for IMAGE in $IMAGES; do
-          docker tag neon/$IMAGE:latest ghcr.io/neongeckocom/$IMAGE:${{ steps.version.outputs.version }}
           docker image push ghcr.io/neongeckocom/$IMAGE:${{ steps.version.outputs.version }}
           if [ -n "$VERSION" ]; then
-            docker tag neon/$IMAGE:latest ghcr.io/neongeckocom/$IMAGE:$VERSION
+            docker tag ghcr.io/neongeckocom/$IMAGE:${{ steps.version.outputs.version }} ghcr.io/neongeckocom/$IMAGE:$VERSION
             docker image push ghcr.io/neongeckocom/$IMAGE:$VERSION
           fi
         done
       env:
         VERSION: ${{ env.VERSION }}
-        IMAGES: klatchat_observer chat_client chat_server
+        IMAGES: pyklatchat_base klatchat_observer chat_client chat_server
