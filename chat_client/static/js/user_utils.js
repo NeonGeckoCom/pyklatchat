@@ -40,7 +40,7 @@ async function getUserData(userID=null){
     if(userID){
         query_url+='?user_id='+userID;
     }
-    await fetch(query_url)
+    await fetch(query_url, {mode: 'no-cors'})
             .then(response => response.ok?response.json():{'data':{}})
             .then(data => {
                 userData = data['data'];
@@ -174,7 +174,9 @@ function refreshCurrentUser(sendNotification=false, refreshChats=false){
 
 document.addEventListener('DOMContentLoaded', (e)=>{
     if (configData['client'] === CLIENTS.MAIN) {
-        refreshCurrentUser(true, false);
+        document.addEventListener('configLoaded', (e)=>{
+            refreshCurrentUser(true, false);
+        });
         currentUserNavDisplay.addEventListener('click', (e) => {
             e.preventDefault();
             if (currentUser['is_tmp']) {
