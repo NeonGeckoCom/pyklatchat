@@ -20,6 +20,8 @@
 
 import requests
 
+from neon_utils import LOG
+
 from typing import Optional
 from fastapi import Response, Request, status, APIRouter
 from fastapi.exceptions import HTTPException
@@ -45,8 +47,10 @@ def get_user(response: Response, request: Request, user_id: Optional[str] = None
         :returns JSON-formatted response from server
     """
     user_id = user_id or ''
-    get_user_response = requests.get(f'{app_config["SERVER_URL"]}/users_api?user_id={user_id}', cookies=request.cookies)
-    if get_user_response.status_code != 200:
+    url = f'{app_config["SERVER_URL"]}/users_api?user_id={user_id}'
+    LOG.info(f'Getting user from url = {url}')
+    get_user_response = requests.get(url, cookies=request.cookies)
+    if not get_user_response or get_user_response.status_code != 200:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail=get_user_response.json()
         )
