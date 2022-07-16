@@ -40,7 +40,7 @@ async function getUserData(userID=null){
     if(userID){
         query_url+='?user_id='+userID;
     }
-    await fetch(query_url, {mode: 'no-cors'})
+    await fetch(query_url)
             .then(response => response.ok?response.json():{'data':{}})
             .then(data => {
                 userData = data['data'];
