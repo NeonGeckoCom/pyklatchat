@@ -198,7 +198,7 @@ function downloadAttachment(attachmentItem, cid, messageID){
         const fileName = attachmentItem.getAttribute('data-file-name');
         const mime = attachmentItem.getAttribute('data-mime');
         const getFileURL = `${configData['CHAT_SERVER_URL_BASE']}/chat_api/${messageID}/get_file/${fileName}`;
-        fetchNoCors(getFileURL).then(async response => {
+        fetch(getFileURL).then(async response => {
             response.ok ?
                 download(await response.blob(), fileName, mime)
                 :console.error(`No file data received for path, 
@@ -335,7 +335,7 @@ async function buildConversation(conversationData={}, remember=true,conversation
 
                 console.log('Received attachments array: ', attachments)
                 const query_url = `${configData['CHAT_SERVER_URL_BASE']}/chat_api/${conversationData['_id']}/store_files`;
-                await fetchNoCors(query_url, {method:'POST',
+                await fetch(query_url, {method:'POST',
                                               body:formData})
                     .then(response => response.ok?console.log('File stored successfully'):null).catch(err=>{
                         errorOccurred=err;
@@ -422,7 +422,7 @@ async function getConversationDataByInput(input=""){
     let conversationData = {};
     if(input && typeof input === "string"){
         const query_url = `${configData['CHAT_SERVER_URL_BASE']}/chat_api/search/${input}`
-        await fetchNoCors(query_url)
+        await fetch(query_url)
             .then(response => {
                 if(response.ok){
                     return response.json();
