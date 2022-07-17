@@ -38,7 +38,8 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from .blueprints import chat as chat_blueprint, \
                         users as users_blueprint, \
-                        auth as auth_blueprint
+                        auth as auth_blueprint, \
+                        components as components_blueprint
 
 
 def create_app() -> FastAPI:
@@ -96,5 +97,6 @@ def create_app() -> FastAPI:
     chat_app.include_router(chat_blueprint.router)
     chat_app.include_router(users_blueprint.router)
     chat_app.include_router(auth_blueprint.router)
+    chat_app.include_router(components_blueprint.router)
 
     return chat_app

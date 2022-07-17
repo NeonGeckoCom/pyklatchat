@@ -16,13 +16,12 @@
 # Specialized conversational reconveyance options from Conversation Processing Intelligence Corp.
 # US Patents 2008-2021: US7424516, US20140161250, US20140177813, US8638908, US8068604, US8553852, US10530923, US10530924
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
-import copy
 import os
 import random
 import string
 import sys
 import time
-from typing import Union, AsyncIterator
+from typing import Union
 
 import socketio
 
@@ -40,8 +39,7 @@ from .sio import sio
 from .blueprints import auth as auth_blueprint, \
                                    chat as chat_blueprint, \
                                    users as users_blueprint, \
-                                   components as components_blueprint, \
-                                   languages as languages_blueprint
+    languages as languages_blueprint
 
 
 def create_app(testing_mode: bool = False, sio_server: socketio.AsyncServer = sio) -> Union[FastAPI, socketio.ASGIApp]:
@@ -80,7 +78,6 @@ def create_app(testing_mode: bool = False, sio_server: socketio.AsyncServer = si
     chat_app.include_router(auth_blueprint.router)
     chat_app.include_router(chat_blueprint.router)
     chat_app.include_router(users_blueprint.router)
-    chat_app.include_router(components_blueprint.router)
     chat_app.include_router(languages_blueprint.router)
 
     # __cors_allowed_origins = os.environ.get('COST_ALLOWED_ORIGINS', '').split(',') or ['*']
