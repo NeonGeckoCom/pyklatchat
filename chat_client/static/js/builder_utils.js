@@ -30,7 +30,7 @@ async function buildHTMLFromTemplate(templateName, templateContext = {}){
         const html = loadedComponents[templateName];
         return fetchTemplateContext(html, templateContext);
     }else {
-        return await fetch(`${configData['CURRENT_URL_BASE']}/components/${templateName}`)
+        return await fetch(`${configData['currentURLBase']}/components/${templateName}`)
             .then((response) => {
                 if (response.ok) {
                     return response.text();

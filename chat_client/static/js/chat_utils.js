@@ -532,6 +532,7 @@ async function restoreChatAlignment(keyName=conversationAlignmentKey){
             }
         });
     }
+    console.log('Chat Alignment Restored')
     document.dispatchEvent(chatAlignmentRestoredEvent);
 }
 
@@ -674,10 +675,8 @@ function setChatState(cid, state='active', state_msg = ''){
 
 document.addEventListener('DOMContentLoaded', (e)=>{
 
-    document.addEventListener('currentUserLoaded',async (e)=>{
+    document.addEventListener('supportedLanguagesLoaded', async (e)=>{
         await restoreChatAlignment();
-    });
-    document.addEventListener('supportedLanguagesLoaded', (e)=>{
         refreshCurrentUser(false, true);
     });
 

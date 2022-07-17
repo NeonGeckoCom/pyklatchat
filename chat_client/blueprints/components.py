@@ -27,7 +27,7 @@ router = APIRouter(
     responses={'404': {"description": "Unknown endpoint"}},
 )
 
-component_templates = Jinja2Templates(directory=os.environ.get('TEMPLATES_DIR', "chat_server/templates"))
+component_templates = Jinja2Templates(directory=os.environ.get('TEMPLATES_DIR', "chat_client/templates"))
 
 
 @router.get('/{template_name}')
