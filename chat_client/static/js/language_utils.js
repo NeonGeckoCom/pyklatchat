@@ -136,7 +136,7 @@ async function applyTranslations(data){
 const supportedLanguagesLoadedEvent = new CustomEvent("supportedLanguagesLoaded", { "detail": "Event that is fired when system supported languages are loaded" });
 
 document.addEventListener('DOMContentLoaded', (e)=>{
-    document.addEventListener('chatAlignmentRestored',async (e)=>{
+    document.addEventListener('configLoaded',async (e)=>{
         await fetchSupportedLanguages().then(r => document.dispatchEvent(supportedLanguagesLoadedEvent));
     });
 });

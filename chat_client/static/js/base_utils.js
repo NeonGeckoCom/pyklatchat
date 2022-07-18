@@ -71,3 +71,14 @@ const toBase64 = file => new Promise((resolve, reject) => {
 function getFilenameFromPath(path){
     return path.replace(/.*[\/\\]/, '');
 }
+
+/**
+ * Fetches URL with no-cors mode
+ * @param url: URL to fetch
+ * @param properties: request properties
+ * @return {Promise<Response>}: Promise of fetching
+ */
+function fetchNoCors(url, properties = {}){
+    properties['mode'] = 'no-cors';
+    return fetch(url, properties)
+}

@@ -336,7 +336,7 @@ async function buildConversation(conversationData={}, remember=true,conversation
                 console.log('Received attachments array: ', attachments)
                 const query_url = `${configData['CHAT_SERVER_URL_BASE']}/chat_api/${conversationData['_id']}/store_files`;
                 await fetch(query_url, {method:'POST',
-                                            body:formData})
+                                              body:formData})
                     .then(response => response.ok?console.log('File stored successfully'):null).catch(err=>{
                         errorOccurred=err;
                     });
@@ -532,6 +532,7 @@ async function restoreChatAlignment(keyName=conversationAlignmentKey){
             }
         });
     }
+    console.log('Chat Alignment Restored')
     document.dispatchEvent(chatAlignmentRestoredEvent);
 }
 
@@ -674,10 +675,8 @@ function setChatState(cid, state='active', state_msg = ''){
 
 document.addEventListener('DOMContentLoaded', (e)=>{
 
-    document.addEventListener('currentUserLoaded',async (e)=>{
+    document.addEventListener('supportedLanguagesLoaded', async (e)=>{
         await restoreChatAlignment();
-    });
-    document.addEventListener('supportedLanguagesLoaded', (e)=>{
         refreshCurrentUser(false, true);
     });
 

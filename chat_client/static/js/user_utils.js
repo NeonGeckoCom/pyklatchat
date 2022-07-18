@@ -174,7 +174,9 @@ function refreshCurrentUser(sendNotification=false, refreshChats=false){
 
 document.addEventListener('DOMContentLoaded', (e)=>{
     if (configData['client'] === CLIENTS.MAIN) {
-        refreshCurrentUser(true, false);
+        // document.addEventListener('configLoaded', (e)=>{
+        //     refreshCurrentUser(true, false);
+        // });
         currentUserNavDisplay.addEventListener('click', (e) => {
             e.preventDefault();
             if (currentUser['is_tmp']) {
