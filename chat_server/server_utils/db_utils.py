@@ -218,3 +218,23 @@ class DbUtils(metaclass=Singleton):
         else:
             LOG.warning('user_id is None')
         return prefs
+
+    @classmethod
+    def save_tts_response(cls, shout_id, audio_file_name, lang: str = 'en', gender: str = 'undefined'):
+        """
+            Saves TTS Response under corresponding shout id
+
+            :param shout_id: message id to consider
+            :param audio_file_name: TTS result audio file name
+            :param lang: language of speech (defaults to English)
+            :param gender: language gender
+        """
+        filter_expression = {'_id': shout_id}
+        update_expression = {'$set': {f'audio.{lang}.{gender}': audio_file_name}}
+        try:
+            cls.db_controller.exec_query(query={'document': 'shouts',
+                                                'command': 'update',
+                                                'data': (filter_expression,
+                                                         update_expression,)})
+        except Exception as ex:
+            LOG.error(f'Failed to save TTS response to db - {ex}')

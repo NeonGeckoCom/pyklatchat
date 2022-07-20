@@ -18,6 +18,7 @@
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
 
 import json
+import os
 
 import pymongo
 import socketio
@@ -25,11 +26,13 @@ from bson.errors import InvalidId
 from bson.objectid import ObjectId
 from neon_utils import LOG
 from neon_utils.cache_utils import LRUCache
+from neon_utils.file_utils import decode_base64_string_to_file
 
 from chat_server.server_utils.cache_utils import CacheFactory
 from chat_server.server_utils.db_utils import DbUtils
 from chat_server.server_utils.user_utils import get_neon_data, get_bot_data
-from chat_server.server_config import db_controller
+from chat_server.server_config import db_controller, sftp_connector
+from chat_server.utils.languages import LanguageSettings
 from utils.common import generate_uuid, deep_merge
 
 sio = socketio.AsyncServer(cors_allowed_origins='*', async_mode='asgi')
@@ -245,6 +248,108 @@ async def get_neon_translations(sid, data):
             await sio.emit('translation_response', data=populated_translations, to=sid)
         except KeyError as err:
             LOG.error(f'No translation cache detected under request_id={request_id} (err={err})')
+
+
+@sio.event
+async def request_tts(sid, data):
+    """
+        Handles request to Neon TTS service
+
+        :param sid: client session id
+        :param data: received tts request data
+        Example of tts request data:
+        ```
+            data = {
+                        'message_id': (target message id),
+                        'message_text':(target message text),
+                        'lang': (target message lang)
+                   }
+        ```
+    """
+    required_keys = ('message_id', 'message_text', )
+    if not all(key in list(data) for key in required_keys):
+        LOG.error(f'Missing one of the required keys - {required_keys}')
+    else:
+        lang = LanguageSettings.to_neon_lang(data.get('lang', 'en'))
+        formatted_data = {
+            'message_id': data.get('message_id', ''),
+            'text': data.get('message_text', ''),
+            'lang': lang,
+        }
+        await sio.emit('get_tts', data=formatted_data)
+
+
+@sio.event
+async def tts_response(sid, data):
+    """ Handle TTS Response from Observer """
+    message_id = data.get('context', {}).get('mq', {}).get('message_id')
+    lang = LanguageSettings.to_system_lang(data.get('lang', 'en-us'))
+    lang_gender = data.get('gender', 'undefined')
+    matching_shout = db_controller.exec_query({'command': 'find_one',
+                                               'document': 'shouts',
+                                               'data': {'_id': message_id}})
+    if not matching_shout:
+        LOG.warning(f'Skipping TTS Response for message_id={message_id} - matching shout does not exist')
+    else:
+        audio_data = data.get('audio_data')
+        if not audio_data:
+            LOG.warning(f'Skipping TTS Response for message_id={message_id} - audio data is empty')
+        else:
+            file_path = f'{message_id}_{lang}_{lang_gender}.wav'
+            try:
+                decode_base64_string_to_file(audio_data, file_path)
+                sftp_connector.put_file(file_path, f'audio/{file_path}')
+                DbUtils.save_tts_response(shout_id=message_id, audio_file_name=file_path, lang=lang, gender=lang_gender)
+            except Exception as ex:
+                LOG.error(f'Failed to decode received audio data to file - {file_path} due to exception {ex}')
+            finally:
+                try:
+                    os.remove(file_path)
+                except OSError:
+                    pass
+
+
+@sio.event
+async def stt_response(sid, data):
+    """ Handle STT Response from Observer """
+    print('STT: ', data)
+
+
+@sio.event
+async def request_stt(sid, data):
+    """
+        Handles request to Neon STT service
+
+        :param sid: client session id
+        :param data: received tts request data
+        Example of tts request data:
+        ```
+            data = {
+                        'message_id': (target message id),
+                        'audio_data':(target audio data base64 encoded),
+                        (optional) 'lang': (target message lang)
+                   }
+        ```
+    """
+    required_keys = ('message_id',)
+    if not all(key in list(data) for key in required_keys):
+        LOG.error(f'Missing one of the required keys - {required_keys}')
+    else:
+        message_id = data.get('message_id', '')
+        audio_data = data.get('audio_data', '')
+        # TODO: implement fetching audio message by message id
+        # if not audio_data:
+        #     audio_data = fetch_audio_data_from_message(message_id)
+        if not audio_data:
+            LOG.error('Failed to fetch audio data')
+        else:
+            lang = LanguageSettings.to_neon_lang(data.get('lang', 'en'))
+            formatted_data = {
+                'message_id': message_id,
+                'audio_data': audio_data,
+                'lang': lang,
+            }
+            await sio.emit('get_stt', data=formatted_data)
 
 
 async def emit_error(sid: str, message: str):
