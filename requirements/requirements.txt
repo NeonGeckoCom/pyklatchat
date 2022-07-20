@@ -40,6 +40,7 @@ mycroft-messagebus-client==0.9.1
 mysql-connector==2.2.9
 neon-mq-connector==0.5.0
 neon-utils~=0.17
+neon-sftp===0.0.2a0
 nltk==3.6.2
 nodeenv==1.6.0
 numpy==1.19.5

@@ -20,6 +20,7 @@
 import os
 from neon_utils import LOG
 from config import Configuration
+from chat_server.utils.sftp_utils import init_sftp_connector
 
 server_config_path = os.environ.get('CHATSERVER_CONFIG', '~/.local/share/neon/credentials.json')
 database_config_path = os.environ.get('DATABASE_CONFIG', '~/.local/share/neon/credentials.json')
@@ -35,3 +36,5 @@ app_config = config.config_data.get('CHAT_SERVER', {}).get(server_env, {})
 LOG.info(f'App config: {app_config}')
 
 db_controller = config.get_db_controller(name='pyklatchat_3333')
+
+sftp_connector = init_sftp_connector(config=app_config['SFTP'])
