@@ -80,6 +80,16 @@ class ChatObserver(MQConnector):
                                queue='neon_chat_api_error',
                                callback=self.handle_neon_error,
                                on_error=self.default_error_handler)
+        self.register_consumer(name='neon_stt_response',
+                               vhost=self.get_vhost('neon_api'),
+                               queue='neon_stt_response',
+                               callback=self.on_stt_response,
+                               on_error=self.default_error_handler)
+        self.register_consumer(name='neon_tts_response',
+                               vhost=self.get_vhost('neon_api'),
+                               queue='neon_tts_response',
+                               callback=self.on_tts_response,
+                               on_error=self.default_error_handler)
         self.register_consumer(name='submind_response',
                                vhost=self.get_vhost('chatbots'),
                                queue='submind_response',
@@ -480,11 +490,11 @@ class ChatObserver(MQConnector):
                               queue='chatbot_response_error', expiration=3000)
 
     @create_mq_callback()
-    def handle_saving_prompt_data(self, body: bytes):
+    def handle_saving_prompt_data(self, body: dict):
         """
             Handles requests for saving prompt data
 
-            :param body: request body (bytes)
+            :param body: request body (dict)
 
         """
         dict_data = b64_to_dict(body)
@@ -499,3 +509,15 @@ class ChatObserver(MQConnector):
             LOG.error(error_msg)
             self.send_message(request_data={'msg': error_msg}, vhost=self.get_vhost('chatbots'),
                               queue='chatbot_response_error', expiration=3000)
+
+    @create_mq_callback()
+    def on_stt_response(self, body: dict):
+        """ Handles receiving STT response """
+        LOG.info(f'Received STT Response: {body}')
+        self.sio.emit('stt_response', data=body)
+
+    @create_mq_callback()
+    def on_tts_response(self, body: dict):
+        """ Handles receiving TTS response """
+        LOG.info(f'Received TTS Response: {body}')
+        self.sio.emit('tts_response', data=body)
