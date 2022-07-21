@@ -65,7 +65,7 @@ async function loginUser(){
         await fetch(query_url, {method:'post', body:formData})
             .then(response => response.ok?response.json():null)
             .then(_ => {
-                refreshCurrentUser(false, true);
+                refreshCurrentUser( true);
                 loginUsername.value = "";
                 loginPassword.value = "";
                 loginModal.modal('hide');
@@ -80,7 +80,7 @@ async function loginUser(){
 async function logoutUser(){
     const query_url = `${configData["currentURLBase"]}/auth/logout/`;
     await fetch(query_url).then(response=>{
-        response.ok?refreshCurrentUser(false, true):'';
+        response.ok?refreshCurrentUser(true):'';
         logoutModal.modal('hide');
     });
 }
@@ -109,7 +109,7 @@ async function createUser(){
             })
             .then(data => {
                 if(data['ok']){
-                    refreshCurrentUser(false, true);
+                    refreshCurrentUser( true);
                     signupUsername.value = "";
                     signupFirstName.value = "";
                     signupLastName.value = "";
@@ -155,19 +155,16 @@ const currentUserLoaded = new CustomEvent("currentUserLoaded", { "detail": "Even
 
 /**
  * Convenience method encapsulating refreshing page view based on current user
- * @param sendNotification: to send notification about user changing (defaults to false)
  * @param refreshChats: to refresh the chats (defaults to false)
  */
-function refreshCurrentUser(sendNotification=false, refreshChats=false){
-    getUserData().then(data=>{
+async function refreshCurrentUser(refreshChats=false){
+    await getUserData().then(data=>{
         currentUser = data;
         updateNavbar();
         if(refreshChats && configData['currentURLFull'].includes('chats')) {
             refreshChatView();
         }
-        if(sendNotification) {
-            document.dispatchEvent(currentUserLoaded);
-        }
+        document.dispatchEvent(currentUserLoaded);
     });
 }
 

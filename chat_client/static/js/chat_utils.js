@@ -375,6 +375,7 @@ async function buildConversation(conversationData={}, remember=true,conversation
         }
     });
     setParticipantsCount(conversationData['_id']);
+    await initLanguageSelector(conversationData['_id']);
     setTimeout( () => currentConversation.getElementsByClassName('card-body')[0].getElementsByClassName('chat-list')[0].lastElementChild?.scrollIntoView(true), 0);
     return conversationData['_id'];
 }
@@ -563,8 +564,7 @@ function getMessagesOfCID(cid){
  * Refreshes chat view (e.g. when user session gets updated)
  */
 function refreshChatView(){
-    requestChatsLanguageRefresh();
-    Array.from(conversationBody.getElementsByClassName('conversationContainer')).forEach(conversation=>{
+    Array.from(conversationBody.getElementsByClassName('conversationContainer')).forEach(async conversation=>{
        const messages = getMessagesOfCID(conversation.id);
        Array.from(messages).forEach(message=>{
           if(message.hasAttribute('data-sender')){
@@ -675,9 +675,8 @@ function setChatState(cid, state='active', state_msg = ''){
 
 document.addEventListener('DOMContentLoaded', (e)=>{
 
-    document.addEventListener('supportedLanguagesLoaded', async (e)=>{
-        await restoreChatAlignment();
-        refreshCurrentUser(false, true);
+    document.addEventListener('supportedLanguagesLoaded', (e)=>{
+        restoreChatAlignment().then(_=>refreshCurrentUser(true)).then(_=>requestChatsLanguageRefresh());
     });
 
     if (configData['client'] === CLIENTS.MAIN) {
