@@ -289,7 +289,7 @@ function addSpeaking(conversationData) {
                e.preventDefault();
                getTTS(conversationData['_id'], message['message_id'], getPreferredLanguage(conversationData['_id']));
                setChatState(conversationData['_id'], 'updating',
-                   `Playing Message: "${shrinkToFit(message['message_text'], 10)}"`)
+                   `Fetching TTS for message: "${shrinkToFit(message['message_text'], 10)}"`)
             });
         });
     }
