@@ -36,3 +36,46 @@ function getTTS(cid, message_id, lang, gender='female'){
                                 'message_id':message_id,
                                 'lang':lang});
 }
+
+/**
+ * Records audio from the client browser
+ * @return {Promise} recorder instance with following properties:
+ * - start() to start recording
+ * - stop() to end recording
+ */
+const recordAudio = () => {
+  return new Promise(resolve => {
+    navigator.mediaDevices.getUserMedia({ audio: true })
+      .then(stream => {
+        const mediaRecorder = new MediaRecorder(stream);
+        const audioChunks = [];
+
+        mediaRecorder.addEventListener("dataavailable", event => {
+          audioChunks.push(event.data);
+        });
+
+        const start = () => {
+          mediaRecorder.start();
+        };
+
+        const stop = () => {
+          return new Promise(resolve => {
+            mediaRecorder.addEventListener("stop", () => {
+              const audioBlob = new Blob(audioChunks);
+              const audioUrl = URL.createObjectURL(audioBlob);
+              const audio = new Audio(audioUrl);
+              const play = () => {
+                audio.play();
+              };
+
+              resolve({ audioBlob, audioUrl, play });
+            });
+
+            mediaRecorder.stop();
+          });
+        };
+
+        resolve({ start, stop });
+      });
+  });
+};
