@@ -278,6 +278,24 @@ function addUpload(cid, file){
 }
 
 /**
+ * Attaches speaking capabilities to each message supporting that
+ * @param conversationData: conversation data object
+ */
+function addSpeaking(conversationData) {
+    if (conversationData.hasOwnProperty('chat_flow')) {
+        Array.from(conversationData['chat_flow']).forEach(message => {
+            const speakingButton = document.getElementById(`${message['message_id']}_speak`);
+            speakingButton.addEventListener('click', (e)=>{
+               e.preventDefault();
+               getTTS(conversationData['_id'], message['message_id'], getPreferredLanguage(conversationData['_id']));
+               setChatState(conversationData['_id'], 'updating',
+                   `Playing Message: "${shrinkToFit(message['message_text'], 10)}"`)
+            });
+        });
+    }
+}
+
+/**
  * Builds new conversation HTML from provided data and attaches it to the list of displayed conversations
  * @param conversationData: JS Object containing conversation data of type:
  * {
@@ -308,9 +326,12 @@ async function buildConversation(conversationData={}, remember=true,conversation
    conversationsBody.insertAdjacentHTML('afterbegin', newConversationHTML);
    attachReplies(conversationData);
    addAttachments(conversationData);
+   addSpeaking(conversationData);
+
    const currentConversation = document.getElementById(conversationData['_id']);
    const conversationParent = currentConversation.parentElement;
    const conversationHolder = conversationParent.parentElement;
+
    const chatInputButton = document.getElementById(conversationData['_id']+'-send');
    const filenamesContainer = document.getElementById(`filename-container-${conversationData['_id']}`)
    const attachmentsButton = document.getElementById('file-input-'+conversationData['_id']);
