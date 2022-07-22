@@ -38,5 +38,10 @@ function initSIO(){
         await applyTranslations(data);
     });
 
+    socket.on('incoming_tts', async (data)=> {
+        console.log('received incoming stt audio');
+        playTTS(data['cid'], data['lang'], data['audio_data']);
+    });
+
     return socket;
 }

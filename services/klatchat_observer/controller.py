@@ -60,6 +60,17 @@ class ChatObserver(MQConnector):
         if not vhosts:
             vhosts = {}
         self.vhosts = {**vhosts, **self.vhosts}
+        self.__translation_requests = {}
+        self.__neon_service_id = ''
+        self.neon_detection_enabled = scan_neon_service
+        self.neon_service_event = None
+        self.last_neon_request: int = 0
+        self.neon_service_refresh_interval = 60  # seconds
+        self.mention_separator = ','
+        self.recipient_to_handler_method = {
+            Recipients.NEON: self.__handle_neon_recipient,
+            Recipients.CHATBOT_CONTROLLER: self.__handle_chatbot_recipient
+        }
         self._sio = None
         self.sio_url = config['SIO_URL']
         try:
@@ -69,7 +80,6 @@ class ChatObserver(MQConnector):
             LOG.warning(err)
             if not self.testing_mode:
                 raise ConnectionError(err)
-        self.__translation_requests = {}
         self.register_consumer(name='neon_response',
                                vhost=self.get_vhost('neon_api'),
                                queue='neon_chat_api_response',
@@ -110,17 +120,6 @@ class ChatObserver(MQConnector):
                                queue='get_libre_translations',
                                callback=self.on_neon_translations_response,
                                on_error=self.default_error_handler)
-        self.__neon_service_id = ''
-        self.neon_detection_enabled = scan_neon_service
-        self.neon_service_event = None
-        self.last_neon_request: int = 0
-        self.neon_service_refresh_interval = 60  # seconds
-        self.mention_separator = ','
-        self.recipient_to_handler_method = {
-            Recipients.NEON: self.__handle_neon_recipient,
-            Recipients.CHATBOT_CONTROLLER: self.__handle_chatbot_recipient
-        }
-        self.__handle_neon_recipient(recipient_data={}, msg_data={'request_skills': 'tts', 'utterance': 'Hello, this is a test run over the TTS API'})
 
     @classmethod
     def get_recipient_from_prefix(cls, message_prefix) -> dict:
@@ -304,6 +303,9 @@ class ChatObserver(MQConnector):
         request_dict.setdefault('context', {})
         request_dict['context'] = {**recipient_data.get('context', {}),
                                    **{'source': 'mq_api',
+                                      'message_id': msg_data.get('message_id'),
+                                      'sid': msg_data.get('sid'),
+                                      'cid': msg_data.get('cid'),
                                       'request_skills': [msg_data.get('request_skills', 'default').lower()],
                                       'username': msg_data.pop('nick', 'guest')}}
         input_queue = 'neon_chat_api_request'
@@ -516,8 +518,12 @@ class ChatObserver(MQConnector):
         LOG.info(f'Received STT Response: {body}')
         self.sio.emit('stt_response', data=body)
 
-    @create_mq_callback()
-    def on_tts_response(self, body: dict):
+    @create_mq_callback(include_callback_props=('body', 'channel',))
+    def on_tts_response(self, channel, body: dict):
         """ Handles receiving TTS response """
         LOG.info(f'Received TTS Response: {body}')
         self.sio.emit('tts_response', data=body)
+        try:
+            channel.basic_ack()
+        except:
+            pass

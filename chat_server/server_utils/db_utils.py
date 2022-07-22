@@ -211,6 +211,7 @@ class DbUtils(metaclass=Singleton):
             if not prefs and create_if_not_exists:
                 prefs = {
                     '_id': user_id,
+                    'tts': {},
                     'chat_languages': {}
                 }
                 cls.db_controller.exec_query(query=dict(document='user_preferences',
