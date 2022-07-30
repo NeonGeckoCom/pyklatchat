@@ -26,7 +26,7 @@ from bson.errors import InvalidId
 from bson.objectid import ObjectId
 from neon_utils import LOG
 from neon_utils.cache_utils import LRUCache
-from neon_utils.file_utils import decode_base64_string_to_file, encode_file_to_base64_string
+from neon_utils.file_utils import decode_base64_string_to_file
 
 from chat_server.server_utils.cache_utils import CacheFactory
 from chat_server.server_utils.db_utils import DbUtils
@@ -34,7 +34,7 @@ from chat_server.server_utils.user_utils import get_neon_data, get_bot_data
 from chat_server.server_config import db_controller, sftp_connector
 from chat_server.utils.languages import LanguageSettings
 from chat_server.utils.os_utils import remove_if_exists
-from utils.common import generate_uuid, deep_merge
+from utils.common import generate_uuid, deep_merge, buffer_to_base64
 
 sio = socketio.AsyncServer(cors_allowed_origins='*', async_mode='asgi')
 
@@ -286,6 +286,7 @@ async def request_tts(sid, data):
                                                                                                               'female')
             existing_audio_file = matching_message.get('audio', {}).get(lang, {}).get(preferred_gender)
             if not existing_audio_file:
+                LOG.info(f'File was not detected for cid={cid}, message_id={message_id}, lang={lang}')
                 message_text = matching_message.get('message_text')
                 formatted_data = {
                     'cid': cid,
@@ -297,19 +298,24 @@ async def request_tts(sid, data):
                 await sio.emit('get_tts', data=formatted_data)
             else:
                 try:
-                    sftp_connector.get_file(f'audio/{existing_audio_file}', save_to=existing_audio_file)
-                    response_data = {
-                        'cid': cid,
-                        'message_id': message_id,
-                        'lang': lang,
-                        'gender': preferred_gender,
-                        'audio_data': encode_file_to_base64_string(existing_audio_file)
-                    }
-                    await sio.emit('incoming_tts', data=response_data, to=sid)
+                    file_location = f'audio/{existing_audio_file}'
+                    LOG.info(f'Fetching existing file from: {file_location}')
+                    fo = sftp_connector.get_file_object(file_location)
+                    if fo.getbuffer().nbytes > 0:
+                        LOG.info(f'File detected for cid={cid}, message_id={message_id}, lang={lang}')
+                        audio_data = buffer_to_base64(fo)
+                        response_data = {
+                            'cid': cid,
+                            'message_id': message_id,
+                            'lang': lang,
+                            'gender': preferred_gender,
+                            'audio_data': audio_data
+                        }
+                        await sio.emit('incoming_tts', data=response_data, to=sid)
+                    else:
+                        LOG.error(f'Empty file detected for cid={cid}, message_id={message_id}, lang={lang}')
                 except Exception as ex:
                     LOG.error(f'Failed to send TTS response - {ex}')
-                finally:
-                    remove_if_exists(existing_audio_file)
 
 
 @sio.event

@@ -199,7 +199,6 @@ class ChatObserver(MQConnector):
                                callback=self.handle_neon_sync,
                                vhost=self.get_vhost('neon_api'),
                                on_error=self.default_error_handler,
-                               auto_ack=False,
                                queue='chat_api_proxy_sync')
         sync_consumer = self.consumers['neon_service_sync_consumer']
         sync_consumer.start()
