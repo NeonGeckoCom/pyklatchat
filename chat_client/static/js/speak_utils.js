@@ -6,7 +6,7 @@ function play(audio_data){
     const df = document.createDocumentFragment();
     const audio = new Audio("data:audio/wav;base64," + audio_data);
     df.appendChild(audio);
-    audio.addEventListener('ended', function () {df.removeChild(snd);});
+    audio.addEventListener('ended', function () {df.removeChild(audio);});
     audio.play().catch(err=> console.warn(`Failed to play audio_data = ${err}`));
 }
 

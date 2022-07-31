@@ -43,9 +43,10 @@ const setParticipantsCount = (cid) => {
  * @param timeCreated: timestamp for message creation
  * @param repliedMessageID: id of the replied message (optional)
  * @param attachments: array of attachments to add (optional)
+ * @param isAudio: is audio message (defaults to false)
  * @returns {Promise<null|number>}: promise resolving id of added message, -1 if failed to resolve message id creation
  */
-async function addMessage(cid, userID=null, messageID=null, messageText, timeCreated, repliedMessageID=null, attachments=[]){
+async function addMessage(cid, userID=null, messageID=null, messageText, timeCreated, repliedMessageID=null, attachments=[], isAudio=false){
     const cidElem = document.getElementById(cid);
     if(cidElem){
         const cidList = cidElem.getElementsByClassName('card-body')[0].getElementsByClassName('chat-list')[0]
@@ -60,7 +61,7 @@ async function addMessage(cid, userID=null, messageID=null, messageText, timeCre
             if(!messageID) {
                 messageID = generateUUID();
             }
-            let messageHTML = await buildUserMessageHTML(userData, messageID, messageText, timeCreated, isMine);
+            let messageHTML = await buildUserMessageHTML(userData, messageID, messageText, timeCreated, isMine, isAudio);
             const blankChat = cidList.getElementsByClassName('blank_chat');
             if(blankChat.length>0){
                 cidList.removeChild(blankChat[0]);
@@ -83,9 +84,10 @@ async function addMessage(cid, userID=null, messageID=null, messageText, timeCre
  * @param messageText: text of user message
  * @param timeCreated: date of creation
  * @param isMine: if message was emitted by current user
+ * @param isAudio: if message is audio message (defaults to False)
  * @returns {string}: constructed HTML out of input params
  */
-async function buildUserMessageHTML(userData, messageID, messageText, timeCreated, isMine){
+async function buildUserMessageHTML(userData, messageID, messageText, timeCreated, isMine, isAudio = false){
     const messageTime = getTimeFromTimestamp(timeCreated);
     let imageComponent;
     let shortedNick = `${userData['nickname'][0]}${userData['nickname'][userData['nickname'].length - 1]}`;
@@ -101,7 +103,7 @@ async function buildUserMessageHTML(userData, messageID, messageText, timeCreate
             'message_id':messageID,
             'nickname': userData['nickname'],
             'message_text':messageText,
-            'message_time': messageTime});
+            'message_time': messageTime}, `message_id=${messageID}&is_audio=${isAudio}`);
 }
 
 /**
@@ -278,19 +280,30 @@ function addUpload(cid, file){
 }
 
 /**
+ * Adds speaking callback for the message
+ * @param cid: id of the conversation
+ * @param messageID: id of the message
+ */
+function addSpeakingCallback(cid, messageID){
+    const speakingButton = document.getElementById(`${messageID}_speak`);
+    if (speakingButton) {
+        speakingButton.addEventListener('click', (e) => {
+            e.preventDefault();
+            getTTS(cid, messageID, getPreferredLanguage(cid));
+            setChatState(cid, 'updating', `Fetching TTS...`)
+        });
+    }
+}
+
+
+/**
  * Attaches speaking capabilities to each message supporting that
  * @param conversationData: conversation data object
  */
 function addSpeaking(conversationData) {
     if (conversationData.hasOwnProperty('chat_flow')) {
         Array.from(conversationData['chat_flow']).forEach(message => {
-            const speakingButton = document.getElementById(`${message['message_id']}_speak`);
-            speakingButton.addEventListener('click', (e)=>{
-               e.preventDefault();
-               getTTS(conversationData['_id'], message['message_id'], getPreferredLanguage(conversationData['_id']));
-               setChatState(conversationData['_id'], 'updating',
-                   `Fetching TTS for message: "${shrinkToFit(message['message_text'], 10)}"`)
-            });
+            addSpeakingCallback(conversationData['_id'], message['message_id'])
         });
     }
 }
@@ -366,7 +379,7 @@ async function buildConversation(conversationData={}, remember=true,conversation
                     return
                 }
             }
-            emitUserMessage(textInputElem, e.target.getAttribute('data-target-cid'),null, attachments);
+            emitUserMessage(textInputElem, e.target.getAttribute('data-target-cid'),null, attachments, false);
             textInputElem.value = "";
         });
     }
@@ -424,7 +437,8 @@ async function buildConversationHTML(conversationData = {}){
     if(conversationData.hasOwnProperty('chat_flow')) {
         for (const message of Array.from(conversationData['chat_flow'])) {
             const isMine = currentUser && message['user_nickname'] === currentUser['nickname'];
-            chatFlowHTML += await buildUserMessageHTML({'avatar':message['user_avatar'],'nickname':message['user_nickname'], '_id': message['user_id']},message['message_id'], message['message_text'], message['created_on'],isMine);
+
+            chatFlowHTML += await buildUserMessageHTML({'avatar':message['user_avatar'],'nickname':message['user_nickname'], '_id': message['user_id']},message['message_id'], message['message_text'], message['created_on'],isMine,!!message?.is_audio);
             addConversationParticipant(conversationData['_id'], message['user_nickname']);
         }
     }else{
@@ -466,18 +480,21 @@ async function getConversationDataByInput(input=""){
  * @param cid: Conversation ID
  * @param repliedMessageID: ID of replied message
  * @param attachments: list of attachments file names
+ * @param isAudio: is audio message being emitted (defaults to false)
  */
-function emitUserMessage(textInputElem, cid, repliedMessageID=null, attachments= []){
+function emitUserMessage(textInputElem, cid, repliedMessageID=null, attachments= [], isAudio=false){
     if(textInputElem && textInputElem.value){
         const timeCreated = Math.floor(Date.now() / 1000);
         const messageText = textInputElem.value;
-        addMessage(cid, currentUser['_id'],null, messageText, timeCreated,repliedMessageID,attachments).then(messageID=>{
+        addMessage(cid, currentUser['_id'],null, messageText, timeCreated,repliedMessageID,attachments, isAudio).then(messageID=>{
             socket.emit('user_message', {'cid':cid,'userID':currentUser['_id'],
                         'messageText':messageText,
                         'messageID':messageID,
                         'attachments': attachments,
+                        'isAudio': isAudio?'1':'0',
                         'timeCreated':timeCreated});
-            sendLanguageUpdateRequest(cid, messageID)
+            addSpeakingCallback(cid, messageID);
+            sendLanguageUpdateRequest(cid, messageID);
         });
         textInputElem.value = "";
     }
@@ -697,7 +714,7 @@ function setChatState(cid, state='active', state_msg = ''){
 document.addEventListener('DOMContentLoaded', (e)=>{
 
     document.addEventListener('supportedLanguagesLoaded', (e)=>{
-        restoreChatAlignment().then(_=>refreshCurrentUser(true)).then(_=>requestChatsLanguageRefresh());
+        refreshCurrentUser(false).then(_=>restoreChatAlignment()).then(_=>refreshCurrentUser(true)).then(_=>requestChatsLanguageRefresh());
     });
 
     if (configData['client'] === CLIENTS.MAIN) {

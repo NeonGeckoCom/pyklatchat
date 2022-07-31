@@ -277,3 +277,10 @@ body{
     top: 40%;
     z-index: 999;
 }
+
+.message-audio {
+    max-height: 100%;
+    max-width: 100%;
+    margin: auto;
+    object-fit: contain;
+}
