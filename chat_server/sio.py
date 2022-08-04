@@ -89,6 +89,7 @@ async def user_message(sid, data):
                     'attachments': 'list of filenames that were send with message',
                     'context': 'message context (optional)',
                     'test': 'is test message (defaults to False)',
+                    'isAudio': '1 if current message is audio message 0 otherwise'
                     'timeCreated': 'timestamp on which message was created'}
         ```
     """
@@ -116,12 +117,25 @@ async def user_message(sid, data):
             bot_data = get_bot_data(db_controller=db_controller, nickname=data['userID'], context=data.get('context', None))
             data['userID'] = bot_data['_id']
 
+        is_audio = data.get('isAudio', '0')
+
+        try:
+            if is_audio == '1':
+                message_text = data['messageText'].split(',')[-1]
+                data['messageText'] = f'{data["messageID"]}_audio.wav'
+                decode_base64_string_to_file(message_text, data['messageText'])
+                sftp_connector.put_file(data['messageText'], f'audio/{data["messageText"]}')
+        except Exception as ex:
+            LOG.error(f'Failed to located file - {ex}')
+            return -1
+
         new_shout_data = {'_id': data['messageID'],
                           'user_id': data['userID'],
                           'prompt_id': data.get('promptID', ''),
                           'message_text': data['messageText'],
                           'attachments': data.get('attachments', []),
                           'replied_message': data.get('repliedMessage', ''),
+                          'is_audio': '1' if is_audio != '0' else '0',
                           'created_on': int(data['timeCreated'])}
 
         db_controller.exec_query({'command': 'insert_one', 'document': 'shouts', 'data': new_shout_data})

@@ -78,3 +78,8 @@ def buffer_to_base64(b: BytesIO, encoding: str = 'utf-8') -> str:
     """ Encodes buffered value to base64 string based on provided encoding"""
     b.seek(0)
     return base64.b64encode(b.read()).decode(encoding)
+
+
+def base64_to_buffer(b64_encoded_string: str) -> BytesIO:
+    """ Decodes buffered value to base64 string based on provided encoding"""
+    return BytesIO(base64.b64decode(b64_encoded_string))

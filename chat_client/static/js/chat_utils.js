@@ -309,6 +309,29 @@ function addSpeaking(conversationData) {
 }
 
 /**
+ * Adds event listener for audio recording
+ * @param conversationData: conversation data object
+ */
+async function addRecorder(conversationData) {
+
+    const recorderButton = document.getElementById(`${conversationData["_id"]}-audio-input`);
+
+    const recorder = await recordAudio();
+
+    recorderButton.onmousedown = function () {
+        recorder.start();
+    };
+
+    recorderButton.onmouseup = async function () {
+        recorder.stop().then(audio=>{
+            const audioBlob = toBase64(audio['audioBlob']);
+            console.log('audioBlob=',audioBlob);
+            return audioBlob;
+        }).then(encodedAudio=>emitUserMessage(encodedAudio, conversationData['_id'], null, [], true));
+    };
+}
+
+/**
  * Builds new conversation HTML from provided data and attaches it to the list of displayed conversations
  * @param conversationData: JS Object containing conversation data of type:
  * {
@@ -340,6 +363,7 @@ async function buildConversation(conversationData={}, remember=true,conversation
    attachReplies(conversationData);
    addAttachments(conversationData);
    addSpeaking(conversationData);
+   await addRecorder(conversationData);
 
    const currentConversation = document.getElementById(conversationData['_id']);
    const conversationParent = currentConversation.parentElement;
@@ -438,7 +462,7 @@ async function buildConversationHTML(conversationData = {}){
         for (const message of Array.from(conversationData['chat_flow'])) {
             const isMine = currentUser && message['user_nickname'] === currentUser['nickname'];
 
-            chatFlowHTML += await buildUserMessageHTML({'avatar':message['user_avatar'],'nickname':message['user_nickname'], '_id': message['user_id']},message['message_id'], message['message_text'], message['created_on'],isMine,!!message?.is_audio);
+            chatFlowHTML += await buildUserMessageHTML({'avatar':message['user_avatar'],'nickname':message['user_nickname'], '_id': message['user_id']},message['message_id'], message['message_text'], message['created_on'],isMine,message?.is_audio);
             addConversationParticipant(conversationData['_id'], message['user_nickname']);
         }
     }else{
@@ -476,27 +500,41 @@ async function getConversationDataByInput(input=""){
 
 /**
  * Emits user message to Socket IO Server
- * @param textInputElem: DOM Element with input text
+ * @param textInputElem: DOM Element with input text (audio object if isAudio=true)
  * @param cid: Conversation ID
  * @param repliedMessageID: ID of replied message
  * @param attachments: list of attachments file names
  * @param isAudio: is audio message being emitted (defaults to false)
  */
 function emitUserMessage(textInputElem, cid, repliedMessageID=null, attachments= [], isAudio=false){
-    if(textInputElem && textInputElem.value){
+    if(isAudio || textInputElem && textInputElem.value){
         const timeCreated = Math.floor(Date.now() / 1000);
-        const messageText = textInputElem.value;
+        let messageText;
+        if (isAudio){
+            messageText = textInputElem;
+        }else {
+            messageText = textInputElem.value;
+        }
         addMessage(cid, currentUser['_id'],null, messageText, timeCreated,repliedMessageID,attachments, isAudio).then(messageID=>{
-            socket.emit('user_message', {'cid':cid,'userID':currentUser['_id'],
-                        'messageText':messageText,
-                        'messageID':messageID,
-                        'attachments': attachments,
-                        'isAudio': isAudio?'1':'0',
-                        'timeCreated':timeCreated});
-            addSpeakingCallback(cid, messageID);
-            sendLanguageUpdateRequest(cid, messageID);
+            socket.emit('user_message',
+                {'cid':cid,
+                 'userID':currentUser['_id'],
+                 'messageText':messageText,
+                 'messageID':messageID,
+                 'attachments': attachments,
+                 'isAudio': isAudio?'1':'0',
+                 'timeCreated':timeCreated
+                });
+            if (isAudio){
+                // TODO: add audio init
+            }else {
+                addSpeakingCallback(cid, messageID);
+                sendLanguageUpdateRequest(cid, messageID);
+            }
         });
-        textInputElem.value = "";
+        if (!isAudio){
+            textInputElem.value = "";
+        }
     }
 }
 

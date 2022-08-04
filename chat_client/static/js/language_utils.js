@@ -102,8 +102,8 @@ async function applyTranslations(data){
 
         setChatState(cid, 'active');
 
-        console.log(`Fetching translation of ${cid}`);
-        console.debug(`translations=${JSON.stringify(messageTranslations)}`)
+        console.debug(`Fetching translation of ${cid}`);
+        // console.debug(`translations=${JSON.stringify(messageTranslations)}`)
 
         const messageTranslationsShouts = messageTranslations['shouts']
         const messages = getMessagesOfCID(cid);

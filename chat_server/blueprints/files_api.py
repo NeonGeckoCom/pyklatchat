@@ -35,7 +35,7 @@ router = APIRouter(
 def get_audio_message(message_id: str,):
     """ Gets file based on the name """
     matching_shouts = DbUtils.fetch_shouts(shout_ids=[message_id], fetch_senders=False)
-    if matching_shouts and matching_shouts[0].get('is_audio'):
+    if matching_shouts and matching_shouts[0].get('is_audio', '0') == '1':
         LOG.info(f'Fetching audio for message_id={message_id}')
         fo = sftp_connector.get_file_object(f'audio/{matching_shouts[0]["message_text"]}')
         fo.seek(0)
