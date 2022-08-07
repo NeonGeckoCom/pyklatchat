@@ -65,7 +65,7 @@ async function loginUser(){
         await fetch(query_url, {method:'post', body:formData})
             .then(response => response.ok?response.json():null)
             .then(_ => {
-                refreshCurrentUser( true);
+                refreshCurrentUser(true);
                 loginUsername.value = "";
                 loginPassword.value = "";
                 loginModal.modal('hide');
@@ -109,7 +109,7 @@ async function createUser(){
             })
             .then(data => {
                 if(data['ok']){
-                    refreshCurrentUser( true);
+                    refreshCurrentUser(true);
                     signupUsername.value = "";
                     signupFirstName.value = "";
                     signupLastName.value = "";

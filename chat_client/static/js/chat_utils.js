@@ -462,7 +462,7 @@ async function buildConversation(conversationData={}, remember=true,conversation
     });
     setParticipantsCount(conversationData['_id']);
     await initLanguageSelector(conversationData['_id']);
-    setTimeout( () => currentConversation.getElementsByClassName('card-body')[0].getElementsByClassName('chat-list')[0].lastElementChild?.scrollIntoView(true), 0);
+    setTimeout(() => currentConversation.getElementsByClassName('card-body')[0].getElementsByClassName('chat-list')[0].lastElementChild?.scrollIntoView(true), 0);
     return conversationData['_id'];
 }
 

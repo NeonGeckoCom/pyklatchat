@@ -37,4 +37,4 @@ LOG.info(f'App config: {app_config}')
 
 db_controller = config.get_db_controller(name='pyklatchat_3333')
 
-sftp_connector = init_sftp_connector(config=app_config['SFTP'])
+sftp_connector = init_sftp_connector(config=app_config.get('SFTP', {}))
