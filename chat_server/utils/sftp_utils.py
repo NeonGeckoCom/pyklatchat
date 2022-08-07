@@ -3,7 +3,7 @@ from neon_sftp import NeonSFTPConnector
 
 def init_sftp_connector(config):
     """ Initialise SFTP Connector based on provided configuration """
-    if not config:
+    if config is None:
         raise AssertionError('No SFTP Config Detected')
     return NeonSFTPConnector(host=config.get('HOST', '127.0.0.1'),
                              username=config.get('USERNAME', 'root'),
