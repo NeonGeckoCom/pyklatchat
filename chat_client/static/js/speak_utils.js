@@ -23,6 +23,21 @@ function playTTS(cid, lang, audio_data){
 }
 
 /**
+ * Shows STT response of audio message
+ * @param message_id: id of the audio message
+ * @param lang: language of response (text is not shown if language differs from current preference)
+ * @param message_text: message text to display
+ */
+function showSTT(message_id, lang, message_text){
+    // TODO: skip showing text when preferred language changed
+    // console.log(`showing: message_id=${message_id}, lang=${lang}, message_text=${message_text}`);
+    const messageSTTContent = document.getElementById(`${message_id}-stt`);
+    if(messageSTTContent && message_text){
+        messageSTTContent.innerText = '"' + message_text + '"';
+    }
+}
+
+/**
  * Requests TTS for provider params
  * @param cid: target conversation id
  * @param message_id: target message id
@@ -32,6 +47,20 @@ function playTTS(cid, lang, audio_data){
 function getTTS(cid, message_id, lang, gender='female'){
     // TODO: consider multi-gender voices in future
     socket.emit('request_tts', {'cid':cid,
+                                'user_id':currentUser['_id'],
+                                'message_id':message_id,
+                                'lang':lang});
+}
+
+
+/**
+ * Requests STT for provider message params
+ * @param cid: target conversation id
+ * @param message_id: target message id
+ * @param lang: target language
+ */
+function getSTT(cid, message_id, lang){
+    socket.emit('request_stt', {'cid':cid,
                                 'user_id':currentUser['_id'],
                                 'message_id':message_id,
                                 'lang':lang});

@@ -20,13 +20,13 @@
 from typing import List, Tuple
 
 from bson import ObjectId
-from cachetools import cached, TTLCache
 from neon_utils import LOG
 from pymongo import UpdateOne
 
 from chat_server.constants.users import UserPatterns
 from chat_server.server_utils.factory_utils import Singleton
 from chat_server.server_utils.user_utils import create_from_pattern
+from utils.common import buffer_to_base64
 
 
 class DbUtils(metaclass=Singleton):
@@ -239,3 +239,44 @@ class DbUtils(metaclass=Singleton):
                                                          update_expression,)})
         except Exception as ex:
             LOG.error(f'Failed to save TTS response to db - {ex}')
+
+    @classmethod
+    def save_stt_response(cls, shout_id, message_text: str, lang: str = 'en'):
+        """
+            Saves STT Response under corresponding shout id
+
+            :param shout_id: message id to consider
+            :param message_text: STT result transcript
+            :param lang: language of speech (defaults to English)
+        """
+        filter_expression = {'_id': shout_id}
+        update_expression = {'$set': {f'transcripts.{lang}': message_text}}
+        try:
+            cls.db_controller.exec_query(query={'document': 'shouts',
+                                                'command': 'update',
+                                                'data': (filter_expression,
+                                                         update_expression,)})
+        except Exception as ex:
+            LOG.error(f'Failed to save STT response to db - {ex}')
+
+    @classmethod
+    def fetch_audio_data_from_message(cls, message_id: str) -> str:
+        """
+            Fetches audio data from message if any
+            :param message_id: message id to fetch
+        """
+        shout_data = cls.fetch_shouts(shout_ids=[message_id])
+        if not shout_data:
+            LOG.warning('Requested shout does not exist')
+        elif shout_data[0].get('is_audio') != '1':
+            LOG.warning('Failed to fetch audio data from non-audio message')
+        else:
+            from chat_server.server_config import sftp_connector
+            file_location = f'audio/{shout_data[0]["message_text"]}'
+            LOG.info(f'Fetching existing file from: {file_location}')
+            fo = sftp_connector.get_file_object(file_location)
+            if fo.getbuffer().nbytes > 0:
+                return buffer_to_base64(fo)
+            else:
+                LOG.error(f'Empty buffer received while fetching audio of message id = {message_id}')
+            return ''

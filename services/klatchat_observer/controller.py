@@ -517,12 +517,8 @@ class ChatObserver(MQConnector):
         LOG.info(f'Received STT Response: {body}')
         self.sio.emit('stt_response', data=body)
 
-    @create_mq_callback(include_callback_props=('body', 'channel',))
-    def on_tts_response(self, channel, body: dict):
+    @create_mq_callback()
+    def on_tts_response(self, body: dict):
         """ Handles receiving TTS response """
         LOG.info(f'Received TTS Response: {body}')
         self.sio.emit('tts_response', data=body)
-        try:
-            channel.basic_ack()
-        except:
-            pass

@@ -43,5 +43,10 @@ function initSIO(){
         playTTS(data['cid'], data['lang'], data['audio_data']);
     });
 
+    socket.on('incoming_stt', async (data)=>{
+       console.log('received incoming stt response');
+       showSTT(data['message_id'], data['lang'], data['message_text']);
+    });
+
     return socket;
 }

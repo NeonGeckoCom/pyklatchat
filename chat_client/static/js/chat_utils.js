@@ -284,7 +284,31 @@ function addUpload(cid, file){
  * @param cid: id of the conversation
  * @param messageID: id of the message
  */
-function addSpeakingCallback(cid, messageID){
+function addSTTCallback(cid, messageID){
+    const sttButton = document.getElementById(`${messageID}_text`);
+    if (sttButton) {
+        sttButton.addEventListener('click', (e) => {
+            e.preventDefault();
+            const sttContent = document.getElementById(`${messageID}-stt`);
+            if (sttContent){
+                sttContent.innerHTML = `<div class="text-center">
+                                        Waiting for STT...  <div class="spinner-border spinner-border-sm" role="status">
+                                                            <span class="sr-only">Loading...</span>
+                                                        </div>
+                                        </div>`;
+                sttContent.style.setProperty('display', 'block', 'important');
+                getSTT(cid, messageID, getPreferredLanguage(cid));
+            }
+        });
+    }
+}
+
+/**
+ * Adds speaking callback for the message
+ * @param cid: id of the conversation
+ * @param messageID: id of the message
+ */
+function addTTSCallback(cid, messageID){
     const speakingButton = document.getElementById(`${messageID}_speak`);
     if (speakingButton) {
         speakingButton.addEventListener('click', (e) => {
@@ -300,10 +324,14 @@ function addSpeakingCallback(cid, messageID){
  * Attaches speaking capabilities to each message supporting that
  * @param conversationData: conversation data object
  */
-function addSpeaking(conversationData) {
+function addCommunicationChannelTransformCallback(conversationData) {
     if (conversationData.hasOwnProperty('chat_flow')) {
         Array.from(conversationData['chat_flow']).forEach(message => {
-            addSpeakingCallback(conversationData['_id'], message['message_id'])
+            if (message?.is_audio === '1'){
+                addSTTCallback(conversationData['_id'], message['message_id']);
+            }else{
+                addTTSCallback(conversationData['_id'], message['message_id']);
+            }
         });
     }
 }
@@ -362,7 +390,7 @@ async function buildConversation(conversationData={}, remember=true,conversation
    conversationsBody.insertAdjacentHTML('afterbegin', newConversationHTML);
    attachReplies(conversationData);
    addAttachments(conversationData);
-   addSpeaking(conversationData);
+   addCommunicationChannelTransformCallback(conversationData);
    await addRecorder(conversationData);
 
    const currentConversation = document.getElementById(conversationData['_id']);
@@ -526,9 +554,9 @@ function emitUserMessage(textInputElem, cid, repliedMessageID=null, attachments=
                  'timeCreated':timeCreated
                 });
             if (isAudio){
-                // TODO: add audio init
+                addSTTCallback(cid, messageID);
             }else {
-                addSpeakingCallback(cid, messageID);
+                addTTSCallback(cid, messageID);
                 sendLanguageUpdateRequest(cid, messageID);
             }
         });

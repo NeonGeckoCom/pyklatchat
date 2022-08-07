@@ -118,16 +118,19 @@ async def user_message(sid, data):
             data['userID'] = bot_data['_id']
 
         is_audio = data.get('isAudio', '0')
-
+        file_path = f'{data["messageID"]}_audio.wav'
         try:
             if is_audio == '1':
                 message_text = data['messageText'].split(',')[-1]
-                data['messageText'] = f'{data["messageID"]}_audio.wav'
+                # for audio messages "message_text" only references the name of the audio stored
+                data['messageText'] = file_path
                 decode_base64_string_to_file(message_text, data['messageText'])
                 sftp_connector.put_file(data['messageText'], f'audio/{data["messageText"]}')
         except Exception as ex:
             LOG.error(f'Failed to located file - {ex}')
             return -1
+        finally:
+            remove_if_exists(file_path)
 
         new_shout_data = {'_id': data['messageID'],
                           'user_id': data['userID'],
@@ -371,7 +374,27 @@ async def tts_response(sid, data):
 @sio.event
 async def stt_response(sid, data):
     """ Handle STT Response from Observer """
-    print('STT: ', data)
+    mq_context = data.get('context', {})
+    message_id = mq_context.get('message_id')
+    matching_shouts = DbUtils.fetch_shouts(shout_ids=[message_id], fetch_senders=False)
+    if not matching_shouts:
+        LOG.warning(f'Skipping STT Response for message_id={message_id} - matching shout does not exist')
+    else:
+        try:
+            message_text = data.get('transcript')
+            lang = LanguageSettings.to_system_lang(data['lang'])
+            DbUtils.save_stt_response(shout_id=message_id, message_text=message_text, lang=lang)
+            sid = mq_context.get('sid')
+            cid = mq_context.get('cid')
+            response_data = {
+                'cid': cid,
+                'message_id': message_id,
+                'lang': lang,
+                'message_text': message_text
+            }
+            await sio.emit('incoming_stt', data=response_data, to=sid)
+        except Exception as ex:
+            LOG.error(f'Failed to save received transcript due to exception {ex}')
 
 
 @sio.event
@@ -384,6 +407,7 @@ async def request_stt(sid, data):
         Example of tts request data:
         ```
             data = {
+                        'cid': (target conversation id)
                         'message_id': (target message id),
                         'audio_data':(target audio data base64 encoded),
                         (optional) 'lang': (target message lang)
@@ -394,16 +418,30 @@ async def request_stt(sid, data):
     if not all(key in list(data) for key in required_keys):
         LOG.error(f'Missing one of the required keys - {required_keys}')
     else:
+        cid = data.get('cid', '')
         message_id = data.get('message_id', '')
-        audio_data = data.get('audio_data', '')
-        # TODO: implement fetching audio message by message id
-        # if not audio_data:
-        #     audio_data = fetch_audio_data_from_message(message_id)
+        # TODO: process received language
+        lang = 'en'
+        # lang = data.get('lang', 'en')
+        existing_shouts = DbUtils.fetch_shouts(shout_ids=[message_id])
+        if existing_shouts:
+            existing_transcript = existing_shouts[0].get('transcripts', {}).get(lang)
+            if existing_transcript:
+                response_data = {
+                    'cid': cid,
+                    'message_id': message_id,
+                    'lang': lang,
+                    'message_text': existing_transcript
+                }
+                return await sio.emit('incoming_stt', data=response_data, to=sid)
+        audio_data = data.get('audio_data') or DbUtils.fetch_audio_data_from_message(message_id)
         if not audio_data:
             LOG.error('Failed to fetch audio data')
         else:
-            lang = LanguageSettings.to_neon_lang(data.get('lang', 'en'))
+            lang = LanguageSettings.to_neon_lang(lang)
             formatted_data = {
+                'cid': cid,
+                'sid': sid,
                 'message_id': message_id,
                 'audio_data': audio_data,
                 'lang': lang,
