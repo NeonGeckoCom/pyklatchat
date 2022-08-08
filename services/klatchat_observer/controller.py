@@ -299,13 +299,14 @@ class ChatObserver(MQConnector):
         request_dict = self.get_structure_based_on_type(msg_data)
         request_dict.setdefault('data', {})
         request_dict['data']['lang'] = msg_data.get('lang', 'en-us')
+        request_dict['data']['utterances'] = [msg_data['message_body']]
         request_dict.setdefault('context', {})
         request_dict['context'] = {**recipient_data.get('context', {}),
                                    **{'source': 'mq_api',
                                       'message_id': msg_data.get('message_id'),
                                       'sid': msg_data.get('sid'),
                                       'cid': msg_data.get('cid'),
-                                      'request_skills': [msg_data.get('request_skills', 'default').lower()],
+                                      'request_skills': [msg_data.get('request_skills', 'recognizer').lower()],
                                       'username': msg_data.pop('nick', 'guest')}}
         input_queue = 'neon_chat_api_request'
         if self.neon_detection_enabled:
@@ -349,12 +350,11 @@ class ChatObserver(MQConnector):
         if data and isinstance(data, dict):
             recipient_data = {}
             if not data.get('skip_recipient_detection'):
-                recipient_data = self.get_recipient_from_message(message=data.get('messageText') or data.get('message_body'),
-                                                                 prefix_separator=self.mention_separator)
+                recipient_data = self.get_recipient_from_message(message=data.get('messageText') or data.get('message_body'))
             recipient = recipient_data.get('recipient') or data.get('recipient') or Recipients.UNRESOLVED
             handler_method = self.recipient_to_handler_method.get(recipient)
             if not handler_method:
-                LOG.error(f'Failed to get handler message for recipient={recipient}')
+                LOG.warning(f'Failed to get handler message for recipient={recipient}')
             else:
                 handler_method(recipient_data=recipient_data, msg_data=data)
         else:
