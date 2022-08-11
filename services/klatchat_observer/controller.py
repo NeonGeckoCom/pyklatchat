@@ -294,6 +294,7 @@ class ChatObserver(MQConnector):
 
     def __handle_neon_recipient(self, recipient_data: dict, msg_data: dict):
         msg_data.setdefault('message_body', msg_data.pop('messageText', ''))
+        msg_data.setdefault('message_id', msg_data.pop('messageID', ''))
         msg_data['message_body'] = self.mention_separator.join(msg_data['message_body'].split(self.mention_separator)[1:]).strip()
         msg_data.setdefault('agent', f'pyklatchat v{__version__}')
         request_dict = self.get_structure_based_on_type(msg_data)
@@ -444,18 +445,27 @@ class ChatObserver(MQConnector):
 
         """
         try:
+            LOG.info(f'Received Neon Response: {body}')
             data = body['data']
             context = body['context']
+            response_languages = list(data['responses'])
             # TODO: multilingual support
-            response_lang = list(data['responses'])[0]
             send_data = {
-                'cid': context['sender_context']['cid'],
+                'cid': context['cid'],
                 'userID': 'neon',
-                'messageID': generate_uuid(),
-                'repliedMessage': context['sender_context'].get('messageID', ''),
-                'messageText': data['responses'][response_lang]['sentence'],
-                'timeCreated': time.time()
+                'repliedMessage': context.get('message_id', ''),
+                'messageText': data['responses'][response_languages[0]]['sentence'],
+                'messageTTS': {},
+                'timeCreated': int(time.time())
             }
+            response_audio_genders = data.get('genders', [])
+            for language in response_languages:
+                for gender in response_audio_genders:
+                    try:
+                        send_data['messageTTS'].setdefault(language, {})[gender] = \
+                            data['responses'][language]['audio'][gender]
+                    except Exception as ex:
+                        LOG.error(f'Failed to set messageTTS with language={language}, gender={gender} - {ex}')
             self.sio.emit('user_message', data=send_data)
         except Exception as ex:
             LOG.error(f'Failed to emit Neon Chat API response: {ex}')

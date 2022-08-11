@@ -221,24 +221,33 @@ class DbUtils(metaclass=Singleton):
         return prefs
 
     @classmethod
-    def save_tts_response(cls, shout_id, audio_file_name, lang: str = 'en', gender: str = 'undefined'):
+    def save_tts_response(cls, shout_id, audio_data: str, lang: str = 'en', gender: str = 'female') -> bool:
         """
             Saves TTS Response under corresponding shout id
 
             :param shout_id: message id to consider
-            :param audio_file_name: TTS result audio file name
+            :param audio_data: base64 encoded audio data received
             :param lang: language of speech (defaults to English)
-            :param gender: language gender
+            :param gender: language gender (defaults to female)
+
+            :return bool if saving was successful
         """
+        from chat_server.server_config import sftp_connector
+
+        audio_file_name = f'{shout_id}_{lang}_{gender}.wav'
         filter_expression = {'_id': shout_id}
         update_expression = {'$set': {f'audio.{lang}.{gender}': audio_file_name}}
         try:
+            sftp_connector.put_file_object(file_object=audio_data, save_to=f'audio/{audio_file_name}')
             cls.db_controller.exec_query(query={'document': 'shouts',
                                                 'command': 'update',
                                                 'data': (filter_expression,
                                                          update_expression,)})
+            operation_success = True
         except Exception as ex:
             LOG.error(f'Failed to save TTS response to db - {ex}')
+            operation_success = False
+        return operation_success
 
     @classmethod
     def save_stt_response(cls, shout_id, message_text: str, lang: str = 'en'):

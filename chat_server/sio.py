@@ -19,6 +19,7 @@
 
 import json
 import os
+from typing import List, Optional
 
 import pymongo
 import socketio
@@ -89,7 +90,8 @@ async def user_message(sid, data):
                     'attachments': 'list of filenames that were send with message',
                     'context': 'message context (optional)',
                     'test': 'is test message (defaults to False)',
-                    'isAudio': '1 if current message is audio message 0 otherwise'
+                    'isAudio': '1 if current message is audio message 0 otherwise',
+                    'messageTTS': received tts mapping of type: {language: {gender: (audio data base64 encoded)}}
                     'timeCreated': 'timestamp on which message was created'}
         ```
     """
@@ -104,7 +106,7 @@ async def user_message(sid, data):
         cid_data = db_controller.exec_query({'command': 'find_one', 'document': 'chats', 'data': filter_expression})
         if not cid_data:
             msg = 'Shouting to non-existent conversation, skipping further processing'
-            await emit_error(sid=sid, message=msg)
+            await emit_error(sids=[sid], message=msg)
             return
 
         LOG.info(f'Received user message data: {data}')
@@ -143,10 +145,18 @@ async def user_message(sid, data):
         push_expression = {'$push': {'chat_flow': new_shout_data['_id']}}
         db_controller.exec_query({'command': 'update', 'document': 'chats', 'data': (filter_expression,
                                                                                      push_expression,)})
+
+        message_tts = data.get('messageTTS', {})
+        for language, gender_mapping in message_tts.items():
+            for gender, audio_data in gender_mapping.items():
+                sftp_connector.put_file_object(file_object=audio_data, save_to=f'audio/{file_path}')
+                DbUtils.save_tts_response(shout_id=data['messageID'], audio_file_name=file_path,
+                                          lang=language, gender=gender)
+
         await sio.emit('new_message', data=json.dumps(data), skip_sid=[sid])
     except Exception as ex:
         LOG.error(f'Exception on sio processing: {ex}')
-        await emit_error(sid=sid, message=f'Unable to process request "user_message" with data: {data}')
+        await emit_error(sids=[sid], message=f'Unable to process request "user_message" with data: {data}')
 
 
 @sio.event
@@ -349,10 +359,9 @@ async def tts_response(sid, data):
         if not audio_data:
             LOG.warning(f'Skipping TTS Response for message_id={message_id} - audio data is empty')
         else:
-            file_path = f'{message_id}_{lang}_{lang_gender}.wav'
-            try:
-                sftp_connector.put_file_object(file_object=audio_data, save_to=f'audio/{file_path}')
-                DbUtils.save_tts_response(shout_id=message_id, audio_file_name=file_path, lang=lang, gender=lang_gender)
+            is_ok = DbUtils.save_tts_response(shout_id=message_id, audio_data=audio_data,
+                                              lang=lang, gender=lang_gender)
+            if is_ok:
                 response_data = {
                     'cid': cid,
                     'message_id': message_id,
@@ -361,8 +370,12 @@ async def tts_response(sid, data):
                     'audio_data': audio_data
                 }
                 await sio.emit('incoming_tts', data=response_data, to=sid)
-            except Exception as ex:
-                LOG.error(f'Failed to decode received audio data to file - /audio/{file_path} due to exception {ex}')
+            else:
+                to = None
+                if sid:
+                    to = [sid]
+                await emit_error(message='Failed to get TTS response', context={'message_id': message_id,
+                                                                                'cid': cid}, sids=to)
 
 
 @sio.event
@@ -443,10 +456,20 @@ async def request_stt(sid, data):
             await sio.emit('get_stt', data=formatted_data)
 
 
-async def emit_error(sid: str, message: str):
+async def emit_error(message: str, context: Optional[dict] = None, sids: Optional[List[str]] = None):
     """
         Emits error message to provided sid
-        :param sid: client session id
+
         :param message: message to emit
+        :param sids: client session ids (optional)
+        :param context: context to emit (optional)
     """
-    await sio.emit('klatchat_sio_error', data=json.dumps(dict(msg=message)), to=[sid])
+    if not context:
+        context = {}
+    emit_dict = {
+        'event': context.pop('callback_event', 'klatchat_sio_error'),
+        'data': {'msg': message, 'context': context},
+    }
+    if sids:
+        emit_dict['to'] = sids
+    await sio.emit(**emit_dict)
