@@ -122,15 +122,12 @@ async def user_message(sid, data):
         try:
             if is_audio == '1':
                 message_text = data['messageText'].split(',')[-1]
-                # for audio messages "message_text" only references the name of the audio stored
+                sftp_connector.put_file_object(file_object=message_text, save_to=f'audio/{file_path}')
+                # for audio messages "message_text" references the name of the audio stored
                 data['messageText'] = file_path
-                decode_base64_string_to_file(message_text, data['messageText'])
-                sftp_connector.put_file(data['messageText'], f'audio/{data["messageText"]}')
         except Exception as ex:
             LOG.error(f'Failed to located file - {ex}')
             return -1
-        finally:
-            remove_if_exists(file_path)
 
         new_shout_data = {'_id': data['messageID'],
                           'user_id': data['userID'],
@@ -354,8 +351,7 @@ async def tts_response(sid, data):
         else:
             file_path = f'{message_id}_{lang}_{lang_gender}.wav'
             try:
-                decode_base64_string_to_file(audio_data, file_path)
-                sftp_connector.put_file(file_path, f'audio/{file_path}')
+                sftp_connector.put_file_object(file_object=audio_data, save_to=f'audio/{file_path}')
                 DbUtils.save_tts_response(shout_id=message_id, audio_file_name=file_path, lang=lang, gender=lang_gender)
                 response_data = {
                     'cid': cid,
@@ -366,9 +362,7 @@ async def tts_response(sid, data):
                 }
                 await sio.emit('incoming_tts', data=response_data, to=sid)
             except Exception as ex:
-                LOG.error(f'Failed to decode received audio data to file - {file_path} due to exception {ex}')
-            finally:
-                remove_if_exists(file_path)
+                LOG.error(f'Failed to decode received audio data to file - /audio/{file_path} due to exception {ex}')
 
 
 @sio.event
