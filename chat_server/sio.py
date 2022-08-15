@@ -18,6 +18,8 @@
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
 
 import json
+import os
+from typing import List, Optional
 
 import pymongo
 import socketio
@@ -25,12 +27,15 @@ from bson.errors import InvalidId
 from bson.objectid import ObjectId
 from neon_utils import LOG
 from neon_utils.cache_utils import LRUCache
+from neon_utils.file_utils import decode_base64_string_to_file
 
 from chat_server.server_utils.cache_utils import CacheFactory
 from chat_server.server_utils.db_utils import DbUtils
 from chat_server.server_utils.user_utils import get_neon_data, get_bot_data
-from chat_server.server_config import db_controller
-from utils.common import generate_uuid, deep_merge
+from chat_server.server_config import db_controller, sftp_connector
+from chat_server.utils.languages import LanguageSettings
+from chat_server.utils.os_utils import remove_if_exists
+from utils.common import generate_uuid, deep_merge, buffer_to_base64
 
 sio = socketio.AsyncServer(cors_allowed_origins='*', async_mode='asgi')
 
@@ -85,6 +90,8 @@ async def user_message(sid, data):
                     'attachments': 'list of filenames that were send with message',
                     'context': 'message context (optional)',
                     'test': 'is test message (defaults to False)',
+                    'isAudio': '1 if current message is audio message 0 otherwise',
+                    'messageTTS': received tts mapping of type: {language: {gender: (audio data base64 encoded)}}
                     'timeCreated': 'timestamp on which message was created'}
         ```
     """
@@ -99,7 +106,7 @@ async def user_message(sid, data):
         cid_data = db_controller.exec_query({'command': 'find_one', 'document': 'chats', 'data': filter_expression})
         if not cid_data:
             msg = 'Shouting to non-existent conversation, skipping further processing'
-            await emit_error(sid=sid, message=msg)
+            await emit_error(sids=[sid], message=msg)
             return
 
         LOG.info(f'Received user message data: {data}')
@@ -112,12 +119,25 @@ async def user_message(sid, data):
             bot_data = get_bot_data(db_controller=db_controller, nickname=data['userID'], context=data.get('context', None))
             data['userID'] = bot_data['_id']
 
+        is_audio = data.get('isAudio', '0')
+        file_path = f'{data["messageID"]}_audio.wav'
+        try:
+            if is_audio == '1':
+                message_text = data['messageText'].split(',')[-1]
+                sftp_connector.put_file_object(file_object=message_text, save_to=f'audio/{file_path}')
+                # for audio messages "message_text" references the name of the audio stored
+                data['messageText'] = file_path
+        except Exception as ex:
+            LOG.error(f'Failed to located file - {ex}')
+            return -1
+
         new_shout_data = {'_id': data['messageID'],
                           'user_id': data['userID'],
                           'prompt_id': data.get('promptID', ''),
                           'message_text': data['messageText'],
                           'attachments': data.get('attachments', []),
                           'replied_message': data.get('repliedMessage', ''),
+                          'is_audio': '1' if is_audio != '0' else '0',
                           'created_on': int(data['timeCreated'])}
 
         db_controller.exec_query({'command': 'insert_one', 'document': 'shouts', 'data': new_shout_data})
@@ -125,10 +145,18 @@ async def user_message(sid, data):
         push_expression = {'$push': {'chat_flow': new_shout_data['_id']}}
         db_controller.exec_query({'command': 'update', 'document': 'chats', 'data': (filter_expression,
                                                                                      push_expression,)})
+
+        message_tts = data.get('messageTTS', {})
+        for language, gender_mapping in message_tts.items():
+            for gender, audio_data in gender_mapping.items():
+                sftp_connector.put_file_object(file_object=audio_data, save_to=f'audio/{file_path}')
+                DbUtils.save_tts_response(shout_id=data['messageID'], audio_file_name=file_path,
+                                          lang=language, gender=gender)
+
         await sio.emit('new_message', data=json.dumps(data), skip_sid=[sid])
     except Exception as ex:
         LOG.error(f'Exception on sio processing: {ex}')
-        await emit_error(sid=sid, message=f'Unable to process request "user_message" with data: {data}')
+        await emit_error(sids=[sid], message=f'Unable to process request "user_message" with data: {data}')
 
 
 @sio.event
@@ -247,10 +275,201 @@ async def get_neon_translations(sid, data):
             LOG.error(f'No translation cache detected under request_id={request_id} (err={err})')
 
 
-async def emit_error(sid: str, message: str):
+@sio.event
+async def request_tts(sid, data):
+    """
+        Handles request to Neon TTS service
+
+        :param sid: client session id
+        :param data: received tts request data
+        Example of tts request data:
+        ```
+            data = {
+                        'message_id': (target message id),
+                        'message_text':(target message text),
+                        'lang': (target message lang)
+                   }
+        ```
+    """
+    required_keys = ('cid', 'message_id', 'user_id', )
+    if not all(key in list(data) for key in required_keys):
+        LOG.error(f'Missing one of the required keys - {required_keys}')
+    else:
+        lang = data.get('lang', 'en')
+        message_id = data['message_id']
+        user_id = data['user_id']
+        cid = data['cid']
+        matching_messages = DbUtils.fetch_shouts(shout_ids=[message_id], fetch_senders=False)
+        if not matching_messages:
+            LOG.error('Failed to request TTS - matching message not found')
+        else:
+            matching_message = matching_messages[0]
+
+            # Trying to get existing audio data
+            preferred_gender = DbUtils.get_user_preferences(user_id=user_id).get('tts', {}).get(lang, {}).get('gender',
+                                                                                                              'female')
+            existing_audio_file = matching_message.get('audio', {}).get(lang, {}).get(preferred_gender)
+            if not existing_audio_file:
+                LOG.info(f'File was not detected for cid={cid}, message_id={message_id}, lang={lang}')
+                message_text = matching_message.get('message_text')
+                formatted_data = {
+                    'cid': cid,
+                    'sid': sid,
+                    'message_id': message_id,
+                    'text': message_text,
+                    'lang': LanguageSettings.to_neon_lang(lang)
+                }
+                await sio.emit('get_tts', data=formatted_data)
+            else:
+                try:
+                    file_location = f'audio/{existing_audio_file}'
+                    LOG.info(f'Fetching existing file from: {file_location}')
+                    fo = sftp_connector.get_file_object(file_location)
+                    if fo.getbuffer().nbytes > 0:
+                        LOG.info(f'File detected for cid={cid}, message_id={message_id}, lang={lang}')
+                        audio_data = buffer_to_base64(fo)
+                        response_data = {
+                            'cid': cid,
+                            'message_id': message_id,
+                            'lang': lang,
+                            'gender': preferred_gender,
+                            'audio_data': audio_data
+                        }
+                        await sio.emit('incoming_tts', data=response_data, to=sid)
+                    else:
+                        LOG.error(f'Empty file detected for cid={cid}, message_id={message_id}, lang={lang}')
+                except Exception as ex:
+                    LOG.error(f'Failed to send TTS response - {ex}')
+
+
+@sio.event
+async def tts_response(sid, data):
+    """ Handle TTS Response from Observer """
+    mq_context = data.get('context', {})
+    cid = mq_context.get('cid')
+    message_id = mq_context.get('message_id')
+    sid = mq_context.get('sid')
+    lang = LanguageSettings.to_system_lang(data.get('lang', 'en-us'))
+    lang_gender = data.get('gender', 'undefined')
+    matching_shouts = DbUtils.fetch_shouts(shout_ids=[message_id], fetch_senders=False)
+    if not matching_shouts:
+        LOG.warning(f'Skipping TTS Response for message_id={message_id} - matching shout does not exist')
+    else:
+        audio_data = data.get('audio_data')
+        if not audio_data:
+            LOG.warning(f'Skipping TTS Response for message_id={message_id} - audio data is empty')
+        else:
+            is_ok = DbUtils.save_tts_response(shout_id=message_id, audio_data=audio_data,
+                                              lang=lang, gender=lang_gender)
+            if is_ok:
+                response_data = {
+                    'cid': cid,
+                    'message_id': message_id,
+                    'lang': lang,
+                    'gender': lang_gender,
+                    'audio_data': audio_data
+                }
+                await sio.emit('incoming_tts', data=response_data, to=sid)
+            else:
+                to = None
+                if sid:
+                    to = [sid]
+                await emit_error(message='Failed to get TTS response', context={'message_id': message_id,
+                                                                                'cid': cid}, sids=to)
+
+
+@sio.event
+async def stt_response(sid, data):
+    """ Handle STT Response from Observer """
+    mq_context = data.get('context', {})
+    message_id = mq_context.get('message_id')
+    matching_shouts = DbUtils.fetch_shouts(shout_ids=[message_id], fetch_senders=False)
+    if not matching_shouts:
+        LOG.warning(f'Skipping STT Response for message_id={message_id} - matching shout does not exist')
+    else:
+        try:
+            message_text = data.get('transcript')
+            lang = LanguageSettings.to_system_lang(data['lang'])
+            DbUtils.save_stt_response(shout_id=message_id, message_text=message_text, lang=lang)
+            sid = mq_context.get('sid')
+            cid = mq_context.get('cid')
+            response_data = {
+                'cid': cid,
+                'message_id': message_id,
+                'lang': lang,
+                'message_text': message_text
+            }
+            await sio.emit('incoming_stt', data=response_data, to=sid)
+        except Exception as ex:
+            LOG.error(f'Failed to save received transcript due to exception {ex}')
+
+
+@sio.event
+async def request_stt(sid, data):
+    """
+        Handles request to Neon STT service
+
+        :param sid: client session id
+        :param data: received tts request data
+        Example of tts request data:
+        ```
+            data = {
+                        'cid': (target conversation id)
+                        'message_id': (target message id),
+                        'audio_data':(target audio data base64 encoded),
+                        (optional) 'lang': (target message lang)
+                   }
+        ```
+    """
+    required_keys = ('message_id',)
+    if not all(key in list(data) for key in required_keys):
+        LOG.error(f'Missing one of the required keys - {required_keys}')
+    else:
+        cid = data.get('cid', '')
+        message_id = data.get('message_id', '')
+        # TODO: process received language
+        lang = 'en'
+        # lang = data.get('lang', 'en')
+        existing_shouts = DbUtils.fetch_shouts(shout_ids=[message_id])
+        if existing_shouts:
+            existing_transcript = existing_shouts[0].get('transcripts', {}).get(lang)
+            if existing_transcript:
+                response_data = {
+                    'cid': cid,
+                    'message_id': message_id,
+                    'lang': lang,
+                    'message_text': existing_transcript
+                }
+                return await sio.emit('incoming_stt', data=response_data, to=sid)
+        audio_data = data.get('audio_data') or DbUtils.fetch_audio_data_from_message(message_id)
+        if not audio_data:
+            LOG.error('Failed to fetch audio data')
+        else:
+            lang = LanguageSettings.to_neon_lang(lang)
+            formatted_data = {
+                'cid': cid,
+                'sid': sid,
+                'message_id': message_id,
+                'audio_data': audio_data,
+                'lang': lang,
+            }
+            await sio.emit('get_stt', data=formatted_data)
+
+
+async def emit_error(message: str, context: Optional[dict] = None, sids: Optional[List[str]] = None):
     """
         Emits error message to provided sid
-        :param sid: client session id
+
         :param message: message to emit
+        :param sids: client session ids (optional)
+        :param context: context to emit (optional)
     """
-    await sio.emit('klatchat_sio_error', data=json.dumps(dict(msg=message)), to=[sid])
+    if not context:
+        context = {}
+    emit_dict = {
+        'event': context.pop('callback_event', 'klatchat_sio_error'),
+        'data': {'msg': message, 'context': context},
+    }
+    if sids:
+        emit_dict['to'] = sids
+    await sio.emit(**emit_dict)

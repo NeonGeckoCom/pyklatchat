@@ -7,7 +7,8 @@ body{
 }
 
 .chat-list li {
-    margin-bottom: 10px;
+    padding-bottom: 10px!important;
+    max-height: 250px!important;
     overflow: auto;
     color: #ffffff;
 }
@@ -45,7 +46,7 @@ body{
     display: inline-block;
     padding: 10px 20px;
     position: relative;
-    max-width: 100%!important;
+    max-width: 70%!important;
     font-size: 14px!important;
 }
 
@@ -54,14 +55,6 @@ body{
     min-height: 25px!important;
     overflow-y: auto!important;
 }
-
-/*.chat-list .chat-message:before {*/
-/*    content: "";*/
-/*    position: absolute;*/
-/*    top: 15px;*/
-/*    width: 0;*/
-/*    height: 0;*/
-/*}*/
 
 .chat-list .chat-message h5 {
     margin: 0 0 5px 0;
@@ -81,11 +74,23 @@ body{
     width: 70%;
 }
 
-/*.chat-list .in .chat-message:before {*/
-/*    left: -12px;*/
-/*    border-bottom: 20px solid transparent;*/
-/*    border-right: 20px solid #5a99ee;*/
-/*}*/
+.chat-message-actions {
+    height: 80px;
+    width: 25%!important;
+    /*background-color: black;*/
+}
+
+.icon-volume-up {
+  color: black;
+}
+
+.fa-lg {
+    font-size: 18px;
+}
+
+/*
+    Out message styling
+ */
 
 .chat-list .out .chat-img {
     float: right;
@@ -97,19 +102,30 @@ body{
     margin-right: 5px!important;
 }
 
-.chat-list .in .chat-body {
-    margin-left: 5px!important;
+.chat-list .out .chat-message-actions {
+    float: right;
 }
 
 .chat-list .out .chat-message {
     background: #fc6d4c;
+    float: right;
 }
 
-/*.chat-list .out .chat-message:before {*/
-/*    right: -12px;*/
-/*    border-bottom: 20px solid transparent;*/
-/*    border-left: 20px solid #fc6d4c;*/
-/*}*/
+/*
+    In message styling
+ */
+
+.chat-list .in .chat-body {
+    margin-left: 5px!important;
+}
+
+.chat-list .in .chat-message {
+    float: left;
+}
+
+.chat-list .in .chat-message-actions {
+    float: left;
+}
 
 .card .card-header:first-child {
     -webkit-border-radius: 0.3rem 0.3rem 0 0;
@@ -260,4 +276,18 @@ body{
     left: 35%;
     top: 40%;
     z-index: 999;
+}
+
+.message-audio {
+    max-height: 100%;
+    max-width: 100%;
+    margin: auto;
+    object-fit: contain;
+}
+
+.stt-content{
+    display: none;
+    overflow-y: auto;
+    max-height: 150px!important;
+    min-height: 25px!important;
 }

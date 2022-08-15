@@ -55,6 +55,72 @@ class ChatObserver(MQConnector):
         'translation': '/translation'
     }
 
+    def __init__(self, config: dict, service_name: str = 'chat_observer', vhosts: dict = None, scan_neon_service: bool = False):
+        super().__init__(config, service_name)
+        if not vhosts:
+            vhosts = {}
+        self.vhosts = {**vhosts, **self.vhosts}
+        self.__translation_requests = {}
+        self.__neon_service_id = ''
+        self.neon_detection_enabled = scan_neon_service
+        self.neon_service_event = None
+        self.last_neon_request: int = 0
+        self.neon_service_refresh_interval = 60  # seconds
+        self.mention_separator = ','
+        self.recipient_to_handler_method = {
+            Recipients.NEON: self.__handle_neon_recipient,
+            Recipients.CHATBOT_CONTROLLER: self.__handle_chatbot_recipient
+        }
+        self._sio = None
+        self.sio_url = config['SIO_URL']
+        try:
+            self.connect_sio()
+        except Exception as ex:
+            err = f'Failed to connect Socket IO at {self.sio_url} due to exception={str(ex)}, observing will not be run'
+            LOG.warning(err)
+            if not self.testing_mode:
+                raise ConnectionError(err)
+        self.register_consumer(name='neon_response',
+                               vhost=self.get_vhost('neon_api'),
+                               queue='neon_chat_api_response',
+                               callback=self.handle_neon_response,
+                               on_error=self.default_error_handler)
+        self.register_consumer(name='neon_response_error',
+                               vhost=self.get_vhost('neon_api'),
+                               queue='neon_chat_api_error',
+                               callback=self.handle_neon_error,
+                               on_error=self.default_error_handler)
+        self.register_consumer(name='neon_stt_response',
+                               vhost=self.get_vhost('neon_api'),
+                               queue='neon_stt_response',
+                               callback=self.on_stt_response,
+                               on_error=self.default_error_handler)
+        self.register_consumer(name='neon_tts_response',
+                               vhost=self.get_vhost('neon_api'),
+                               queue='neon_tts_response',
+                               callback=self.on_tts_response,
+                               on_error=self.default_error_handler)
+        self.register_consumer(name='submind_response',
+                               vhost=self.get_vhost('chatbots'),
+                               queue='submind_response',
+                               callback=self.handle_submind_response,
+                               on_error=self.default_error_handler)
+        self.register_consumer(name='save_prompt_data',
+                               vhost=self.get_vhost('chatbots'),
+                               queue='save_prompt',
+                               callback=self.handle_saving_prompt_data,
+                               on_error=self.default_error_handler)
+        self.register_consumer(name='get_prompt_data',
+                               vhost=self.get_vhost('chatbots'),
+                               queue='get_prompt',
+                               callback=self.handle_get_prompt,
+                               on_error=self.default_error_handler)
+        self.register_consumer(name='get_neon_translation_response',
+                               vhost=self.get_vhost('translation'),
+                               queue='get_libre_translations',
+                               callback=self.on_neon_translations_response,
+                               on_error=self.default_error_handler)
+
     @classmethod
     def get_recipient_from_prefix(cls, message_prefix) -> dict:
         """
@@ -77,8 +143,8 @@ class ChatObserver(MQConnector):
                     break
         return callback
 
-    @classmethod
-    def get_recipient_from_body(cls, message: str) -> dict:
+    @staticmethod
+    def get_recipient_from_body(message: str) -> dict:
         """
             Gets recipients from message body
 
@@ -86,8 +152,7 @@ class ChatObserver(MQConnector):
             :returns extracted recipient
 
             Example:
-            >>> response_data = ChatObserver.get_recipient_from_body('@Proctor hello dsfdsfsfds @Prompter')
-            >>> assert response_data == {'recipient': Recipients.CHATBOT_CONTROLLER, 'context': {'requested_participants': ['proctor', 'prompter']}}
+            >>> assert ChatObserver.get_recipient_from_body('@Proctor hello dsfdsfsfds @Prompter') == {'recipient': Recipients.CHATBOT_CONTROLLER, 'context': {'requested_participants': {'proctor', 'prompter'}}
         """
         message = ' ' + message
         bot_mentioning_regexp = r'[\s]+@[a-zA-Z]+[\w]+'
@@ -99,69 +164,22 @@ class ChatObserver(MQConnector):
             recipient = Recipients.UNRESOLVED
         return {'recipient': recipient, 'context': {'requested_participants': bots}}
 
-    @classmethod
-    def get_recipient_from_message(cls, message: str, prefix_separator: str) -> dict:
+    def get_recipient_from_message(self, message: str) -> dict:
         """
             Gets recipient based on message
 
-            :param prefix_separator: prefix of the user message
             :param message: message text
 
             :returns Dictionary of type: {"recipient": (instance of Recipients),
                                           "context": dictionary with supportive context}
         """
-        message_prefix = message.split(prefix_separator)[0].strip()
+        message_prefix = message.split(self.mention_separator)[0].strip()
         # Parsing message prefix
-        response_body = cls.get_recipient_from_prefix(message_prefix=message_prefix)
+        response_body = self.get_recipient_from_prefix(message_prefix=message_prefix)
         # Parsing message body
         if response_body['recipient'] == Recipients.UNRESOLVED:
-            response_body = cls.get_recipient_from_body(message=message)
+            response_body = self.get_recipient_from_body(message=message)
         return response_body
-
-    def __init__(self, config: dict, service_name: str = 'chat_observer', vhosts: dict = None, scan_neon_service: bool = False):
-        super().__init__(config, service_name)
-        if not vhosts:
-            vhosts = {}
-        self.vhosts = {**vhosts, **self.vhosts}
-        self._sio = None
-        self.sio_url = config['SIO_URL']
-        self.connect_sio()
-        self.__translation_requests = {}
-        self.register_consumer(name='neon_response',
-                               vhost=self.get_vhost('neon_api'),
-                               queue='neon_chat_api_response',
-                               callback=self.handle_neon_response,
-                               on_error=self.default_error_handler)
-        self.register_consumer(name='neon_response_error',
-                               vhost=self.get_vhost('neon_api'),
-                               queue='neon_chat_api_error',
-                               callback=self.handle_neon_error,
-                               on_error=self.default_error_handler)
-        self.register_consumer(name='submind_response',
-                               vhost=self.get_vhost('chatbots'),
-                               queue='submind_response',
-                               callback=self.handle_submind_response,
-                               on_error=self.default_error_handler)
-        self.register_consumer(name='save_prompt_data',
-                               vhost=self.get_vhost('chatbots'),
-                               queue='save_prompt',
-                               callback=self.handle_saving_prompt_data,
-                               on_error=self.default_error_handler)
-        self.register_consumer(name='get_prompt_data',
-                               vhost=self.get_vhost('chatbots'),
-                               queue='get_prompt',
-                               callback=self.handle_get_prompt,
-                               on_error=self.default_error_handler)
-        self.register_consumer(name='get_neon_translation_response',
-                               vhost=self.get_vhost('translation'),
-                               queue='get_libre_translations',
-                               callback=self.on_neon_translations_response,
-                               on_error=self.default_error_handler)
-        self.__neon_service_id = ''
-        self.neon_detection_enabled = scan_neon_service
-        self.neon_service_event = None
-        self.last_neon_request: int = 0
-        self.neon_service_refresh_interval = 60  # seconds
 
     @property
     def neon_service_id(self):
@@ -181,7 +199,6 @@ class ChatObserver(MQConnector):
                                callback=self.handle_neon_sync,
                                vhost=self.get_vhost('neon_api'),
                                on_error=self.default_error_handler,
-                               auto_ack=False,
                                queue='chat_api_proxy_sync')
         sync_consumer = self.consumers['neon_service_sync_consumer']
         sync_consumer.start()
@@ -194,7 +211,9 @@ class ChatObserver(MQConnector):
 
     def register_sio_handlers(self):
         """Convenience method for setting up Socket IO listeners"""
-        self._sio.on('new_message', handler=self.handle_user_message)
+        self._sio.on('new_message', handler=self.handle_message)
+        self._sio.on('get_stt', handler=self.handle_get_stt)
+        self._sio.on('get_tts', handler=self.handle_get_tts)
         self._sio.on('prompt_data', handler=self.forward_prompt_data)
         self._sio.on('request_neon_translations', handler=self.request_neon_translations)
 
@@ -240,63 +259,107 @@ class ChatObserver(MQConnector):
         else:
             return self.apply_testing_prefix(vhost=self.vhosts.get(name))
 
-    def handle_user_message(self, _data, requesting_by_separator: str = ','):
+    @staticmethod
+    def get_structure_based_on_type(msg_data: dict):
+        """ Gets message structure based on received request skill type """
+        request_skills = msg_data.get('request_skills', 'default').lower()
+        request_dict = {}
+        if request_skills == 'default':
+            request_dict = {
+                'data': {
+                    'utterances': [msg_data['message_body']],
+                },
+                'context': {
+                    'sender_context': msg_data
+                }
+            }
+        elif request_skills == 'tts':
+            utterance = msg_data.pop('utterance', '') or msg_data.pop('text', '')
+            request_dict = {
+                'data': {
+                    'utterance': utterance,
+                    'text': utterance,
+                },
+                'context': {
+                    'sender_context': msg_data
+                }
+            }
+        elif request_skills == 'stt':
+            request_dict = {
+                'data': {
+                    'audio_data': msg_data.pop('audio_data', msg_data['message_body']),
+                }
+            }
+        return request_dict
+
+    def __handle_neon_recipient(self, recipient_data: dict, msg_data: dict):
+        msg_data.setdefault('message_body', msg_data.pop('messageText', ''))
+        msg_data.setdefault('message_id', msg_data.pop('messageID', ''))
+        msg_data['message_body'] = self.mention_separator.join(msg_data['message_body'].split(self.mention_separator)[1:]).strip()
+        msg_data.setdefault('agent', f'pyklatchat v{__version__}')
+        request_dict = self.get_structure_based_on_type(msg_data)
+        request_dict.setdefault('data', {})
+        request_dict['data']['lang'] = msg_data.get('lang', 'en-us')
+        request_dict['data']['utterances'] = [msg_data['message_body']]
+        request_dict.setdefault('context', {})
+        request_dict['context'] = {**recipient_data.get('context', {}),
+                                   **{'source': 'mq_api',
+                                      'message_id': msg_data.get('message_id'),
+                                      'sid': msg_data.get('sid'),
+                                      'cid': msg_data.get('cid'),
+                                      'request_skills': [msg_data.get('request_skills', 'recognizer').lower()],
+                                      'username': msg_data.pop('nick', 'guest')}}
+        input_queue = 'neon_chat_api_request'
+        if self.neon_detection_enabled:
+            neon_service_id = self.neon_service_id
+            if neon_service_id:
+                input_queue = f'{input_queue}_{neon_service_id}'
+                self.last_neon_request = int(time.time())
+        self.send_message(request_data=request_dict, vhost=self.get_vhost('neon_api'), queue=input_queue)
+
+    def __handle_chatbot_recipient(self, recipient_data: dict, msg_data: dict):
+        LOG.info(f'Emitting message to Chatbot Controller: {recipient_data}')
+        queue = 'external_shout'
+        msg_data['requested_participants'] = json.dumps(list(recipient_data.setdefault('context', {})
+                                                             .setdefault('requested_participants', [])))
+        self.send_message(request_data=msg_data, vhost=self.get_vhost('chatbots'), queue=queue, expiration=3000)
+
+    def handle_get_stt(self, data):
+        """ Handler for get STT request from Socket IO channel """
+        data['recipient'] = Recipients.NEON
+        data['skip_recipient_detection'] = True
+        data['request_skills'] = 'stt'
+        self.handle_message(data=data)
+
+    def handle_get_tts(self, data):
+        """ Handler for get TTS request from Socket IO channel """
+        data['recipient'] = Recipients.NEON
+        data['skip_recipient_detection'] = True
+        data['request_skills'] = 'tts'
+        self.handle_message(data=data)
+
+    def handle_message(self, data):
         """
             Handles input requests from MQ to Neon API
 
-            :param _data: Received user data
-            :param requesting_by_separator: character to consider for requesting e.g. Neon, how are you? is for comma
+            :param data: Received user data
         """
         try:
-            _data = eval(_data)
+            data = eval(data)
         except Exception as ex:
-            LOG.warning(f'Failed to deserialize received data: {_data}: {ex}')
-        if _data and isinstance(_data, dict):
-            response_data = self.get_recipient_from_message(message=_data.get('messageText'),
-                                                            prefix_separator=requesting_by_separator)
-            recipient = response_data['recipient']
-            if recipient != Recipients.UNRESOLVED:
-                if recipient == Recipients.NEON:
-                    _data['messageText'] = requesting_by_separator.join(_data['messageText']
-                                                                        .split(requesting_by_separator)[1:]).strip()
-                    with self.create_mq_connection(vhost=self.get_vhost('neon_api')) as mq_connection:
-                        _data['agent'] = f'pyklatchat v{__version__}'
-                        request_dict = {
-                            'data': {
-                                'utterances': [_data.pop('messageText', '')],
-                                'lang': _data.get('userLanguage', 'en-us'),
-                            },
-                            'context': {
-                                'request_skills': _data.get('request_skills', []),
-                                'ident': generate_uuid(),
-                                'username': _data.pop('nick', 'guest'),
-                                'sender_context': _data
-                            }
-                        }
-                        input_queue = 'neon_chat_api_request'
-
-                        neon_service_id = self.neon_service_id
-                        if neon_service_id:
-                            input_queue = f'{input_queue}_{neon_service_id}'
-                            self.last_neon_request = int(time.time())
-                        self.emit_mq_message(connection=mq_connection,
-                                             request_data=request_dict,
-                                             queue=input_queue,
-                                             expiration=3000)
-                elif recipient == Recipients.CHATBOT_CONTROLLER:
-                    LOG.info(f'Emitting message to Chatbot Controller: {response_data}')
-                    with self.create_mq_connection(vhost=self.get_vhost('chatbots')) as mq_connection:
-                        queue = 'external_shout'
-                        _data['requested_participants'] = json.dumps(list(response_data.setdefault('context', {})
-                                                          .setdefault('requested_participants', [])))
-                        self.emit_mq_message(connection=mq_connection,
-                                             request_data=_data,
-                                             queue=queue,
-                                             expiration=3000)
+            LOG.warning(f'Failed to deserialize received data: {data}: {ex}')
+        if data and isinstance(data, dict):
+            recipient_data = {}
+            if not data.get('skip_recipient_detection'):
+                recipient_data = self.get_recipient_from_message(message=data.get('messageText') or data.get('message_body'))
+            recipient = recipient_data.get('recipient') or data.get('recipient') or Recipients.UNRESOLVED
+            handler_method = self.recipient_to_handler_method.get(recipient)
+            if not handler_method:
+                LOG.warning(f'Failed to get handler message for recipient={recipient}')
             else:
-                LOG.debug('No recipient found in user message, skipping')
+                handler_method(recipient_data=recipient_data, msg_data=data)
         else:
-            raise TypeError(f'Malformed data received: {_data}')
+            raise TypeError(f'Malformed data received: {data}')
 
     def forward_prompt_data(self, data: dict):
         """Forwards received prompt data to the destination observer"""
@@ -382,18 +445,27 @@ class ChatObserver(MQConnector):
 
         """
         try:
+            LOG.info(f'Received Neon Response: {body}')
             data = body['data']
             context = body['context']
+            response_languages = list(data['responses'])
             # TODO: multilingual support
-            response_lang = list(data['responses'])[0]
             send_data = {
-                'cid': context['sender_context']['cid'],
+                'cid': context['cid'],
                 'userID': 'neon',
-                'messageID': generate_uuid(),
-                'repliedMessage': context['sender_context'].get('messageID', ''),
-                'messageText': data['responses'][response_lang]['sentence'],
-                'timeCreated': time.time()
+                'repliedMessage': context.get('message_id', ''),
+                'messageText': data['responses'][response_languages[0]]['sentence'],
+                'messageTTS': {},
+                'timeCreated': int(time.time())
             }
+            response_audio_genders = data.get('genders', [])
+            for language in response_languages:
+                for gender in response_audio_genders:
+                    try:
+                        send_data['messageTTS'].setdefault(language, {})[gender] = \
+                            data['responses'][language]['audio'][gender]
+                    except Exception as ex:
+                        LOG.error(f'Failed to set messageTTS with language={language}, gender={gender} - {ex}')
             self.sio.emit('user_message', data=send_data)
         except Exception as ex:
             LOG.error(f'Failed to emit Neon Chat API response: {ex}')
@@ -429,11 +501,11 @@ class ChatObserver(MQConnector):
                               queue='chatbot_response_error', expiration=3000)
 
     @create_mq_callback()
-    def handle_saving_prompt_data(self, body: bytes):
+    def handle_saving_prompt_data(self, body: dict):
         """
             Handles requests for saving prompt data
 
-            :param body: request body (bytes)
+            :param body: request body (dict)
 
         """
         dict_data = b64_to_dict(body)
@@ -448,3 +520,15 @@ class ChatObserver(MQConnector):
             LOG.error(error_msg)
             self.send_message(request_data={'msg': error_msg}, vhost=self.get_vhost('chatbots'),
                               queue='chatbot_response_error', expiration=3000)
+
+    @create_mq_callback()
+    def on_stt_response(self, body: dict):
+        """ Handles receiving STT response """
+        LOG.info(f'Received STT Response: {body}')
+        self.sio.emit('stt_response', data=body)
+
+    @create_mq_callback()
+    def on_tts_response(self, body: dict):
+        """ Handles receiving TTS response """
+        LOG.info(f'Received TTS Response: {body}')
+        self.sio.emit('tts_response', data=body)

@@ -43,9 +43,10 @@ const setParticipantsCount = (cid) => {
  * @param timeCreated: timestamp for message creation
  * @param repliedMessageID: id of the replied message (optional)
  * @param attachments: array of attachments to add (optional)
+ * @param isAudio: is audio message (defaults to false)
  * @returns {Promise<null|number>}: promise resolving id of added message, -1 if failed to resolve message id creation
  */
-async function addMessage(cid, userID=null, messageID=null, messageText, timeCreated, repliedMessageID=null, attachments=[]){
+async function addMessage(cid, userID=null, messageID=null, messageText, timeCreated, repliedMessageID=null, attachments=[], isAudio=false){
     const cidElem = document.getElementById(cid);
     if(cidElem){
         const cidList = cidElem.getElementsByClassName('card-body')[0].getElementsByClassName('chat-list')[0]
@@ -60,7 +61,7 @@ async function addMessage(cid, userID=null, messageID=null, messageText, timeCre
             if(!messageID) {
                 messageID = generateUUID();
             }
-            let messageHTML = await buildUserMessageHTML(userData, messageID, messageText, timeCreated, isMine);
+            let messageHTML = await buildUserMessageHTML(userData, messageID, messageText, timeCreated, isMine, isAudio);
             const blankChat = cidList.getElementsByClassName('blank_chat');
             if(blankChat.length>0){
                 cidList.removeChild(blankChat[0]);
@@ -83,9 +84,10 @@ async function addMessage(cid, userID=null, messageID=null, messageText, timeCre
  * @param messageText: text of user message
  * @param timeCreated: date of creation
  * @param isMine: if message was emitted by current user
+ * @param isAudio: if message is audio message (defaults to False)
  * @returns {string}: constructed HTML out of input params
  */
-async function buildUserMessageHTML(userData, messageID, messageText, timeCreated, isMine){
+async function buildUserMessageHTML(userData, messageID, messageText, timeCreated, isMine, isAudio = false){
     const messageTime = getTimeFromTimestamp(timeCreated);
     let imageComponent;
     let shortedNick = `${userData['nickname'][0]}${userData['nickname'][userData['nickname'].length - 1]}`;
@@ -101,7 +103,7 @@ async function buildUserMessageHTML(userData, messageID, messageText, timeCreate
             'message_id':messageID,
             'nickname': userData['nickname'],
             'message_text':messageText,
-            'message_time': messageTime});
+            'message_time': messageTime}, `message_id=${messageID}&is_audio=${isAudio}`);
 }
 
 /**
@@ -278,6 +280,86 @@ function addUpload(cid, file){
 }
 
 /**
+ * Adds speaking callback for the message
+ * @param cid: id of the conversation
+ * @param messageID: id of the message
+ */
+function addSTTCallback(cid, messageID){
+    const sttButton = document.getElementById(`${messageID}_text`);
+    if (sttButton) {
+        sttButton.addEventListener('click', (e) => {
+            e.preventDefault();
+            const sttContent = document.getElementById(`${messageID}-stt`);
+            if (sttContent){
+                sttContent.innerHTML = `<div class="text-center">
+                                        Waiting for STT...  <div class="spinner-border spinner-border-sm" role="status">
+                                                            <span class="sr-only">Loading...</span>
+                                                        </div>
+                                        </div>`;
+                sttContent.style.setProperty('display', 'block', 'important');
+                getSTT(cid, messageID, getPreferredLanguage(cid));
+            }
+        });
+    }
+}
+
+/**
+ * Adds speaking callback for the message
+ * @param cid: id of the conversation
+ * @param messageID: id of the message
+ */
+function addTTSCallback(cid, messageID){
+    const speakingButton = document.getElementById(`${messageID}_speak`);
+    if (speakingButton) {
+        speakingButton.addEventListener('click', (e) => {
+            e.preventDefault();
+            getTTS(cid, messageID, getPreferredLanguage(cid));
+            setChatState(cid, 'updating', `Fetching TTS...`)
+        });
+    }
+}
+
+
+/**
+ * Attaches speaking capabilities to each message supporting that
+ * @param conversationData: conversation data object
+ */
+function addCommunicationChannelTransformCallback(conversationData) {
+    if (conversationData.hasOwnProperty('chat_flow')) {
+        Array.from(conversationData['chat_flow']).forEach(message => {
+            if (message?.is_audio === '1'){
+                addSTTCallback(conversationData['_id'], message['message_id']);
+            }else{
+                addTTSCallback(conversationData['_id'], message['message_id']);
+            }
+        });
+    }
+}
+
+/**
+ * Adds event listener for audio recording
+ * @param conversationData: conversation data object
+ */
+async function addRecorder(conversationData) {
+
+    const recorderButton = document.getElementById(`${conversationData["_id"]}-audio-input`);
+
+    const recorder = await recordAudio();
+
+    recorderButton.onmousedown = function () {
+        recorder.start();
+    };
+
+    recorderButton.onmouseup = async function () {
+        recorder.stop().then(audio=>{
+            const audioBlob = toBase64(audio['audioBlob']);
+            console.log('audioBlob=',audioBlob);
+            return audioBlob;
+        }).then(encodedAudio=>emitUserMessage(encodedAudio, conversationData['_id'], null, [], true));
+    };
+}
+
+/**
  * Builds new conversation HTML from provided data and attaches it to the list of displayed conversations
  * @param conversationData: JS Object containing conversation data of type:
  * {
@@ -308,9 +390,13 @@ async function buildConversation(conversationData={}, remember=true,conversation
    conversationsBody.insertAdjacentHTML('afterbegin', newConversationHTML);
    attachReplies(conversationData);
    addAttachments(conversationData);
+   addCommunicationChannelTransformCallback(conversationData);
+   await addRecorder(conversationData);
+
    const currentConversation = document.getElementById(conversationData['_id']);
    const conversationParent = currentConversation.parentElement;
    const conversationHolder = conversationParent.parentElement;
+
    const chatInputButton = document.getElementById(conversationData['_id']+'-send');
    const filenamesContainer = document.getElementById(`filename-container-${conversationData['_id']}`)
    const attachmentsButton = document.getElementById('file-input-'+conversationData['_id']);
@@ -345,7 +431,7 @@ async function buildConversation(conversationData={}, remember=true,conversation
                     return
                 }
             }
-            emitUserMessage(textInputElem, e.target.getAttribute('data-target-cid'),null, attachments);
+            emitUserMessage(textInputElem, e.target.getAttribute('data-target-cid'),null, attachments, false);
             textInputElem.value = "";
         });
     }
@@ -375,7 +461,8 @@ async function buildConversation(conversationData={}, remember=true,conversation
         }
     });
     setParticipantsCount(conversationData['_id']);
-    setTimeout( () => currentConversation.getElementsByClassName('card-body')[0].getElementsByClassName('chat-list')[0].lastElementChild?.scrollIntoView(true), 0);
+    await initLanguageSelector(conversationData['_id']);
+    setTimeout(() => currentConversation.getElementsByClassName('card-body')[0].getElementsByClassName('chat-list')[0].lastElementChild?.scrollIntoView(true), 0);
     return conversationData['_id'];
 }
 
@@ -402,7 +489,8 @@ async function buildConversationHTML(conversationData = {}){
     if(conversationData.hasOwnProperty('chat_flow')) {
         for (const message of Array.from(conversationData['chat_flow'])) {
             const isMine = currentUser && message['user_nickname'] === currentUser['nickname'];
-            chatFlowHTML += await buildUserMessageHTML({'avatar':message['user_avatar'],'nickname':message['user_nickname'], '_id': message['user_id']},message['message_id'], message['message_text'], message['created_on'],isMine);
+
+            chatFlowHTML += await buildUserMessageHTML({'avatar':message['user_avatar'],'nickname':message['user_nickname'], '_id': message['user_id']},message['message_id'], message['message_text'], message['created_on'],isMine,message?.is_audio);
             addConversationParticipant(conversationData['_id'], message['user_nickname']);
         }
     }else{
@@ -440,24 +528,41 @@ async function getConversationDataByInput(input=""){
 
 /**
  * Emits user message to Socket IO Server
- * @param textInputElem: DOM Element with input text
+ * @param textInputElem: DOM Element with input text (audio object if isAudio=true)
  * @param cid: Conversation ID
  * @param repliedMessageID: ID of replied message
  * @param attachments: list of attachments file names
+ * @param isAudio: is audio message being emitted (defaults to false)
  */
-function emitUserMessage(textInputElem, cid, repliedMessageID=null, attachments= []){
-    if(textInputElem && textInputElem.value){
+function emitUserMessage(textInputElem, cid, repliedMessageID=null, attachments= [], isAudio=false){
+    if(isAudio || textInputElem && textInputElem.value){
         const timeCreated = Math.floor(Date.now() / 1000);
-        const messageText = textInputElem.value;
-        addMessage(cid, currentUser['_id'],null, messageText, timeCreated,repliedMessageID,attachments).then(messageID=>{
-            socket.emit('user_message', {'cid':cid,'userID':currentUser['_id'],
-                        'messageText':messageText,
-                        'messageID':messageID,
-                        'attachments': attachments,
-                        'timeCreated':timeCreated});
-            sendLanguageUpdateRequest(cid, messageID)
+        let messageText;
+        if (isAudio){
+            messageText = textInputElem;
+        }else {
+            messageText = textInputElem.value;
+        }
+        addMessage(cid, currentUser['_id'],null, messageText, timeCreated,repliedMessageID,attachments, isAudio).then(messageID=>{
+            socket.emit('user_message',
+                {'cid':cid,
+                 'userID':currentUser['_id'],
+                 'messageText':messageText,
+                 'messageID':messageID,
+                 'attachments': attachments,
+                 'isAudio': isAudio?'1':'0',
+                 'timeCreated':timeCreated
+                });
+            if (isAudio){
+                addSTTCallback(cid, messageID);
+            }else {
+                addTTSCallback(cid, messageID);
+                sendLanguageUpdateRequest(cid, messageID);
+            }
         });
-        textInputElem.value = "";
+        if (!isAudio){
+            textInputElem.value = "";
+        }
     }
 }
 
@@ -563,8 +668,7 @@ function getMessagesOfCID(cid){
  * Refreshes chat view (e.g. when user session gets updated)
  */
 function refreshChatView(){
-    requestChatsLanguageRefresh();
-    Array.from(conversationBody.getElementsByClassName('conversationContainer')).forEach(conversation=>{
+    Array.from(conversationBody.getElementsByClassName('conversationContainer')).forEach(async conversation=>{
        const messages = getMessagesOfCID(conversation.id);
        Array.from(messages).forEach(message=>{
           if(message.hasAttribute('data-sender')){
@@ -675,9 +779,8 @@ function setChatState(cid, state='active', state_msg = ''){
 
 document.addEventListener('DOMContentLoaded', (e)=>{
 
-    document.addEventListener('supportedLanguagesLoaded', async (e)=>{
-        await restoreChatAlignment();
-        refreshCurrentUser(false, true);
+    document.addEventListener('supportedLanguagesLoaded', (e)=>{
+        refreshCurrentUser(false).then(_=>restoreChatAlignment()).then(_=>refreshCurrentUser(true)).then(_=>requestChatsLanguageRefresh());
     });
 
     if (configData['client'] === CLIENTS.MAIN) {

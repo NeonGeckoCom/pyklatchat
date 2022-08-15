@@ -23,14 +23,15 @@ function fetchTemplateContext(html, templateContext){
  * Builds HTML from passed params and template name
  * @param templateName: name of the template to fetch
  * @param templateContext: properties from template to fetch
+ * @param requestArgs: request string arguments (optional)
  * @returns built template string
  */
-async function buildHTMLFromTemplate(templateName, templateContext = {}){
-    if(!configData['DISABLE_CACHING'] && loadedComponents.hasOwnProperty(templateName)){
+async function buildHTMLFromTemplate(templateName, templateContext = {}, requestArgs=''){
+    if(!configData['DISABLE_CACHING'] && loadedComponents.hasOwnProperty(templateName) && !requestArgs){
         const html = loadedComponents[templateName];
         return fetchTemplateContext(html, templateContext);
     }else {
-        return await fetch(`${configData['currentURLBase']}/components/${templateName}`)
+        return await fetch(`${configData['currentURLBase']}/components/${templateName}?${requestArgs}`)
             .then((response) => {
                 if (response.ok) {
                     return response.text();
@@ -38,7 +39,7 @@ async function buildHTMLFromTemplate(templateName, templateContext = {}){
                 throw `template unreachable (HTTP STATUS:${response.status}: ${response.statusText})`
             })
             .then((html) => {
-                if (!(configData['DISABLE_CACHING'] || loadedComponents.hasOwnProperty(templateName))) {
+                if (!(configData['DISABLE_CACHING'] || loadedComponents.hasOwnProperty(templateName) || requestArgs)) {
                     loadedComponents[templateName] = html;
                 }
                 return fetchTemplateContext(html, templateContext);

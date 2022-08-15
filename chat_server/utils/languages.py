@@ -19,6 +19,7 @@
 
 import copy
 import requests
+from bidict import bidict
 
 from neon_utils import LOG
 
@@ -51,6 +52,10 @@ class LanguageSettings:
     }
 
     __excluded_language_codes__ = ['ru', 'eo']
+
+    __neon_language_mapping__ = bidict({
+        'en': 'en-us'
+    })
 
     __default_libre_url__ = 'https://libretranslate.com/'
 
@@ -93,3 +98,13 @@ class LanguageSettings:
                 LOG.warning('Rollback to default languages')
                 return copy.deepcopy(cls.__supported_languages__)
         return copy.deepcopy(cls.__supported_languages__)
+
+    @classmethod
+    def to_neon_lang(cls, lang):
+        """ Maps provided language code to the Neon-supported language code """
+        return cls.__neon_language_mapping__.get(lang, lang)
+
+    @classmethod
+    def to_system_lang(cls, neon_lang):
+        """ Maps provided Neon-supported language code to system language code """
+        return cls.__neon_language_mapping__.inverse.get(neon_lang, neon_lang)

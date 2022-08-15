@@ -17,24 +17,31 @@
 # US Patents 2008-2021: US7424516, US20140161250, US20140177813, US8638908, US8068604, US8553852, US10530923, US10530924
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
 
-import os
+from fastapi import APIRouter, status
+from fastapi.exceptions import HTTPException
 from neon_utils import LOG
-from config import Configuration
-from chat_server.utils.sftp_utils import init_sftp_connector
+from starlette.responses import StreamingResponse
 
-server_config_path = os.environ.get('CHATSERVER_CONFIG', '~/.local/share/neon/credentials.json')
-database_config_path = os.environ.get('DATABASE_CONFIG', '~/.local/share/neon/credentials.json')
+from chat_server.server_config import sftp_connector
+from chat_server.server_utils.db_utils import DbUtils
 
-server_env = os.environ.get('SERVER_ENV', 'LOCALHOST')
+router = APIRouter(
+    prefix="/files",
+    responses={'404': {"description": "Unknown authorization endpoint"}},
+)
 
-LOG.info(f'ENV: {server_env}')
 
-config = Configuration(from_files=[server_config_path, database_config_path])
-
-app_config = config.config_data.get('CHAT_SERVER', {}).get(server_env, {})
-
-LOG.info(f'App config: {app_config}')
-
-db_controller = config.get_db_controller(name='pyklatchat_3333')
-
-sftp_connector = init_sftp_connector(config=app_config.get('SFTP', {}))
+@router.get("/get_audio/{message_id}")
+def get_audio_message(message_id: str,):
+    """ Gets file based on the name """
+    matching_shouts = DbUtils.fetch_shouts(shout_ids=[message_id], fetch_senders=False)
+    if matching_shouts and matching_shouts[0].get('is_audio', '0') == '1':
+        LOG.info(f'Fetching audio for message_id={message_id}')
+        fo = sftp_connector.get_file_object(f'audio/{matching_shouts[0]["message_text"]}')
+        fo.seek(0)
+        LOG.info(f'Audio fetched for message_id={message_id}')
+        return StreamingResponse(fo, media_type='audio/wav')
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail='Matching shout not found'
+        )

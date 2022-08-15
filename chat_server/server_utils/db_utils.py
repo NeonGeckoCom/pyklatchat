@@ -20,13 +20,13 @@
 from typing import List, Tuple
 
 from bson import ObjectId
-from cachetools import cached, TTLCache
 from neon_utils import LOG
 from pymongo import UpdateOne
 
 from chat_server.constants.users import UserPatterns
 from chat_server.server_utils.factory_utils import Singleton
 from chat_server.server_utils.user_utils import create_from_pattern
+from utils.common import buffer_to_base64
 
 
 class DbUtils(metaclass=Singleton):
@@ -211,6 +211,7 @@ class DbUtils(metaclass=Singleton):
             if not prefs and create_if_not_exists:
                 prefs = {
                     '_id': user_id,
+                    'tts': {},
                     'chat_languages': {}
                 }
                 cls.db_controller.exec_query(query=dict(document='user_preferences',
@@ -218,3 +219,73 @@ class DbUtils(metaclass=Singleton):
         else:
             LOG.warning('user_id is None')
         return prefs
+
+    @classmethod
+    def save_tts_response(cls, shout_id, audio_data: str, lang: str = 'en', gender: str = 'female') -> bool:
+        """
+            Saves TTS Response under corresponding shout id
+
+            :param shout_id: message id to consider
+            :param audio_data: base64 encoded audio data received
+            :param lang: language of speech (defaults to English)
+            :param gender: language gender (defaults to female)
+
+            :return bool if saving was successful
+        """
+        from chat_server.server_config import sftp_connector
+
+        audio_file_name = f'{shout_id}_{lang}_{gender}.wav'
+        filter_expression = {'_id': shout_id}
+        update_expression = {'$set': {f'audio.{lang}.{gender}': audio_file_name}}
+        try:
+            sftp_connector.put_file_object(file_object=audio_data, save_to=f'audio/{audio_file_name}')
+            cls.db_controller.exec_query(query={'document': 'shouts',
+                                                'command': 'update',
+                                                'data': (filter_expression,
+                                                         update_expression,)})
+            operation_success = True
+        except Exception as ex:
+            LOG.error(f'Failed to save TTS response to db - {ex}')
+            operation_success = False
+        return operation_success
+
+    @classmethod
+    def save_stt_response(cls, shout_id, message_text: str, lang: str = 'en'):
+        """
+            Saves STT Response under corresponding shout id
+
+            :param shout_id: message id to consider
+            :param message_text: STT result transcript
+            :param lang: language of speech (defaults to English)
+        """
+        filter_expression = {'_id': shout_id}
+        update_expression = {'$set': {f'transcripts.{lang}': message_text}}
+        try:
+            cls.db_controller.exec_query(query={'document': 'shouts',
+                                                'command': 'update',
+                                                'data': (filter_expression,
+                                                         update_expression,)})
+        except Exception as ex:
+            LOG.error(f'Failed to save STT response to db - {ex}')
+
+    @classmethod
+    def fetch_audio_data_from_message(cls, message_id: str) -> str:
+        """
+            Fetches audio data from message if any
+            :param message_id: message id to fetch
+        """
+        shout_data = cls.fetch_shouts(shout_ids=[message_id])
+        if not shout_data:
+            LOG.warning('Requested shout does not exist')
+        elif shout_data[0].get('is_audio') != '1':
+            LOG.warning('Failed to fetch audio data from non-audio message')
+        else:
+            from chat_server.server_config import sftp_connector
+            file_location = f'audio/{shout_data[0]["message_text"]}'
+            LOG.info(f'Fetching existing file from: {file_location}')
+            fo = sftp_connector.get_file_object(file_location)
+            if fo.getbuffer().nbytes > 0:
+                return buffer_to_base64(fo)
+            else:
+                LOG.error(f'Empty buffer received while fetching audio of message id = {message_id}')
+            return ''

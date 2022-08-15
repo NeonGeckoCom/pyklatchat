@@ -18,23 +18,24 @@
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
 
 import os
-from neon_utils import LOG
-from config import Configuration
-from chat_server.utils.sftp_utils import init_sftp_connector
 
-server_config_path = os.environ.get('CHATSERVER_CONFIG', '~/.local/share/neon/credentials.json')
-database_config_path = os.environ.get('DATABASE_CONFIG', '~/.local/share/neon/credentials.json')
+from starlette.requests import Request
+from starlette.templating import Jinja2Templates
 
-server_env = os.environ.get('SERVER_ENV', 'LOCALHOST')
 
-LOG.info(f'ENV: {server_env}')
+component_templates = Jinja2Templates(directory=os.environ.get('TEMPLATES_DIR', "chat_client/templates"))
 
-config = Configuration(from_files=[server_config_path, database_config_path])
 
-app_config = config.config_data.get('CHAT_SERVER', {}).get(server_env, {})
-
-LOG.info(f'App config: {app_config}')
-
-db_controller = config.get_db_controller(name='pyklatchat_3333')
-
-sftp_connector = init_sftp_connector(config=app_config.get('SFTP', {}))
+def callback_template(request: Request, template_name: str, context: dict = None):
+    """
+        Returns template response based on provided params
+        :param request: FastAPI request object
+        :param template_name: name of template to render
+        :param context: supportive context to add
+    """
+    if not context:
+        context = {}
+    context['request'] = request
+    # Preventing exiting to the source code files
+    template_name = template_name.replace('../', '')
+    return component_templates.TemplateResponse(f"components/{template_name}.html", context)

@@ -28,14 +28,24 @@ function initSIO(){
     socket.on('new_message', (data) => {
         console.log('new_message: ', data)
         const msgData = JSON.parse(data);
-        sendLanguageUpdateRequest()
-        addMessage(msgData['cid'], msgData['userID'], msgData['messageID'], msgData['messageText'], msgData['timeCreated'], msgData['repliedMessage'], msgData['attachments'])
+        sendLanguageUpdateRequest();
+        addMessage(msgData['cid'], msgData['userID'], msgData['messageID'], msgData['messageText'], msgData['timeCreated'], msgData['repliedMessage'], msgData['attachments'], msgData.isAudio === '1')
             .catch(err=>console.error('Error occurred while adding new message: ',err));
     });
 
     socket.on('translation_response', async (data) => {
         console.log('translation_response: ', data)
         await applyTranslations(data);
+    });
+
+    socket.on('incoming_tts', async (data)=> {
+        console.log('received incoming stt audio');
+        playTTS(data['cid'], data['lang'], data['audio_data']);
+    });
+
+    socket.on('incoming_stt', async (data)=>{
+       console.log('received incoming stt response');
+       showSTT(data['message_id'], data['lang'], data['message_text']);
     });
 
     return socket;

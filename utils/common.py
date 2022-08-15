@@ -16,8 +16,9 @@
 # Specialized conversational reconveyance options from Conversation Processing Intelligence Corp.
 # US Patents 2008-2021: US7424516, US20140161250, US20140177813, US8638908, US8068604, US8553852, US10530923, US10530924
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
-
+import base64
 import hashlib
+from io import BytesIO
 from uuid import uuid4
 
 
@@ -71,3 +72,14 @@ def deep_merge(source: dict, destination: dict) -> dict:
             destination[key] = value
 
     return destination
+
+
+def buffer_to_base64(b: BytesIO, encoding: str = 'utf-8') -> str:
+    """ Encodes buffered value to base64 string based on provided encoding"""
+    b.seek(0)
+    return base64.b64encode(b.read()).decode(encoding)
+
+
+def base64_to_buffer(b64_encoded_string: str) -> BytesIO:
+    """ Decodes buffered value to base64 string based on provided encoding"""
+    return BytesIO(base64.b64decode(b64_encoded_string))

@@ -22,19 +22,38 @@ from fastapi import APIRouter
 from starlette.requests import Request
 from starlette.templating import Jinja2Templates
 
+from chat_client.client_config import app_config
+from utils.template_utils import callback_template
+
 router = APIRouter(
     prefix="/components",
     responses={'404': {"description": "Unknown endpoint"}},
 )
 
-component_templates = Jinja2Templates(directory=os.environ.get('TEMPLATES_DIR', "chat_client/templates"))
+
+@router.get('/user_message')
+async def render_user_message(request: Request, is_audio: bool = False, message_id: str = ''):
+    """ Handling requests for rendering user message HTML
+        :param request: Fast API request object
+        :param is_audio: is audio message (defaults to false)
+        :param message_id: id of the message to render (optional)"""
+    # fetching audio message template if required
+    template_context = {}
+    template_name = 'user_message'
+    if is_audio and message_id:
+        template_name = 'user_message_audio'
+        template_context['audio_url'] = f'{app_config["SERVER_URL"]}/files/get_audio/{message_id}'
+    return callback_template(request=request, template_name=template_name, context=template_context)
 
 
 @router.get('/{template_name}')
-async def chats(request: Request, template_name: str):
+async def render_template(request: Request, template_name: str):
     """
-        Renders chats page HTML as a response related to the input request
+        Base renderer by the provided HTML template name
+
+        :param request: FastAPI request object
+        :param template_name: name of template to fetch
+
         :returns chats conversation response
     """
-
-    return component_templates.TemplateResponse(f"components/{template_name}.html", {"request": request})
+    return callback_template(request=request, template_name=template_name)
