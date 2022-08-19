@@ -44,9 +44,10 @@ const setParticipantsCount = (cid) => {
  * @param repliedMessageID: id of the replied message (optional)
  * @param attachments: array of attachments to add (optional)
  * @param isAudio: is audio message (defaults to false)
+ * @param isAnnouncement: is message an announcement (defaults to false)
  * @returns {Promise<null|number>}: promise resolving id of added message, -1 if failed to resolve message id creation
  */
-async function addMessage(cid, userID=null, messageID=null, messageText, timeCreated, repliedMessageID=null, attachments=[], isAudio=false){
+async function addMessage(cid, userID=null, messageID=null, messageText, timeCreated, repliedMessageID=null, attachments=[], isAudio=false, isAnnouncement=false){
     const cidElem = document.getElementById(cid);
     if(cidElem){
         const cidList = cidElem.getElementsByClassName('card-body')[0].getElementsByClassName('chat-list')[0]
@@ -61,7 +62,7 @@ async function addMessage(cid, userID=null, messageID=null, messageText, timeCre
             if(!messageID) {
                 messageID = generateUUID();
             }
-            let messageHTML = await buildUserMessageHTML(userData, messageID, messageText, timeCreated, isMine, isAudio);
+            let messageHTML = await buildUserMessageHTML(userData, messageID, messageText, timeCreated, isMine, isAudio, isAnnouncement);
             const blankChat = cidList.getElementsByClassName('blank_chat');
             if(blankChat.length>0){
                 cidList.removeChild(blankChat[0]);
@@ -85,9 +86,10 @@ async function addMessage(cid, userID=null, messageID=null, messageText, timeCre
  * @param timeCreated: date of creation
  * @param isMine: if message was emitted by current user
  * @param isAudio: if message is audio message (defaults to False)
+ * @param isAnnouncement: is message if announcement (defaults to False)
  * @returns {string}: constructed HTML out of input params
  */
-async function buildUserMessageHTML(userData, messageID, messageText, timeCreated, isMine, isAudio = false){
+async function buildUserMessageHTML(userData, messageID, messageText, timeCreated, isMine, isAudio = false, isAnnouncement = false){
     const messageTime = getTimeFromTimestamp(timeCreated);
     let imageComponent;
     let shortedNick = `${userData['nickname'][0]}${userData['nickname'][userData['nickname'].length - 1]}`;
@@ -97,8 +99,10 @@ async function buildUserMessageHTML(userData, messageID, messageText, timeCreate
     else{
         imageComponent = `<p>${userData['nickname'][0]}${userData['nickname'][userData['nickname'].length - 1]}</p>`;
     }
+    const messageClass = isAnnouncement?'announcement':isMine?'in':'out';
     return await buildHTMLFromTemplate('user_message',
-        {'is_mine': isMine?"in":"out",
+        {'message_class': messageClass,
+            'is_announcement': isAnnouncement,
             'image_component': imageComponent,
             'message_id':messageID,
             'nickname': userData['nickname'],
@@ -355,7 +359,7 @@ async function addRecorder(conversationData) {
             const audioBlob = toBase64(audio['audioBlob']);
             console.log('audioBlob=',audioBlob);
             return audioBlob;
-        }).then(encodedAudio=>emitUserMessage(encodedAudio, conversationData['_id'], null, [], true));
+        }).then(encodedAudio=>emitUserMessage(encodedAudio, conversationData['_id'], null, [], true, false));
     };
 }
 
@@ -431,7 +435,7 @@ async function buildConversation(conversationData={}, remember=true,conversation
                     return
                 }
             }
-            emitUserMessage(textInputElem, e.target.getAttribute('data-target-cid'),null, attachments, false);
+            emitUserMessage(textInputElem, e.target.getAttribute('data-target-cid'),null, attachments, false, false);
             textInputElem.value = "";
         });
     }
@@ -490,7 +494,7 @@ async function buildConversationHTML(conversationData = {}){
         for (const message of Array.from(conversationData['chat_flow'])) {
             const isMine = currentUser && message['user_nickname'] === currentUser['nickname'];
 
-            chatFlowHTML += await buildUserMessageHTML({'avatar':message['user_avatar'],'nickname':message['user_nickname'], '_id': message['user_id']},message['message_id'], message['message_text'], message['created_on'],isMine,message?.is_audio);
+            chatFlowHTML += await buildUserMessageHTML({'avatar':message['user_avatar'],'nickname':message['user_nickname'], '_id': message['user_id']},message['message_id'], message['message_text'], message['created_on'],isMine,message?.is_audio, message?.is_announcement);
             addConversationParticipant(conversationData['_id'], message['user_nickname']);
         }
     }else{
@@ -533,8 +537,9 @@ async function getConversationDataByInput(input=""){
  * @param repliedMessageID: ID of replied message
  * @param attachments: list of attachments file names
  * @param isAudio: is audio message being emitted (defaults to false)
+ * @param isAnnouncement: is message an announcement (defaults to false)
  */
-function emitUserMessage(textInputElem, cid, repliedMessageID=null, attachments= [], isAudio=false){
+function emitUserMessage(textInputElem, cid, repliedMessageID=null, attachments= [], isAudio=false, isAnnouncement=false){
     if(isAudio || textInputElem && textInputElem.value){
         const timeCreated = Math.floor(Date.now() / 1000);
         let messageText;
@@ -543,7 +548,7 @@ function emitUserMessage(textInputElem, cid, repliedMessageID=null, attachments=
         }else {
             messageText = textInputElem.value;
         }
-        addMessage(cid, currentUser['_id'],null, messageText, timeCreated,repliedMessageID,attachments, isAudio).then(messageID=>{
+        addMessage(cid, currentUser['_id'],null, messageText, timeCreated,repliedMessageID,attachments, isAudio, isAnnouncement).then(messageID=>{
             socket.emit('user_message',
                 {'cid':cid,
                  'userID':currentUser['_id'],

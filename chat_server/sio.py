@@ -91,7 +91,8 @@ async def user_message(sid, data):
                     'context': 'message context (optional)',
                     'test': 'is test message (defaults to False)',
                     'isAudio': '1 if current message is audio message 0 otherwise',
-                    'messageTTS': received tts mapping of type: {language: {gender: (audio data base64 encoded)}}
+                    'messageTTS': received tts mapping of type: {language: {gender: (audio data base64 encoded)}},
+                    'isAnnouncement': if received message is the announcement,
                     'timeCreated': 'timestamp on which message was created'}
         ```
     """
@@ -131,6 +132,8 @@ async def user_message(sid, data):
             LOG.error(f'Failed to located file - {ex}')
             return -1
 
+        is_announcement = data.get('isAnnouncement', '0')
+
         new_shout_data = {'_id': data['messageID'],
                           'user_id': data['userID'],
                           'prompt_id': data.get('promptID', ''),
@@ -138,6 +141,7 @@ async def user_message(sid, data):
                           'attachments': data.get('attachments', []),
                           'replied_message': data.get('repliedMessage', ''),
                           'is_audio': '1' if is_audio != '0' else '0',
+                          'is_announcement': '1' if is_announcement else '0',
                           'created_on': int(data['timeCreated'])}
 
         db_controller.exec_query({'command': 'insert_one', 'document': 'shouts', 'data': new_shout_data})
