@@ -342,9 +342,11 @@ function addCommunicationChannelTransformCallback(conversationData) {
  */
 async function addRecorder(conversationData) {
 
-    const recorderButton = document.getElementById(`${conversationData["_id"]}-audio-input`);
+    const cid = conversationData["_id"];
 
-    const recorder = await recordAudio();
+    const recorderButton = document.getElementById(`${cid}-audio-input`);
+
+    const recorder = await recordAudio(cid);
 
     recorderButton.onmousedown = function () {
         recorder.start();
