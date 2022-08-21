@@ -86,10 +86,10 @@ async function addMessage(cid, userID=null, messageID=null, messageText, timeCre
  * @param timeCreated: date of creation
  * @param isMine: if message was emitted by current user
  * @param isAudio: if message is audio message (defaults to False)
- * @param isAnnouncement: is message if announcement (defaults to False)
+ * @param isAnnouncement: is message if announcement (defaults to '0')
  * @returns {string}: constructed HTML out of input params
  */
-async function buildUserMessageHTML(userData, messageID, messageText, timeCreated, isMine, isAudio = false, isAnnouncement = false){
+async function buildUserMessageHTML(userData, messageID, messageText, timeCreated, isMine, isAudio = false, isAnnouncement = '0'){
     const messageTime = getTimeFromTimestamp(timeCreated);
     let imageComponent;
     let shortedNick = `${userData['nickname'][0]}${userData['nickname'][userData['nickname'].length - 1]}`;
@@ -99,7 +99,7 @@ async function buildUserMessageHTML(userData, messageID, messageText, timeCreate
     else{
         imageComponent = `<p>${userData['nickname'][0]}${userData['nickname'][userData['nickname'].length - 1]}</p>`;
     }
-    const messageClass = isAnnouncement?'announcement':isMine?'in':'out';
+    const messageClass = isAnnouncement === '1'?'announcement':isMine?'in':'out';
     return await buildHTMLFromTemplate('user_message',
         {'message_class': messageClass,
             'is_announcement': isAnnouncement,
@@ -558,6 +558,7 @@ function emitUserMessage(textInputElem, cid, repliedMessageID=null, attachments=
                  'messageID':messageID,
                  'attachments': attachments,
                  'isAudio': isAudio?'1':'0',
+                 'isAnnouncement': isAnnouncement?'1':'0',
                  'timeCreated':timeCreated
                 });
             if (isAudio){

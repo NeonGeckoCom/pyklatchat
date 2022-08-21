@@ -132,7 +132,7 @@ async def user_message(sid, data):
             LOG.error(f'Failed to located file - {ex}')
             return -1
 
-        is_announcement = data.get('isAnnouncement', '0')
+        is_announcement = data.get('isAnnouncement', '0') or '0'
 
         new_shout_data = {'_id': data['messageID'],
                           'user_id': data['userID'],
@@ -141,7 +141,7 @@ async def user_message(sid, data):
                           'attachments': data.get('attachments', []),
                           'replied_message': data.get('repliedMessage', ''),
                           'is_audio': '1' if is_audio != '0' else '0',
-                          'is_announcement': '1' if is_announcement else '0',
+                          'is_announcement': '1' if is_announcement != '0' else '0',
                           'created_on': int(data['timeCreated'])}
 
         db_controller.exec_query({'command': 'insert_one', 'document': 'shouts', 'data': new_shout_data})
@@ -218,7 +218,7 @@ async def get_prompt_data(sid, data):
     else:
         limit = data.get('limit', 5)
         _prompt_data = db_controller.exec_query({'command': 'find', 'document': 'prompts',
-                                                'filters': {'sort': [('created_on', pymongo.DESCENDING)],
+                                                'filters': {'sort': [('created_on', pymongo.ASCENDING)],
                                                             'limit': limit}})
         prompt_data = []
         for item in _prompt_data:
