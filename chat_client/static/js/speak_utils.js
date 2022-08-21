@@ -68,11 +68,12 @@ function getSTT(cid, message_id, lang){
 
 /**
  * Records audio from the client browser
+ * @param cid: target conversation id
  * @return {Promise} recorder instance with following properties:
  * - start() to start recording
  * - stop() to end recording
  */
-const recordAudio = () => {
+const recordAudio = (cid) => {
   return new Promise(resolve => {
     navigator.mediaDevices.getUserMedia({ audio: true })
       .then(stream => {
@@ -106,5 +107,9 @@ const recordAudio = () => {
 
         resolve({ start, stop });
       });
+  }).catch(_=>{
+      console.warn('Failed to detect microphone in user system, audio input will be disabled');
+      const audioInput = document.getElementById(`${cid}-audio-input`);
+      audioInput.disabled = true;
   });
 };
