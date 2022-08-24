@@ -218,9 +218,10 @@ async def get_prompt_data(sid, data):
     else:
         limit = data.get('limit', 5)
         _prompt_data = db_controller.exec_query({'command': 'find', 'document': 'prompts',
-                                                'filters': {'sort': [('created_on', pymongo.ASCENDING)],
+                                                'filters': {'sort': [('created_on', pymongo.DESCENDING)],
                                                             'limit': limit}})
         prompt_data = []
+        _prompt_data = sorted(_prompt_data, key=lambda x: x['created_on'])
         for item in _prompt_data:
             prompt_data.append({'_id': item['_id'], 'created_on': item['created_on'], **item['data']})
     result = dict(data=prompt_data, receiver=data['nick'], cid=data['cid'], request_id=data['request_id'],)
