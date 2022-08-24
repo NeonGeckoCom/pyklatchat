@@ -63,12 +63,22 @@ async function loginUser(){
         formData.append('username', loginUsername.value);
         formData.append('password', loginPassword.value);
         await fetch(query_url, {method:'post', body:formData})
-            .then(response => response.ok?response.json():null)
-            .then(_ => {
-                refreshCurrentUser(true);
-                loginUsername.value = "";
-                loginPassword.value = "";
-                loginModal.modal('hide');
+            .then(async response => {
+                return {'ok':response.ok,'data':await response.json()};
+            })
+            .then(async responseData => {
+                if (responseData['ok']) {
+                    await refreshCurrentUser(true);
+                    loginUsername.value = "";
+                    loginPassword.value = "";
+                    loginModal.modal('hide');
+                }else{
+                   displayAlert(loginModalBody, responseData['data']['detail'], 'danger', 'login-failed-alert');
+                   loginPassword.value = "";
+                }
+            }).catch(ex=>{
+                console.warn(`Exception during loginUser -> ${ex}`);
+                displayAlert(loginModalBody);
             });
     }
 }
@@ -79,8 +89,8 @@ async function loginUser(){
  */
 async function logoutUser(){
     const query_url = `${configData["currentURLBase"]}/auth/logout/`;
-    await fetch(query_url).then(response=>{
-        response.ok?refreshCurrentUser(true):'';
+    await fetch(query_url).then(async response=>{
+        response.ok?await refreshCurrentUser(true):'';
         logoutModal.modal('hide');
     });
 }
@@ -107,9 +117,9 @@ async function createUser(){
             .then(async response => {
                 return {'ok':response.ok,'data':await response.json()}
             })
-            .then(data => {
+            .then(async data => {
                 if(data['ok']){
-                    refreshCurrentUser(true);
+                    await refreshCurrentUser(true);
                     signupUsername.value = "";
                     signupFirstName.value = "";
                     signupLastName.value = "";
@@ -176,11 +186,7 @@ document.addEventListener('DOMContentLoaded', (e)=>{
         // });
         currentUserNavDisplay.addEventListener('click', (e) => {
             e.preventDefault();
-            if (currentUser['is_tmp']) {
-                loginModal.modal('show');
-            } else {
-                logoutModal.modal('show');
-            }
+            currentUser['is_tmp']?loginModal.modal('show'):logoutModal.modal('show');
         });
 
         logoutConfirm.addEventListener('click', (e) => {

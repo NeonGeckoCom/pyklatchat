@@ -787,8 +787,8 @@ function setChatState(cid, state='active', state_msg = ''){
 
 document.addEventListener('DOMContentLoaded', (e)=>{
 
-    document.addEventListener('supportedLanguagesLoaded', (e)=>{
-        refreshCurrentUser(false).then(_=>restoreChatAlignment()).then(_=>refreshCurrentUser(true)).then(_=>requestChatsLanguageRefresh());
+    document.addEventListener('supportedLanguagesLoaded', async (e)=>{
+        await refreshCurrentUser(false).then(_=>restoreChatAlignment()).then(_=>refreshCurrentUser(true)).then(_=>requestChatsLanguageRefresh());
     });
 
     if (configData['client'] === CLIENTS.MAIN) {
