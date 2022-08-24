@@ -25,11 +25,11 @@ function initSIO(){
       console.log(`connect_error due to ${err.message}`);
     });
 
-    socket.on('new_message', (data) => {
+    socket.on('new_message', async (data) => {
         console.log('new_message: ', data)
         const msgData = JSON.parse(data);
         sendLanguageUpdateRequest();
-        addMessage(msgData['cid'], msgData['userID'], msgData['messageID'], msgData['messageText'], msgData['timeCreated'], msgData['repliedMessage'], msgData['attachments'], msgData.isAudio === '1', msgData?.isAnnouncement === '1')
+        await addMessage(msgData['cid'], msgData['userID'], msgData['messageID'], msgData['messageText'], msgData['timeCreated'], msgData['repliedMessage'], msgData['attachments'], msgData.isAudio === '1', msgData?.isAnnouncement)
             .catch(err=>console.error('Error occurred while adding new message: ',err));
     });
 

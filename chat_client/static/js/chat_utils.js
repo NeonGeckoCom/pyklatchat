@@ -44,10 +44,10 @@ const setParticipantsCount = (cid) => {
  * @param repliedMessageID: id of the replied message (optional)
  * @param attachments: array of attachments to add (optional)
  * @param isAudio: is audio message (defaults to false)
- * @param isAnnouncement: is message an announcement (defaults to false)
+ * @param isAnnouncement: is message an announcement (defaults to "0")
  * @returns {Promise<null|number>}: promise resolving id of added message, -1 if failed to resolve message id creation
  */
-async function addMessage(cid, userID=null, messageID=null, messageText, timeCreated, repliedMessageID=null, attachments=[], isAudio=false, isAnnouncement=false){
+async function addMessage(cid, userID=null, messageID=null, messageText, timeCreated, repliedMessageID=null, attachments=[], isAudio=false, isAnnouncement='0'){
     const cidElem = document.getElementById(cid);
     if(cidElem){
         const cidList = cidElem.getElementsByClassName('card-body')[0].getElementsByClassName('chat-list')[0]
@@ -550,7 +550,7 @@ function emitUserMessage(textInputElem, cid, repliedMessageID=null, attachments=
         }else {
             messageText = textInputElem.value;
         }
-        addMessage(cid, currentUser['_id'],null, messageText, timeCreated,repliedMessageID,attachments, isAudio, isAnnouncement).then(messageID=>{
+        addMessage(cid, currentUser['_id'],null, messageText, timeCreated,repliedMessageID,attachments, isAudio, isAnnouncement?'1':'0').then(messageID=>{
             socket.emit('user_message',
                 {'cid':cid,
                  'userID':currentUser['_id'],
