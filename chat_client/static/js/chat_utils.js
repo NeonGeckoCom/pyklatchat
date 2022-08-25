@@ -554,7 +554,7 @@ async function getConversationDataByInput(input=""){
  * @param isAnnouncement: is message an announcement (defaults to '0')
  */
 function emitUserMessage(textInputElem, cid, repliedMessageID=null, attachments= [], isAudio='0', isAnnouncement='0'){
-    if(isAudio || textInputElem && textInputElem.value){
+    if(isAudio === '1' || textInputElem && textInputElem.value){
         const timeCreated = Math.floor(Date.now() / 1000);
         let messageText;
         if (isAudio){
@@ -579,7 +579,7 @@ function emitUserMessage(textInputElem, cid, repliedMessageID=null, attachments=
                 sendLanguageUpdateRequest(cid, messageID);
             }
         });
-        if (!isAudio){
+        if (isAudio === '0'){
             textInputElem.value = "";
         }
     }
