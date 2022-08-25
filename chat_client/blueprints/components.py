@@ -31,21 +31,6 @@ router = APIRouter(
 )
 
 
-@router.get('/user_message')
-async def render_user_message(request: Request, is_audio: bool = False, message_id: str = ''):
-    """ Handling requests for rendering user message HTML
-        :param request: Fast API request object
-        :param is_audio: is audio message (defaults to false)
-        :param message_id: id of the message to render (optional)"""
-    # fetching audio message template if required
-    template_context = {}
-    template_name = 'user_message'
-    if is_audio and message_id:
-        template_name = 'user_message_audio'
-        template_context['audio_url'] = f'{app_config["SERVER_URL"]}/files/get_audio/{message_id}'
-    return callback_template(request=request, template_name=template_name, context=template_context)
-
-
 @router.get('/{template_name}')
 async def render_template(request: Request, template_name: str):
     """

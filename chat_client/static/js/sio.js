@@ -29,7 +29,7 @@ function initSIO(){
         console.log('new_message: ', data)
         const msgData = JSON.parse(data);
         sendLanguageUpdateRequest();
-        await addMessage(msgData['cid'], msgData['userID'], msgData['messageID'], msgData['messageText'], msgData['timeCreated'], msgData['repliedMessage'], msgData['attachments'], msgData.isAudio === '1', msgData?.isAnnouncement)
+        await addMessage(msgData['cid'], msgData['userID'], msgData['messageID'], msgData['messageText'], msgData['timeCreated'], msgData['repliedMessage'], msgData['attachments'], msgData?.isAudio, msgData?.isAnnouncement)
             .catch(err=>console.error('Error occurred while adding new message: ',err));
     });
 

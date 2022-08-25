@@ -43,11 +43,11 @@ const setParticipantsCount = (cid) => {
  * @param timeCreated: timestamp for message creation
  * @param repliedMessageID: id of the replied message (optional)
  * @param attachments: array of attachments to add (optional)
- * @param isAudio: is audio message (defaults to false)
+ * @param isAudio: is audio message (defaults to '0')
  * @param isAnnouncement: is message an announcement (defaults to "0")
  * @returns {Promise<null|number>}: promise resolving id of added message, -1 if failed to resolve message id creation
  */
-async function addMessage(cid, userID=null, messageID=null, messageText, timeCreated, repliedMessageID=null, attachments=[], isAudio=false, isAnnouncement='0'){
+async function addMessage(cid, userID=null, messageID=null, messageText, timeCreated, repliedMessageID=null, attachments=[], isAudio='0', isAnnouncement='0'){
     const cidElem = document.getElementById(cid);
     if(cidElem){
         const cidList = cidElem.getElementsByClassName('card-body')[0].getElementsByClassName('chat-list')[0]
@@ -85,11 +85,11 @@ async function addMessage(cid, userID=null, messageID=null, messageText, timeCre
  * @param messageText: text of user message
  * @param timeCreated: date of creation
  * @param isMine: if message was emitted by current user
- * @param isAudio: if message is audio message (defaults to False)
+ * @param isAudio: if message is audio message (defaults to '0')
  * @param isAnnouncement: is message if announcement (defaults to '0')
  * @returns {string}: constructed HTML out of input params
  */
-async function buildUserMessageHTML(userData, messageID, messageText, timeCreated, isMine, isAudio = false, isAnnouncement = '0'){
+async function buildUserMessageHTML(userData, messageID, messageText, timeCreated, isMine, isAudio = '0', isAnnouncement = '0'){
     const messageTime = getTimeFromTimestamp(timeCreated);
     let imageComponent;
     let shortedNick = `${userData['nickname'][0]}${userData['nickname'][userData['nickname'].length - 1]}`;
@@ -100,14 +100,16 @@ async function buildUserMessageHTML(userData, messageID, messageText, timeCreate
         imageComponent = `<p>${userData['nickname'][0]}${userData['nickname'][userData['nickname'].length - 1]}</p>`;
     }
     const messageClass = isAnnouncement === '1'?'announcement':isMine?'in':'out';
-    return await buildHTMLFromTemplate('user_message',
+    const templateName = isAudio === '1'?'user_message_audio': 'user_message';
+    return await buildHTMLFromTemplate(templateName,
         {'message_class': messageClass,
             'is_announcement': isAnnouncement,
             'image_component': imageComponent,
             'message_id':messageID,
             'nickname': userData['nickname'],
             'message_text':messageText,
-            'message_time': messageTime}, `message_id=${messageID}&is_audio=${isAudio}`);
+            'audio_url': `${configData["CHAT_SERVER_URL_BASE"]}/files/get_audio/${messageID}`,
+            'message_time': messageTime});
 }
 
 /**
@@ -550,7 +552,7 @@ function emitUserMessage(textInputElem, cid, repliedMessageID=null, attachments=
         }else {
             messageText = textInputElem.value;
         }
-        addMessage(cid, currentUser['_id'],null, messageText, timeCreated,repliedMessageID,attachments, isAudio, isAnnouncement?'1':'0').then(messageID=>{
+        addMessage(cid, currentUser['_id'],null, messageText, timeCreated,repliedMessageID,attachments, isAudio?'1':'0', isAnnouncement?'1':'0').then(messageID=>{
             socket.emit('user_message',
                 {'cid':cid,
                  'userID':currentUser['_id'],
