@@ -557,7 +557,7 @@ function emitUserMessage(textInputElem, cid, repliedMessageID=null, attachments=
     if(isAudio === '1' || textInputElem && textInputElem.value){
         const timeCreated = Math.floor(Date.now() / 1000);
         let messageText;
-        if (isAudio){
+        if (isAudio === '1'){
             messageText = textInputElem;
         }else {
             messageText = textInputElem.value;
