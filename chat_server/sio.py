@@ -121,6 +121,10 @@ async def user_message(sid, data):
             data['userID'] = bot_data['_id']
 
         is_audio = data.get('isAudio', '0')
+
+        if is_audio not in ('0', '1',):
+            is_audio = '0'
+
         file_path = f'{data["messageID"]}_audio.wav'
         try:
             if is_audio == '1':
@@ -134,14 +138,17 @@ async def user_message(sid, data):
 
         is_announcement = data.get('isAnnouncement', '0') or '0'
 
+        if is_announcement not in ('0', '1',):
+            is_announcement = '0'
+
         new_shout_data = {'_id': data['messageID'],
                           'user_id': data['userID'],
                           'prompt_id': data.get('promptID', ''),
                           'message_text': data['messageText'],
                           'attachments': data.get('attachments', []),
                           'replied_message': data.get('repliedMessage', ''),
-                          'is_audio': '1' if is_audio != '0' else '0',
-                          'is_announcement': '1' if is_announcement != '0' else '0',
+                          'is_audio': is_audio,
+                          'is_announcement': is_announcement,
                           'created_on': int(data['timeCreated'])}
 
         db_controller.exec_query({'command': 'insert_one', 'document': 'shouts', 'data': new_shout_data})
