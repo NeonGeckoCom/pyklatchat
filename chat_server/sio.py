@@ -122,7 +122,7 @@ async def user_message(sid, data):
 
         is_audio = data.get('isAudio', '0')
 
-        if is_audio not in ('0', '1',):
+        if is_audio != '1':
             is_audio = '0'
 
         file_path = f'{data["messageID"]}_audio.wav'
@@ -138,7 +138,7 @@ async def user_message(sid, data):
 
         is_announcement = data.get('isAnnouncement', '0') or '0'
 
-        if is_announcement not in ('0', '1',):
+        if is_announcement != '1':
             is_announcement = '0'
 
         new_shout_data = {'_id': data['messageID'],
