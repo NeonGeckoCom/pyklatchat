@@ -26,11 +26,12 @@ function initSIO(){
     });
 
     socket.on('new_message', async (data) => {
-        console.log('new_message: ', data)
+        console.debug('received new_message -> ', data)
         const msgData = JSON.parse(data);
-        sendLanguageUpdateRequest();
+        sendLanguageUpdateRequest(msgData['cid'], msgData['messageID']);
         await addMessage(msgData['cid'], msgData['userID'], msgData['messageID'], msgData['messageText'], msgData['timeCreated'], msgData['repliedMessage'], msgData['attachments'], msgData?.isAudio, msgData?.isAnnouncement)
             .catch(err=>console.error('Error occurred while adding new message: ',err));
+        addMessageTransformCallback(msgData['cid'], msgData['messageID'], msgData?.isAudio);
     });
 
     socket.on('translation_response', async (data) => {

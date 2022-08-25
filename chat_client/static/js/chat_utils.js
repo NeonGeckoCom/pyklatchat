@@ -325,19 +325,29 @@ function addTTSCallback(cid, messageID){
     }
 }
 
+/**
+ * Attaches STT capabilities for audio messages and TTS capabilities for text messages
+ * @param cid: parent conversation id
+ * @param messageID: target message id
+ * @param isAudio: if its an audio message (defaults to '0')
+ */
+function addMessageTransformCallback(cid, messageID, isAudio='0'){
+    if (isAudio === '1'){
+        addSTTCallback(cid, messageID);
+    }else{
+        addTTSCallback(cid, messageID);
+    }
+}
+
 
 /**
- * Attaches speaking capabilities to each message supporting that
+ * Attaches STT capabilities for audio messages and TTS capabilities for text messages
  * @param conversationData: conversation data object
  */
 function addCommunicationChannelTransformCallback(conversationData) {
     if (conversationData.hasOwnProperty('chat_flow')) {
         Array.from(conversationData['chat_flow']).forEach(message => {
-            if (message?.is_audio === '1'){
-                addSTTCallback(conversationData['_id'], message['message_id']);
-            }else{
-                addTTSCallback(conversationData['_id'], message['message_id']);
-            }
+            addMessageTransformCallback(conversationData['_id'], message['message_id'], message?.is_audio);
         });
     }
 }
@@ -363,7 +373,7 @@ async function addRecorder(conversationData) {
             const audioBlob = toBase64(audio['audioBlob']);
             console.log('audioBlob=',audioBlob);
             return audioBlob;
-        }).then(encodedAudio=>emitUserMessage(encodedAudio, conversationData['_id'], null, [], true, false));
+        }).then(encodedAudio=>emitUserMessage(encodedAudio, conversationData['_id'], null, [], '1', '0'));
     };
 }
 
@@ -439,7 +449,7 @@ async function buildConversation(conversationData={}, remember=true,conversation
                     return
                 }
             }
-            emitUserMessage(textInputElem, e.target.getAttribute('data-target-cid'),null, attachments, false, false);
+            emitUserMessage(textInputElem, e.target.getAttribute('data-target-cid'),null, attachments, '0', '0');
             textInputElem.value = "";
         });
     }
@@ -540,10 +550,10 @@ async function getConversationDataByInput(input=""){
  * @param cid: Conversation ID
  * @param repliedMessageID: ID of replied message
  * @param attachments: list of attachments file names
- * @param isAudio: is audio message being emitted (defaults to false)
- * @param isAnnouncement: is message an announcement (defaults to false)
+ * @param isAudio: is audio message being emitted (defaults to '0')
+ * @param isAnnouncement: is message an announcement (defaults to '0')
  */
-function emitUserMessage(textInputElem, cid, repliedMessageID=null, attachments= [], isAudio=false, isAnnouncement=false){
+function emitUserMessage(textInputElem, cid, repliedMessageID=null, attachments= [], isAudio='0', isAnnouncement='0'){
     if(isAudio || textInputElem && textInputElem.value){
         const timeCreated = Math.floor(Date.now() / 1000);
         let messageText;
@@ -552,21 +562,20 @@ function emitUserMessage(textInputElem, cid, repliedMessageID=null, attachments=
         }else {
             messageText = textInputElem.value;
         }
-        addMessage(cid, currentUser['_id'],null, messageText, timeCreated,repliedMessageID,attachments, isAudio?'1':'0', isAnnouncement?'1':'0').then(messageID=>{
+        addMessage(cid, currentUser['_id'],null, messageText, timeCreated,repliedMessageID,attachments, isAudio, isAnnouncement).then(messageID=>{
             socket.emit('user_message',
                 {'cid':cid,
                  'userID':currentUser['_id'],
                  'messageText':messageText,
                  'messageID':messageID,
                  'attachments': attachments,
-                 'isAudio': isAudio?'1':'0',
-                 'isAnnouncement': isAnnouncement?'1':'0',
+                 'isAudio': isAudio,
+                 'isAnnouncement': isAnnouncement,
                  'timeCreated':timeCreated
                 });
-            if (isAudio){
-                addSTTCallback(cid, messageID);
-            }else {
-                addTTSCallback(cid, messageID);
+            addMessageTransformCallback(cid, messageID, isAudio);
+            // TODO: support for audio message translation
+            if(isAudio !== '1'){
                 sendLanguageUpdateRequest(cid, messageID);
             }
         });
