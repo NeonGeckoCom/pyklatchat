@@ -122,7 +122,7 @@ function resolveUserReply(replyID,repliedID){
         const repliedElem = document.getElementById(repliedID);
         if(repliedElem) {
             let repliedText = repliedElem.getElementsByClassName('message-text')[0].innerText;
-            repliedText = shrinkToFit(repliedText, 10);
+            repliedText = shrinkToFit(repliedText, 15);
             const replyHTML = `<a class="reply-text" data-replied-id="${repliedID}">
                                     ${repliedText}
                                 </a>`;

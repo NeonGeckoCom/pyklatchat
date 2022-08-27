@@ -111,7 +111,12 @@ async def user_message(sid, data):
             return
 
         LOG.info(f'Received user message data: {data}')
-        if not data.get('messageID', False):
+        data['messageID'] = data.get('messageID')
+        if data['messageID']:
+            existing_shout = DbUtils.fetch_shouts(shout_ids=[data['messageID']], fetch_senders=False)
+            if existing_shout:
+                raise ValueError(f'messageID value="{data["messageID"]}" already exists')
+        else:
             data['messageID'] = generate_uuid()
         if data['userID'] == 'neon':
             neon_data = get_neon_data(db_controller=db_controller)
