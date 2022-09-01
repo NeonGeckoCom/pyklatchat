@@ -106,10 +106,11 @@ const recordAudio = (cid) => {
         };
 
         resolve({ start, stop });
-      });
-  }).catch(_=>{
-      console.warn('Failed to detect microphone in user system, audio input will be disabled');
-      const audioInput = document.getElementById(`${cid}-audio-input`);
-      audioInput.disabled = true;
+      }).catch(err=>{
+          const errMsg = err.toString();
+          console.warn(`Starting audio recording failed with error - ${errMsg}`)
+          const audioInput = document.getElementById(`${cid}-audio-input`);
+          audioInput.disabled = true;
+    });
   });
 };
