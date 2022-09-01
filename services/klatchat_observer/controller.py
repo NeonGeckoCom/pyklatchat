@@ -45,7 +45,7 @@ class ChatObserver(MQConnector):
     """Observer of conversations states"""
 
     recipient_prefixes = {
-        Recipients.NEON: ['neon'],
+        Recipients.NEON: ['neon', '@neon'],
         Recipients.UNRESOLVED: ['undefined']
     }
 
@@ -138,7 +138,7 @@ class ChatObserver(MQConnector):
             callback['context'] = {'requested_participants': ['scorekeeper']}
         else:
             for recipient in list(cls.recipient_prefixes):
-                if any(message_prefix.lower() == x.lower() for x in cls.recipient_prefixes[recipient]):
+                if any(message_prefix.lower().startswith(x.lower()) for x in cls.recipient_prefixes[recipient]):
                     callback['recipient'] = recipient
                     break
         return callback
