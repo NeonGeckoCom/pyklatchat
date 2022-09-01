@@ -352,6 +352,10 @@ function addCommunicationChannelTransformCallback(conversationData) {
     }
 }
 
+// Recorder instance
+let recorder = null;
+
+
 /**
  * Adds event listener for audio recording
  * @param conversationData: conversation data object
@@ -362,19 +366,24 @@ async function addRecorder(conversationData) {
 
     const recorderButton = document.getElementById(`${cid}-audio-input`);
 
-    const recorder = await recordAudio(cid);
+    if (!recorderButton.disabled) {
+        recorderButton.onmousedown = async function () {
+            recorder = await recordAudio(cid);
+            recorder.start();
+        };
 
-    recorderButton.onmousedown = function () {
-        recorder.start();
-    };
-
-    recorderButton.onmouseup = async function () {
-        recorder.stop().then(audio=>{
-            const audioBlob = toBase64(audio['audioBlob']);
-            console.log('audioBlob=',audioBlob);
-            return audioBlob;
-        }).then(encodedAudio=>emitUserMessage(encodedAudio, conversationData['_id'], null, [], '1', '0'));
-    };
+        recorderButton.onmouseup = async function () {
+            if (recorder) {
+                recorder.stop().then(audio => {
+                    const audioBlob = toBase64(audio['audioBlob']);
+                    console.log('audioBlob=', audioBlob);
+                    return audioBlob;
+                }).then(encodedAudio => {
+                    emitUserMessage(encodedAudio, conversationData['_id'], null, [], '1', '0');
+                });
+            }
+        };
+    }
 }
 
 /**
@@ -410,6 +419,7 @@ async function buildConversation(conversationData={}, remember=true,conversation
    addAttachments(conversationData);
    addCommunicationChannelTransformCallback(conversationData);
    await addRecorder(conversationData);
+   console.log('finish addRecorder');
 
    const currentConversation = document.getElementById(conversationData['_id']);
    const conversationParent = currentConversation.parentElement;
