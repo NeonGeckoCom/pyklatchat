@@ -508,14 +508,12 @@ class ChatObserver(MQConnector):
             :param body: request body (dict)
 
         """
-        dict_data = b64_to_dict(body)
-
         response_required_keys = ('userID', 'cid', 'messageText', 'bot', 'timeCreated', 'context', )
 
-        if all(required_key in list(dict_data) for required_key in response_required_keys):
-            self.sio.emit('save_prompt_data', data=dict_data)
+        if all(required_key in list(body) for required_key in response_required_keys):
+            self.sio.emit('save_prompt_data', data=body)
         else:
-            error_msg = f'Skipping received data {dict_data} as it lacks one of the required keys: ' \
+            error_msg = f'Skipping received data {body} as it lacks one of the required keys: ' \
                         f'({",".join(response_required_keys)})'
             LOG.error(error_msg)
             self.send_message(request_data={'msg': error_msg}, vhost=self.get_vhost('chatbots'),

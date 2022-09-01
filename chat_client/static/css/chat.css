@@ -88,6 +88,8 @@ body{
     font-size: 18px;
 }
 
+/* Start message styling */
+
 /*
     Out message styling
  */
@@ -126,6 +128,35 @@ body{
 .chat-list .in .chat-message-actions {
     float: left;
 }
+
+/*
+    Announcement styling
+ */
+
+.chat-list .announcement {
+    text-align: center!important;
+}
+
+.chat-list .announcement .chat-img {
+    display: none!important;
+}
+
+.chat-list .announcement .chat-body {
+    /*margin-left: 5px!important;*/
+    width: 100%!important;
+}
+
+.chat-list .announcement .chat-body .chat-message {
+    text-align: center;
+    background: grey;
+}
+
+.chat-list .announcement .chat-message-actions {
+    width: auto!important;
+    /*float: left;*/
+}
+
+/* End message styling */
 
 .card .card-header:first-child {
     -webkit-border-radius: 0.3rem 0.3rem 0 0;

@@ -131,7 +131,7 @@ def get_current_user(request: Request, response: Response, force_tmp: bool = Fal
                         LOG.info(f'Fetched user data: {user}')
                         user_preference_data = db_controller.exec_query(query={'document': 'user_preferences',
                                                                                'command': 'find_one',
-                                                                               'data': {'_id': payload['sub']}})
+                                                                               'data': {'_id': payload['sub']}}) or {}
                         user_preference_data.pop('_id', None)
                         user['preferences'] = user_preference_data
                         LOG.info(f'Fetched user preferences data: {user["preferences"]}')

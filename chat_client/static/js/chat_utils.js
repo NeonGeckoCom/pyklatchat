@@ -43,10 +43,11 @@ const setParticipantsCount = (cid) => {
  * @param timeCreated: timestamp for message creation
  * @param repliedMessageID: id of the replied message (optional)
  * @param attachments: array of attachments to add (optional)
- * @param isAudio: is audio message (defaults to false)
+ * @param isAudio: is audio message (defaults to '0')
+ * @param isAnnouncement: is message an announcement (defaults to "0")
  * @returns {Promise<null|number>}: promise resolving id of added message, -1 if failed to resolve message id creation
  */
-async function addMessage(cid, userID=null, messageID=null, messageText, timeCreated, repliedMessageID=null, attachments=[], isAudio=false){
+async function addMessage(cid, userID=null, messageID=null, messageText, timeCreated, repliedMessageID=null, attachments=[], isAudio='0', isAnnouncement='0'){
     const cidElem = document.getElementById(cid);
     if(cidElem){
         const cidList = cidElem.getElementsByClassName('card-body')[0].getElementsByClassName('chat-list')[0]
@@ -61,7 +62,7 @@ async function addMessage(cid, userID=null, messageID=null, messageText, timeCre
             if(!messageID) {
                 messageID = generateUUID();
             }
-            let messageHTML = await buildUserMessageHTML(userData, messageID, messageText, timeCreated, isMine, isAudio);
+            let messageHTML = await buildUserMessageHTML(userData, messageID, messageText, timeCreated, isMine, isAudio, isAnnouncement);
             const blankChat = cidList.getElementsByClassName('blank_chat');
             if(blankChat.length>0){
                 cidList.removeChild(blankChat[0]);
@@ -84,10 +85,11 @@ async function addMessage(cid, userID=null, messageID=null, messageText, timeCre
  * @param messageText: text of user message
  * @param timeCreated: date of creation
  * @param isMine: if message was emitted by current user
- * @param isAudio: if message is audio message (defaults to False)
+ * @param isAudio: if message is audio message (defaults to '0')
+ * @param isAnnouncement: is message if announcement (defaults to '0')
  * @returns {string}: constructed HTML out of input params
  */
-async function buildUserMessageHTML(userData, messageID, messageText, timeCreated, isMine, isAudio = false){
+async function buildUserMessageHTML(userData, messageID, messageText, timeCreated, isMine, isAudio = '0', isAnnouncement = '0'){
     const messageTime = getTimeFromTimestamp(timeCreated);
     let imageComponent;
     let shortedNick = `${userData['nickname'][0]}${userData['nickname'][userData['nickname'].length - 1]}`;
@@ -97,13 +99,17 @@ async function buildUserMessageHTML(userData, messageID, messageText, timeCreate
     else{
         imageComponent = `<p>${userData['nickname'][0]}${userData['nickname'][userData['nickname'].length - 1]}</p>`;
     }
-    return await buildHTMLFromTemplate('user_message',
-        {'is_mine': isMine?"in":"out",
+    const messageClass = isAnnouncement === '1'?'announcement':isMine?'in':'out';
+    const templateName = isAudio === '1'?'user_message_audio': 'user_message';
+    return await buildHTMLFromTemplate(templateName,
+        {'message_class': messageClass,
+            'is_announcement': isAnnouncement,
             'image_component': imageComponent,
             'message_id':messageID,
             'nickname': userData['nickname'],
             'message_text':messageText,
-            'message_time': messageTime}, `message_id=${messageID}&is_audio=${isAudio}`);
+            'audio_url': `${configData["CHAT_SERVER_URL_BASE"]}/files/get_audio/${messageID}`,
+            'message_time': messageTime});
 }
 
 /**
@@ -116,7 +122,7 @@ function resolveUserReply(replyID,repliedID){
         const repliedElem = document.getElementById(repliedID);
         if(repliedElem) {
             let repliedText = repliedElem.getElementsByClassName('message-text')[0].innerText;
-            repliedText = shrinkToFit(repliedText, 10);
+            repliedText = shrinkToFit(repliedText, 15);
             const replyHTML = `<a class="reply-text" data-replied-id="${repliedID}">
                                     ${repliedText}
                                 </a>`;
@@ -319,19 +325,29 @@ function addTTSCallback(cid, messageID){
     }
 }
 
+/**
+ * Attaches STT capabilities for audio messages and TTS capabilities for text messages
+ * @param cid: parent conversation id
+ * @param messageID: target message id
+ * @param isAudio: if its an audio message (defaults to '0')
+ */
+function addMessageTransformCallback(cid, messageID, isAudio='0'){
+    if (isAudio === '1'){
+        addSTTCallback(cid, messageID);
+    }else{
+        addTTSCallback(cid, messageID);
+    }
+}
+
 
 /**
- * Attaches speaking capabilities to each message supporting that
+ * Attaches STT capabilities for audio messages and TTS capabilities for text messages
  * @param conversationData: conversation data object
  */
 function addCommunicationChannelTransformCallback(conversationData) {
     if (conversationData.hasOwnProperty('chat_flow')) {
         Array.from(conversationData['chat_flow']).forEach(message => {
-            if (message?.is_audio === '1'){
-                addSTTCallback(conversationData['_id'], message['message_id']);
-            }else{
-                addTTSCallback(conversationData['_id'], message['message_id']);
-            }
+            addMessageTransformCallback(conversationData['_id'], message['message_id'], message?.is_audio);
         });
     }
 }
@@ -342,9 +358,11 @@ function addCommunicationChannelTransformCallback(conversationData) {
  */
 async function addRecorder(conversationData) {
 
-    const recorderButton = document.getElementById(`${conversationData["_id"]}-audio-input`);
+    const cid = conversationData["_id"];
 
-    const recorder = await recordAudio();
+    const recorderButton = document.getElementById(`${cid}-audio-input`);
+
+    const recorder = await recordAudio(cid);
 
     recorderButton.onmousedown = function () {
         recorder.start();
@@ -355,7 +373,7 @@ async function addRecorder(conversationData) {
             const audioBlob = toBase64(audio['audioBlob']);
             console.log('audioBlob=',audioBlob);
             return audioBlob;
-        }).then(encodedAudio=>emitUserMessage(encodedAudio, conversationData['_id'], null, [], true));
+        }).then(encodedAudio=>emitUserMessage(encodedAudio, conversationData['_id'], null, [], '1', '0'));
     };
 }
 
@@ -431,7 +449,7 @@ async function buildConversation(conversationData={}, remember=true,conversation
                     return
                 }
             }
-            emitUserMessage(textInputElem, e.target.getAttribute('data-target-cid'),null, attachments, false);
+            emitUserMessage(textInputElem, e.target.getAttribute('data-target-cid'),null, attachments, '0', '0');
             textInputElem.value = "";
         });
     }
@@ -490,7 +508,7 @@ async function buildConversationHTML(conversationData = {}){
         for (const message of Array.from(conversationData['chat_flow'])) {
             const isMine = currentUser && message['user_nickname'] === currentUser['nickname'];
 
-            chatFlowHTML += await buildUserMessageHTML({'avatar':message['user_avatar'],'nickname':message['user_nickname'], '_id': message['user_id']},message['message_id'], message['message_text'], message['created_on'],isMine,message?.is_audio);
+            chatFlowHTML += await buildUserMessageHTML({'avatar':message['user_avatar'],'nickname':message['user_nickname'], '_id': message['user_id']},message['message_id'], message['message_text'], message['created_on'],isMine,message?.is_audio, message?.is_announcement);
             addConversationParticipant(conversationData['_id'], message['user_nickname']);
         }
     }else{
@@ -532,35 +550,36 @@ async function getConversationDataByInput(input=""){
  * @param cid: Conversation ID
  * @param repliedMessageID: ID of replied message
  * @param attachments: list of attachments file names
- * @param isAudio: is audio message being emitted (defaults to false)
+ * @param isAudio: is audio message being emitted (defaults to '0')
+ * @param isAnnouncement: is message an announcement (defaults to '0')
  */
-function emitUserMessage(textInputElem, cid, repliedMessageID=null, attachments= [], isAudio=false){
-    if(isAudio || textInputElem && textInputElem.value){
+function emitUserMessage(textInputElem, cid, repliedMessageID=null, attachments= [], isAudio='0', isAnnouncement='0'){
+    if(isAudio === '1' || textInputElem && textInputElem.value){
         const timeCreated = Math.floor(Date.now() / 1000);
         let messageText;
-        if (isAudio){
+        if (isAudio === '1'){
             messageText = textInputElem;
         }else {
             messageText = textInputElem.value;
         }
-        addMessage(cid, currentUser['_id'],null, messageText, timeCreated,repliedMessageID,attachments, isAudio).then(messageID=>{
+        addMessage(cid, currentUser['_id'],null, messageText, timeCreated,repliedMessageID,attachments, isAudio, isAnnouncement).then(messageID=>{
             socket.emit('user_message',
                 {'cid':cid,
                  'userID':currentUser['_id'],
                  'messageText':messageText,
                  'messageID':messageID,
                  'attachments': attachments,
-                 'isAudio': isAudio?'1':'0',
+                 'isAudio': isAudio,
+                 'isAnnouncement': isAnnouncement,
                  'timeCreated':timeCreated
                 });
-            if (isAudio){
-                addSTTCallback(cid, messageID);
-            }else {
-                addTTSCallback(cid, messageID);
+            addMessageTransformCallback(cid, messageID, isAudio);
+            // TODO: support for audio message translation
+            if(isAudio !== '1'){
                 sendLanguageUpdateRequest(cid, messageID);
             }
         });
-        if (!isAudio){
+        if (isAudio === '0'){
             textInputElem.value = "";
         }
     }
@@ -779,8 +798,8 @@ function setChatState(cid, state='active', state_msg = ''){
 
 document.addEventListener('DOMContentLoaded', (e)=>{
 
-    document.addEventListener('supportedLanguagesLoaded', (e)=>{
-        refreshCurrentUser(false).then(_=>restoreChatAlignment()).then(_=>refreshCurrentUser(true)).then(_=>requestChatsLanguageRefresh());
+    document.addEventListener('supportedLanguagesLoaded', async (e)=>{
+        await refreshCurrentUser(false).then(_=>restoreChatAlignment()).then(_=>refreshCurrentUser(true)).then(_=>requestChatsLanguageRefresh());
     });
 
     if (configData['client'] === CLIENTS.MAIN) {

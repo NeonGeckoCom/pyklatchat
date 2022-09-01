@@ -14,7 +14,7 @@ class NanoBuilder {
      * Constructing NanoBuilder instance
      * @param options: JS Object containing list of properties for built conversation
      */
-    constructor(options = {}) {
+    async constructor(options = {}) {
         /**
          * Attributes for options:
          * - parentID: id of parent Node (required)
@@ -23,7 +23,7 @@ class NanoBuilder {
         this.options = options;
         configData.client = CLIENTS.NANO;
         this.applyConfigs();
-        refreshCurrentUser(true, false);
+        await refreshCurrentUser(true, false);
         this.resolveChatData(this.options);
     }
 

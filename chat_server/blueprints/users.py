@@ -76,11 +76,14 @@ def get_avatar(user_id: str):
     LOG.debug(f'Getting avatar of user id: {user_id}')
     user_data = db_controller.exec_query(query={'document': 'users',
                                                 'command': 'find_one',
-                                                'data': {'_id': user_id}})
-    file_response = None
-    if user_data and user_data.get('avatar', None):
+                                                'data': {'_id': user_id}}) or {}
+    if user_data.get('avatar', None):
         file_response = get_file_response(filename=user_data['avatar'], location_prefix='avatars')
-    return file_response if file_response is not None else 'Failed to get avatar'
+        if file_response is not None:
+            return file_response
+    raise HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND, detail=f'Failed to get avatar of {user_id}'
+    )
 
 
 @router.get('/bulk_fetch/', response_class=JSONResponse)

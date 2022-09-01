@@ -91,7 +91,8 @@ async def user_message(sid, data):
                     'context': 'message context (optional)',
                     'test': 'is test message (defaults to False)',
                     'isAudio': '1 if current message is audio message 0 otherwise',
-                    'messageTTS': received tts mapping of type: {language: {gender: (audio data base64 encoded)}}
+                    'messageTTS': received tts mapping of type: {language: {gender: (audio data base64 encoded)}},
+                    'isAnnouncement': if received message is the announcement,
                     'timeCreated': 'timestamp on which message was created'}
         ```
     """
@@ -110,7 +111,12 @@ async def user_message(sid, data):
             return
 
         LOG.info(f'Received user message data: {data}')
-        if not data.get('messageID', False):
+        data['messageID'] = data.get('messageID')
+        if data['messageID']:
+            existing_shout = DbUtils.fetch_shouts(shout_ids=[data['messageID']], fetch_senders=False)
+            if existing_shout:
+                raise ValueError(f'messageID value="{data["messageID"]}" already exists')
+        else:
             data['messageID'] = generate_uuid()
         if data['userID'] == 'neon':
             neon_data = get_neon_data(db_controller=db_controller)
@@ -120,6 +126,10 @@ async def user_message(sid, data):
             data['userID'] = bot_data['_id']
 
         is_audio = data.get('isAudio', '0')
+
+        if is_audio != '1':
+            is_audio = '0'
+
         file_path = f'{data["messageID"]}_audio.wav'
         try:
             if is_audio == '1':
@@ -131,13 +141,19 @@ async def user_message(sid, data):
             LOG.error(f'Failed to located file - {ex}')
             return -1
 
+        is_announcement = data.get('isAnnouncement', '0') or '0'
+
+        if is_announcement != '1':
+            is_announcement = '0'
+
         new_shout_data = {'_id': data['messageID'],
                           'user_id': data['userID'],
                           'prompt_id': data.get('promptID', ''),
                           'message_text': data['messageText'],
                           'attachments': data.get('attachments', []),
                           'replied_message': data.get('repliedMessage', ''),
-                          'is_audio': '1' if is_audio != '0' else '0',
+                          'is_audio': is_audio,
+                          'is_announcement': is_announcement,
                           'created_on': int(data['timeCreated'])}
 
         db_controller.exec_query({'command': 'insert_one', 'document': 'shouts', 'data': new_shout_data})
@@ -217,6 +233,7 @@ async def get_prompt_data(sid, data):
                                                 'filters': {'sort': [('created_on', pymongo.DESCENDING)],
                                                             'limit': limit}})
         prompt_data = []
+        _prompt_data = sorted(_prompt_data, key=lambda x: x['created_on'])
         for item in _prompt_data:
             prompt_data.append({'_id': item['_id'], 'created_on': item['created_on'], **item['data']})
     result = dict(data=prompt_data, receiver=data['nick'], cid=data['cid'], request_id=data['request_id'],)
