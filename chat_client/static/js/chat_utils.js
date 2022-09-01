@@ -50,8 +50,8 @@ const setParticipantsCount = (cid) => {
 async function addMessage(cid, userID=null, messageID=null, messageText, timeCreated, repliedMessageID=null, attachments=[], isAudio='0', isAnnouncement='0'){
     const cidElem = document.getElementById(cid);
     if(cidElem){
-        const cidList = cidElem.getElementsByClassName('card-body')[0].getElementsByClassName('chat-list')[0]
-        if(cidList){
+        const messageList = cidElem.getElementsByClassName('card-body')[0].getElementsByClassName('chat-list')[0]
+        if(messageList){
             let userData;
             const isMine = userID === currentUser['_id'];
             if(isMine) {
@@ -63,15 +63,15 @@ async function addMessage(cid, userID=null, messageID=null, messageText, timeCre
                 messageID = generateUUID();
             }
             let messageHTML = await buildUserMessageHTML(userData, messageID, messageText, timeCreated, isMine, isAudio, isAnnouncement);
-            const blankChat = cidList.getElementsByClassName('blank_chat');
+            const blankChat = messageList.getElementsByClassName('blank_chat');
             if(blankChat.length>0){
-                cidList.removeChild(blankChat[0]);
+                messageList.removeChild(blankChat[0]);
             }
-            cidList.insertAdjacentHTML('beforeend', messageHTML);
+            messageList.insertAdjacentHTML('beforeend', messageHTML);
             resolveMessageAttachments(cid, messageID, attachments);
             resolveUserReply(messageID, repliedMessageID);
             addConversationParticipant(cid, userData['nickname'], true);
-            cidList.lastChild.scrollIntoView();
+            scrollOnNewMessage(messageList);
             return messageID;
         }
     }

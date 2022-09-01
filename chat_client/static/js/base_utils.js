@@ -82,3 +82,18 @@ function fetchNoCors(url, properties = {}){
     properties['mode'] = 'no-cors';
     return fetch(url, properties)
 }
+
+/**
+ * Checks if element is in current viewport
+ * @param element: DOM element to check
+ * @return {boolean} True if element in current viewport False otherwise
+ */
+function isInViewport(element) {
+    const rect = element.getBoundingClientRect();
+    return (
+        rect.top >= 0 &&
+        rect.left >= 0 &&
+        rect.bottom <= (window.innerHeight || document.documentElement.clientHeight) &&
+        rect.right <= (window.innerWidth || document.documentElement.clientWidth)
+    );
+}
