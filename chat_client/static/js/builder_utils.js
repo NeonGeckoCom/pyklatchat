@@ -74,3 +74,89 @@ async function buildLangOptionHTML(cid, key, name, icon){
         'icon': icon
     })
 }
+
+/**
+ * Builds user message HTML
+ * @param userData: data of message sender
+ * @param messageID: id of user message
+ * @param messageText: text of user message
+ * @param timeCreated: date of creation
+ * @param isMine: if message was emitted by current user
+ * @param isAudio: if message is audio message (defaults to '0')
+ * @param isAnnouncement: is message if announcement (defaults to '0')
+ * @returns {string}: constructed HTML out of input params
+ */
+async function buildUserMessageHTML(userData, messageID, messageText, timeCreated, isMine, isAudio = '0', isAnnouncement = '0'){
+    const messageTime = getTimeFromTimestamp(timeCreated);
+    let imageComponent;
+    let shortedNick = `${userData['nickname'][0]}${userData['nickname'][userData['nickname'].length - 1]}`;
+    if (userData.hasOwnProperty('avatar') && userData['avatar']){
+        imageComponent = `<img alt="${shortedNick}" onerror="handleImgError(this);" src="${configData["CHAT_SERVER_URL_BASE"]}/users_api/${userData['_id']}/avatar">`
+    }
+    else{
+        imageComponent = `<p>${userData['nickname'][0]}${userData['nickname'][userData['nickname'].length - 1]}</p>`;
+    }
+    const messageClass = isAnnouncement === '1'?'announcement':isMine?'in':'out';
+    const templateName = isAudio === '1'?'user_message_audio': 'user_message';
+    return await buildHTMLFromTemplate(templateName,
+        {'message_class': messageClass,
+            'is_announcement': isAnnouncement,
+            'image_component': imageComponent,
+            'message_id':messageID,
+            'nickname': userData['nickname'],
+            'message_text':messageText,
+            'audio_url': `${configData["CHAT_SERVER_URL_BASE"]}/files/get_audio/${messageID}`,
+            'message_time': messageTime});
+}
+
+/**
+ * Gets user message HTML from received message data object
+ * @param message: Message Object received
+ * @return {Promise<string>} HTML by the provided message data
+ */
+async function messageHTMLFromData(message){
+    const isMine = currentUser && message['user_nickname'] === currentUser['nickname'];
+    return buildUserMessageHTML({
+            'avatar': message['user_avatar'],
+            'nickname': message['user_nickname'],
+            '_id': message['user_id']
+        },
+        message['message_id'],
+        message['message_text'],
+        message['created_on'],
+        isMine,
+        message?.is_audio,
+        message?.is_announcement);
+}
+
+/**
+ * Builds HTML for received conversation data
+ * @param conversationData: JS Object containing conversation data of type:
+ * {
+ *     '_id': 'id of conversation',
+ *     'conversation_name': 'title of the conversation',
+ *     'chat_flow': [{
+ *         'user_nickname': 'nickname of sender',
+ *         'user_avatar': 'avatar of sender',
+ *         'message_id': 'id of the message',
+ *         'message_text': 'text of the message',
+ *         'created_on': 'creation time of the message'
+ *     }, ... (num of user messages returned)]
+ * }
+ * @returns {string} conversation HTML based on provided data
+ */
+async function buildConversationHTML(conversationData = {}){
+    const cid = conversationData['_id'];
+    const conversation_name = conversationData['conversation_name'];
+    let chatFlowHTML = "";
+    if(conversationData.hasOwnProperty('chat_flow')) {
+        for (const message of Array.from(conversationData['chat_flow'])) {
+            chatFlowHTML += await messageHTMLFromData(message);
+            addConversationParticipant(conversationData['_id'], message['user_nickname']);
+        }
+    }else{
+        chatFlowHTML+=`<div class="blank_chat">No messages in this chat yet...</div>`;
+    }
+    return await buildHTMLFromTemplate('conversation',
+        {'cid': cid, 'conversation_name':conversation_name, 'chat_flow': chatFlowHTML});
+}

@@ -114,3 +114,37 @@ const recordAudio = (cid) => {
     });
   });
 };
+
+// Recorder instance
+let recorder = null;
+
+
+/**
+ * Adds event listener for audio recording
+ * @param conversationData: conversation data object
+ */
+async function addRecorder(conversationData) {
+
+    const cid = conversationData["_id"];
+
+    const recorderButton = document.getElementById(`${cid}-audio-input`);
+
+    if (!recorderButton.disabled) {
+        recorderButton.onmousedown = async function () {
+            recorder = await recordAudio(cid);
+            recorder.start();
+        };
+
+        recorderButton.onmouseup = async function () {
+            if (recorder) {
+                recorder.stop().then(audio => {
+                    const audioBlob = toBase64(audio['audioBlob']);
+                    console.log('audioBlob=', audioBlob);
+                    return audioBlob;
+                }).then(encodedAudio => {
+                    emitUserMessage(encodedAudio, conversationData['_id'], null, [], '1', '0');
+                });
+            }
+        };
+    }
+}

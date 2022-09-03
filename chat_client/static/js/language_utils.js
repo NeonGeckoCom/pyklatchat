@@ -68,6 +68,61 @@ function sendLanguageUpdateRequest(cid=null, shouts=null, lang=null){
     socket.emit('request_translate', requestBody);
 }
 
+async function setSelectedLang(clickedItem, cid){
+    const selectedLangNode = document.getElementById(`language-selected-${cid}`);
+    const selectedLangList = document.getElementById(`language-list-${cid}`);
+
+    // console.log('emitted lang update')
+    const preferredLang = getPreferredLanguage(cid);
+    const preferredLangProps = configData['supportedLanguages'][preferredLang];
+    const newKey = clickedItem.getAttribute('data-lang');
+    const newPreferredLangProps = configData['supportedLanguages'][newKey];
+    selectedLangNode.innerHTML = await buildHTMLFromTemplate('selected_lang', {'key': newKey, 'name': newPreferredLangProps['name'], 'icon': newPreferredLangProps['icon']})
+    selectedLangList.insertAdjacentHTML('beforeend', await buildLangOptionHTML(cid, preferredLang, preferredLangProps['name'], preferredLangProps['icon']));
+    clickedItem.parentNode.removeChild(clickedItem);
+    console.log(`cid=${cid};new preferredLang=${newKey}`)
+    setPreferredLanguage(cid, newKey);
+    const insertedNode = document.getElementById(getLangOptionID(cid, preferredLang));
+    sendLanguageUpdateRequest(cid, null, newKey);
+    insertedNode.addEventListener('click', async (e)=> {
+        e.preventDefault();
+        await setSelectedLang(insertedNode, cid);
+    });
+}
+
+/**
+ * Initialize language selector for conversation
+ * @param cid: target conversation id
+ */
+async function initLanguageSelector(cid){
+   let preferredLang = getPreferredLanguage(cid);
+   const supportedLanguages = configData['supportedLanguages'];
+   if (!supportedLanguages.hasOwnProperty(preferredLang)){
+       preferredLang = 'en';
+   }
+   const selectedLangNode = document.getElementById(`language-selected-${cid}`);
+   const selectedLangList = document.getElementById(`language-list-${cid}`);
+
+   if (selectedLangList){
+      selectedLangList.innerHTML = "";
+   }
+   // selectedLangNode.innerHTML = "";
+   for (const [key, value] of Object.entries(supportedLanguages)) {
+
+      if (key === preferredLang){
+          selectedLangNode.innerHTML = await buildHTMLFromTemplate('selected_lang',
+              {'key': key, 'name': value['name'], 'icon': value['icon']})
+      }else{
+          selectedLangList.insertAdjacentHTML('beforeend', await buildLangOptionHTML(cid, key, value['name'], value['icon']));
+          const itemNode = document.getElementById(getLangOptionID(cid, key));
+          itemNode.addEventListener('click', async (e)=>{
+              e.preventDefault();
+              await setSelectedLang(itemNode, cid)
+          });
+      }
+   }
+}
+
 
 /**
  * Sends request to server for chat language refreshing
@@ -135,8 +190,8 @@ async function applyTranslations(data){
  */
 const supportedLanguagesLoadedEvent = new CustomEvent("supportedLanguagesLoaded", { "detail": "Event that is fired when system supported languages are loaded" });
 
-document.addEventListener('DOMContentLoaded', (e)=>{
-    document.addEventListener('configLoaded',async (e)=>{
-        await fetchSupportedLanguages().then(r => document.dispatchEvent(supportedLanguagesLoadedEvent));
+document.addEventListener('DOMContentLoaded', (_)=>{
+    document.addEventListener('configLoaded',async (_)=>{
+        await fetchSupportedLanguages().then(_ => document.dispatchEvent(supportedLanguagesLoadedEvent));
     });
 });
