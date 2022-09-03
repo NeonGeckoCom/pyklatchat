@@ -64,9 +64,11 @@ def new_conversation(request_data: NewConversationData):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED, detail='Provided conversation id already exists'
             )
-    _id = db_controller.exec_query(query=dict(document='chats', command='insert_one', data=(request_data.__dict__,)))
-    request_data.__dict__['_id'] = str(request_data.__dict__['_id'])
-    json_compatible_item_data = jsonable_encoder(request_data.__dict__)
+    request_data_dict = request_data.__dict__
+    request_data_dict['_id'] = request_data_dict.pop('id', None)
+    _id = db_controller.exec_query(query=dict(document='chats', command='insert_one', data=(request_data_dict,)))
+    request_data_dict['_id'] = str(request_data_dict['_id'])
+    json_compatible_item_data = jsonable_encoder(request_data_dict)
     json_compatible_item_data['_id'] = str(_id.inserted_id)
     return JSONResponse(content=json_compatible_item_data)
 

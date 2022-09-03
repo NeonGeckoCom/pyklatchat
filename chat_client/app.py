@@ -73,7 +73,7 @@ def create_app() -> FastAPI:
             return Response(f'Connection error : {app_config["SERVER_URL"]}', status_code=404)
         except Exception as ex:
             LOG.error(f"rid={idem} received an exception {ex}")
-        return None
+        return Response(f'Chat server error occurred', status_code=500)
 
     # Redirects any not found pages to chats page
     @chat_app.exception_handler(StarletteHTTPException)

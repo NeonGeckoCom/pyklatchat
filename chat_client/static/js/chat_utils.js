@@ -1,5 +1,8 @@
+const importConversationModal = $('#importConversationModal');
 const conversationSearchInput = document.getElementById('conversationSearchInput');
 const addBySearch = document.getElementById('addBySearch');
+
+const newConversationModal = $('#newConversationModal');
 const addNewConversation = document.getElementById('addNewConversation');
 
 const conversationBody = document.getElementById('conversationsBody');

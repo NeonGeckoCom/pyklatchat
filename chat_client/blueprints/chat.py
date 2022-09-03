@@ -66,19 +66,14 @@ async def create_chat(conversation_name: str = Form(...),
         :returns JSON-formatted response from server
     """
 
-    new_conversation = dict(_id=conversation_id or uuid4().hex,
+    new_conversation = dict(id=conversation_id or uuid4().hex,
                             conversation_name=conversation_name,
                             is_private=is_private,
                             created_on=int(time()))
 
     post_response = requests.post(f'{app_config["SERVER_URL"]}/chat_api/new', json=new_conversation)
 
-    json_data = {}
-
-    if post_response.status_code == 200:
-
-        json_data = post_response.json()
-
-        LOG.debug(f'Chat creation response: {json_data}')
+    json_data = post_response.json()
+    LOG.debug(f'Chat data {new_conversation} creation response: {json_data}')
 
     return JSONResponse(content=json_data, status_code=post_response.status_code)
