@@ -1,3 +1,8 @@
+/**
+ * Returns DOM container for message elements under specific conversation id
+ * @param cid: conversation id to consider
+ * @return {Element} DOM container for message elements of considered conversation
+ */
 const getMessageContainer = (cid) => {
     const cidElem = document.getElementById(cid);
     if(cidElem){
