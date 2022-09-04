@@ -97,3 +97,16 @@ function isInViewport(element) {
         rect.right <= (window.innerWidth || document.documentElement.clientWidth)
     );
 }
+
+/**
+ * Sets default value to the object under the specified key
+ * @param obj: object to consider
+ * @param key: object key to set
+ * @param val: default value to set
+ */
+function setDefault(obj, key, val){
+    if(obj){
+        obj[key] ??= val;
+    }
+    return obj[key];
+}
