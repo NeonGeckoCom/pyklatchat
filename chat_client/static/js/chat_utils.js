@@ -7,15 +7,19 @@ const addNewConversation = document.getElementById('addNewConversation');
 
 const conversationBody = document.getElementById('conversationsBody');
 
-let conversationParticipants = {};
+let conversationState = {};
+
+const getParticipants = (cid) => {
+    return setDefault(setDefault(conversationState, cid, {}), 'participants', {});
+}
 
 /**
  * Sets participants count for conversation view
  * @param cid: desired conversation id
  */
-const setParticipantsCount = (cid) => {
+const displayParticipantsCount = (cid) => {
     const participantsCountNode = document.getElementById(`participants-count-${cid}`);
-    participantsCountNode.innerText = Object.keys(conversationParticipants[cid]).length;
+    participantsCountNode.innerText = Object.keys(getParticipants(cid)).length;
 }
 
 /**
@@ -25,16 +29,14 @@ const setParticipantsCount = (cid) => {
  * @param updateCount: to update participants count
  */
 const addConversationParticipant = (cid, nickname, updateCount = false) => {
-    if(!conversationParticipants.hasOwnProperty(cid)){
-        conversationParticipants[cid] = {};
-    }
-    if(!conversationParticipants[cid].hasOwnProperty(nickname)){
-        conversationParticipants[cid][nickname] = 1;
+    const conversationParticipants = getParticipants(cid);
+    if(!conversationParticipants.hasOwnProperty(nickname)){
+        conversationParticipants[nickname] = {'num_messages': 1};
     }else{
-        conversationParticipants[cid][nickname]++;
+        conversationParticipants[nickname]['num_messages']++;
     }
     if(updateCount){
-        setParticipantsCount(cid);
+        displayParticipantsCount(cid);
     }
 }
 
@@ -64,7 +66,7 @@ async function buildConversation(conversationData={}, remember=true,conversation
        addNewCID(conversationData['_id']);
    }
    if(configData.client === CLIENTS.MAIN) {
-       conversationParticipants[conversationData['_id']] = {};
+       getParticipants(conversationData['_id']);
    }
    const newConversationHTML = await buildConversationHTML(conversationData);
    const conversationsBody = document.getElementById(conversationParentID);
@@ -138,7 +140,7 @@ async function buildConversation(conversationData={}, remember=true,conversation
             }
         }
     });
-    setParticipantsCount(conversationData['_id']);
+    displayParticipantsCount(conversationData['_id']);
     await initLanguageSelector(conversationData['_id']);
     setTimeout(() => getMessageContainer(conversationData['_id']).lastElementChild?.scrollIntoView(true), 0);
     await addRecorder(conversationData);
