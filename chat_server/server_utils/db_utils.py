@@ -60,7 +60,7 @@ class DbUtils(metaclass=Singleton):
 
     @classmethod
     def fetch_shout_data(cls, conversation_data: dict, start_idx: int = 0, limit: int = 100,
-                         fetch_senders: bool = True):
+                         fetch_senders: bool = True, start_message_id: str = None):
         """
             Fetches shout data out of conversation data
 
@@ -68,12 +68,20 @@ class DbUtils(metaclass=Singleton):
             :param start_idx: message index to start from (sorted by recency)
             :param limit: number of shouts to fetch
             :param fetch_senders: to fetch shout senders data
+            :param start_message_id: message id to start from
         """
         if conversation_data.get('chat_flow', None):
+            if start_message_id:
+                try:
+                    start_idx = len(conversation_data["chat_flow"]) - \
+                                conversation_data["chat_flow"].index(start_message_id)
+                except ValueError:
+                    LOG.warning('Matching start message id not found')
+                    return []
             if start_idx == 0:
                 conversation_data['chat_flow'] = conversation_data['chat_flow'][start_idx - limit:]
             else:
-                conversation_data['chat_flow'] = conversation_data['chat_flow'][start_idx - limit:
+                conversation_data['chat_flow'] = conversation_data['chat_flow'][-start_idx - limit:
                                                                                 -start_idx]
             shout_ids = [str(msg_id) for msg_id in conversation_data["chat_flow"]]
             shouts_data = cls.fetch_shouts(shout_ids=shout_ids, fetch_senders=fetch_senders)

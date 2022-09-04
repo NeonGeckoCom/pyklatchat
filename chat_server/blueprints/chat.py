@@ -17,7 +17,7 @@
 # US Patents 2008-2021: US7424516, US20140161250, US20140177813, US8638908, US8068604, US8553852, US10530923, US10530924
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
 import os
-from typing import List
+from typing import List, Optional
 
 from time import time
 from fastapi import APIRouter, status, Request, UploadFile, File
@@ -74,16 +74,16 @@ def new_conversation(request_data: NewConversationData):
 
 
 @router.get("/search/{search_str}")
-def get_matching_conversation(request: Request,
-                              search_str: str,
+def get_matching_conversation(search_str: str,
                               chat_history_from: int = 0,
+                              first_message_id: Optional[str] = None,
                               limit_chat_history: int = 100):
     """
         Gets conversation data matching search string
 
-        :param request: client request
         :param search_str: provided search string
         :param chat_history_from: upper time bound for messages
+        :param first_message_id: id of the first message to start from
         :param limit_chat_history: lower time bound for messages
 
         :returns conversation data if found, 401 error code otherwise
@@ -110,7 +110,8 @@ def get_matching_conversation(request: Request,
 
     users_data = DbUtils.fetch_shout_data(conversation_data=response_data,
                                           start_idx=chat_history_from,
-                                          limit=limit_chat_history)
+                                          limit=limit_chat_history,
+                                          start_message_id=first_message_id)
 
     if users_data:
         conversation_data['chat_flow'] = []

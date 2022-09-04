@@ -147,7 +147,7 @@ async function buildConversation(conversationData={}, remember=true,conversation
     });
     displayParticipantsCount(conversationData['_id']);
     await initLanguageSelector(conversationData['_id']);
-    setTimeout(() => getMessageContainer(conversationData['_id']).lastElementChild?.scrollIntoView(true), 0);
+    setTimeout(() => getMessageListContainer(conversationData['_id']).lastElementChild?.scrollIntoView(true), 0);
     await addRecorder(conversationData);
     return conversationData['_id'];
 }
@@ -155,22 +155,30 @@ async function buildConversation(conversationData={}, remember=true,conversation
 /**
  * Gets conversation data based on input string
  * @param input: input string text
+ * @param firstMessageID: id of the the most recent message
+ * @param maxResults: max number of messages to fetch
  * @returns {Promise<{}>} promise resolving conversation data returned
  */
-async function getConversationDataByInput(input=""){
+async function getConversationDataByInput(input="", firstMessageID=null, maxResults=10){
     let conversationData = {};
     if(input && typeof input === "string"){
-        const query_url = `${configData['CHAT_SERVER_URL_BASE']}/chat_api/search/${input}`
+        let query_url = `${configData['CHAT_SERVER_URL_BASE']}/chat_api/search/${input}?limit_chat_history=${maxResults}`
+        if(firstMessageID){
+            query_url += `&first_message_id=${firstMessageID}`
+        }
         await fetch(query_url)
             .then(response => {
                 if(response.ok){
                     return response.json();
                 }else{
-                    console.log('here')
                     throw response.statusText;
                 }
             })
             .then(data => {
+                if (getUserMessages(data).length < maxResults){
+                    console.log('All of the messages are already displayed');
+                    setDefault(setDefault(conversationState, data['_id'], {}), 'all_messages_displayed', true);
+                }
                 conversationData = data;
             }).catch(err=> console.warn('Failed to fulfill request due to error:',err));
     }
@@ -259,7 +267,7 @@ async function restoreChatAlignment(keyName=conversationAlignmentKey){
  */
 function getMessagesOfCID(cid){
     let messages = []
-    const messageContainer =getMessageContainer(cid);
+    const messageContainer =getMessageListContainer(cid);
     if(messageContainer){
         const listItems = messageContainer.getElementsByTagName('li');
         Array.from(listItems).forEach(li=>{
@@ -328,6 +336,8 @@ function setChatState(cid, state='active', state_msg = ''){
             spinner.style.setProperty('display', 'none', 'important');
             spinnerUpdateMsg.innerHTML = '';
         }
+        conversationState[cid]['state'] = state;
+        conversationState[cid]['state_message'] = state_msg;
     }
 }
 

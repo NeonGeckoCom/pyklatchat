@@ -3,11 +3,20 @@
  * @param cid: conversation id to consider
  * @return {Element} DOM container for message elements of considered conversation
  */
-const getMessageContainer = (cid) => {
+const getMessageListContainer = (cid) => {
     const cidElem = document.getElementById(cid);
     if(cidElem){
         return cidElem.getElementsByClassName('card-body')[0].getElementsByClassName('chat-list')[0]
     }
+}
+
+/**
+ * Gets message id from the message container DOM element
+ * @param messageContainer: DOM Message Container element to consider
+ * @return {string} ID of the message
+ */
+const getMessageId = (messageContainer) => {
+    return messageContainer.getElementsByClassName('chat-body')[0].getElementsByClassName('chat-message')[0].id;
 }
 
 /**
@@ -24,7 +33,7 @@ const getMessageContainer = (cid) => {
  * @returns {Promise<null|number>}: promise resolving id of added message, -1 if failed to resolve message id creation
  */
 async function addNewMessage(cid, userID=null, messageID=null, messageText, timeCreated, repliedMessageID=null, attachments=[], isAudio='0', isAnnouncement='0'){
-    const messageList = getMessageContainer(cid);
+    const messageList = getMessageListContainer(cid);
     if(messageList){
         let userData;
         const isMine = userID === currentUser['_id'];
@@ -51,32 +60,63 @@ async function addNewMessage(cid, userID=null, messageID=null, messageText, time
 }
 
 /**
- * Adds list of received old messages
+ * Gets list of the next n-older messages
  * @param cid: target conversation id
+ * @param numMessages: number of messages to add
  */
-function addOldMessages(cid){
-    getConversationDataByInput(cid).then(async conversationData=>{
-        const messageContainer = getMessageContainer(cid);
-        if (messageContainer) {
-            const userMessageList = getUserMessages(conversationData);
-            userMessageList.sort((a, b) => {
-                a['created_on'] - b['created_on'];
-            }).reverse();
-            for (const message of userMessageList) {
-                const messageHTML = await messageHTMLFromData(message);
-                messageContainer.insertAdjacentHTML('afterbegin', messageHTML);
+function addOldMessages(cid, numMessages = 10){
+    const messageContainer = getMessageListContainer(cid);
+    if(messageContainer.children.length > 0) {
+        const firstMessageItem = messageContainer.children[0];
+        const firstMessageID = getMessageId(firstMessageItem);
+        getConversationDataByInput(cid, firstMessageID).then(async conversationData => {
+            if (messageContainer) {
+                const userMessageList = getUserMessages(conversationData);
+                userMessageList.sort((a, b) => {
+                    a['created_on'] - b['created_on'];
+                }).reverse();
+                for (const message of userMessageList) {
+                    const messageHTML = await messageHTMLFromData(message);
+                    messageContainer.insertAdjacentHTML('afterbegin', messageHTML);
+                }
+                initMessages(conversationData);
             }
-            initMessages(conversationData);
-        }
-    });
+        }).then(_=>{
+            firstMessageItem.scrollIntoView({behavior: "smooth"});
+        });
+    }
 }
 
 /**
  * Array of user messages in given conversation
- * @param conversationData
+ * @param conversationData: Conversation Data object to fetch
  */
 const getUserMessages = (conversationData) => {
     return Array.from(conversationData['chat_flow']);
+}
+
+/**
+ * Initializes listener for loading old message on scrolling conversation box
+ * @param conversationData: Conversation Data object to fetch
+ */
+function initLoadOldMessages(conversationData) {
+    const cid = conversationData['_id'];
+    const messageList = getMessageListContainer(cid);
+    const messageListParent = messageList.parentElement;
+    setDefault(conversationState[cid],'lastScrollY', 0);
+    messageListParent.addEventListener("scroll", (e) => {
+        const oldScrollPosition = conversationState[cid]['scrollY'];
+        conversationState[cid]['scrollY'] = e.target.scrollTop;
+        if (oldScrollPosition > conversationState[cid]['scrollY'] &&
+            !conversationState[cid]['all_messages_displayed'] &&
+            conversationState[cid]['scrollY'] === 0) {
+            setChatState(cid, 'updating', 'Loading messages...')
+            addOldMessages(cid);
+            setTimeout( () => {
+                setChatState(cid, 'active');
+            }, 700);
+        }
+    });
 }
 
 
@@ -100,6 +140,7 @@ const getUserMessages = (conversationData) => {
 function initMessages(conversationData){
    attachReplies(conversationData);
    addAttachments(conversationData);
+   initLoadOldMessages(conversationData);
    addCommunicationChannelTransformCallback(conversationData);
 }
 
