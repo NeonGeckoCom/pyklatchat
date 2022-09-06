@@ -180,33 +180,35 @@ class DbUtils(metaclass=Singleton):
         """
         for cid, shout_data in translation_mapping.items():
             translations = shout_data.get('shouts', {})
-            if shout_data.get('lang', 'en') != 'en':
-                bulk_update = []
-                shouts = cls.db_controller.exec_query(query={'document': 'shouts',
-                                                             'command': 'find',
-                                                             'data': {'_id': {'$in': list(translations)}}})
-                shouts = list(shouts)
-                for shout_id, translation in translations.items():
-                    matching_instance = None
-                    for shout in shouts:
-                        if shout['_id'] == shout_id:
-                            matching_instance = shout
-                            break
-                    if not matching_instance.get('translations'):
-                        filter_expression = {'_id': shout_id}
-                        update_expression = {'$set': {'translations': {}}}
-                        cls.db_controller.exec_query(query={'document': 'shouts',
-                                                            'command': 'update',
-                                                            'data': (filter_expression,
-                                                                     update_expression,)})
-                    bulk_update.append(UpdateOne({'_id': shout_id},
-                                                 {'$set': {f'translations.{shout_data["lang"]}': translation}}))
-                if len(bulk_update) > 0:
-                    cls.db_controller.exec_query(query=dict(document='shouts',
-                                                            command='bulk_write',
-                                                            data=bulk_update))
-            else:
-                LOG.info('Apply translations skipped -> lang=en')
+            bulk_update = []
+            shouts = cls.db_controller.exec_query(query={'document': 'shouts',
+                                                         'command': 'find',
+                                                         'data': {'_id': {'$in': list(translations)}}})
+            shouts = list(shouts)
+            for shout_id, translation in translations.items():
+                matching_instance = None
+                for shout in shouts:
+                    if shout['_id'] == shout_id:
+                        matching_instance = shout
+                        break
+                if not matching_instance.get('translations'):
+                    filter_expression = {'_id': shout_id}
+                    update_expression = {'$set': {'translations': {}}}
+                    cls.db_controller.exec_query(query={'document': 'shouts',
+                                                        'command': 'update',
+                                                        'data': (filter_expression,
+                                                                 update_expression,)})
+                # English is the default language, so it is treated as message text
+                if shout_data.get('lang', 'en') == 'en':
+                    bulk_update_setter = {'message_text': translation}
+                else:
+                    bulk_update_setter = {f'translations.{shout_data["lang"]}': translation}
+                bulk_update.append(UpdateOne({'_id': shout_id},
+                                             {'$set': bulk_update_setter}))
+            if len(bulk_update) > 0:
+                cls.db_controller.exec_query(query=dict(document='shouts',
+                                                        command='bulk_write',
+                                                        data=bulk_update))
 
     @classmethod
     def get_user_preferences(cls, user_id, create_if_not_exists: bool = False):

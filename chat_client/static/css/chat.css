@@ -322,3 +322,15 @@ body{
     max-height: 150px!important;
     min-height: 25px!important;
 }
+
+.lang-dropdown-header {
+  pointer-events: none;
+  cursor: default;
+  text-decoration: none;
+  color: black;
+}
+
+.lang-container {
+    height: 300px!important;
+    overflow-y: scroll;
+}

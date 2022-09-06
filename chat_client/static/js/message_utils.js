@@ -163,20 +163,25 @@ function emitUserMessage(textInputElem, cid, repliedMessageID=null, attachments=
             messageText = textInputElem.value;
         }
         addNewMessage(cid, currentUser['_id'],null, messageText, timeCreated,repliedMessageID,attachments, isAudio, isAnnouncement).then(messageID=>{
+            const preferredShoutLang = getPreferredLanguage(cid, 'outcoming');
             socket.emit('user_message',
                 {'cid':cid,
                  'userID':currentUser['_id'],
                  'messageText':messageText,
                  'messageID':messageID,
+                 'lang': getPreferredLanguage(cid, 'outcoming'),
                  'attachments': attachments,
                  'isAudio': isAudio,
                  'isAnnouncement': isAnnouncement,
                  'timeCreated':timeCreated
                 });
+            if(preferredShoutLang !== 'en'){
+                requestTranslation(cid, messageID, 'en', 'outcoming');
+            }
             addMessageTransformCallback(cid, messageID, isAudio);
             // TODO: support for audio message translation
             if(isAudio !== '1'){
-                sendLanguageUpdateRequest(cid, messageID);
+                requestTranslation(cid, messageID);
             }
         });
         if (isAudio === '0'){

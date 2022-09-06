@@ -52,10 +52,11 @@ async function buildHTMLFromTemplate(templateName, templateContext = {}, request
  * Get Node id based on language key
  * @param cid: desired conversation id
  * @param key: language key (e.g. 'en')
+ * @param inputType: type of the language input to apply (incoming or outcoming)
  * @return {string} ID of Node
  */
-function getLangOptionID(cid, key){
-    return `language-option-${cid}-${key}`;
+function getLangOptionID(cid, key, inputType='incoming'){
+    return `language-option-${cid}-${inputType}-${key}`;
 }
 
 /**
@@ -64,11 +65,12 @@ function getLangOptionID(cid, key){
  * @param key: language key (e.g 'en')
  * @param name: name of the language (e.g. English)
  * @param icon: language icon (refers to flag-icon specs)
+ * @param inputType: type of the language input to apply (incoming or outcoming)
  * @return {string} formatted langSelectPattern
  */
-async function buildLangOptionHTML(cid, key, name, icon){
+async function buildLangOptionHTML(cid, key, name, icon, inputType){
     return await buildHTMLFromTemplate('lang_option', {
-        'itemId': getLangOptionID(cid, key),
+        'itemId': getLangOptionID(cid, key, inputType),
         'key': key,
         'name': name,
         'icon': icon

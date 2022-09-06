@@ -46,6 +46,42 @@ const addConversationParticipant = (cid, nickname, updateCount = false) => {
 }
 
 /**
+ * Saves attached files to the server
+ * @param cid: target conversation id
+ * @return attachments array or -1 if something went wrong
+ */
+const saveAttachedFiles = async (cid) => {
+    const filesArr = getUploadedFiles(cid);
+    const attachments = [];
+    if (filesArr.length > 0){
+        console.info('Processing attachments array...')
+        let errorOccurred = null;
+        const formData = new FormData();
+        filesArr.forEach(file=>{
+            const generatedFileName = `${generateUUID(10,'00041000')}.${file.name.split('.').pop()}`;
+            attachments.push({'name': generatedFileName, 'size': file.size, 'mime': file.type});
+            const renamedFile = new File([file], generatedFileName, {type: file.type});
+            formData.append('files', renamedFile);
+        });
+        cleanUploadedFiles(cid);
+
+        console.log('Received attachments array: ', attachments)
+        const query_url = `${configData['CHAT_SERVER_URL_BASE']}/chat_api/${cid}/store_files`;
+        await fetch(query_url, {method:'POST',
+                                      body:formData})
+            .then(response => response.ok?console.log('File stored successfully'):null).catch(err=>{
+                errorOccurred=err;
+            });
+        if(errorOccurred){
+            console.error(`Error during attachments preparation: ${errorOccurred}, skipping message sending`);
+            return -1
+        }else{
+            return attachments;
+        }
+    }
+}
+
+/**
  * Builds new conversation HTML from provided data and attaches it to the list of displayed conversations
  * @param conversationData: JS Object containing conversation data of type:
  * {
@@ -88,35 +124,11 @@ async function buildConversation(conversationData={}, remember=true,conversation
 
     if(chatInputButton.hasAttribute('data-target-cid')) {
         chatInputButton.addEventListener('click', async (e)=>{
+            const attachments = await saveAttachedFiles(conversationData['_id']);
             const textInputElem = document.getElementById(conversationData['_id']+'-input');
-            let attachments = [];
-            const currCid = chatInputButton.getAttribute('data-target-cid');
-            const filesArr = getUploadedFiles(currCid);
-            if (filesArr.length > 0){
-                console.info('Processing attachments array...')
-                let errorOccurred = null;
-                const formData = new FormData();
-                filesArr.forEach(file=>{
-                    const generatedFileName = `${generateUUID(10,'00041000')}.${file.name.split('.').pop()}`;
-                    attachments.push({'name': generatedFileName, 'size': file.size, 'mime': file.type});
-                    const renamedFile = new File([file], generatedFileName, {type: file.type});
-                    formData.append('files', renamedFile);
-                });
-                cleanUploadedFiles(currCid);
-
-                console.log('Received attachments array: ', attachments)
-                const query_url = `${configData['CHAT_SERVER_URL_BASE']}/chat_api/${conversationData['_id']}/store_files`;
-                await fetch(query_url, {method:'POST',
-                                              body:formData})
-                    .then(response => response.ok?console.log('File stored successfully'):null).catch(err=>{
-                        errorOccurred=err;
-                    });
-                if(errorOccurred){
-                    console.error(`Error during attachments preparation: ${errorOccurred}, skipping message sending`);
-                    return
-                }
+            if(Array.isArray(attachments)) {
+                emitUserMessage(textInputElem, conversationData['_id'], null, attachments, '0', '0');
             }
-            emitUserMessage(textInputElem, e.target.getAttribute('data-target-cid'),null, attachments, '0', '0');
             textInputElem.value = "";
         });
     }
@@ -146,7 +158,7 @@ async function buildConversation(conversationData={}, remember=true,conversation
         }
     });
     displayParticipantsCount(conversationData['_id']);
-    await initLanguageSelector(conversationData['_id']);
+    await initLanguageSelectors(conversationData['_id']);
     setTimeout(() => getMessageListContainer(conversationData['_id']).lastElementChild?.scrollIntoView(true), 0);
     await addRecorder(conversationData);
     return conversationData['_id'];
@@ -355,7 +367,7 @@ async function displayConversation(searchStr, alertParentID = null){
                 displayAlert(alertParent, 'Chat is already displayed', 'danger');
             } else if (conversationData && Object.keys(conversationData).length > 0) {
                 await buildConversation(conversationData).then(async cid=>{
-                    await sendLanguageUpdateRequest(cid);
+                    await requestTranslation(cid);
                 });
                 responseOk = true;
             } else {
@@ -393,8 +405,8 @@ async function createNewConversation(conversationName, isPrivate=false, conversa
         let responseOk = false;
         if (response.ok) {
             await buildConversation(responseJson).then(async cid=>{
-                await initLanguageSelector(cid);
-                console.log(`inited language selector for ${cid}`);
+                await initLanguageSelectors(cid);
+                console.log(`inited language selectors for ${cid}`);
             });
             responseOk = true
         } else {

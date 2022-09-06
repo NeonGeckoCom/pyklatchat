@@ -87,6 +87,7 @@ async def user_message(sid, data):
                     'messageText': 'content of the user message',
                     'repliedMessage': 'id of replied message (optional)',
                     'bot': 'if the message is from bot (defaults to False)',
+                    'lang': 'language of the message (defaults to "en")'
                     'attachments': 'list of filenames that were send with message',
                     'context': 'message context (optional)',
                     'test': 'is test message (defaults to False)',
@@ -154,7 +155,15 @@ async def user_message(sid, data):
                           'replied_message': data.get('repliedMessage', ''),
                           'is_audio': is_audio,
                           'is_announcement': is_announcement,
+                          'translations': {},
                           'created_on': int(data['timeCreated'])}
+
+        lang = data.get('lang', 'en')
+
+        # in case message is received in some foreign language -
+        # message text is kept in that language unless English translation received
+        if lang != 'en':
+            new_shout_data['translations'][lang] = data['messageText']
 
         db_controller.exec_query({'command': 'insert_one', 'document': 'shouts', 'data': new_shout_data})
 
@@ -252,12 +261,14 @@ async def request_translate(sid, data):
     else:
         populated_translations, missing_translations = DbUtils.get_translations(translation_mapping=data['chat_mapping'],
                                                                                 user_id=data['user'])
-        if populated_translations and not missing_translations:
+        should_send_callback = data['inputType'] == 'incoming'
+        if should_send_callback and populated_translations and not missing_translations:
             await sio.emit('translation_response', data=populated_translations, to=sid)
         else:
             LOG.info('Not every translation is contained in db, sending out request to Neon')
             request_id = generate_uuid()
-            caching_instance = {'translations': populated_translations, 'sid': sid}
+            caching_instance = {'translations': populated_translations, 'sid': sid,
+                                'should_send_callback': should_send_callback}
             CacheFactory.get('translation_cache', cache_type=LRUCache).put(key=request_id, value=caching_instance)
             await sio.emit('request_neon_translations', data={'request_id': request_id, 'data': missing_translations},)
 
@@ -284,10 +295,12 @@ async def get_neon_translations(sid, data):
             cached_data = CacheFactory.get('translation_cache').get(key=request_id)
             if not cached_data:
                 LOG.warning('Failed to get matching cached data')
+                return
             sid = cached_data.get('sid')
             DbUtils.save_translations(data.get('translations', {}))
-            populated_translations = deep_merge(data.get('translations', {}), cached_data.get('translations', {}))
-            await sio.emit('translation_response', data=populated_translations, to=sid)
+            if cached_data.get('should_send_callback', True):
+                populated_translations = deep_merge(data.get('translations', {}), cached_data.get('translations', {}))
+                await sio.emit('translation_response', data=populated_translations, to=sid)
         except KeyError as err:
             LOG.error(f'No translation cache detected under request_id={request_id} (err={err})')
 

@@ -15,10 +15,23 @@
                 <i class="icon-user" aria-hidden="true"></i> <span id="participants-count-{cid}">0</span>
             </span>
             <div class="dropdown language ml-3" style="display: inline!important;">
-                <button class="btn btn-secondary dropdown-toggle" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" id="language-selected-{cid}">
+                <button class="btn btn-secondary dropdown-toggle" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" id="language-selected-{cid}-outcoming">
                     English <span class="flag-icon flag-icon-us" data-lang="en"></span>
                 </button>
-                <div class="dropdown-menu dropdown-menu-right text-right language" id="language-list-{cid}">
+                <div class="dropdown-menu dropdown-menu-right text-right language" id="language-list-{cid}-outcoming">
+                    <a class="dropdown-item lang-dropdown-header" disabled>Select Shout Language</a>
+                    <div class="dropdown-divider"></div>
+                    <div class="lang-container"></div>
+                </div>
+            </div>
+            <div class="dropdown language ml-3" style="display: inline!important;">
+                <button class="btn btn-secondary dropdown-toggle" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" id="language-selected-{cid}-incoming">
+                    English <span class="flag-icon flag-icon-us" data-lang="en"></span>
+                </button>
+                <div class="dropdown-menu dropdown-menu-right text-right language" id="language-list-{cid}-incoming">
+                    <a class="dropdown-item lang-dropdown-header" href="#">Select Receiving Language</a>
+                    <div class="dropdown-divider"></div>
+                    <div class="lang-container"></div>
                 </div>
             </div>
             <button type="button" id="close-{cid}" data-target-cid="{cid}" class="close-cid">

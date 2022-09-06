@@ -28,7 +28,7 @@ function initSIO(){
     socket.on('new_message', async (data) => {
         console.debug('received new_message -> ', data)
         const msgData = JSON.parse(data);
-        sendLanguageUpdateRequest(msgData['cid'], msgData['messageID']);
+        requestTranslation(msgData['cid'], msgData['messageID']);
         await addNewMessage(msgData['cid'], msgData['userID'], msgData['messageID'], msgData['messageText'], msgData['timeCreated'], msgData['repliedMessage'], msgData['attachments'], msgData?.isAudio, msgData?.isAnnouncement)
             .catch(err=>console.error('Error occurred while adding new message: ',err));
         addMessageTransformCallback(msgData['cid'], msgData['messageID'], msgData?.isAudio);
