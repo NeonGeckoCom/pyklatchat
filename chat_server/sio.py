@@ -261,7 +261,7 @@ async def request_translate(sid, data):
     else:
         populated_translations, missing_translations = DbUtils.get_translations(translation_mapping=data['chat_mapping'],
                                                                                 user_id=data['user'])
-        should_send_callback = data['inputType'] == 'incoming'
+        should_send_callback = data.get('inputType', 'incoming') == 'incoming'
         if should_send_callback and populated_translations and not missing_translations:
             await sio.emit('translation_response', data=populated_translations, to=sid)
         else:

@@ -42,12 +42,12 @@ function addUpload(cid, file){
  * @param cid: current conversation id
  * @param messageID: current message id
  */
-function downloadAttachment(attachmentItem, cid, messageID){
+async function downloadAttachment(attachmentItem, cid, messageID){
     if(attachmentItem){
         const fileName = attachmentItem.getAttribute('data-file-name');
         const mime = attachmentItem.getAttribute('data-mime');
         const getFileURL = `${configData['CHAT_SERVER_URL_BASE']}/files/${messageID}/get_attachment/${fileName}`;
-        fetch(getFileURL).then(async response => {
+        await fetch(getFileURL).then(async response => {
             response.ok ?
                 download(await response.blob(), fileName, mime)
                 :console.error(`No file data received for path, 
@@ -80,9 +80,17 @@ function activateAttachments(cid, elem=null){
         elem = document;
     }
     Array.from(elem.getElementsByClassName('attachment-item')).forEach(attachmentItem=>{
-        attachmentItem.addEventListener('click', (e)=>{
+        attachmentItem.addEventListener('click', async (e)=>{
            e.preventDefault();
-           downloadAttachment(attachmentItem, cid, attachmentItem.parentNode.parentNode.id);
+           const attachmentName = attachmentItem.getAttribute('data-file-name');
+           try {
+               setChatState(cid, 'updating', `Downloading attachment file`);
+               await downloadAttachment(attachmentItem, cid, attachmentItem.parentNode.parentNode.id);
+           } catch (e) {
+               console.warn(`Failed to download attachment file - ${attachmentName} (${e})`)
+           } finally {
+               setChatState(cid, 'active');
+           }
         });
     });
 }

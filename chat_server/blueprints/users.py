@@ -102,7 +102,7 @@ def fetch_received_user_ids(user_ids: List[str] = Query(None)):
 
 
 @router.post("/update")
-def update_profile(request: Request,
+async def update_profile(request: Request,
                    response: Response,
                    first_name: str = Form(...),
                    last_name: str = Form(...),

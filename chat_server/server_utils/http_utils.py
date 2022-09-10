@@ -1,4 +1,5 @@
 import os
+from io import BytesIO
 
 import aiofiles
 from fastapi import UploadFile, HTTPException
@@ -52,13 +53,15 @@ def get_file_response(filename, location_prefix: str = "", media_type: str = Non
 
 
 async def save_file(file: UploadFile, location_prefix: str = '',
-                    data_source: DataSources = DataSources.SFTP):
+                    data_source: DataSources = DataSources.SFTP) -> str:
     """
         Saves file in the file system
 
         :param file: file to save
         :param location_prefix: subdirectory for file to get
         :param data_source: source of the data from DataSources
+
+        :returns generated location for the provided file
     """
     new_name = f'{generate_uuid(length=12)}.{file.filename.split(".")[-1]}'
     if data_source == DataSources.LOCAL:
@@ -68,9 +71,18 @@ async def save_file(file: UploadFile, location_prefix: str = '',
             content = file.file.read()  # async read
             await out_file.write(content)
     elif data_source == DataSources.SFTP:
-        sftp_connector.put_file_object(file_object=file.file.read(), save_to=f'{location_prefix}/{new_name}')
+        content = BytesIO(file.file.read())
+        try:
+            sftp_connector.put_file_object(file_object=content, save_to=f'{location_prefix}/{new_name}')
+        except Exception as ex:
+            LOG.error(f'failed to save file: {file.filename}- {ex}')
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail='Failed to save attachment '
+                                                                         'due to unexpected error'
+            )
     else:
         LOG.error(f'Data source does not exists - {data_source}')
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail=f"Unable to fetch relevant data source"
         )
+    return new_name

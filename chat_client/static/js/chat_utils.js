@@ -60,13 +60,13 @@ const saveAttachedFiles = async (cid) => {
         const attachmentProperties = {}
         filesArr.forEach(file=>{
             const generatedFileName = `${generateUUID(10,'00041000')}.${file.name.split('.').pop()}`;
-            attachmentProperties[generatedFileName] = {'size': file.size, 'mime': file.type}
+            attachmentProperties[generatedFileName] = {'size': file.size, 'type': file.type}
             const renamedFile = new File([file], generatedFileName, {type: file.type});
             formData.append('files', renamedFile);
         });
         cleanUploadedFiles(cid);
 
-        const query_url = `${configData['CHAT_SERVER_URL_BASE']}/chat_api/attachments`;
+        const query_url = `${configData['CHAT_SERVER_URL_BASE']}/files/attachments`;
         await fetch(query_url, {method:'POST',
                                       body:formData})
             .then(async response => {

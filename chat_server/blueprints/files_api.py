@@ -100,7 +100,8 @@ async def save_attachments(files: List[UploadFile] = File(...)):
     """
     response = {}
     for file in files:
+        name = file.filename
         stored_location = await save_file(location_prefix='attachments', file=file)
         LOG.info(f'Stored location for {file.filename} - {stored_location}')
-        response[file.filename] = stored_location
+        response[name] = stored_location
     return JSONResponse(content={'location_mapping': response})
