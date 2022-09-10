@@ -36,7 +36,8 @@ from utils.common import get_version
 sys.path.append(os.path.pardir)
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from .blueprints import chat as chat_blueprint, \
+from .blueprints import base as base_blueprint, \
+                        chat as chat_blueprint, \
                         users as users_blueprint, \
                         auth as auth_blueprint, \
                         components as components_blueprint
@@ -94,6 +95,7 @@ def create_app() -> FastAPI:
     )
 
     chat_app.mount("/static", StaticFiles(directory="chat_client/static"), name="static")
+    chat_app.include_router(base_blueprint.router)
     chat_app.include_router(chat_blueprint.router)
     chat_app.include_router(users_blueprint.router)
     chat_app.include_router(auth_blueprint.router)

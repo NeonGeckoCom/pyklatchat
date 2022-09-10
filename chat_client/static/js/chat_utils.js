@@ -54,7 +54,7 @@ const saveAttachedFiles = async (cid) => {
     const filesArr = getUploadedFiles(cid);
     const attachments = [];
     if (filesArr.length > 0){
-        console.info('Processing attachments array...')
+        setChatState(cid, 'updating', 'Saving attachments...');
         let errorOccurred = null;
         const formData = new FormData();
         const attachmentProperties = {}
