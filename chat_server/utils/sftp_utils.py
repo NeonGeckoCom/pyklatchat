@@ -18,6 +18,7 @@
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
 
 from neon_sftp import NeonSFTPConnector
+from config import Configuration
 
 
 def init_sftp_connector(config):
@@ -28,4 +29,4 @@ def init_sftp_connector(config):
                              username=config.get('USERNAME', 'root'),
                              passphrase=config.get('PASSWORD', ''),
                              port=int(config.get('PORT', 22)),
-                             root_path=config.get('ROOT_PATH', '/'))
+                             root_path=config.get('ROOT_PATH', '/').format(env=Configuration.ENV.lower()))

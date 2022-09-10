@@ -18,15 +18,16 @@
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
 
 from typing import List, Optional
-from fastapi import APIRouter, Response, status, Request, Query
+from fastapi import APIRouter, Response, status, Request, Query, UploadFile, File, Form
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import HTTPException
 from fastapi.encoders import jsonable_encoder
 from neon_utils import LOG
 
 from chat_server.server_config import db_controller
-from chat_server.server_utils.auth import get_current_user
-from chat_server.server_utils.http_utils import get_file_response
+from chat_server.server_utils.auth import get_current_user, check_password_strength
+from chat_server.server_utils.http_utils import save_file
+from utils.common import get_hash
 
 router = APIRouter(
     prefix="/users_api",
@@ -66,27 +67,7 @@ def get_user(response: Response,
     return dict(data=user)
 
 
-@router.get("/{user_id}/avatar")
-def get_avatar(user_id: str):
-    """
-        Gets file from the server
-
-        :param user_id: target user id
-    """
-    LOG.debug(f'Getting avatar of user id: {user_id}')
-    user_data = db_controller.exec_query(query={'document': 'users',
-                                                'command': 'find_one',
-                                                'data': {'_id': user_id}}) or {}
-    if user_data.get('avatar', None):
-        file_response = get_file_response(filename=user_data['avatar'], location_prefix='avatars')
-        if file_response is not None:
-            return file_response
-    raise HTTPException(
-        status_code=status.HTTP_404_NOT_FOUND, detail=f'Failed to get avatar of {user_id}'
-    )
-
-
-@router.get('/bulk_fetch/', response_class=JSONResponse)
+@router.get('/get_users', response_class=JSONResponse)
 def fetch_received_user_ids(user_ids: List[str] = Query(None)):
     """
         Gets users data based on provided user ids
@@ -120,3 +101,49 @@ def fetch_received_user_ids(user_ids: List[str] = Query(None)):
     return JSONResponse(content=json_compatible_item_data)
 
 
+@router.post("/update")
+def update_profile(request: Request,
+                   response: Response,
+                   first_name: str = Form(...),
+                   last_name: str = Form(...),
+                   bio: str = Form(...),
+                   nickname: str = Form(...),
+                   password: str = Form(...),
+                   repeat_password: str = Form(...),
+                   avatar: UploadFile = File(...),):
+    """
+        Gets file from the server
+
+        :param request: FastAPI Request Object
+        :param response: FastAPI Response Object
+        :param first_name: new first name value
+        :param last_name: new last name value
+        :param nickname: new nickname value
+        :param bio: updated user's bio
+        :param password: new password
+        :param repeat_password: repeat new password
+        :param avatar: new avatar image
+
+        :returns status: 200 if data updated successfully, 403 if operation is on tmp user, 401 if something went wrong
+    """
+    user = get_current_user(request=request, response=response)
+    if user.get('is_tmp'):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail=f"Unable to update data of 'tmp' user"
+        )
+    update_dict = {'first_name': first_name,
+                   'last_name': last_name,
+                   'bio': bio,
+                   'nickname': nickname}
+    if password and password != repeat_password:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail='Passwords do not match'
+        )
+    password_check = check_password_strength(password)
+    if password_check != 'OK':
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail=password_check
+        )
+    update_dict['password'] = get_hash(password)
+    if avatar:
+        await save_file(location_prefix='avatar', file=avatar)

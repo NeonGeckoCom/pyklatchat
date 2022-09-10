@@ -46,7 +46,7 @@ function downloadAttachment(attachmentItem, cid, messageID){
     if(attachmentItem){
         const fileName = attachmentItem.getAttribute('data-file-name');
         const mime = attachmentItem.getAttribute('data-mime');
-        const getFileURL = `${configData['CHAT_SERVER_URL_BASE']}/chat_api/${messageID}/get_file/${fileName}`;
+        const getFileURL = `${configData['CHAT_SERVER_URL_BASE']}/files/${messageID}/get_attachment/${fileName}`;
         fetch(getFileURL).then(async response => {
             response.ok ?
                 download(await response.blob(), fileName, mime)

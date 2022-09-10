@@ -57,25 +57,37 @@ const saveAttachedFiles = async (cid) => {
         console.info('Processing attachments array...')
         let errorOccurred = null;
         const formData = new FormData();
+        const attachmentProperties = {}
         filesArr.forEach(file=>{
             const generatedFileName = `${generateUUID(10,'00041000')}.${file.name.split('.').pop()}`;
-            attachments.push({'name': generatedFileName, 'size': file.size, 'mime': file.type});
+            attachmentProperties[generatedFileName] = {'size': file.size, 'mime': file.type}
             const renamedFile = new File([file], generatedFileName, {type: file.type});
             formData.append('files', renamedFile);
         });
         cleanUploadedFiles(cid);
 
-        console.log('Received attachments array: ', attachments)
-        const query_url = `${configData['CHAT_SERVER_URL_BASE']}/chat_api/${cid}/store_files`;
+        const query_url = `${configData['CHAT_SERVER_URL_BASE']}/chat_api/attachments`;
         await fetch(query_url, {method:'POST',
                                       body:formData})
-            .then(response => response.ok?console.log('File stored successfully'):null).catch(err=>{
+            .then(async response => {
+                const responseJson = await response.json();
+                if (response.ok){
+                    for (const [fileName, savedName] of Object.entries(responseJson['location_mapping'])){
+                        attachments.push({'name': savedName,
+                                          'size': attachmentProperties[fileName].size,
+                                          'mime': attachmentProperties[fileName].type})
+                    }
+                }else{
+                    throw `Failed to save attachments status=${response.status}, msg=${responseJson}`;
+                }
+            }).catch(err=>{
                 errorOccurred=err;
             });
         if(errorOccurred){
             console.error(`Error during attachments preparation: ${errorOccurred}, skipping message sending`);
             return -1
         }else{
+            console.log('Received attachments array: ', attachments);
             return attachments;
         }
     }

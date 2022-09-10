@@ -93,7 +93,7 @@ async function buildUserMessageHTML(userData, messageID, messageText, timeCreate
     let imageComponent;
     let shortedNick = `${userData['nickname'][0]}${userData['nickname'][userData['nickname'].length - 1]}`;
     if (userData.hasOwnProperty('avatar') && userData['avatar']){
-        imageComponent = `<img alt="${shortedNick}" onerror="handleImgError(this);" src="${configData["CHAT_SERVER_URL_BASE"]}/users_api/${userData['_id']}/avatar">`
+        imageComponent = `<img alt="${shortedNick}" onerror="handleImgError(this);" src="${configData["CHAT_SERVER_URL_BASE"]}/files/avatar/${userData['_id']}">`
     }
     else{
         imageComponent = `<p>${userData['nickname'][0]}${userData['nickname'][userData['nickname'].length - 1]}</p>`;
@@ -107,7 +107,7 @@ async function buildUserMessageHTML(userData, messageID, messageText, timeCreate
             'message_id':messageID,
             'nickname': userData['nickname'],
             'message_text':messageText,
-            'audio_url': `${configData["CHAT_SERVER_URL_BASE"]}/files/get_audio/${messageID}`,
+            'audio_url': `${configData["CHAT_SERVER_URL_BASE"]}/files/audio/${messageID}`,
             'message_time': messageTime});
 }
 

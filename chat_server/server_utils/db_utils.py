@@ -17,7 +17,7 @@
 # US Patents 2008-2021: US7424516, US20140161250, US20140177813, US8638908, US8068604, US8553852, US10530923, US10530924
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
 
-from typing import List, Tuple
+from typing import List, Tuple, Union
 
 from bson import ObjectId
 from neon_utils import LOG
@@ -38,6 +38,24 @@ class DbUtils(metaclass=Singleton):
     def init(cls, db_controller):
         """ Inits Singleton with specified database controller """
         cls.db_controller = db_controller
+
+    @classmethod
+    def get_user(cls, user_id=None, nickname=None) -> Union[dict, None]:
+        """
+            Gets user data based on provided params
+            :param user_id: target user id
+            :param nickname: target user nickname
+        """
+        if not any(user_id, nickname):
+            LOG.warning('Neither user_id nor nickname was provided')
+            return
+        filter_data = {}
+        if user_id:
+            filter_data['_id'] = user_id
+        if nickname:
+            filter_data['nickname'] = nickname
+        return cls.db_controller.exec_query(query={'command': 'find_one', 'document': 'users',
+                                                   'data': filter_data})
 
     @classmethod
     def get_conversation_data(cls, search_str):

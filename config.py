@@ -19,16 +19,15 @@
 
 import os
 import json
-import copy
 
 from typing import List
 from neon_utils import LOG
 
-from utils.database_utils import DatabaseController
-
 
 class Configuration:
+    """ Generic configuration module"""
 
+    ENV = os.environ.get('ENV', 'DEV')
     db_controllers = dict()
 
     def __init__(self, from_files: List[str]):
@@ -82,11 +81,11 @@ class Configuration:
 
     def get_db_config_from_key(self, key: str):
         """Gets DB configuration by key"""
-        return self.config_data.get('DATABASE_CONFIG', {}).get(os.environ.get('SERVER_ENV', 'LOCALHOST'), {}).get(key, {})
+        return self.config_data.get('DATABASE_CONFIG', {}).get(self.ENV, {}).get(key, {})
 
     def get_db_controller(self, name: str,
                           override: bool = False,
-                          override_args: dict = None) -> DatabaseController:
+                          override_args: dict = None):
         """
             Returns an new instance of Database Controller for specified dialect (creates new one if not present)
 
@@ -108,6 +107,8 @@ class Configuration:
 
             dialect = db_config.pop('dialect', None)
             if dialect:
+                from utils.database_utils import DatabaseController
+
                 db_controller = DatabaseController(config_data=db_config)
                 db_controller.attach_connector(dialect=dialect)
                 db_controller.connect()
