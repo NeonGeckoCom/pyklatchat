@@ -68,7 +68,10 @@ async function loginUser(){
             })
             .then(async responseData => {
                 if (responseData['ok']) {
-                    location.reload();
+                    await refreshCurrentUser(true);
+                    loginUsername.value = "";
+                    loginPassword.value = "";
+                    loginModal.modal('hide');
                 }else{
                    displayAlert(loginModalBody, responseData['data']['detail'], 'danger', 'login-failed-alert');
                    loginPassword.value = "";
