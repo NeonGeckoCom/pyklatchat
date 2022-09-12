@@ -1,3 +1,5 @@
+const myAccountLink = document.getElementById('myAccountLink');
+
 /**
  * Shows modal associated with profile
  * @param nick: nickname to fetch
@@ -65,6 +67,10 @@ const previewFile = (nickname) => {
 
 async function initProfileEditModal(){
     const nickname = currentUser['nickname'];
+    if (currentUser?.tmp){
+        console.warn('Tmp user is not allowed to change his data');
+        return
+    }
     const modalShown = await showProfileEditModal().catch(err=>{
                 console.warn(`Failed to show edit profile modal - ${err}`);
                 return false;
@@ -123,7 +129,6 @@ async function initProfileEditModal(){
 
 
 document.addEventListener('DOMContentLoaded', (e)=> {
-    const myAccountLink = document.getElementById('myAccountLink');
 
     myAccountLink.addEventListener('click', async (e) => {
         e.preventDefault();
