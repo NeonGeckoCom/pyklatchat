@@ -68,10 +68,7 @@ async function loginUser(){
             })
             .then(async responseData => {
                 if (responseData['ok']) {
-                    await refreshCurrentUser(true);
-                    loginUsername.value = "";
-                    loginPassword.value = "";
-                    loginModal.modal('hide');
+                    location.reload();
                 }else{
                    displayAlert(loginModalBody, responseData['data']['detail'], 'danger', 'login-failed-alert');
                    loginPassword.value = "";
@@ -90,8 +87,9 @@ async function loginUser(){
 async function logoutUser(){
     const query_url = `${configData["currentURLBase"]}/auth/logout/`;
     await fetch(query_url).then(async response=>{
-        response.ok?await refreshCurrentUser(true):'';
-        logoutModal.modal('hide');
+        if (response.ok) {
+            location.reload()
+        }
     });
 }
 

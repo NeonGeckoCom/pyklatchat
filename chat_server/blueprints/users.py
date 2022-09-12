@@ -28,6 +28,7 @@ from chat_server.server_config import db_controller
 from chat_server.server_utils.auth import get_current_user, check_password_strength
 from chat_server.server_utils.http_utils import save_file
 from utils.common import get_hash
+from utils.http_utils import respond
 
 router = APIRouter(
     prefix="/users_api",
@@ -68,54 +69,54 @@ def get_user(response: Response,
 
 
 @router.get('/get_users', response_class=JSONResponse)
-def fetch_received_user_ids(user_ids: List[str] = Query(None)):
+def fetch_received_user_ids(user_ids: str = None, nicknames: str = None):
     """
         Gets users data based on provided user ids
 
         :param user_ids: list of provided user ids
+        :param nicknames: list of provided nicknames
 
         :returns JSON response containing array of fetched user data
     """
-    user_ids = user_ids[0].split(',')
+    filter_data = {}
+    if not any(x for x in (user_ids, nicknames)):
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                            detail='either user_ids or nicknames should be provided')
+    if user_ids:
+        filter_data['_id'] = {'$in': user_ids.split(',')}
+    if nicknames:
+        filter_data['nickname'] = {'$in': nicknames.split(',')}
+
     users = db_controller.exec_query(query={'document': 'users',
                                             'command': 'find',
-                                            'data': {'_id': {'$in': list(set(user_ids))}}})
-    users = list(users)
-
-    formatted_users = dict()
-
+                                            'data': filter_data},
+                                     as_cursor=False)
     for user in users:
-        formatted_users[user['_id']] = user
+        user.pop('password', None)
+        user.pop('is_tmp', None)
+        user.pop('tokens', None)
+        user.pop('date_created', None)
 
-    result = list()
-
-    for user_id in user_ids:
-        desired_record = formatted_users.get(user_id, {})
-        if len(list(desired_record)) > 0:
-            desired_record.pop('password', None)
-            desired_record.pop('is_tmp', None)
-            desired_record.pop('tokens', None)
-            desired_record.pop('date_created', None)
-        result.append(desired_record)
-    json_compatible_item_data = jsonable_encoder(result)
-    return JSONResponse(content=json_compatible_item_data)
+    return JSONResponse(content={'users': jsonable_encoder(users)})
 
 
 @router.post("/update")
 async def update_profile(request: Request,
-                   response: Response,
-                   first_name: str = Form(...),
-                   last_name: str = Form(...),
-                   bio: str = Form(...),
-                   nickname: str = Form(...),
-                   password: str = Form(...),
-                   repeat_password: str = Form(...),
-                   avatar: UploadFile = File(...),):
+                         response: Response,
+                         user_id: str = Form(...),
+                         first_name: str = Form(""),
+                         last_name: str = Form(""),
+                         bio: str = Form(""),
+                         nickname: str = Form(""),
+                         password: str = Form(""),
+                         repeat_password: str = Form(""),
+                         avatar: UploadFile = File(None), ):
     """
         Gets file from the server
 
         :param request: FastAPI Request Object
         :param response: FastAPI Response Object
+        :param user_id: submitted user id
         :param first_name: new first name value
         :param last_name: new last name value
         :param nickname: new nickname value
@@ -127,23 +128,31 @@ async def update_profile(request: Request,
         :returns status: 200 if data updated successfully, 403 if operation is on tmp user, 401 if something went wrong
     """
     user = get_current_user(request=request, response=response)
-    if user.get('is_tmp'):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail=f"Unable to update data of 'tmp' user"
-        )
+    if user['_id'] != user_id:
+        return respond(msg='Cannot update data of unauthorized user', status_code=status.HTTP_403_FORBIDDEN)
+    elif user.get('is_tmp'):
+        return respond(msg=f"Unable to update data of 'tmp' user", status_code=status.HTTP_403_FORBIDDEN)
     update_dict = {'first_name': first_name,
                    'last_name': last_name,
                    'bio': bio,
                    'nickname': nickname}
-    if password and password != repeat_password:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail='Passwords do not match'
-        )
-    password_check = check_password_strength(password)
-    if password_check != 'OK':
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail=password_check
-        )
-    update_dict['password'] = get_hash(password)
+    if password:
+        if password != repeat_password:
+            return respond(msg='Passwords do not match', status_code=status.HTTP_401_UNAUTHORIZED)
+        password_check = check_password_strength(password)
+        if password_check != 'OK':
+            return respond(msg=password_check, status_code=status.HTTP_401_UNAUTHORIZED)
+        update_dict['password'] = get_hash(password)
     if avatar:
-        await save_file(location_prefix='avatar', file=avatar)
+        update_dict['avatar'] = await save_file(location_prefix='avatars', file=avatar)
+    try:
+        filter_expression = {'_id': user_id}
+        update_expression = {'$set': {k: v for k, v in update_dict.items() if v}}
+        db_controller.exec_query(query={'document': 'users',
+                                        'command': 'update',
+                                        'data': (filter_expression,
+                                                 update_expression,)})
+        return respond(msg="OK")
+    except Exception as ex:
+        LOG.error(ex)
+        return respond(msg='Unable to update user data at the moment', status_code=status.HTTP_422_UNPROCESSABLE_ENTITY)

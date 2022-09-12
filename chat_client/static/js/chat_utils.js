@@ -88,9 +88,9 @@ const saveAttachedFiles = async (cid) => {
             return -1
         }else{
             console.log('Received attachments array: ', attachments);
-            return attachments;
         }
     }
+    return attachments;
 }
 
 /**

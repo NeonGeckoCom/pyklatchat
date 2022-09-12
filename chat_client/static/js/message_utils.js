@@ -119,6 +119,34 @@ function initLoadOldMessages(conversationData) {
     });
 }
 
+/**
+ * Adds callback for showing profile information on profile avatar click
+ * @param cid: target conversation id
+ * @param messageId: target message id
+ */
+function addProfileDisplay(cid, messageId){
+    const messageAvatar = document.getElementById(`${messageId}_avatar`);
+    if (messageAvatar){
+        messageAvatar.addEventListener('click', async (e)=>{
+            const userNickname = messageAvatar.getAttribute('data-target');
+            if(userNickname) await showProfileModal(userNickname);
+        });
+    }
+}
+
+
+/**
+ * Inits addProfileDisplay() on each message of provided conversation
+ * @param conversationData: target conversation data
+ */
+function initProfileDisplay(conversationData){
+    if(conversationData.hasOwnProperty('chat_flow')) {
+        getUserMessages(conversationData).forEach(message => {
+            addProfileDisplay(conversationData['_id'], message['message_id']);
+        });
+    }
+}
+
 
 /**
  * Initializes messages based on provided conversation aata
@@ -138,6 +166,7 @@ function initLoadOldMessages(conversationData) {
  * }
  */
 function initMessages(conversationData){
+   initProfileDisplay(conversationData);
    attachReplies(conversationData);
    addAttachments(conversationData);
    initLoadOldMessages(conversationData);

@@ -46,7 +46,7 @@ class DbUtils(metaclass=Singleton):
             :param user_id: target user id
             :param nickname: target user nickname
         """
-        if not any(user_id, nickname):
+        if not any(x for x in (user_id, nickname,)):
             LOG.warning('Neither user_id nor nickname was provided')
             return
         filter_data = {}

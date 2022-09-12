@@ -40,7 +40,7 @@ class MongoDBConnector(DatabaseConnector):
     def abort_connection(self):
         self._cnx.close()
 
-    def exec_raw_query(self, query: dict, *args, **kwargs) -> Optional[dict]:
+    def exec_raw_query(self, query: dict, as_cursor: bool = True, *args, **kwargs) -> Optional[dict]:
         """
             Generic method for executing query over mongo db
 
@@ -49,6 +49,7 @@ class MongoDBConnector(DatabaseConnector):
                 - "command": member of the self.mongo_recognised_commands
                 - "data": query data, represented as a tuple of (List[dict] if bulk insert, dict otherwise)
                 - "filters": mapping of filters to apply in chain after the main command (e.g. limit or sort )
+            :param as_cursor: to return query result as cursor
 
             :returns result of the query execution if any
         """
@@ -66,4 +67,6 @@ class MongoDBConnector(DatabaseConnector):
             filters = query.get('filters', {})
             for name, value in filters.items():
                 query_output = getattr(query_output, name)(value)
+        if not as_cursor:
+            query_output = list(query_output)
         return query_output

@@ -110,3 +110,7 @@ function setDefault(obj, key, val){
     }
     return obj[key];
 }
+
+function deleteElement(elem){
+    if (elem) return elem.parentElement.removeChild(elem);
+}
