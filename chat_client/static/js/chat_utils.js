@@ -149,7 +149,7 @@ async function buildConversation(conversationData={}, remember=true,conversation
     if(chatCloseButton.hasAttribute('data-target-cid')) {
         chatCloseButton.addEventListener('click', (e)=>{
             conversationHolder.removeChild(conversationParent);
-            removeCID(conversationData['_id']);
+            removeConversation(conversationData['_id']);
         });
     }
 
@@ -173,6 +173,7 @@ async function buildConversation(conversationData={}, remember=true,conversation
     await initLanguageSelectors(conversationData['_id']);
     setTimeout(() => getMessageListContainer(conversationData['_id']).lastElementChild?.scrollIntoView(true), 0);
     await addRecorder(conversationData);
+    $('#copyrightContainer').css('position', 'inherit');
     return conversationData['_id'];
 }
 
@@ -239,12 +240,15 @@ function addNewCID(cid){
  * Removed conversation id from local storage
  * @param cid: conversation id to remove
  */
-function removeCID(cid){
+function removeConversation(cid){
     const keyName = conversationAlignmentKey;
     let itemLayout = retrieveItemsLayout(keyName);
     itemLayout = itemLayout.filter(function(value, index, arr){
         return value !== cid;
     });
+    if (itemLayout.length === 0){
+        $('#copyrightContainer').css('position', 'absolute');
+    }
     localStorage.setItem(keyName,JSON.stringify(itemLayout));
 }
 
@@ -275,8 +279,8 @@ async function restoreChatAlignment(keyName=conversationAlignmentKey){
             if(conversationData && Object.keys(conversationData).length > 0) {
                 await buildConversation(conversationData, false);
             }else{
-                displayAlert(document.getElementById('conversationsBody'),'No matching conversation found','danger');
-                removeCID(item);
+                displayAlert(document.getElementById('conversationsBody'),'No matching conversation found','danger', 'noRestoreConversationAlert', {'type': alertBehaviors.AUTO_EXPIRE});
+                removeConversation(item);
             }
         });
     }
@@ -387,7 +391,10 @@ async function displayConversation(searchStr, alertParentID = null){
                     displayAlert(
                         alertParent,
                         'Cannot find conversation matching your search',
-                        'danger');
+                        'danger',
+                        'noSuchConversationAlert',
+                        {'type': alertBehaviors.AUTO_EXPIRE}
+                        );
                 }
             }
             return responseOk;

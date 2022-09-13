@@ -1,11 +1,18 @@
+const alertBehaviors = {
+    DEFAULT: 'default',
+    AUTO_EXPIRE: 'auto_expire'
+}
+
 /**
  * Adds Bootstrap alert HTML to specified element's id
  * @param parentElem: DOM Element in which to display alert
  * @param text: Text of alert (defaults 'Error Occurred')
  * @param alertType: Type of alert from bootstrap-supported alert types (defaults to 'danger')
  * @param alertID: Id of alert to display (defaults to 'alert')
+ * @param alertBehaviorProperties: optional properties associated with alert message behavior
  */
-function displayAlert(parentElem,text='Error Occurred',alertType='danger',alertID='alert'){
+function displayAlert(parentElem,text='Error Occurred',alertType='danger',alertID='alert',
+                      alertBehaviorProperties=null){
     if(!['info','success','warning','danger','primary','secondary','dark'].includes(alertType)){
         alertType = 'danger'; //default
     }
@@ -22,6 +29,18 @@ function displayAlert(parentElem,text='Error Occurred',alertType='danger',alertI
                         <span aria-hidden="true">&times;</span>
                     </button>
                   </div>`);
+        if (alertBehaviorProperties){
+           setDefault(alertBehaviorProperties, 'type', alertBehaviors.DEFAULT);
+           if (alertBehaviorProperties['type'] === alertBehaviors.AUTO_EXPIRE){
+               const expirationTime = setDefault(alertBehaviorProperties, 'expiration', 3000);
+               const slideLength = setDefault(alertBehaviorProperties, 'fadeLength', 500);
+               setTimeout(function() {
+                    $(`#${alertID}`).slideUp(slideLength, () => {
+                        $(this).remove();
+                    });
+                }, expirationTime);
+           }
+        }
     }
 }
 
