@@ -21,9 +21,11 @@ from typing import List
 from fastapi import APIRouter, status, UploadFile, File
 from fastapi.exceptions import HTTPException
 from neon_utils import LOG
+from starlette.requests import Request
 from starlette.responses import JSONResponse
 
 from chat_server.server_config import db_controller
+from chat_server.server_utils.auth import login_required
 from chat_server.server_utils.db_utils import DbUtils
 from chat_server.server_utils.http_utils import get_file_response, save_file
 
@@ -34,7 +36,8 @@ router = APIRouter(
 
 
 @router.get("/audio/{message_id}")
-def get_audio_message(message_id: str,):
+@login_required
+def get_audio_message(request: Request, message_id: str,):
     """ Gets file based on the name """
     matching_shouts = DbUtils.fetch_shouts(shout_ids=[message_id], fetch_senders=False)
     if matching_shouts and matching_shouts[0].get('is_audio', '0') == '1':
@@ -67,10 +70,12 @@ def get_avatar(user_id: str):
 
 
 @router.get("/{msg_id}/get_attachment/{filename}")
-def get_message_attachment(msg_id: str, filename: str):
+@login_required
+def get_message_attachment(request: Request, msg_id: str, filename: str):
     """
         Gets file from the server
 
+        :param request: Starlette Request Object
         :param msg_id: parent message id
         :param filename: name of the file to get
     """
@@ -90,10 +95,12 @@ def get_message_attachment(msg_id: str, filename: str):
 
 
 @router.post("/attachments")
-async def save_attachments(files: List[UploadFile] = File(...)):
+@login_required
+async def save_attachments(request: Request, files: List[UploadFile] = File(...)):
     """
         Stores received files in filesystem
 
+        :param request: Starlette Request Object
         :param files: list of files to process
 
         :returns JSON-formatted response from server

@@ -92,7 +92,11 @@ function addOldMessages(cid, numMessages = 10){
  * @param conversationData: Conversation Data object to fetch
  */
 const getUserMessages = (conversationData) => {
-    return Array.from(conversationData['chat_flow']);
+    try {
+        return Array.from(conversationData['chat_flow']);
+    } catch{
+        return [];
+    }
 }
 
 /**
@@ -198,7 +202,7 @@ function emitUserMessage(textInputElem, cid, repliedMessageID=null, attachments=
                  'userID':currentUser['_id'],
                  'messageText':messageText,
                  'messageID':messageID,
-                 'lang': getPreferredLanguage(cid, 'outcoming'),
+                 'lang': preferredShoutLang,
                  'attachments': attachments,
                  'isAudio': isAudio,
                  'isAnnouncement': isAnnouncement,
@@ -208,10 +212,6 @@ function emitUserMessage(textInputElem, cid, repliedMessageID=null, attachments=
                 requestTranslation(cid, messageID, 'en', 'outcoming');
             }
             addMessageTransformCallback(cid, messageID, isAudio);
-            // TODO: support for audio message translation
-            if(isAudio !== '1'){
-                requestTranslation(cid, messageID);
-            }
         });
         if (isAudio === '0'){
             textInputElem.value = "";

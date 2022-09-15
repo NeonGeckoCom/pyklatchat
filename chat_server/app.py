@@ -40,7 +40,8 @@ from .blueprints import auth as auth_blueprint, \
                                 chat as chat_blueprint, \
                                 users as users_blueprint, \
                                 languages as languages_blueprint, \
-                                files_api as files_blueprint
+                                files_api as files_blueprint, \
+                                preferences as preferences_blueprint
 
 
 def create_app(testing_mode: bool = False, sio_server: socketio.AsyncServer = sio) -> Union[FastAPI, socketio.ASGIApp]:
@@ -81,6 +82,7 @@ def create_app(testing_mode: bool = False, sio_server: socketio.AsyncServer = si
     chat_app.include_router(users_blueprint.router)
     chat_app.include_router(languages_blueprint.router)
     chat_app.include_router(files_blueprint.router)
+    chat_app.include_router(preferences_blueprint.router)
 
     # __cors_allowed_origins = os.environ.get('COST_ALLOWED_ORIGINS', '').split(',') or ['*']
     #

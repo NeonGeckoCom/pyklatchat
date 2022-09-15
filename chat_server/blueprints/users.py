@@ -25,7 +25,8 @@ from fastapi.encoders import jsonable_encoder
 from neon_utils import LOG
 
 from chat_server.server_config import db_controller
-from chat_server.server_utils.auth import get_current_user, check_password_strength
+from chat_server.server_utils.auth import get_current_user, check_password_strength, get_current_user_data, \
+    login_required
 from chat_server.server_utils.http_utils import save_file
 from utils.common import get_hash
 from utils.http_utils import respond
@@ -37,8 +38,8 @@ router = APIRouter(
 
 
 @router.get("/", response_class=JSONResponse)
-def get_user(response: Response,
-             request: Request,
+def get_user(request: Request,
+             response: Response,
              nano_token: str = None,
              user_id: Optional[str] = None):
     """
@@ -51,6 +52,7 @@ def get_user(response: Response,
 
         :returns JSON response containing data of current user
     """
+    session_token = ''
     if user_id:
         user = db_controller.exec_query(query={'document': 'users',
                                                'command': 'find_one',
@@ -60,19 +62,23 @@ def get_user(response: Response,
         user.pop('tokens', None)
         LOG.info(f'Fetched user data (id={user_id}): {user}')
     else:
-        user = get_current_user(request=request, response=response, nano_token=nano_token)
+        current_user_data = get_current_user_data(request=request, nano_token=nano_token)
+        user = current_user_data.user
+        session_token = current_user_data.session
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail='User not found'
         )
-    return dict(data=user)
+    return dict(data=user, token=session_token)
 
 
 @router.get('/get_users', response_class=JSONResponse)
-def fetch_received_user_ids(user_ids: str = None, nicknames: str = None):
+@login_required
+def fetch_received_user_ids(request: Request, user_ids: str = None, nicknames: str = None):
     """
         Gets users data based on provided user ids
 
+        :param request: Starlette Request Object
         :param user_ids: list of provided user ids
         :param nicknames: list of provided nicknames
 
@@ -101,8 +107,8 @@ def fetch_received_user_ids(user_ids: str = None, nicknames: str = None):
 
 
 @router.post("/update")
+@login_required(tmp_allowed=False)
 async def update_profile(request: Request,
-                         response: Response,
                          user_id: str = Form(...),
                          first_name: str = Form(""),
                          last_name: str = Form(""),
@@ -115,7 +121,6 @@ async def update_profile(request: Request,
         Gets file from the server
 
         :param request: FastAPI Request Object
-        :param response: FastAPI Response Object
         :param user_id: submitted user id
         :param first_name: new first name value
         :param last_name: new last name value
@@ -127,7 +132,7 @@ async def update_profile(request: Request,
 
         :returns status: 200 if data updated successfully, 403 if operation is on tmp user, 401 if something went wrong
     """
-    user = get_current_user(request=request, response=response)
+    user = get_current_user(request=request)
     if user['_id'] != user_id:
         return respond(msg='Cannot update data of unauthorized user', status_code=status.HTTP_403_FORBIDDEN)
     elif user.get('is_tmp'):

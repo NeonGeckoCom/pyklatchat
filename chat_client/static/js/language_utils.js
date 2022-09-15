@@ -21,19 +21,31 @@ function getPreferredLanguage(cid, inputType='incoming'){
  * @param cid: provided conversation id
  * @param lang: new preferred language to set
  * @param inputType: type of the language preference to fetch:
+ * @param updateDB: to update user preferences in database
  * "incoming" - for external shouts, "outcoming" - for emitted shouts
  */
-function setPreferredLanguage(cid, lang, inputType='incoming'){
-    setDefault(setDefault(setDefault(configData, 'chatLanguageMapping', {}), cid, {}), inputType, {});
-    configData['chatLanguageMapping'][cid][inputType]['lang'] = lang;
+async function setPreferredLanguage(cid, lang, inputType='incoming', updateDB=true){
+    let isOk = false;
+    if (updateDB) {
+        const formData = new FormData();
+        formData.append('lang', lang);
+        isOk = await fetchServer(`preferences/update_language/${cid}/${inputType}`,REQUEST_METHODS.POST, formData)
+            .then(res => {
+                return res.ok;
+            });
+    } if (isOk || !updateDB) {
+        requestTranslation(cid, null, lang, inputType);
+        setDefault(setDefault(setDefault(configData, 'chatLanguageMapping', {}), cid, {}), inputType, {});
+        configData['chatLanguageMapping'][cid][inputType]['lang'] = lang;
+    }
 }
 
 /**
  * Fetches supported languages
  */
 async function fetchSupportedLanguages(){
-    const query_url = `${configData['CHAT_SERVER_URL_BASE']}/language_api/settings`;
-    return await fetch(query_url)
+    const query_url = `language_api/settings`;
+    return await fetchServer(query_url)
             .then(response => {
                 if(response.ok){
                     return response.json();
@@ -62,6 +74,9 @@ function requestTranslation(cid=null, shouts=null, lang=null, inputType='incomin
         const preferredLang = getPreferredLanguage(cid, inputType)
         if(shouts && !Array.isArray(shouts)){
             shouts = [shouts];
+        }
+        if (!shouts && inputType){
+            shouts = getMessagesOfCID(cid, getMessageReferType(inputType), true);
         }
         setDefault(requestBody.chat_mapping, cid, {});
         requestBody.chat_mapping[cid] = {'lang': lang || preferredLang, 'shouts': shouts || []}
@@ -97,9 +112,8 @@ async function setSelectedLang(clickedItem, cid, inputType="incoming"){
         clickedItem.parentNode.removeChild(clickedItem);
     }
     console.log(`cid=${cid};new preferredLang=${newKey}, inputType=${inputType}`);
-    setPreferredLanguage(cid, newKey, inputType);
+    await setPreferredLanguage(cid, newKey, inputType, true);
     const insertedNode = document.getElementById(getLangOptionID(cid, preferredLang, inputType));
-    requestTranslation(cid, null, newKey, inputType);
     insertedNode.addEventListener('click', async (e)=> {
         e.preventDefault();
         await setSelectedLang(insertedNode, cid, inputType);
@@ -118,7 +132,12 @@ async function initLanguageSelector(cid, inputType="incoming"){
        preferredLang = 'en';
    }
    const selectedLangNode = document.getElementById(`language-selected-${cid}-${inputType}`);
-   const selectedLangList = document.getElementById(`language-list-${cid}-${inputType}`);
+   const langList = document.getElementById(`language-list-${cid}-${inputType}`);
+   const langListContainer = langList.getElementsByClassName('lang-container')[0]
+
+   if (langListContainer){
+      langListContainer.innerHTML = "";
+   }
 
    // selectedLangNode.innerHTML = "";
    for (const [key, value] of Object.entries(supportedLanguages)) {
@@ -128,7 +147,7 @@ async function initLanguageSelector(cid, inputType="incoming"){
           selectedLangNode.innerHTML = await buildHTMLFromTemplate('selected_lang',
               {'key': key, 'name': value['name'], 'icon': value['icon'], 'direction': direction})
       }else{
-          selectedLangList.getElementsByClassName('lang-container')[0].insertAdjacentHTML('beforeend', await buildLangOptionHTML(cid, key, value['name'], value['icon'], inputType));
+          langListContainer.insertAdjacentHTML('beforeend', await buildLangOptionHTML(cid, key, value['name'], value['icon'], inputType));
           const itemNode = document.getElementById(getLangOptionID(cid, key, inputType));
           itemNode.addEventListener('click', async (e)=>{
               e.preventDefault();
@@ -149,21 +168,27 @@ const initLanguageSelectors = async (cid) => {
 }
 
 
+function getMessageReferType(inputType){
+    return inputType === 'incoming'?MESSAGE_REFER_TYPE.OTHERS: MESSAGE_REFER_TYPE.MINE;
+}
+
+
 /**
  * Sends request to server for chat language refreshing
  */
-function requestChatsLanguageRefresh(){
-    const languageMapping = currentUser?.preferences?.chat_languages || {};
+async function requestChatsLanguageRefresh(){
+    const languageMapping = currentUser?.preferences?.chat_language_mapping || {};
     console.log(`languageMapping=${JSON.stringify(languageMapping)}`)
-    configData['chatLanguageMapping'] = {}
-    for (const [key, value] of Object.entries(languageMapping)) {
-        setDefault(configData['chatLanguageMapping'], key, {});
-        for (const langType of ['incoming', 'outcoming']) {
-            configData['chatLanguageMapping'][key][langType] = {'lang': value[langType] || 'en'};
+    for (const [cid, value] of Object.entries(languageMapping)) {
+        if (isDisplayed(cid)) {
+            for (const inputType of ['incoming', 'outcoming']) {
+                const lang = value[inputType] || 'en';
+                console.log(`preferred language updated for cid=${cid},inputType=${inputType} - lang=${lang}`)
+                await setPreferredLanguage(cid, lang, inputType, false);
+            }
         }
     }
     console.log(`chatLanguageMapping=${JSON.stringify(configData['chatLanguageMapping'])}`)
-    requestTranslation();
 }
 
 /**
@@ -176,7 +201,8 @@ function requestChatsLanguageRefresh(){
  * }
  */
 async function applyTranslations(data){
-    for (const [cid, messageTranslations] of Object.entries(data)) {
+    const inputType = setDefault(data, 'input_type', 'incoming');
+    for (const [cid, messageTranslations] of Object.entries(data['translations'])) {
 
         if(!isDisplayed(cid)){
             console.log(`cid=${cid} is not displayed, skipping translations population`)
@@ -188,8 +214,9 @@ async function applyTranslations(data){
         console.debug(`Fetching translation of ${cid}`);
         // console.debug(`translations=${JSON.stringify(messageTranslations)}`)
 
-        const messageTranslationsShouts = messageTranslations['shouts']
-        const messages = getMessagesOfCID(cid);
+        const messageTranslationsShouts = messageTranslations['shouts'];
+        const messageReferType = getMessageReferType(inputType);
+        const messages = getMessagesOfCID(cid, messageReferType);
         Array.from(messages).forEach(message => {
             const messageID = message.id;
             let repliedMessage = null;
@@ -208,7 +235,7 @@ async function applyTranslations(data){
                 repliedMessage.innerHTML = messageTranslationsShouts[repliedMessageID];
             }
         });
-        await initLanguageSelectors(cid);
+        await initLanguageSelector(cid, inputType);
     }
 }
 

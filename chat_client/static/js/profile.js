@@ -103,15 +103,13 @@ async function initProfileEditModal(){
         formData.append('password', password.value);
         formData.append('repeat_password', repeatPassword.value);
 
-        const query_url = `${configData['currentURLBase']}/users/update`;
-        await fetch(query_url, {
-            method: 'POST',
-            body: formData
-        }).then(async response => {
+        const query_url = `users/update`;
+        await fetchServer(query_url, REQUEST_METHODS.POST, formData).then(async response => {
+            const responseJson = await response.json();
             if (response.ok) {
+                localStorage.setItem('session', responseJson['token']);
                 location.reload();
             } else {
-                const responseJson = await response.json();
                 password.value = "";
                 repeatPassword.value = '';
                 displayAlert(document.getElementById(`${nick}EditBody`),

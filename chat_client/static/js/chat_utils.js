@@ -66,9 +66,7 @@ const saveAttachedFiles = async (cid) => {
         });
         cleanUploadedFiles(cid);
 
-        const query_url = `${configData['CHAT_SERVER_URL_BASE']}/files/attachments`;
-        await fetch(query_url, {method:'POST',
-                                      body:formData})
+        await fetchServer(`files/attachments`, REQUEST_METHODS.POST, formData)
             .then(async response => {
                 const responseJson = await response.json();
                 if (response.ok){
@@ -187,11 +185,11 @@ async function buildConversation(conversationData={}, remember=true,conversation
 async function getConversationDataByInput(input="", firstMessageID=null, maxResults=10){
     let conversationData = {};
     if(input && typeof input === "string"){
-        let query_url = `${configData['CHAT_SERVER_URL_BASE']}/chat_api/search/${input}?limit_chat_history=${maxResults}`
+        let query_url = `chat_api/search/${input}?limit_chat_history=${maxResults}`
         if(firstMessageID){
             query_url += `&first_message_id=${firstMessageID}`
         }
-        await fetch(query_url)
+        await fetchServer(query_url)
             .then(response => {
                 if(response.ok){
                     return response.json();
@@ -288,21 +286,46 @@ async function restoreChatAlignment(keyName=conversationAlignmentKey){
     document.dispatchEvent(chatAlignmentRestoredEvent);
 }
 
+
+/**
+ * Helper struct to decide on which kind of messages to refer
+ * "all" - all the messages
+ * "mine" - only the messages emitted by current user
+ * "others" - all the messages except "mine"
+ */
+const MESSAGE_REFER_TYPE = {
+    ALL: 'all',
+    MINE: 'mine',
+    OTHERS: 'other'
+}
+
 /**
  * Gets array of messages for provided conversation id
  * @param cid: target conversation id
+ * @param messageReferType: message refer type to consider from MESSAGE_REFER_TYPE
+ * @param idOnly: to return id only (defaults to false)
  * @return array of message DOM objects under given conversation
  */
-function getMessagesOfCID(cid){
+function getMessagesOfCID(cid, messageReferType=MESSAGE_REFER_TYPE.ALL, idOnly=false){
     let messages = []
     const messageContainer =getMessageListContainer(cid);
     if(messageContainer){
         const listItems = messageContainer.getElementsByTagName('li');
         Array.from(listItems).forEach(li=>{
-           if(li.classList.contains('in') || li.classList.contains('out')){
+           try {
                const messageNode = li.getElementsByClassName('chat-body')[0].getElementsByClassName('chat-message')[0];
-               // console.debug(`pushing shout_id=${messageNode.id}`)
-               messages.push(messageNode);
+               // console.debug(`pushing shout_id=${messageNode.id}`);
+               if (messageReferType === MESSAGE_REFER_TYPE.ALL ||
+                   (messageReferType === MESSAGE_REFER_TYPE.MINE && messageNode.getAttribute('data-sender') === currentUser['nickname']) ||
+                   (messageReferType === MESSAGE_REFER_TYPE.OTHERS && messageNode.getAttribute('data-sender') !== currentUser['nickname'])){
+                   if (idOnly){
+                       messages.push(messageNode.id);
+                   }else {
+                       messages.push(messageNode);
+                   }
+               }
+           } catch (e) {
+               console.warn(`Failed to get message under node: ${li} - ${e}`);
            }
         });
     }
@@ -382,9 +405,7 @@ async function displayConversation(searchStr, alertParentID = null){
             if (getOpenedChats().includes(conversationData['_id']) && alertParent) {
                 displayAlert(alertParent, 'Chat is already displayed', 'danger');
             } else if (conversationData && Object.keys(conversationData).length > 0) {
-                await buildConversation(conversationData).then(async cid=>{
-                    await requestTranslation(cid);
-                });
+                await buildConversation(conversationData);
                 responseOk = true;
             } else {
                 if (alertParent) {
@@ -416,10 +437,7 @@ async function createNewConversation(conversationName, isPrivate=false, conversa
     formData.append('conversation_id', conversationID);
     formData.append('is_private', isPrivate)
 
-    await fetch(`${configData['currentURLBase']}/chats/new`, {
-        method: 'post',
-        body: formData
-    }).then(async response => {
+    await fetchServer(`chat_api/new`,  REQUEST_METHODS.POST, formData).then(async response => {
         const responseJson = await response.json();
         let responseOk = false;
         if (response.ok) {
@@ -440,8 +458,7 @@ async function createNewConversation(conversationName, isPrivate=false, conversa
 document.addEventListener('DOMContentLoaded', (e)=>{
 
     document.addEventListener('supportedLanguagesLoaded', async (e)=>{
-        await refreshCurrentUser(false).then(_=>restoreChatAlignment())
-            .then(_=>refreshCurrentUser(true)).then(_=>requestChatsLanguageRefresh());
+        await refreshCurrentUser(false).then(async _=>await restoreChatAlignment()).then(async _=>await requestChatsLanguageRefresh());
     });
 
     if (configData['client'] === CLIENTS.MAIN) {

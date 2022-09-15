@@ -28,7 +28,7 @@ from fastapi.exceptions import HTTPException
 from chat_server.server_config import db_controller
 from utils.common import get_hash, generate_uuid
 from chat_server.server_utils.auth import get_current_user, secret_key, jwt_encryption_algo, \
-    check_password_strength
+    check_password_strength, get_current_user_data, generate_session_token
 
 router = APIRouter(
     prefix="/auth",
@@ -73,16 +73,9 @@ def signup(first_name: str = Form(...),
                            is_tmp=False)
     db_controller.exec_query(query=dict(document='users', command='insert_one', data=new_user_record))
 
-    token = jwt.encode(payload={"sub": new_user_record['_id'],
-                                'creation_time': new_user_record['date_created'],
-                                'last_refresh_time': new_user_record['date_created']},
-                       key=secret_key, algorithm=jwt_encryption_algo)
+    token = generate_session_token(user_id=new_user_record['_id'])
 
-    response = JSONResponse(content=dict(signup=True))
-
-    response.set_cookie("session", token, httponly=True)
-
-    return response
+    return JSONResponse(content=dict(token=token))
 
 
 @router.post("/login")
@@ -95,25 +88,20 @@ def login(username: str = Form(...), password: str = Form(...)):
 
         :returns JSON response with status corresponding to authorization status, sets session cookie with response
     """
-    matching_user = db_controller.exec_query(query={'command': 'find_one',
-                                                    'document': 'users',
-                                                    'data': {'nickname': username}})
-    if not matching_user or matching_user.get('is_tmp', False):
+    user = db_controller.exec_query(query={'command': 'find_one',
+                                           'document': 'users',
+                                           'data': {'nickname': username}})
+    if not user or user.get('is_tmp', False):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid username or password"
         )
-    db_password = matching_user["password"]
+    db_password = user["password"]
     if get_hash(password) != db_password:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid username or password"
         )
-    token = jwt.encode(payload={"sub": matching_user['_id'],
-                                'creation_time': int(time()),
-                                'last_refresh_time': int(time())
-                                }, key=secret_key, algorithm=jwt_encryption_algo)
-    response = JSONResponse(content=dict(login=True))
-
-    response.set_cookie("session", token, httponly=True)
+    token = generate_session_token(user_id=user['_id'])
+    response = JSONResponse(content=dict(token=token))
 
     return response
 
@@ -127,7 +115,7 @@ def logout(request: Request):
 
         :returns response with temporal cookie
     """
-    response = JSONResponse(content=dict(logout=True))
-    get_current_user(request=request, response=response, force_tmp=True)
+    user_data = get_current_user_data(request=request, force_tmp=True)
+    response = JSONResponse(content=dict(token=user_data.session))
     return response
 

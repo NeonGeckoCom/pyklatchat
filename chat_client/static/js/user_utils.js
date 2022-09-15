@@ -31,19 +31,15 @@ let currentUser = null;
  */
 async function getUserData(userID=null){
     let userData = {}
-    let query_url = '';
-    if(configData['client'] === CLIENTS.NANO){
-        query_url = `${configData['CHAT_SERVER_URL_BASE']}/users_api`;
-    }else {
-        query_url = `${configData["currentURLBase"]}/users`;
-    }
+    let query_url = `users_api`;
     if(userID){
         query_url+='?user_id='+userID;
     }
-    await fetch(query_url)
+    await fetchServer(query_url)
             .then(response => response.ok?response.json():{'data':{}})
             .then(data => {
                 userData = data['data'];
+                localStorage.setItem('session', data['token']);
             });
      return userData;
 }
@@ -54,7 +50,7 @@ async function getUserData(userID=null){
  */
 async function loginUser(){
     const loginModalBody = document.getElementById('loginModalBody');
-    const query_url = `${configData["currentURLBase"]}/auth/login/`;
+    const query_url = `auth/login/`;
     const formData = new FormData();
     const inputValues = [loginUsername.value, loginPassword.value];
     if(inputValues.includes("") || inputValues.includes(null)){
@@ -62,16 +58,14 @@ async function loginUser(){
     }else {
         formData.append('username', loginUsername.value);
         formData.append('password', loginPassword.value);
-        await fetch(query_url, {method:'post', body:formData})
+        await fetchServer(query_url, REQUEST_METHODS.POST,formData)
             .then(async response => {
                 return {'ok':response.ok,'data':await response.json()};
             })
             .then(async responseData => {
                 if (responseData['ok']) {
-                    await refreshCurrentUser(true);
-                    loginUsername.value = "";
-                    loginPassword.value = "";
-                    loginModal.modal('hide');
+                    localStorage.setItem('session', responseData['data']['token']);
+                    location.reload();
                 }else{
                    displayAlert(loginModalBody, responseData['data']['detail'], 'danger', 'login-failed-alert');
                    loginPassword.value = "";
@@ -88,10 +82,12 @@ async function loginUser(){
  * @returns {Promise<void>} promise resolving user logout
  */
 async function logoutUser(){
-    const query_url = `${configData["currentURLBase"]}/auth/logout/`;
-    await fetch(query_url).then(async response=>{
+    const query_url = `auth/logout/`;
+    await fetchServer(query_url).then(async response=>{
         if (response.ok) {
-            location.reload()
+            const responseJson = await response.json();
+            localStorage.setItem('session', responseJson['token']);
+            location.reload();
         }
     });
 }
@@ -102,7 +98,7 @@ async function logoutUser(){
  */
 async function createUser(){
     const signupModalBody = document.getElementById('signupModalBody');
-    const query_url = `${configData["currentURLBase"]}/auth/signup/`;
+    const query_url = `auth/signup/`;
     const formData = new FormData();
     const inputValues = [signupUsername.value, signupFirstName.value, signupLastName.value, signupPassword.value, repeatSignupPassword.value];
     if(inputValues.includes("") || inputValues.includes(null)){
@@ -114,19 +110,14 @@ async function createUser(){
         formData.append('first_name', signupFirstName.value);
         formData.append('last_name', signupLastName.value);
         formData.append('password', signupPassword.value);
-        await fetch(query_url, {method:'post', body:formData})
+        await fetchServer(query_url, REQUEST_METHODS.POST, formData)
             .then(async response => {
                 return {'ok':response.ok,'data':await response.json()}
             })
             .then(async data => {
                 if(data['ok']){
-                    await refreshCurrentUser(true);
-                    signupUsername.value = "";
-                    signupFirstName.value = "";
-                    signupLastName.value = "";
-                    signupPassword.value = "";
-                    repeatSignupPassword.value = "";
-                    signupModal.modal('hide');
+                    localStorage.setItem('session', data['data']['token']);
+                    location.reload();
                 }else{
                     let errorMessage = 'Failed to create an account';
                     if(data['data'].hasOwnProperty('detail')){
@@ -171,6 +162,7 @@ const currentUserLoaded = new CustomEvent("currentUserLoaded", { "detail": "Even
 async function refreshCurrentUser(refreshChats=false){
     await getUserData().then(data=>{
         currentUser = data;
+        console.log(`Loaded current user = ${JSON.stringify(currentUser)}`);
         updateNavbar();
         if(refreshChats && configData['currentURLFull'].includes('chats')) {
             refreshChatView();

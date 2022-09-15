@@ -46,8 +46,8 @@ async function downloadAttachment(attachmentItem, cid, messageID){
     if(attachmentItem){
         const fileName = attachmentItem.getAttribute('data-file-name');
         const mime = attachmentItem.getAttribute('data-mime');
-        const getFileURL = `${configData['CHAT_SERVER_URL_BASE']}/files/${messageID}/get_attachment/${fileName}`;
-        await fetch(getFileURL).then(async response => {
+        const getFileURL = `files/${messageID}/get_attachment/${fileName}`;
+        await fetchServer(getFileURL).then(async response => {
             response.ok ?
                 download(await response.blob(), fileName, mime)
                 :console.error(`No file data received for path, 

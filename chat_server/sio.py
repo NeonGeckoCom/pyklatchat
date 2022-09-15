@@ -259,16 +259,18 @@ async def request_translate(sid, data):
     if not data:
         LOG.warning('Missing request translate data, skipping...')
     else:
-        populated_translations, missing_translations = DbUtils.get_translations(translation_mapping=data['chat_mapping'],
+        input_type = data.get('inputType', 'incoming')
+
+        populated_translations, missing_translations = DbUtils.get_translations(translation_mapping=data.get('chat_mapping', {}),
                                                                                 user_id=data['user'])
-        should_send_callback = data.get('inputType', 'incoming') == 'incoming'
-        if should_send_callback and populated_translations and not missing_translations:
-            await sio.emit('translation_response', data=populated_translations, to=sid)
+        if populated_translations and not missing_translations:
+            await sio.emit('translation_response', data={'translations': populated_translations,
+                                                         'input_type': input_type}, to=sid)
         else:
             LOG.info('Not every translation is contained in db, sending out request to Neon')
             request_id = generate_uuid()
             caching_instance = {'translations': populated_translations, 'sid': sid,
-                                'should_send_callback': should_send_callback}
+                                'input_type': input_type}
             CacheFactory.get('translation_cache', cache_type=LRUCache).put(key=request_id, value=caching_instance)
             await sio.emit('request_neon_translations', data={'request_id': request_id, 'data': missing_translations},)
 
@@ -297,10 +299,12 @@ async def get_neon_translations(sid, data):
                 LOG.warning('Failed to get matching cached data')
                 return
             sid = cached_data.get('sid')
+            input_type = cached_data.get('input_type')
             DbUtils.save_translations(data.get('translations', {}))
             if cached_data.get('should_send_callback', True):
                 populated_translations = deep_merge(data.get('translations', {}), cached_data.get('translations', {}))
-                await sio.emit('translation_response', data=populated_translations, to=sid)
+                await sio.emit('translation_response', data={'translations': populated_translations,
+                                                             'input_type': input_type}, to=sid)
         except KeyError as err:
             LOG.error(f'No translation cache detected under request_id={request_id} (err={err})')
 

@@ -29,6 +29,7 @@ from bson.objectid import ObjectId
 from neon_utils import LOG
 
 from chat_server.server_config import db_controller
+from chat_server.server_utils.auth import login_required
 from chat_server.server_utils.db_utils import DbUtils
 from chat_server.server_utils.http_utils import get_file_response, save_file
 from utils.http_utils import respond
@@ -48,10 +49,12 @@ class NewConversationData(BaseModel):
 
 
 @router.post("/new")
-def new_conversation(request_data: NewConversationData):
+@login_required
+async def new_conversation(request: Request, request_data: NewConversationData):
     """
         Creates new conversation from provided conversation data
 
+        :param request: Starlette Request object
         :param request_data: data for new conversation described by NewConversationData model
 
         :returns JSON response with new conversation data if added, 401 error message otherwise
@@ -74,13 +77,16 @@ def new_conversation(request_data: NewConversationData):
 
 
 @router.get("/search/{search_str}")
-def get_matching_conversation(search_str: str,
-                              chat_history_from: int = 0,
-                              first_message_id: Optional[str] = None,
-                              limit_chat_history: int = 100):
+@login_required
+async def get_matching_conversation(request: Request,
+                                    search_str: str,
+                                    chat_history_from: int = 0,
+                                    first_message_id: Optional[str] = None,
+                                    limit_chat_history: int = 100):
     """
         Gets conversation data matching search string
 
+        :param request: Starlette Request object
         :param search_str: provided search string
         :param chat_history_from: upper time bound for messages
         :param first_message_id: id of the first message to start from
