@@ -66,9 +66,7 @@ def get_user(request: Request,
         user = current_user_data.user
         session_token = current_user_data.session
     if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail='User not found'
-        )
+        return respond('User not found', 404)
     return dict(data=user, token=session_token)
 
 
@@ -86,8 +84,7 @@ def fetch_received_user_ids(request: Request, user_ids: str = None, nicknames: s
     """
     filter_data = {}
     if not any(x for x in (user_ids, nicknames)):
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                            detail='either user_ids or nicknames should be provided')
+        return respond('Either user_ids or nicknames should be provided', 422)
     if user_ids:
         filter_data['_id'] = {'$in': user_ids.split(',')}
     if nicknames:

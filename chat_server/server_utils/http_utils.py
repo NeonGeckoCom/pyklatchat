@@ -10,6 +10,7 @@ from starlette.responses import FileResponse, StreamingResponse
 from chat_server.server_config import app_config, sftp_connector
 from chat_server.server_utils.enums import DataSources
 from utils.common import generate_uuid
+from utils.http_utils import respond
 
 
 def get_file_response(filename, location_prefix: str = "", media_type: str = None,
@@ -38,15 +39,11 @@ def get_file_response(filename, location_prefix: str = "", media_type: str = Non
                                       filename=filename)
         else:
             LOG.error(f'{path} not found')
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail=f"File not found"
-            )
+            return respond("File not found", 404)
         response_class = FileResponse
     else:
         LOG.error(f'Data source does not exists - {data_source}')
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail=f"Unable to fetch relevant data source"
-        )
+        return respond("Unable to fetch relevant data source", 403)
     if media_type:
         file_response_args['media_type'] = media_type
     return response_class(**file_response_args)
@@ -76,13 +73,8 @@ async def save_file(file: UploadFile, location_prefix: str = '',
             sftp_connector.put_file_object(file_object=content, save_to=f'{location_prefix}/{new_name}')
         except Exception as ex:
             LOG.error(f'failed to save file: {file.filename}- {ex}')
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail='Failed to save attachment '
-                                                                         'due to unexpected error'
-            )
+            return respond('Failed to save attachment due to unexpected error', 422)
     else:
         LOG.error(f'Data source does not exists - {data_source}')
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail=f"Unable to fetch relevant data source"
-        )
+        return respond(f"Unable to fetch relevant data source", 403)
     return new_name

@@ -448,7 +448,7 @@ async function createNewConversation(conversationName, isPrivate=false, conversa
             responseOk = true
         } else {
             displayAlert(document.getElementById('newConversationModalBody'),
-                `${responseJson['detail']}`,
+                `${responseJson['msg']}`,
                 'danger');
         }
         return responseOk;

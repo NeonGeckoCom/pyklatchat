@@ -64,9 +64,7 @@ async def new_conversation(request: Request, request_data: NewConversationData):
                                                                    'document': 'chats',
                                                                    'data': ({'_id': request_data.id})})
         if matching_conversation_id:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED, detail='Provided conversation id already exists'
-            )
+            return respond('Provided conversation id already exists', 400)
     request_data_dict = request_data.__dict__
     request_data_dict['_id'] = request_data_dict.pop('id', None)
     _id = db_controller.exec_query(query=dict(document='chats', command='insert_one', data=(request_data_dict,)))
@@ -104,9 +102,7 @@ async def get_matching_conversation(request: Request,
                                                         'document': 'chats',
                                                         'data': {"$or": or_expression}})
     if not conversation_data:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail=f"Unable to get a chat by string: {search_str}"
-        )
+        return respond(f"Unable to get a chat by string: {search_str}", 404)
     conversation_data['_id'] = str(conversation_data['_id'])
 
     response_data, status_code = DbUtils.get_conversation_data(search_str=search_str)

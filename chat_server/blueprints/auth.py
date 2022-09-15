@@ -29,6 +29,7 @@ from chat_server.server_config import db_controller
 from utils.common import get_hash, generate_uuid
 from chat_server.server_utils.auth import get_current_user, secret_key, jwt_encryption_algo, \
     check_password_strength, get_current_user_data, generate_session_token
+from utils.http_utils import respond
 
 router = APIRouter(
     prefix="/auth",
@@ -56,14 +57,10 @@ def signup(first_name: str = Form(...),
                                                     'document': 'users',
                                                     'data': {'nickname': nickname}})
     if existing_user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Nickname is already in use"
-        )
+        return respond("Nickname is already in use", 400)
     password_check = check_password_strength(password)
     if password_check != 'OK':
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail=password_check
-        )
+        return respond(password_check, 400)
     new_user_record = dict(_id=generate_uuid(length=20),
                            first_name=first_name,
                            last_name=last_name,
@@ -92,14 +89,10 @@ def login(username: str = Form(...), password: str = Form(...)):
                                            'document': 'users',
                                            'data': {'nickname': username}})
     if not user or user.get('is_tmp', False):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid username or password"
-        )
+        return respond("Invalid username or password", 400)
     db_password = user["password"]
     if get_hash(password) != db_password:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid username or password"
-        )
+        return respond("Invalid username or password", 400)
     token = generate_session_token(user_id=user['_id'])
     response = JSONResponse(content=dict(token=token))
 

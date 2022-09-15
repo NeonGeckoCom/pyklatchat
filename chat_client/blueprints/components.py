@@ -24,6 +24,7 @@ from starlette.requests import Request
 from starlette.responses import Response
 
 from chat_client.client_config import app_config
+from utils.http_utils import respond
 from utils.template_utils import callback_template
 
 router = APIRouter(
@@ -43,23 +44,20 @@ async def get_profile_modal(request: Request, nickname: str = '', edit: str = '0
             #     raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
             #                         detail='Cannot render edit modal for tmp user')
         else:
-            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                                detail='Server was not able to process the request')
+            return respond('Server was not able to process the request', 422)
         template_name = 'edit_profile_modal'
     else:
         if not nickname:
-            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail='No nickname provided')
+            return respond('No nickname provided', 422)
         resp = requests.get(f'{app_config["SERVER_URL"]}/users_api/get_users?nicknames={nickname}')
         if resp.ok:
             user_data = resp.json().get('users', [])
             if not user_data:
-                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
-                                    detail=f'User with nickname={nickname} not found')
+                return respond(f'User with nickname={nickname} not found', 404)
             else:
                 user = user_data[0]
         else:
-            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                                detail='Server was not able to process the request')
+            return respond('Server was not able to process the request', 422)
         template_name = 'profile_modal'
     context = {'server_url': app_config["SERVER_URL"],
                'user_id': user['_id'],

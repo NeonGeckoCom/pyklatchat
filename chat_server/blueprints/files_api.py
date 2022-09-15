@@ -28,6 +28,7 @@ from chat_server.server_config import db_controller
 from chat_server.server_utils.auth import login_required
 from chat_server.server_utils.db_utils import DbUtils
 from chat_server.server_utils.http_utils import get_file_response, save_file
+from utils.http_utils import respond
 
 router = APIRouter(
     prefix="/files",
@@ -46,9 +47,7 @@ def get_audio_message(request: Request, message_id: str,):
                                  location_prefix='audio',
                                  media_type='audio/wav')
     else:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail='Matching shout not found'
-        )
+        return respond('Matching shout not found', 404)
 
 
 @router.get("/avatar/{user_id}")
@@ -64,9 +63,7 @@ def get_avatar(user_id: str):
                                                 'data': {'_id': user_id}}) or {}
     if user_data.get('avatar', None):
         return get_file_response(filename=user_data['avatar'], location_prefix='avatars')
-    raise HTTPException(
-        status_code=status.HTTP_404_NOT_FOUND, detail=f'Failed to get avatar of {user_id}'
-    )
+    return respond(f'Failed to get avatar of {user_id}', 404)
 
 
 @router.get("/{msg_id}/get_attachment/{filename}")

@@ -20,7 +20,7 @@ const fetchServer = async (urlSuffix, method=REQUEST_METHODS.GET, body=null, noC
     return fetch(`${configData["CHAT_SERVER_URL_BASE"]}/${urlSuffix}`, options).then(async response => {
         if (response.status === 401){
             const responseJson = await response.json();
-            if (responseJson['detail'] === 'Session Expired'){
+            if (responseJson['msg'] === 'Session Expired'){
                location.reload();
             }
         }

@@ -67,7 +67,7 @@ async function loginUser(){
                     localStorage.setItem('session', responseData['data']['token']);
                     location.reload();
                 }else{
-                   displayAlert(loginModalBody, responseData['data']['detail'], 'danger', 'login-failed-alert');
+                   displayAlert(loginModalBody, responseData['data']['msg'], 'danger', 'login-failed-alert');
                    loginPassword.value = "";
                 }
             }).catch(ex=>{
@@ -120,8 +120,8 @@ async function createUser(){
                     location.reload();
                 }else{
                     let errorMessage = 'Failed to create an account';
-                    if(data['data'].hasOwnProperty('detail')){
-                        errorMessage = data['data']['detail'];
+                    if(data['data'].hasOwnProperty('msg')){
+                        errorMessage = data['data']['msg'];
                     }
                     displayAlert(signupModalBody,errorMessage, 'danger');
                 }
