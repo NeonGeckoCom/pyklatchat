@@ -39,7 +39,10 @@ async function getUserData(userID=null){
             .then(response => response.ok?response.json():{'data':{}})
             .then(data => {
                 userData = data['data'];
-                localStorage.setItem('session', data['token']);
+                const oldToken = getSessionToken();
+                if (data['token'] !== oldToken){
+                    setSessionToken(data['token']);
+                }
             });
      return userData;
 }
@@ -64,8 +67,7 @@ async function loginUser(){
             })
             .then(async responseData => {
                 if (responseData['ok']) {
-                    localStorage.setItem('session', responseData['data']['token']);
-                    location.reload();
+                    setSessionToken(responseData['data']['token']);
                 }else{
                    displayAlert(loginModalBody, responseData['data']['msg'], 'danger', 'login-failed-alert');
                    loginPassword.value = "";
@@ -86,8 +88,7 @@ async function logoutUser(){
     await fetchServer(query_url).then(async response=>{
         if (response.ok) {
             const responseJson = await response.json();
-            localStorage.setItem('session', responseJson['token']);
-            location.reload();
+            setSessionToken(responseJson['token']);
         }
     });
 }
@@ -116,8 +117,7 @@ async function createUser(){
             })
             .then(async data => {
                 if(data['ok']){
-                    localStorage.setItem('session', data['data']['token']);
-                    location.reload();
+                    setSessionToken(data['data']['token']);
                 }else{
                     let errorMessage = 'Failed to create an account';
                     if(data['data'].hasOwnProperty('msg')){

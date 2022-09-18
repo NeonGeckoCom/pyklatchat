@@ -197,7 +197,7 @@ function emitUserMessage(textInputElem, cid, repliedMessageID=null, attachments=
         }
         addNewMessage(cid, currentUser['_id'],null, messageText, timeCreated,repliedMessageID,attachments, isAudio, isAnnouncement).then(messageID=>{
             const preferredShoutLang = getPreferredLanguage(cid, 'outcoming');
-            socket.emit('user_message',
+            socket.emitAuthorized('user_message',
                 {'cid':cid,
                  'userID':currentUser['_id'],
                  'messageText':messageText,

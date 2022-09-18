@@ -16,12 +16,12 @@ function initSIO(){
 
     const sioServerURL = configData['CHAT_SERVER_URL_BASE'];
     const socket = io(sioServerURL, {transports: ['polling'], extraHeaders: {
-        "session": localStorage.getItem('session') || ''
+        "session": getSessionToken()
     }});
 
     socket.on('auth_expired', ()=>{
         console.log('Authorization Token expired, refreshing...')
-        socket.io.opts.extraHeaders.session = localStorage.getItem('session') || '';
+        location.reload();
     });
 
     socket.on('connect', () => {
@@ -58,6 +58,11 @@ function initSIO(){
        console.log('received incoming stt response');
        showSTT(data['message_id'], data['lang'], data['message_text']);
     });
+
+    socket.__proto__.emitAuthorized = (event, data) => {
+        socket.io.opts.extraHeaders.session = getSessionToken();
+        return socket.emit(event, data);
+    }
 
     return socket;
 }

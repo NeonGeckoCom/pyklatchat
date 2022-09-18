@@ -46,7 +46,7 @@ function showSTT(message_id, lang, message_text){
  */
 function getTTS(cid, message_id, lang, gender='female'){
     // TODO: consider multi-gender voices in future
-    socket.emit('request_tts', {'cid':cid,
+    socket.emitAuthorized('request_tts', {'cid':cid,
                                 'user_id':currentUser['_id'],
                                 'message_id':message_id,
                                 'lang':lang});
@@ -60,7 +60,7 @@ function getTTS(cid, message_id, lang, gender='female'){
  * @param lang: target language
  */
 function getSTT(cid, message_id, lang){
-    socket.emit('request_stt', {'cid':cid,
+    socket.emitAuthorized('request_stt', {'cid':cid,
                                 'user_id':currentUser['_id'],
                                 'message_id':message_id,
                                 'lang':lang});

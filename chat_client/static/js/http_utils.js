@@ -6,10 +6,19 @@ const REQUEST_METHODS = {
 }
 
 
+const getSessionToken = () => {
+    return localStorage.getItem('session') || '';
+}
+
+const setSessionToken = (val) => {
+    localStorage.setItem('session', val);
+    location.reload();
+}
+
 const fetchServer = async (urlSuffix, method=REQUEST_METHODS.GET, body=null, noCors=false) => {
     const options = {
         method: method,
-        headers: new Headers({'Authorization': localStorage.getItem('session') || ''})
+        headers: new Headers({'Authorization': getSessionToken()})
     }
     if (noCors){
         options['mode'] = 'no-cors';

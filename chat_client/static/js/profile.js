@@ -107,8 +107,7 @@ async function initProfileEditModal(){
         await fetchServer(query_url, REQUEST_METHODS.POST, formData).then(async response => {
             const responseJson = await response.json();
             if (response.ok) {
-                localStorage.setItem('session', responseJson['token']);
-                location.reload();
+                setSessionToken(responseJson['token']);
             } else {
                 password.value = "";
                 repeatPassword.value = '';

@@ -86,7 +86,7 @@ function requestTranslation(cid=null, shouts=null, lang=null, inputType='incomin
     requestBody['user'] = currentUser['_id'];
     requestBody['inputType'] = inputType;
     console.debug(`requestBody = ${JSON.stringify(requestBody)}`);
-    socket.emit('request_translate', requestBody);
+    socket.emitAuthorized('request_translate', requestBody);
 }
 
 /**
