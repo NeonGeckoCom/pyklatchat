@@ -15,7 +15,14 @@ sioTriggeringEvents.forEach(event=>{
 function initSIO(){
 
     const sioServerURL = configData['CHAT_SERVER_URL_BASE'];
-    const socket = io(sioServerURL);
+    const socket = io(sioServerURL, {transports: ['polling'], extraHeaders: {
+        "session": localStorage.getItem('session') || ''
+    }});
+
+    socket.on('auth_expired', ()=>{
+        console.log('Authorization Token expired, refreshing...')
+        socket.io.opts.extraHeaders.session = localStorage.getItem('session') || '';
+    });
 
     socket.on('connect', () => {
          console.info(`Socket IO Connected to Server: ${sioServerURL}`)

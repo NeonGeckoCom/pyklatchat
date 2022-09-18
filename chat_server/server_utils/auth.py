@@ -18,7 +18,7 @@
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
 from dataclasses import dataclass
 from functools import wraps
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Union
 
 import jwt
 
@@ -76,16 +76,20 @@ def get_cookie_from_request(request: Request, cookie_name: str) -> Optional[str]
     return request.cookies.get(cookie_name)
 
 
-def get_header_from_request(request: Request, header_name: str) -> Optional[str]:
+def get_header_from_request(request: Union[Request, str], header_name: str, sio_request: bool = False) -> Optional[str]:
     """
         Gets header value from response by its name
 
         :param request: Starlet request object
         :param header_name: name of the desired cookie
+        :param sio_request: is request from Socket IO service endpoint (defaults to False)
 
         :returns value of cookie if present
     """
-    return request.headers.get(header_name)
+    if sio_request:
+        return request
+    else:
+        return request.headers.get(header_name)
 
 
 def generate_session_token(user_id) -> str:
@@ -127,7 +131,7 @@ def create_unauthorized_user(authorize: bool = True, nano_token: str = None) -> 
     return UserData(user=new_user, session=token)
 
 
-def get_current_user_data(request: Request, response: Response = None, force_tmp: bool = False, nano_token: str = None) -> UserData:
+def get_current_user_data(request: Request, response: Response = None, force_tmp: bool = False, nano_token: str = None, sio_request: bool = False) -> UserData:
     """
         Gets current user according to response cookies
 
@@ -150,7 +154,7 @@ def get_current_user_data(request: Request, response: Response = None, force_tmp
                 user_data = create_unauthorized_user(nano_token=nano_token, authorize=False)
         else:
             try:
-                session = get_header_from_request(request, AUTHORIZATION_HEADER)
+                session = get_header_from_request(request, AUTHORIZATION_HEADER, sio_request)
                 if session:
                     payload = jwt.decode(jwt=session, key=secret_key, algorithms=jwt_encryption_algo)
                     current_timestamp = time()
@@ -200,12 +204,12 @@ def refresh_session(payload: dict):
     return session
 
 
-def validate_session(request, check_tmp: bool = False) -> Tuple[str, int]:
+def validate_session(request: Union[str, Request], check_tmp: bool = False, sio_request: bool = False) -> Tuple[str, int]:
     """
         Check if session token contained in request is valid
         :returns validation output
     """
-    session = get_header_from_request(request, AUTHORIZATION_HEADER)
+    session = get_header_from_request(request, AUTHORIZATION_HEADER, sio_request)
     if session:
         payload = jwt.decode(jwt=session, key=secret_key, algorithms=jwt_encryption_algo)
         if check_tmp:

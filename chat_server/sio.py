@@ -19,6 +19,7 @@
 
 import json
 import os
+from functools import wraps
 from typing import List, Optional
 
 import pymongo
@@ -27,17 +28,62 @@ from bson.errors import InvalidId
 from bson.objectid import ObjectId
 from neon_utils import LOG
 from neon_utils.cache_utils import LRUCache
-from neon_utils.file_utils import decode_base64_string_to_file
 
+from chat_server.server_utils.auth import validate_session, AUTHORIZATION_HEADER
 from chat_server.server_utils.cache_utils import CacheFactory
 from chat_server.server_utils.db_utils import DbUtils
 from chat_server.server_utils.user_utils import get_neon_data, get_bot_data
 from chat_server.server_config import db_controller, sftp_connector
 from chat_server.utils.languages import LanguageSettings
-from chat_server.utils.os_utils import remove_if_exists
 from utils.common import generate_uuid, deep_merge, buffer_to_base64
 
 sio = socketio.AsyncServer(cors_allowed_origins='*', async_mode='asgi')
+
+
+def list_current_headers(sid: str) -> list:
+    return sio.environ.get(sio.manager.rooms['/'].get(sid, {}).get(sid), {}).get('asgi.scope', {}).get('headers', [])
+
+
+def get_header(sid: str, match_str: str):
+    for header_tuple in list_current_headers(sid):
+        if header_tuple[0].decode() == match_str.lower():
+            return header_tuple[1]
+
+
+def login_required(*outer_args, **outer_kwargs):
+    """
+        Decorator that validates current authorization token
+    """
+
+    no_args = False
+    func = None
+    if len(outer_args) == 1 and not outer_kwargs and callable(outer_args[0]):
+        # Function was called with no arguments
+        no_args = True
+        func = outer_args[0]
+
+    outer_kwargs.setdefault('tmp_allowed', True)
+
+    def outer(func):
+
+        @wraps(func)
+        async def wrapper(sid, *args, **kwargs):
+            auth_token = get_header(sid, 'session')
+            session_validation_output = (None, None,)
+            if auth_token:
+                session_validation_output = validate_session(auth_token,
+                                                             check_tmp=not outer_kwargs['tmp_allowed'],
+                                                             sio_request=True)
+            if session_validation_output[1] != 200:
+                return await sio.emit('auth_expired', data={}, to=sid)
+            return await func(sid, *args, **kwargs)
+
+        return wrapper
+
+    if no_args:
+        return outer(func)
+    else:
+        return outer
 
 
 @sio.event
@@ -73,6 +119,7 @@ def disconnect(sid):
 
 
 @sio.event
+@login_required
 async def user_message(sid, data):
     """
         SIO event fired on new user message in chat
@@ -185,6 +232,7 @@ async def user_message(sid, data):
 
 
 @sio.event
+@login_required
 async def save_prompt_data(sid, data):
     """
         SIO event fired on new prompt data saving request
@@ -217,6 +265,7 @@ async def save_prompt_data(sid, data):
 
 
 @sio.event
+@login_required
 async def get_prompt_data(sid, data):
     """
         SIO event fired getting prompt data request
@@ -250,6 +299,7 @@ async def get_prompt_data(sid, data):
 
 
 @sio.event
+@login_required
 async def request_translate(sid, data):
     """
         Handles requesting for cid translation
@@ -276,6 +326,7 @@ async def request_translate(sid, data):
 
 
 @sio.event
+@login_required
 async def get_neon_translations(sid, data):
     """
         Handles received translations from Neon Translation Service
@@ -310,6 +361,7 @@ async def get_neon_translations(sid, data):
 
 
 @sio.event
+@login_required
 async def request_tts(sid, data):
     """
         Handles request to Neon TTS service
@@ -377,6 +429,7 @@ async def request_tts(sid, data):
 
 
 @sio.event
+@login_required
 async def tts_response(sid, data):
     """ Handle TTS Response from Observer """
     mq_context = data.get('context', {})
@@ -413,6 +466,7 @@ async def tts_response(sid, data):
 
 
 @sio.event
+@login_required
 async def stt_response(sid, data):
     """ Handle STT Response from Observer """
     mq_context = data.get('context', {})
@@ -439,6 +493,7 @@ async def stt_response(sid, data):
 
 
 @sio.event
+@login_required
 async def request_stt(sid, data):
     """
         Handles request to Neon STT service
@@ -500,10 +555,11 @@ async def emit_error(message: str, context: Optional[dict] = None, sids: Optiona
     """
     if not context:
         context = {}
-    emit_dict = {
-        'event': context.pop('callback_event', 'klatchat_sio_error'),
-        'data': {'msg': message, 'context': context},
-    }
-    if sids:
-        emit_dict['to'] = sids
-    await sio.emit(**emit_dict)
+    await sio.emit(context.pop('callback_event', 'klatchat_sio_error'),
+                   data={'msg': message},
+                   to=sids)
+
+
+async def emit_session_expired(sid: str):
+    """ Wrapper to emit session expired session event to desired client session """
+    await emit_error(message='Session Expired', context={'callback_event': 'auth_expired'}, sids=[sid])
