@@ -27,11 +27,9 @@ from enum import Enum
 
 from neon_mq_connector.utils.rabbit_utils import create_mq_callback
 from neon_utils import LOG
-from neon_utils.socket_utils import b64_to_dict
 from neon_mq_connector.connector import MQConnector
 
 from version import __version__
-from utils.common import generate_uuid
 
 
 class Recipients(Enum):
@@ -137,8 +135,8 @@ class ChatObserver(MQConnector):
             callback['recipient'] = Recipients.CHATBOT_CONTROLLER
             callback['context'] = {'requested_participants': ['scorekeeper']}
         else:
-            for recipient in list(cls.recipient_prefixes):
-                if any(message_prefix.lower().startswith(x.lower()) for x in cls.recipient_prefixes[recipient]):
+            for recipient, recipient_prefixes in cls.recipient_prefixes.items():
+                if any(message_prefix.lower().startswith(x.lower()) for x in recipient_prefixes):
                     callback['recipient'] = recipient
                     break
         return callback

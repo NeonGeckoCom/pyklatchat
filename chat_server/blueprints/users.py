@@ -104,7 +104,7 @@ def fetch_received_user_ids(request: Request, user_ids: str = None, nicknames: s
 
 
 @router.post("/update")
-@login_required(tmp_allowed=False)
+@login_required
 async def update_profile(request: Request,
                          user_id: str = Form(...),
                          first_name: str = Form(""),

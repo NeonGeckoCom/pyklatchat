@@ -40,7 +40,7 @@ async function getUserData(userID=null){
             .then(data => {
                 userData = data['data'];
                 const oldToken = getSessionToken();
-                if (data['token'] !== oldToken){
+                if (data['token'] !== oldToken && !userID){
                     setSessionToken(data['token']);
                 }
             });

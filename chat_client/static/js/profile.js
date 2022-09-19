@@ -20,7 +20,7 @@ async function showProfileModal(nick=null, edit='0'){
         // avatarId = `${nick}Avatar`;
         fetchURL += `nickname=${nick}`;
     }
-    const profileModalHTML = await fetch(fetchURL).then(async (response) => {
+    const profileModalHTML = await fetch(fetchURL, {headers: new Headers({'Authorization': getSessionToken()})}).then(async (response) => {
         if (response.ok) {
             return await response.text();
         }
@@ -67,7 +67,7 @@ const previewFile = (nickname) => {
 
 async function initProfileEditModal(){
     const nickname = currentUser['nickname'];
-    if (currentUser?.tmp){
+    if (currentUser?.is_tmp){
         console.warn('Tmp user is not allowed to change his data');
         return
     }
@@ -103,11 +103,11 @@ async function initProfileEditModal(){
         formData.append('password', password.value);
         formData.append('repeat_password', repeatPassword.value);
 
-        const query_url = `users/update`;
+        const query_url = `users_api/update`;
         await fetchServer(query_url, REQUEST_METHODS.POST, formData).then(async response => {
             const responseJson = await response.json();
             if (response.ok) {
-                setSessionToken(responseJson['token']);
+                location.reload();
             } else {
                 password.value = "";
                 repeatPassword.value = '';

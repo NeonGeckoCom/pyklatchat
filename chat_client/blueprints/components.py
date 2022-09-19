@@ -36,8 +36,10 @@ router = APIRouter(
 @router.get('/profile')
 async def get_profile_modal(request: Request, nickname: str = '', edit: str = '0'):
     """ Callbacks template with matching modal populated with user's data """
+    auth_header = 'Authorization'
+    headers = {auth_header: request.headers.get(auth_header, '')}
     if edit == '1':
-        resp = requests.get(f'{app_config["SERVER_URL"]}/users_api/', cookies=request.cookies)
+        resp = requests.get(f'{app_config["SERVER_URL"]}/users_api/', headers=headers)
         if resp.ok:
             user = resp.json()['data']
             # if user.get('is_tmp'):
@@ -49,7 +51,7 @@ async def get_profile_modal(request: Request, nickname: str = '', edit: str = '0
     else:
         if not nickname:
             return respond('No nickname provided', 422)
-        resp = requests.get(f'{app_config["SERVER_URL"]}/users_api/get_users?nicknames={nickname}')
+        resp = requests.get(f'{app_config["SERVER_URL"]}/users_api/get_users?nicknames={nickname}', headers=headers)
         if resp.ok:
             user_data = resp.json().get('users', [])
             if not user_data:

@@ -187,7 +187,7 @@ def get_current_user_data(request: Request, response: Response = None, force_tmp
     return user_data
 
 
-def get_current_user(request: Request, response: Response, force_tmp: bool = False, nano_token: str = None) -> dict:
+def get_current_user(request: Request, response: Response = None, force_tmp: bool = False, nano_token: str = None) -> dict:
     """ Backward compatibility method to support previous invocations """
     return get_current_user_data(request=request, response=response, force_tmp=force_tmp, nano_token=nano_token).user
 
