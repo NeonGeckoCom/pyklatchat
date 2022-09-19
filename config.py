@@ -27,7 +27,7 @@ from neon_utils import LOG
 class Configuration:
     """ Generic configuration module"""
 
-    ENV = os.environ.get('ENV', 'DEV')
+    KLAT_ENV = os.environ.get('KLAT_ENV', 'DEV')
     db_controllers = dict()
 
     def __init__(self, from_files: List[str]):
@@ -81,7 +81,7 @@ class Configuration:
 
     def get_db_config_from_key(self, key: str):
         """Gets DB configuration by key"""
-        return self.config_data.get('DATABASE_CONFIG', {}).get(self.ENV, {}).get(key, {})
+        return self.config_data.get('DATABASE_CONFIG', {}).get(self.KLAT_ENV, {}).get(key, {})
 
     def get_db_controller(self, name: str,
                           override: bool = False,

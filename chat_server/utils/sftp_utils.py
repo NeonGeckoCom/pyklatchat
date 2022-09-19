@@ -29,4 +29,4 @@ def init_sftp_connector(config):
                              username=config.get('USERNAME', 'root'),
                              passphrase=config.get('PASSWORD', ''),
                              port=int(config.get('PORT', 22)),
-                             root_path=config.get('ROOT_PATH', '/').format(env=Configuration.ENV.lower()))
+                             root_path=config.get('ROOT_PATH', '/').format(env=Configuration.KLAT_ENV.lower()))

@@ -62,8 +62,8 @@ async def get_profile_modal(request: Request, nickname: str = '', edit: str = '0
     context = {'server_url': app_config["SERVER_URL"],
                'user_id': user['_id'],
                'nickname': user['nickname'],
-               'first_name': user.get('first_name', 'User'),
-               'last_name': user.get('last_name', 'Unspecified'),
+               'first_name': user.get('first_name', 'Klat'),
+               'last_name': user.get('last_name', 'User'),
                'bio': user.get('bio', f'No information about {user["nickname"]}')}
     return callback_template(request=request, template_name=template_name, context=context)
 

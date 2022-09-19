@@ -25,11 +25,11 @@ from chat_server.utils.sftp_utils import init_sftp_connector
 server_config_path = os.environ.get('CHATSERVER_CONFIG', '~/.local/share/neon/credentials.json')
 database_config_path = os.environ.get('DATABASE_CONFIG', '~/.local/share/neon/credentials.json')
 
-LOG.info(f'ENV: {Configuration.ENV}')
+LOG.info(f'KLAT_ENV : {Configuration.KLAT_ENV}')
 
 config = Configuration(from_files=[server_config_path, database_config_path])
 
-app_config = config.config_data.get('CHAT_SERVER', {}).get(Configuration.ENV, {})
+app_config = config.config_data.get('CHAT_SERVER', {}).get(Configuration.KLAT_ENV, {})
 
 LOG.info(f'App config: {app_config}')
 
