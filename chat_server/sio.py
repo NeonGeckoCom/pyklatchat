@@ -120,7 +120,7 @@ def disconnect(sid):
 
 
 @sio.event
-@login_required
+# @login_required
 async def user_message(sid, data):
     """
         SIO event fired on new user message in chat
@@ -233,7 +233,7 @@ async def user_message(sid, data):
 
 
 @sio.event
-@login_required
+# @login_required
 async def save_prompt_data(sid, data):
     """
         SIO event fired on new prompt data saving request
@@ -266,7 +266,7 @@ async def save_prompt_data(sid, data):
 
 
 @sio.event
-@login_required
+# @login_required
 async def get_prompt_data(sid, data):
     """
         SIO event fired getting prompt data request
