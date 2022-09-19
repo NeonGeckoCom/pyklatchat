@@ -47,7 +47,7 @@ def list_current_headers(sid: str) -> list:
 def get_header(sid: str, match_str: str):
     for header_tuple in list_current_headers(sid):
         if header_tuple[0].decode() == match_str.lower():
-            return header_tuple[1]
+            return header_tuple[1].decode()
 
 
 def login_required(*outer_args, **outer_kwargs):
@@ -68,14 +68,15 @@ def login_required(*outer_args, **outer_kwargs):
 
         @wraps(func)
         async def wrapper(sid, *args, **kwargs):
-            auth_token = get_header(sid, 'session')
-            session_validation_output = (None, None,)
-            if auth_token:
-                session_validation_output = validate_session(auth_token,
-                                                             check_tmp=not outer_kwargs['tmp_allowed'],
-                                                             sio_request=True)
-            if session_validation_output[1] != 200:
-                return await sio.emit('auth_expired', data={}, to=sid)
+            if os.environ.get('DISABLE_AUTH_CHECK', '0') != '1':
+                auth_token = get_header(sid, 'session')
+                session_validation_output = (None, None,)
+                if auth_token:
+                    session_validation_output = validate_session(auth_token,
+                                                                 check_tmp=not outer_kwargs['tmp_allowed'],
+                                                                 sio_request=True)
+                if session_validation_output[1] != 200:
+                    return await sio.emit('auth_expired', data={}, to=sid)
             return await func(sid, *args, **kwargs)
 
         return wrapper
@@ -326,7 +327,6 @@ async def request_translate(sid, data):
 
 
 @sio.event
-@login_required
 async def get_neon_translations(sid, data):
     """
         Handles received translations from Neon Translation Service
@@ -351,11 +351,12 @@ async def get_neon_translations(sid, data):
                 return
             sid = cached_data.get('sid')
             input_type = cached_data.get('input_type')
-            DbUtils.save_translations(data.get('translations', {}))
-            if cached_data.get('should_send_callback', True):
-                populated_translations = deep_merge(data.get('translations', {}), cached_data.get('translations', {}))
-                await sio.emit('translation_response', data={'translations': populated_translations,
-                                                             'input_type': input_type}, to=sid)
+            updated_shouts = DbUtils.save_translations(data.get('translations', {}))
+            populated_translations = deep_merge(data.get('translations', {}), cached_data.get('translations', {}))
+            await sio.emit('translation_response', data={'translations': populated_translations,
+                                                         'input_type': input_type}, to=sid)
+            if updated_shouts:
+                await sio.emit('updated_shouts', data=updated_shouts, skip_sid=[sid])
         except KeyError as err:
             LOG.error(f'No translation cache detected under request_id={request_id} (err={err})')
 
@@ -429,7 +430,6 @@ async def request_tts(sid, data):
 
 
 @sio.event
-@login_required
 async def tts_response(sid, data):
     """ Handle TTS Response from Observer """
     mq_context = data.get('context', {})
@@ -466,7 +466,6 @@ async def tts_response(sid, data):
 
 
 @sio.event
-@login_required
 async def stt_response(sid, data):
     """ Handle STT Response from Observer """
     mq_context = data.get('context', {})

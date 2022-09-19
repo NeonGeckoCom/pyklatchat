@@ -116,6 +116,9 @@ function initLoadOldMessages(conversationData) {
             conversationState[cid]['scrollY'] === 0) {
             setChatState(cid, 'updating', 'Loading messages...')
             addOldMessages(cid);
+            for(const inputType of ['incoming', 'outcoming']){
+                requestTranslation(cid, null, null, inputType);
+            }
             setTimeout( () => {
                 setChatState(cid, 'active');
             }, 700);

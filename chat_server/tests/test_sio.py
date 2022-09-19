@@ -16,7 +16,7 @@
 # Specialized conversational reconveyance options from Conversation Processing Intelligence Corp.
 # US Patents 2008-2021: US7424516, US20140161250, US20140177813, US8638908, US8068604, US8553852, US10530923, US10530924
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
-
+import os
 import time
 import unittest
 import socketio
@@ -52,6 +52,23 @@ class TestSIO(unittest.TestCase):
     pong_received = False
     pong_event = None
 
+    @classmethod
+    def setUpClass(cls) -> None:
+        os.environ['DISABLE_AUTH_CHECK'] = '1'
+        matching_conversation = db_controller.exec_query(query={'command': 'find_one',
+                                                                'document': 'chats',
+                                                                'data': {'_id': TEST_CID}})
+        if not matching_conversation:
+            db_controller.exec_query(query={'document': 'chats',
+                                            'command': 'insert_one',
+                                            'data': ChatPatterns.TEST_CHAT.value})
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        db_controller.exec_query(query={'document': 'chats',
+                                        'command': 'delete_one',
+                                        'data': {'_id': ChatPatterns.TEST_CHAT.value}})
+
     def handle_pong(self, _data):
         """Handles pong from sio server"""
         LOG.info('Received pong')
@@ -66,22 +83,6 @@ class TestSIO(unittest.TestCase):
     def tearDown(self) -> None:
         if self.sio:
             self.sio.disconnect()
-
-    @classmethod
-    def setUpClass(cls) -> None:
-        matching_conversation = db_controller.exec_query(query={'command': 'find_one',
-                                                                'document': 'chats',
-                                                                'data': {'_id': TEST_CID}})
-        if not matching_conversation:
-            db_controller.exec_query(query={'document': 'chats',
-                                            'command': 'insert_one',
-                                            'data': ChatPatterns.TEST_CHAT.value})
-
-    @classmethod
-    def tearDownClass(cls) -> None:
-        db_controller.exec_query(query={'document': 'chats',
-                                        'command': 'delete_one',
-                                        'data': {'_id': ChatPatterns.TEST_CHAT.value}})
 
     @pytest.mark.usefixtures('create_server')
     def test_01_ping_server(self):

@@ -17,7 +17,7 @@
 # US Patents 2008-2021: US7424516, US20140161250, US20140177813, US8638908, US8068604, US8553852, US10530923, US10530924
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
 
-from typing import List, Tuple, Union
+from typing import List, Tuple, Union, Dict
 
 from bson import ObjectId
 from neon_utils import LOG
@@ -184,11 +184,13 @@ class DbUtils(metaclass=Singleton):
         return populated_translations, missing_translations
 
     @classmethod
-    def save_translations(cls, translation_mapping: dict) -> None:
+    def save_translations(cls, translation_mapping: dict) -> Dict[str, List[str]]:
         """
             Saves translations in DB
             :param translation_mapping: mapping of cid to desired translation language
+            :returns dictionary containing updated shouts (those which were translated to English)
         """
+        updated_shouts = {}
         for cid, shout_data in translation_mapping.items():
             translations = shout_data.get('shouts', {})
             bulk_update = []
@@ -211,6 +213,7 @@ class DbUtils(metaclass=Singleton):
                                                                  update_expression,)})
                 # English is the default language, so it is treated as message text
                 if shout_data.get('lang', 'en') == 'en':
+                    updated_shouts.setdefault(cid, []).append(shout_id)
                     bulk_update_setter = {'message_text': translation}
                 else:
                     bulk_update_setter = {f'translations.{shout_data["lang"]}': translation}
@@ -220,6 +223,7 @@ class DbUtils(metaclass=Singleton):
                 cls.db_controller.exec_query(query=dict(document='shouts',
                                                         command='bulk_write',
                                                         data=bulk_update))
+        return updated_shouts
 
     @classmethod
     def get_user_preferences(cls, user_id, create_if_not_exists: bool = False):

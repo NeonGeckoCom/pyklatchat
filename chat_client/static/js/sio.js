@@ -64,5 +64,13 @@ function initSIO(){
         return socket.emit(event, data);
     }
 
+    socket.on('updated_shouts', async (data) =>{
+       for (const [cid, shouts] of Object.entries(data)){
+           if (isDisplayed(cid)){
+               requestTranslation(cid, shouts);
+           }
+       }
+    });
+
     return socket;
 }

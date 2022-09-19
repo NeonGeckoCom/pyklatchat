@@ -458,7 +458,7 @@ async function createNewConversation(conversationName, isPrivate=false, conversa
 document.addEventListener('DOMContentLoaded', (e)=>{
 
     document.addEventListener('supportedLanguagesLoaded', async (e)=>{
-        await refreshCurrentUser(false).then(async _=>await restoreChatAlignment()).then(async _=>await requestChatsLanguageRefresh());
+        await refreshCurrentUser(false).then(async _=>await restoreChatAlignment()).then(async _=>await requestChatsLanguageRefresh()).then(async _=> await refreshChatView(true));
     });
 
     if (configData['client'] === CLIENTS.MAIN) {

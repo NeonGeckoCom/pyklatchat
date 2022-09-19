@@ -70,8 +70,8 @@ async function fetchSupportedLanguages(){
 function requestTranslation(cid=null, shouts=null, lang=null, inputType='incoming'){
     let requestBody = {chat_mapping: {}};
     if(cid && getOpenedChats().includes(cid)){
+        lang = lang || getPreferredLanguage(cid, inputType);
         setChatState(cid, 'updating', 'Applying New Language...');
-        const preferredLang = getPreferredLanguage(cid, inputType)
         if(shouts && !Array.isArray(shouts)){
             shouts = [shouts];
         }
@@ -79,7 +79,7 @@ function requestTranslation(cid=null, shouts=null, lang=null, inputType='incomin
             shouts = getMessagesOfCID(cid, getMessageReferType(inputType), true);
         }
         setDefault(requestBody.chat_mapping, cid, {});
-        requestBody.chat_mapping[cid] = {'lang': lang || preferredLang, 'shouts': shouts || []}
+        requestBody.chat_mapping[cid] = {'lang': lang, 'shouts': shouts || []}
     }else{
         requestBody.chat_mapping = configData['chatLanguageMapping'];
     }
