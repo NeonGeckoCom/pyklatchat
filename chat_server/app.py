@@ -105,6 +105,7 @@ def create_app(testing_mode: bool = False, sio_server: socketio.AsyncServer = si
     if sio_server:
         from .server_config import config
         try:
+            time.sleep(random.randint(0, 9))
             requests.get(f'{config["SIO_URL"]}/socket.io/')
             LOG.info(f'Socket IO instance is already running on {config["SIO_URL"]}')
         except Exception:
