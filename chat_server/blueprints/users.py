@@ -37,7 +37,7 @@ router = APIRouter(
 )
 
 
-@router.get("/", response_class=JSONResponse)
+@router.get("/")
 def get_user(request: Request,
              response: Response,
              nano_token: str = None,
@@ -70,9 +70,9 @@ def get_user(request: Request,
     return dict(data=user, token=session_token)
 
 
-@router.get('/get_users', response_class=JSONResponse)
+@router.get('/get_users')
 @login_required
-def fetch_received_user_ids(request: Request, user_ids: str = None, nicknames: str = None):
+async def fetch_received_user_ids(request: Request, user_ids: str = None, nicknames: str = None):
     """
         Gets users data based on provided user ids
 
