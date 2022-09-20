@@ -300,7 +300,7 @@ async def get_prompt_data(sid, data):
 
 
 @sio.event
-@login_required
+# @login_required
 async def request_translate(sid, data):
     """
         Handles requesting for cid translation
@@ -362,7 +362,7 @@ async def get_neon_translations(sid, data):
 
 
 @sio.event
-@login_required
+# @login_required
 async def request_tts(sid, data):
     """
         Handles request to Neon TTS service
@@ -492,7 +492,7 @@ async def stt_response(sid, data):
 
 
 @sio.event
-@login_required
+# @login_required
 async def request_stt(sid, data):
     """
         Handles request to Neon STT service
