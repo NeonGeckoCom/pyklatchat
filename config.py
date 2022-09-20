@@ -67,6 +67,15 @@ class Configuration:
             # merge existing config with new dictionary (python 3.5+ syntax)
             self.config_data = {**self.config_data, **new_config_dict}
 
+    def get(self, key, default=None):
+        return self.config_data.get(key, default)
+
+    def __getitem__(self, key):
+        return self.config_data.get(key)
+
+    def __setitem__(self, key, value):
+        self.config_data[key] = value
+
     @property
     def config_data(self) -> dict:
         if not self._config_data:
