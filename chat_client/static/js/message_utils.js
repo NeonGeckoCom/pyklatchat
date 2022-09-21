@@ -53,6 +53,7 @@ async function addNewMessage(cid, userID=null, messageID=null, messageText, time
         messageList.insertAdjacentHTML('beforeend', messageHTML);
         resolveMessageAttachments(cid, messageID, attachments);
         resolveUserReply(messageID, repliedMessageID);
+        addProfileDisplay(cid, messageID);
         addConversationParticipant(cid, userData['nickname'], true);
         scrollOnNewMessage(messageList);
         return messageID;
