@@ -88,7 +88,7 @@ def login_required(*outer_args, **outer_kwargs):
 
 
 @sio.event
-def connect(sid, environ: dict, auth):
+async def connect(sid, environ: dict, auth):
     """
         SIO event fired on client connect
         :param sid: client session id
@@ -110,7 +110,7 @@ async def ping(sid, data):
 
 
 @sio.event
-def disconnect(sid):
+async def disconnect(sid):
     """
         SIO event fired on client disconnect
 

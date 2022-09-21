@@ -10,7 +10,7 @@
       <div class="modal-body" id="{{nickname}}EditBody" style="overflow-y: scroll; height: 300px!important;">
         <div class="text-center">
             <input type="file" id="{{nickname}}NewAvatar" accept="image/*" name="image" onchange="previewFile('{{nickname}}')" style="display: none;">
-            <img src="{{server_url}}/files/avatar/{{user_id}}" id="{{ nickname }}EditAvatar" class="img-thumbnail" alt="Click here to update avatar" loading="lazy" style="max-height: 200px!important;max-width: 200px!important;">
+            <img src="{{server_url}}/files/avatar/{{user_id}}" id="{{ nickname }}EditAvatar" class="img-thumbnail lazyload" alt="Click here to update avatar" style="max-height: 200px!important;max-width: 200px!important;">
         </div>
         <div class="form-group">
             <label for="{{nickname}}EditNickname">Nickname: </label>
