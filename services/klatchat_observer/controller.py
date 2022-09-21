@@ -53,7 +53,8 @@ class ChatObserver(MQConnector):
         'translation': '/translation'
     }
 
-    def __init__(self, config: dict, service_name: str = 'chat_observer', vhosts: dict = None, scan_neon_service: bool = False):
+    def __init__(self, config: dict, service_name: str = 'chat_observer', vhosts: dict = None,
+                 scan_neon_service: bool = False):
         super().__init__(config, service_name)
         if not vhosts:
             vhosts = {}
@@ -120,23 +121,23 @@ class ChatObserver(MQConnector):
                                on_error=self.default_error_handler)
 
     @classmethod
-    def get_recipient_from_prefix(cls, message_prefix) -> dict:
+    def get_recipient_from_prefix(cls, message: str) -> dict:
         """
-            Gets recipient from extracted prefix
+            Gets recipient from incoming message
 
-            :param message_prefix: extracted prefix
+            :param message: incoming message
             :returns extracted recipient
         """
         callback = dict(recipient=Recipients.UNRESOLVED, context={})
-        if message_prefix.lower().startswith('!prompt:'):
+        if message.lower().startswith('!prompt:'):
             callback['recipient'] = Recipients.CHATBOT_CONTROLLER
             callback['context'] = {'requested_participants': ['proctor']}
-        elif message_prefix.lower().startswith('show score:'):
+        elif message.lower().startswith('show score:'):
             callback['recipient'] = Recipients.CHATBOT_CONTROLLER
             callback['context'] = {'requested_participants': ['scorekeeper']}
         else:
             for recipient, recipient_prefixes in cls.recipient_prefixes.items():
-                if any(message_prefix.lower().startswith(x.lower()) for x in recipient_prefixes):
+                if any(message.lower().startswith(x.lower()) for x in recipient_prefixes):
                     callback['recipient'] = recipient
                     break
         return callback
@@ -172,7 +173,7 @@ class ChatObserver(MQConnector):
                                           "context": dictionary with supportive context}
         """
         # Parsing message prefix
-        response_body = self.get_recipient_from_prefix(message_prefix=message)
+        response_body = self.get_recipient_from_prefix(message=message)
         # Parsing message body
         if response_body['recipient'] == Recipients.UNRESOLVED:
             response_body = self.get_recipient_from_body(message=message)
@@ -241,7 +242,7 @@ class ChatObserver(MQConnector):
         Applies testing prefix to target vhost
         :param vhost: MQ virtual host to validate
         """
-        #TODO: implement this method in the base class
+        # TODO: implement this method in the base class
         if self.testing_mode and self.testing_prefix not in vhost.split('_')[0]:
             vhost = f'/{self.testing_prefix}_{vhost[1:]}'
             if vhost.endswith('_'):
@@ -292,7 +293,8 @@ class ChatObserver(MQConnector):
     def __handle_neon_recipient(self, recipient_data: dict, msg_data: dict):
         msg_data.setdefault('message_body', msg_data.pop('messageText', ''))
         msg_data.setdefault('message_id', msg_data.pop('messageID', ''))
-        msg_data['message_body'] = self.mention_separator.join(msg_data['message_body'].split(self.mention_separator)[1:]).strip()
+        pattern = re.compile("Neon", re.IGNORECASE)
+        msg_data['message_body'] = pattern.sub("", msg_data['message_body'], 1).strip('<>@,.:|- ').capitalize()
         msg_data.setdefault('agent', f'pyklatchat v{__version__}')
         request_dict = self.get_structure_based_on_type(msg_data)
         request_dict.setdefault('data', {})
@@ -348,7 +350,8 @@ class ChatObserver(MQConnector):
         if data and isinstance(data, dict):
             recipient_data = {}
             if not data.get('skip_recipient_detection'):
-                recipient_data = self.get_recipient_from_message(message=data.get('messageText') or data.get('message_body'))
+                recipient_data = self.get_recipient_from_message(
+                    message=data.get('messageText') or data.get('message_body'))
             recipient = recipient_data.get('recipient') or data.get('recipient') or Recipients.UNRESOLVED
             handler_method = self.recipient_to_handler_method.get(recipient)
             if not handler_method:
@@ -374,7 +377,8 @@ class ChatObserver(MQConnector):
         self.__translation_requests[data['request_id']] = {'void_callback_timer': Timer(interval=2 * 60,
                                                                                         function=self.send_translation_response,
                                                                                         kwargs=
-                                                                                        {'data': {'request_id': data['request_id'],
+                                                                                        {'data': {'request_id': data[
+                                                                                            'request_id'],
                                                                                                   'translations': {}}})}
         self.__translation_requests[data['request_id']]['void_callback_timer'].start()
         self.send_message(request_data={'data': data['data'],
@@ -505,7 +509,7 @@ class ChatObserver(MQConnector):
             :param body: request body (dict)
 
         """
-        response_required_keys = ('userID', 'cid', 'messageText', 'bot', 'timeCreated', 'context', )
+        response_required_keys = ('userID', 'cid', 'messageText', 'bot', 'timeCreated', 'context',)
 
         if all(required_key in list(body) for required_key in response_required_keys):
             self.sio.emit('save_prompt_data', data=body)
