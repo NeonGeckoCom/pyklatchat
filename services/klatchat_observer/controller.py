@@ -171,9 +171,8 @@ class ChatObserver(MQConnector):
             :returns Dictionary of type: {"recipient": (instance of Recipients),
                                           "context": dictionary with supportive context}
         """
-        message_prefix = message.split(self.mention_separator)[0].strip()
         # Parsing message prefix
-        response_body = self.get_recipient_from_prefix(message_prefix=message_prefix)
+        response_body = self.get_recipient_from_prefix(message_prefix=message)
         # Parsing message body
         if response_body['recipient'] == Recipients.UNRESOLVED:
             response_body = self.get_recipient_from_body(message=message)
