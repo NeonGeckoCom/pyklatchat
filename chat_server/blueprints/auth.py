@@ -38,10 +38,10 @@ router = APIRouter(
 
 
 @router.post("/signup")
-def signup(first_name: str = Form(...),
-           last_name: str = Form(...),
-           nickname: str = Form(...),
-           password: str = Form(...)):
+async def signup(first_name: str = Form(...),
+                 last_name: str = Form(...),
+                 nickname: str = Form(...),
+                 password: str = Form(...)):
     """
         Creates new user based on received form data
 
@@ -76,7 +76,7 @@ def signup(first_name: str = Form(...),
 
 
 @router.post("/login")
-def login(username: str = Form(...), password: str = Form(...)):
+async def login(username: str = Form(...), password: str = Form(...)):
     """
         Logs In user based on provided credentials
 
@@ -100,7 +100,7 @@ def login(username: str = Form(...), password: str = Form(...)):
 
 
 @router.get("/logout")
-def logout(request: Request):
+async def logout(request: Request):
     """
         Erases current user session cookies and returns temporal credentials
 
@@ -111,4 +111,3 @@ def logout(request: Request):
     user_data = get_current_user_data(request=request, force_tmp=True)
     response = JSONResponse(content=dict(token=user_data.session))
     return response
-

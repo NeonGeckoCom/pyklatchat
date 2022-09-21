@@ -38,7 +38,7 @@ router = APIRouter(
 
 
 @router.get("/")
-def get_user(request: Request,
+async def get_user(request: Request,
              response: Response,
              nano_token: str = None,
              user_id: Optional[str] = None):

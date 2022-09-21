@@ -38,7 +38,7 @@ router = APIRouter(
 
 @router.get("/audio/{message_id}")
 @login_required
-def get_audio_message(request: Request, message_id: str,):
+async def get_audio_message(request: Request, message_id: str,):
     """ Gets file based on the name """
     matching_shouts = DbUtils.fetch_shouts(shout_ids=[message_id], fetch_senders=False)
     if matching_shouts and matching_shouts[0].get('is_audio', '0') == '1':
@@ -51,7 +51,7 @@ def get_audio_message(request: Request, message_id: str,):
 
 
 @router.get("/avatar/{user_id}")
-def get_avatar(user_id: str):
+async def get_avatar(user_id: str):
     """
         Gets file from the server
 
@@ -75,7 +75,7 @@ def get_avatar(user_id: str):
 
 @router.get("/{msg_id}/get_attachment/{filename}")
 @login_required
-def get_message_attachment(request: Request, msg_id: str, filename: str):
+async def get_message_attachment(request: Request, msg_id: str, filename: str):
     """
         Gets file from the server
 
