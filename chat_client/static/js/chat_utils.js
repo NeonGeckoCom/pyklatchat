@@ -282,7 +282,8 @@ async function restoreChatAlignment(keyName=conversationAlignmentKey){
             }
         });
     }
-    console.log('Chat Alignment Restored')
+    console.log('Chat Alignment Restored');
+    await requestChatsLanguageRefresh();
     document.dispatchEvent(chatAlignmentRestoredEvent);
 }
 
@@ -406,6 +407,9 @@ async function displayConversation(searchStr, alertParentID = null){
                 displayAlert(alertParent, 'Chat is already displayed', 'danger');
             } else if (conversationData && Object.keys(conversationData).length > 0) {
                 await buildConversation(conversationData);
+                for (const inputType of ['incoming', 'outcoming']){
+                    requestTranslation(conversationData['_id'], null, null, inputType);
+                }
                 responseOk = true;
             } else {
                 if (alertParent) {
@@ -458,7 +462,7 @@ async function createNewConversation(conversationName, isPrivate=false, conversa
 document.addEventListener('DOMContentLoaded', (e)=>{
 
     document.addEventListener('supportedLanguagesLoaded', async (e)=>{
-        await refreshCurrentUser(false).then(async _=>await restoreChatAlignment()).then(async _=>await requestChatsLanguageRefresh()).then(async _=> await refreshChatView(true));
+        await refreshCurrentUser(false).then(async _=>await restoreChatAlignment()).then(async _=> await refreshChatView(true));
     });
 
     if (configData['client'] === CLIENTS.MAIN) {
