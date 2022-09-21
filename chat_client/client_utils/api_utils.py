@@ -11,10 +11,33 @@
 # For commercial licensing, distribution of derivative works or redistribution please contact licenses@neon.ai
 # Distributed on an "AS IS” basis without warranties or conditions of any kind, either express or implied.
 # Trademarks of Neongecko: Neon AI(TM), Neon Assist (TM), Neon Communicator(TM), Klat(TM)
-# Authors: Guy Daniels, Daniel McKnight, Regina Bloomstine, Elon Gasper, Richard Leeds, Kirill Hrymailo
+# Authors: Guy Daniels, Daniel McKnight, Elon Gasper, Richard Leeds, Kirill Hrymailo
 #
 # Specialized conversational reconveyance options from Conversation Processing Intelligence Corp.
 # US Patents 2008-2021: US7424516, US20140161250, US20140177813, US8638908, US8068604, US8553852, US10530923, US10530924
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
 
-__version__ = "0.2.1"
+import requests
+
+from starlette.requests import Request
+from starlette.responses import JSONResponse
+
+from chat_client.client_config import app_config
+from utils.http_utils import respond
+
+
+def call_server(url_suffix: str, request_method: str = 'get',
+                return_type: str = 'json', request: Request = None, **kwargs):
+    """ Convenience wrapper to call application server from client server"""
+    url = f'{app_config["SERVER_URL"]}{url_suffix}'
+    if request:
+        kwargs['cookies'] = request.cookies
+    response = getattr(requests, request_method)(url, **kwargs)
+    if response.ok:
+        if return_type == 'json':
+            return JSONResponse(content=response.json())
+        elif return_type == 'text':
+            return response.text
+    else:
+        return respond(msg=response.json().get('msg', 'Server Error'),
+                       status_code=response.status_code)

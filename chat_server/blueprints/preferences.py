@@ -11,10 +11,29 @@
 # For commercial licensing, distribution of derivative works or redistribution please contact licenses@neon.ai
 # Distributed on an "AS IS” basis without warranties or conditions of any kind, either express or implied.
 # Trademarks of Neongecko: Neon AI(TM), Neon Assist (TM), Neon Communicator(TM), Klat(TM)
-# Authors: Guy Daniels, Daniel McKnight, Regina Bloomstine, Elon Gasper, Richard Leeds, Kirill Hrymailo
+# Authors: Guy Daniels, Daniel McKnight, Elon Gasper, Richard Leeds, Kirill Hrymailo
 #
 # Specialized conversational reconveyance options from Conversation Processing Intelligence Corp.
 # US Patents 2008-2021: US7424516, US20140161250, US20140177813, US8638908, US8068604, US8553852, US10530923, US10530924
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
 
-__version__ = "0.2.1"
+from fastapi import APIRouter, Response, Request, Form
+from chat_server.server_config import db_controller
+from chat_server.server_utils.auth import get_current_user, login_required
+from utils.http_utils import respond
+
+router = APIRouter(
+    prefix="/preferences",
+    responses={'404': {"description": "Unknown user"}},
+)
+
+
+@router.post("/update_language/{cid}/{input_type}")
+@login_required
+async def update_language(request: Request, response: Response, cid: str, input_type: str, lang: str = Form(...)):
+    """ Updates preferred language of user in conversation """
+    current_user_id = get_current_user(request, response)['_id']
+    db_controller.exec_query({'command': 'update', 'document': 'user_preferences',
+                              'data': ({'_id': current_user_id},
+                                       {'$set': {f'chat_language_mapping.{cid}.{input_type}': lang}})})
+    return respond(f'Updated cid={cid}, input_type={input_type} to language={lang}')

@@ -18,15 +18,18 @@
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
 
 from typing import List, Optional
-from fastapi import APIRouter, Response, status, Request, Query
+from fastapi import APIRouter, Response, status, Request, Query, UploadFile, File, Form
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import HTTPException
 from fastapi.encoders import jsonable_encoder
 from neon_utils import LOG
 
 from chat_server.server_config import db_controller
-from chat_server.server_utils.auth import get_current_user
-from chat_server.server_utils.http_utils import get_file_response
+from chat_server.server_utils.auth import get_current_user, check_password_strength, get_current_user_data, \
+    login_required
+from chat_server.server_utils.http_utils import save_file
+from utils.common import get_hash
+from utils.http_utils import respond
 
 router = APIRouter(
     prefix="/users_api",
@@ -34,9 +37,9 @@ router = APIRouter(
 )
 
 
-@router.get("/", response_class=JSONResponse)
-def get_user(response: Response,
-             request: Request,
+@router.get("/")
+async def get_user(request: Request,
+             response: Response,
              nano_token: str = None,
              user_id: Optional[str] = None):
     """
@@ -49,6 +52,7 @@ def get_user(response: Response,
 
         :returns JSON response containing data of current user
     """
+    session_token = ''
     if user_id:
         user = db_controller.exec_query(query={'document': 'users',
                                                'command': 'find_one',
@@ -58,65 +62,99 @@ def get_user(response: Response,
         user.pop('tokens', None)
         LOG.info(f'Fetched user data (id={user_id}): {user}')
     else:
-        user = get_current_user(request=request, response=response, nano_token=nano_token)
+        current_user_data = get_current_user_data(request=request, nano_token=nano_token)
+        user = current_user_data.user
+        session_token = current_user_data.session
     if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail='User not found'
-        )
-    return dict(data=user)
+        return respond('User not found', 404)
+    return dict(data=user, token=session_token)
 
 
-@router.get("/{user_id}/avatar")
-def get_avatar(user_id: str):
-    """
-        Gets file from the server
-
-        :param user_id: target user id
-    """
-    LOG.debug(f'Getting avatar of user id: {user_id}')
-    user_data = db_controller.exec_query(query={'document': 'users',
-                                                'command': 'find_one',
-                                                'data': {'_id': user_id}}) or {}
-    if user_data.get('avatar', None):
-        file_response = get_file_response(filename=user_data['avatar'], location_prefix='avatars')
-        if file_response is not None:
-            return file_response
-    raise HTTPException(
-        status_code=status.HTTP_404_NOT_FOUND, detail=f'Failed to get avatar of {user_id}'
-    )
-
-
-@router.get('/bulk_fetch/', response_class=JSONResponse)
-def fetch_received_user_ids(user_ids: List[str] = Query(None)):
+@router.get('/get_users')
+@login_required
+async def fetch_received_user_ids(request: Request, user_ids: str = None, nicknames: str = None):
     """
         Gets users data based on provided user ids
 
+        :param request: Starlette Request Object
         :param user_ids: list of provided user ids
+        :param nicknames: list of provided nicknames
 
         :returns JSON response containing array of fetched user data
     """
-    user_ids = user_ids[0].split(',')
+    filter_data = {}
+    if not any(x for x in (user_ids, nicknames)):
+        return respond('Either user_ids or nicknames should be provided', 422)
+    if user_ids:
+        filter_data['_id'] = {'$in': user_ids.split(',')}
+    if nicknames:
+        filter_data['nickname'] = {'$in': nicknames.split(',')}
+
     users = db_controller.exec_query(query={'document': 'users',
                                             'command': 'find',
-                                            'data': {'_id': {'$in': list(set(user_ids))}}})
-    users = list(users)
-
-    formatted_users = dict()
-
+                                            'data': filter_data},
+                                     as_cursor=False)
     for user in users:
-        formatted_users[user['_id']] = user
+        user.pop('password', None)
+        user.pop('is_tmp', None)
+        user.pop('tokens', None)
+        user.pop('date_created', None)
 
-    result = list()
-
-    for user_id in user_ids:
-        desired_record = formatted_users.get(user_id, {})
-        if len(list(desired_record)) > 0:
-            desired_record.pop('password', None)
-            desired_record.pop('is_tmp', None)
-            desired_record.pop('tokens', None)
-            desired_record.pop('date_created', None)
-        result.append(desired_record)
-    json_compatible_item_data = jsonable_encoder(result)
-    return JSONResponse(content=json_compatible_item_data)
+    return JSONResponse(content={'users': jsonable_encoder(users)})
 
 
+@router.post("/update")
+@login_required
+async def update_profile(request: Request,
+                         user_id: str = Form(...),
+                         first_name: str = Form(""),
+                         last_name: str = Form(""),
+                         bio: str = Form(""),
+                         nickname: str = Form(""),
+                         password: str = Form(""),
+                         repeat_password: str = Form(""),
+                         avatar: UploadFile = File(None), ):
+    """
+        Gets file from the server
+
+        :param request: FastAPI Request Object
+        :param user_id: submitted user id
+        :param first_name: new first name value
+        :param last_name: new last name value
+        :param nickname: new nickname value
+        :param bio: updated user's bio
+        :param password: new password
+        :param repeat_password: repeat new password
+        :param avatar: new avatar image
+
+        :returns status: 200 if data updated successfully, 403 if operation is on tmp user, 401 if something went wrong
+    """
+    user = get_current_user(request=request)
+    if user['_id'] != user_id:
+        return respond(msg='Cannot update data of unauthorized user', status_code=status.HTTP_403_FORBIDDEN)
+    elif user.get('is_tmp'):
+        return respond(msg=f"Unable to update data of 'tmp' user", status_code=status.HTTP_403_FORBIDDEN)
+    update_dict = {'first_name': first_name,
+                   'last_name': last_name,
+                   'bio': bio,
+                   'nickname': nickname}
+    if password:
+        if password != repeat_password:
+            return respond(msg='Passwords do not match', status_code=status.HTTP_401_UNAUTHORIZED)
+        password_check = check_password_strength(password)
+        if password_check != 'OK':
+            return respond(msg=password_check, status_code=status.HTTP_401_UNAUTHORIZED)
+        update_dict['password'] = get_hash(password)
+    if avatar:
+        update_dict['avatar'] = await save_file(location_prefix='avatars', file=avatar)
+    try:
+        filter_expression = {'_id': user_id}
+        update_expression = {'$set': {k: v for k, v in update_dict.items() if v}}
+        db_controller.exec_query(query={'document': 'users',
+                                        'command': 'update',
+                                        'data': (filter_expression,
+                                                 update_expression,)})
+        return respond(msg="OK")
+    except Exception as ex:
+        LOG.error(ex)
+        return respond(msg='Unable to update user data at the moment', status_code=status.HTTP_422_UNPROCESSABLE_ENTITY)

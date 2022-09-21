@@ -8,7 +8,7 @@ An actual description of proposed solution can be found [under this link](https:
 
 ## Configuration
 
-Any configuration properties should be grouped by runtime environment which is set via environment variable "<b>ENV</b>"
+Any configuration properties should be grouped by runtime environment which is set via environment variable "<b>KLAT_ENV</b>"
 
 
 ### Database

@@ -132,14 +132,3 @@ async def logout():
     LOG.info(f'Logout response: {json_data}')
 
     return response
-
-
-@router.get("/runtime_config", response_class=JSONResponse)
-async def fetch_runtime_config():
-    """Fetches runtime config from local JSON file in provided location"""
-    try:
-        runtime_configs = app_config.get('RUNTIME_CONFIG', {})
-    except Exception as ex:
-        LOG.error(f'Exception while fetching runtime configs: {ex}')
-        runtime_configs = {}
-    return JSONResponse(content=runtime_configs)

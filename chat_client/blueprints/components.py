@@ -16,19 +16,58 @@
 # Specialized conversational reconveyance options from Conversation Processing Intelligence Corp.
 # US Patents 2008-2021: US7424516, US20140161250, US20140177813, US8638908, US8068604, US8553852, US10530923, US10530924
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
-import os
 
-from fastapi import APIRouter
+import requests
+from fastapi import APIRouter, HTTPException
+from starlette import status
 from starlette.requests import Request
-from starlette.templating import Jinja2Templates
+from starlette.responses import Response
 
 from chat_client.client_config import app_config
+from utils.http_utils import respond
 from utils.template_utils import callback_template
 
 router = APIRouter(
     prefix="/components",
     responses={'404': {"description": "Unknown endpoint"}},
 )
+
+
+@router.get('/profile')
+async def get_profile_modal(request: Request, nickname: str = '', edit: str = '0'):
+    """ Callbacks template with matching modal populated with user's data """
+    auth_header = 'Authorization'
+    headers = {auth_header: request.headers.get(auth_header, '')}
+    if edit == '1':
+        resp = requests.get(f'{app_config["SERVER_URL"]}/users_api/', headers=headers)
+        if resp.ok:
+            user = resp.json()['data']
+            # if user.get('is_tmp'):
+            #     raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
+            #                         detail='Cannot render edit modal for tmp user')
+        else:
+            return respond('Server was not able to process the request', 422)
+        template_name = 'edit_profile_modal'
+    else:
+        if not nickname:
+            return respond('No nickname provided', 422)
+        resp = requests.get(f'{app_config["SERVER_URL"]}/users_api/get_users?nicknames={nickname}', headers=headers)
+        if resp.ok:
+            user_data = resp.json().get('users', [])
+            if not user_data:
+                return respond(f'User with nickname={nickname} not found', 404)
+            else:
+                user = user_data[0]
+        else:
+            return respond('Server was not able to process the request', 422)
+        template_name = 'profile_modal'
+    context = {'server_url': app_config["SERVER_URL"],
+               'user_id': user['_id'],
+               'nickname': user['nickname'],
+               'first_name': user.get('first_name', 'Klat'),
+               'last_name': user.get('last_name', 'User'),
+               'bio': user.get('bio', f'No information about {user["nickname"]}')}
+    return callback_template(request=request, template_name=template_name, context=context)
 
 
 @router.get('/{template_name}')

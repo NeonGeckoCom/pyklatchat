@@ -46,7 +46,7 @@ function showSTT(message_id, lang, message_text){
  */
 function getTTS(cid, message_id, lang, gender='female'){
     // TODO: consider multi-gender voices in future
-    socket.emit('request_tts', {'cid':cid,
+    socket.emitAuthorized('request_tts', {'cid':cid,
                                 'user_id':currentUser['_id'],
                                 'message_id':message_id,
                                 'lang':lang});
@@ -60,7 +60,7 @@ function getTTS(cid, message_id, lang, gender='female'){
  * @param lang: target language
  */
 function getSTT(cid, message_id, lang){
-    socket.emit('request_stt', {'cid':cid,
+    socket.emitAuthorized('request_stt', {'cid':cid,
                                 'user_id':currentUser['_id'],
                                 'message_id':message_id,
                                 'lang':lang});
@@ -106,10 +106,45 @@ const recordAudio = (cid) => {
         };
 
         resolve({ start, stop });
-      });
-  }).catch(_=>{
-      console.warn('Failed to detect microphone in user system, audio input will be disabled');
-      const audioInput = document.getElementById(`${cid}-audio-input`);
-      audioInput.disabled = true;
+      }).catch(err=>{
+          const errMsg = err.toString();
+          console.warn(`Starting audio recording failed with error - ${errMsg}`)
+          const audioInput = document.getElementById(`${cid}-audio-input`);
+          audioInput.disabled = true;
+    });
   });
 };
+
+// Recorder instance
+let recorder = null;
+
+
+/**
+ * Adds event listener for audio recording
+ * @param conversationData: conversation data object
+ */
+async function addRecorder(conversationData) {
+
+    const cid = conversationData["_id"];
+
+    const recorderButton = document.getElementById(`${cid}-audio-input`);
+
+    if (!recorderButton.disabled) {
+        recorderButton.onmousedown = async function () {
+            recorder = await recordAudio(cid);
+            recorder.start();
+        };
+
+        recorderButton.onmouseup = async function () {
+            if (recorder) {
+                recorder.stop().then(audio => {
+                    const audioBlob = toBase64(audio['audioBlob']);
+                    console.log('audioBlob=', audioBlob);
+                    return audioBlob;
+                }).then(encodedAudio => {
+                    emitUserMessage(encodedAudio, conversationData['_id'], null, [], '1', '0');
+                });
+            }
+        };
+    }
+}

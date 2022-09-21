@@ -1,9 +1,31 @@
+const importConversationModal = $('#importConversationModal');
 const conversationSearchInput = document.getElementById('conversationSearchInput');
 const addBySearch = document.getElementById('addBySearch');
+
+const newConversationModal = $('#newConversationModal');
 const addNewConversation = document.getElementById('addNewConversation');
+
 const conversationBody = document.getElementById('conversationsBody');
 
-let conversationParticipants = {};
+let conversationState = {};
+
+/**
+ * Gets participants data listed under conversation id
+ * @param cid: target conversation id
+ * @return {*} participants data object
+ */
+const getParticipants = (cid) => {
+    return setDefault(setDefault(conversationState, cid, {}), 'participants', {});
+}
+
+/**
+ * Sets participants count for conversation view
+ * @param cid: desired conversation id
+ */
+const displayParticipantsCount = (cid) => {
+    const participantsCountNode = document.getElementById(`participants-count-${cid}`);
+    participantsCountNode.innerText = Object.keys(getParticipants(cid)).length;
+}
 
 /**
  * Adds new conversation participant
@@ -12,369 +34,61 @@ let conversationParticipants = {};
  * @param updateCount: to update participants count
  */
 const addConversationParticipant = (cid, nickname, updateCount = false) => {
-    if(!conversationParticipants.hasOwnProperty(cid)){
-        conversationParticipants[cid] = {};
-    }
-    if(!conversationParticipants[cid].hasOwnProperty(nickname)){
-        conversationParticipants[cid][nickname] = 1;
+    const conversationParticipants = getParticipants(cid);
+    if(!conversationParticipants.hasOwnProperty(nickname)){
+        conversationParticipants[nickname] = {'num_messages': 1};
     }else{
-        conversationParticipants[cid][nickname]++;
+        conversationParticipants[nickname]['num_messages']++;
     }
     if(updateCount){
-        setParticipantsCount(cid);
+        displayParticipantsCount(cid);
     }
 }
 
 /**
- * Sets participants count for conversation view
- * @param cid: desired conversation id
+ * Saves attached files to the server
+ * @param cid: target conversation id
+ * @return attachments array or -1 if something went wrong
  */
-const setParticipantsCount = (cid) => {
-    const participantsCountNode = document.getElementById(`participants-count-${cid}`);
-    participantsCountNode.innerText = Object.keys(conversationParticipants[cid]).length;
-}
+const saveAttachedFiles = async (cid) => {
+    const filesArr = getUploadedFiles(cid);
+    const attachments = [];
+    if (filesArr.length > 0){
+        setChatState(cid, 'updating', 'Saving attachments...');
+        let errorOccurred = null;
+        const formData = new FormData();
+        const attachmentProperties = {}
+        filesArr.forEach(file=>{
+            const generatedFileName = `${generateUUID(10,'00041000')}.${file.name.split('.').pop()}`;
+            attachmentProperties[generatedFileName] = {'size': file.size, 'type': file.type}
+            const renamedFile = new File([file], generatedFileName, {type: file.type});
+            formData.append('files', renamedFile);
+        });
+        cleanUploadedFiles(cid);
 
-/**
- * Adds new message to desired conversation id
- * @param cid: desired conversation id
- * @param userID: message sender id
- * @param messageID: id of sent message (gets generated if null)
- * @param messageText: text of the message
- * @param timeCreated: timestamp for message creation
- * @param repliedMessageID: id of the replied message (optional)
- * @param attachments: array of attachments to add (optional)
- * @param isAudio: is audio message (defaults to '0')
- * @param isAnnouncement: is message an announcement (defaults to "0")
- * @returns {Promise<null|number>}: promise resolving id of added message, -1 if failed to resolve message id creation
- */
-async function addMessage(cid, userID=null, messageID=null, messageText, timeCreated, repliedMessageID=null, attachments=[], isAudio='0', isAnnouncement='0'){
-    const cidElem = document.getElementById(cid);
-    if(cidElem){
-        const cidList = cidElem.getElementsByClassName('card-body')[0].getElementsByClassName('chat-list')[0]
-        if(cidList){
-            let userData;
-            const isMine = userID === currentUser['_id'];
-            if(isMine) {
-                userData = currentUser;
-            }else{
-                userData = await getUserData(userID);
-            }
-            if(!messageID) {
-                messageID = generateUUID();
-            }
-            let messageHTML = await buildUserMessageHTML(userData, messageID, messageText, timeCreated, isMine, isAudio, isAnnouncement);
-            const blankChat = cidList.getElementsByClassName('blank_chat');
-            if(blankChat.length>0){
-                cidList.removeChild(blankChat[0]);
-            }
-            cidList.insertAdjacentHTML('beforeend', messageHTML);
-            resolveMessageAttachments(cid, messageID, attachments);
-            resolveUserReply(messageID, repliedMessageID);
-            addConversationParticipant(cid, userData['nickname'], true);
-            cidList.lastChild.scrollIntoView();
-            return messageID;
-        }
-    }
-    return -1;
-}
-
-/**
- * Builds user message HTML
- * @param userData: data of message sender
- * @param messageID: id of user message
- * @param messageText: text of user message
- * @param timeCreated: date of creation
- * @param isMine: if message was emitted by current user
- * @param isAudio: if message is audio message (defaults to '0')
- * @param isAnnouncement: is message if announcement (defaults to '0')
- * @returns {string}: constructed HTML out of input params
- */
-async function buildUserMessageHTML(userData, messageID, messageText, timeCreated, isMine, isAudio = '0', isAnnouncement = '0'){
-    const messageTime = getTimeFromTimestamp(timeCreated);
-    let imageComponent;
-    let shortedNick = `${userData['nickname'][0]}${userData['nickname'][userData['nickname'].length - 1]}`;
-    if (userData.hasOwnProperty('avatar') && userData['avatar']){
-        imageComponent = `<img alt="${shortedNick}" onerror="handleImgError(this);" src="${configData["CHAT_SERVER_URL_BASE"]}/users_api/${userData['_id']}/avatar">`
-    }
-    else{
-        imageComponent = `<p>${userData['nickname'][0]}${userData['nickname'][userData['nickname'].length - 1]}</p>`;
-    }
-    const messageClass = isAnnouncement === '1'?'announcement':isMine?'in':'out';
-    const templateName = isAudio === '1'?'user_message_audio': 'user_message';
-    return await buildHTMLFromTemplate(templateName,
-        {'message_class': messageClass,
-            'is_announcement': isAnnouncement,
-            'image_component': imageComponent,
-            'message_id':messageID,
-            'nickname': userData['nickname'],
-            'message_text':messageText,
-            'audio_url': `${configData["CHAT_SERVER_URL_BASE"]}/files/get_audio/${messageID}`,
-            'message_time': messageTime});
-}
-
-/**
- * Resolves user reply on message
- * @param replyID: id of user reply
- * @param repliedID id of replied message
- */
-function resolveUserReply(replyID,repliedID){
-    if(repliedID){
-        const repliedElem = document.getElementById(repliedID);
-        if(repliedElem) {
-            let repliedText = repliedElem.getElementsByClassName('message-text')[0].innerText;
-            repliedText = shrinkToFit(repliedText, 15);
-            const replyHTML = `<a class="reply-text" data-replied-id="${repliedID}">
-                                    ${repliedText}
-                                </a>`;
-            const replyPlaceholder = document.getElementById(replyID).getElementsByClassName('reply-placeholder')[0];
-            replyPlaceholder.insertAdjacentHTML('afterbegin', replyHTML);
-            attachReplyHighlighting(replyPlaceholder.getElementsByClassName('reply-text')[0]);
-        }
-    }
-}
-
-
-/**
- * Resolves attachments to the message
- * @param cid: id of conversation
- * @param messageID: id of user message
- * @param attachments list of attachments received
- */
-function resolveMessageAttachments(cid, messageID,attachments = []){
-    if(messageID) {
-        const messageElem = document.getElementById(messageID);
-        if(messageElem) {
-            const attachmentToggle = messageElem.getElementsByClassName('attachment-toggle')[0];
-            if (attachments.length > 0) {
-                if (messageElem) {
-                    const attachmentPlaceholder = messageElem.getElementsByClassName('attachments-placeholder')[0];
-                    attachments.forEach(attachment => {
-                        const attachmentHTML = `<span class="attachment-item" data-file-name="${attachment['name']}" data-mime="${attachment['mime']}" data-size="${attachment['size']}">
-                                            ${shrinkToFit(attachment['name'], 10)}
-                                        </span><br>`;
-                        attachmentPlaceholder.insertAdjacentHTML('afterbegin', attachmentHTML);
-                    });
-                    attachmentToggle.addEventListener('click', (e) => {
-                        attachmentPlaceholder.style.display = attachmentPlaceholder.style.display === "none" ? "" : "none";
-                    });
-                    activateAttachments(cid, attachmentPlaceholder);
+        await fetchServer(`files/attachments`, REQUEST_METHODS.POST, formData)
+            .then(async response => {
+                const responseJson = await response.json();
+                if (response.ok){
+                    for (const [fileName, savedName] of Object.entries(responseJson['location_mapping'])){
+                        attachments.push({'name': savedName,
+                                          'size': attachmentProperties[fileName].size,
+                                          'mime': attachmentProperties[fileName].type})
+                    }
+                }else{
+                    throw `Failed to save attachments status=${response.status}, msg=${responseJson}`;
                 }
-            } else {
-                attachmentToggle.style.display = "none";
-            }
+            }).catch(err=>{
+                errorOccurred=err;
+            });
+        if(errorOccurred){
+            console.error(`Error during attachments preparation: ${errorOccurred}, skipping message sending`);
+            return -1
+        }else{
+            console.log('Received attachments array: ', attachments);
         }
     }
-}
-
-/**
- * Attaches reply highlighting for reply item
- * @param replyItem reply item element
- */
-function attachReplyHighlighting(replyItem){
-    replyItem.addEventListener('click', (e)=>{
-        const repliedItem = document.getElementById(replyItem.getAttribute('data-replied-id'));
-        const backgroundParent = repliedItem.parentElement.parentElement;
-        repliedItem.scrollIntoView();
-        backgroundParent.classList.remove('message-selected');
-        setTimeout(() => backgroundParent.classList.add('message-selected'),500);
-    });
-}
-
-/**
- * Attaches message replies to initialized conversation
- * @param conversationData: conversation data object
- */
-function attachReplies(conversationData){
-    if(conversationData.hasOwnProperty('chat_flow')) {
-        Array.from(conversationData['chat_flow']).forEach(message => {
-            resolveUserReply(message['message_id'], message?.replied_message);
-        });
-        Array.from(document.getElementsByClassName('reply-text')).forEach(replyItem=>{
-            attachReplyHighlighting(replyItem);
-        });
-    }
-}
-
-/**
- * Adds download request on attachment item click
- * @param attachmentItem: desired attachment item
- * @param cid: current conversation id
- * @param messageID: current message id
- */
-function downloadAttachment(attachmentItem, cid, messageID){
-    if(attachmentItem){
-        const fileName = attachmentItem.getAttribute('data-file-name');
-        const mime = attachmentItem.getAttribute('data-mime');
-        const getFileURL = `${configData['CHAT_SERVER_URL_BASE']}/chat_api/${messageID}/get_file/${fileName}`;
-        fetch(getFileURL).then(async response => {
-            response.ok ?
-                download(await response.blob(), fileName, mime)
-                :console.error(`No file data received for path, 
-                                  cid=${cid};\n
-                                  message_id=${messageID};\n
-                                  file_name=${fileName}`)
-        }).catch(err=>console.error(`Failed to fetch: ${getFileURL}: ${err}`));
-    }
-}
-
-/**
- * Attaches message replies to initialized conversation
- * @param conversationData: conversation data object
- */
-function addAttachments(conversationData){
-    if(conversationData.hasOwnProperty('chat_flow')) {
-        Array.from(conversationData['chat_flow']).forEach(message => {
-            resolveMessageAttachments(conversationData['_id'], message['message_id'], message?.attachments);
-        });
-    }
-}
-
-/**
- * Activates attachments event listeners for message attachments in specified conversation
- * @param cid: desired conversation id
- * @param elem: parent element for attachment (defaults to document)
- */
-function activateAttachments(cid, elem=null){
-    if (!elem){
-        elem = document;
-    }
-    Array.from(elem.getElementsByClassName('attachment-item')).forEach(attachmentItem=>{
-        attachmentItem.addEventListener('click', (e)=>{
-           e.preventDefault();
-           downloadAttachment(attachmentItem, cid, attachmentItem.parentNode.parentNode.id);
-        });
-    });
-}
-
-
-let __inputFileList = {};
-
-/**
- * Gets uploaded files from specified conversation id
- * @param cid specified conversation id
- * @return {*} list of files from specified cid if any
- */
-function getUploadedFiles(cid){
-    if(__inputFileList.hasOwnProperty(cid)){
-        return __inputFileList[cid];
-    }return [];
-}
-
-/**
- * Cleans uploaded files per conversation
- */
-function cleanUploadedFiles(cid){
-    if(__inputFileList.hasOwnProperty(cid)) {
-        delete __inputFileList[cid];
-    }
-    const attachmentsButton = document.getElementById('file-input-'+cid);
-    attachmentsButton.value = "";
-    const fileContainer = document.getElementById('filename-container-'+cid);
-    fileContainer.innerHTML = "";
-}
-
-/**
- * Adds File upload to specified cid
- * @param cid: mentioned cid
- * @param file: File object
- */
-function addUpload(cid, file){
-    if(!__inputFileList.hasOwnProperty(cid)){
-        __inputFileList[cid] = [];
-    }
-    __inputFileList[cid].push(file);
-}
-
-/**
- * Adds speaking callback for the message
- * @param cid: id of the conversation
- * @param messageID: id of the message
- */
-function addSTTCallback(cid, messageID){
-    const sttButton = document.getElementById(`${messageID}_text`);
-    if (sttButton) {
-        sttButton.addEventListener('click', (e) => {
-            e.preventDefault();
-            const sttContent = document.getElementById(`${messageID}-stt`);
-            if (sttContent){
-                sttContent.innerHTML = `<div class="text-center">
-                                        Waiting for STT...  <div class="spinner-border spinner-border-sm" role="status">
-                                                            <span class="sr-only">Loading...</span>
-                                                        </div>
-                                        </div>`;
-                sttContent.style.setProperty('display', 'block', 'important');
-                getSTT(cid, messageID, getPreferredLanguage(cid));
-            }
-        });
-    }
-}
-
-/**
- * Adds speaking callback for the message
- * @param cid: id of the conversation
- * @param messageID: id of the message
- */
-function addTTSCallback(cid, messageID){
-    const speakingButton = document.getElementById(`${messageID}_speak`);
-    if (speakingButton) {
-        speakingButton.addEventListener('click', (e) => {
-            e.preventDefault();
-            getTTS(cid, messageID, getPreferredLanguage(cid));
-            setChatState(cid, 'updating', `Fetching TTS...`)
-        });
-    }
-}
-
-/**
- * Attaches STT capabilities for audio messages and TTS capabilities for text messages
- * @param cid: parent conversation id
- * @param messageID: target message id
- * @param isAudio: if its an audio message (defaults to '0')
- */
-function addMessageTransformCallback(cid, messageID, isAudio='0'){
-    if (isAudio === '1'){
-        addSTTCallback(cid, messageID);
-    }else{
-        addTTSCallback(cid, messageID);
-    }
-}
-
-
-/**
- * Attaches STT capabilities for audio messages and TTS capabilities for text messages
- * @param conversationData: conversation data object
- */
-function addCommunicationChannelTransformCallback(conversationData) {
-    if (conversationData.hasOwnProperty('chat_flow')) {
-        Array.from(conversationData['chat_flow']).forEach(message => {
-            addMessageTransformCallback(conversationData['_id'], message['message_id'], message?.is_audio);
-        });
-    }
-}
-
-/**
- * Adds event listener for audio recording
- * @param conversationData: conversation data object
- */
-async function addRecorder(conversationData) {
-
-    const cid = conversationData["_id"];
-
-    const recorderButton = document.getElementById(`${cid}-audio-input`);
-
-    const recorder = await recordAudio(cid);
-
-    recorderButton.onmousedown = function () {
-        recorder.start();
-    };
-
-    recorderButton.onmouseup = async function () {
-        recorder.stop().then(audio=>{
-            const audioBlob = toBase64(audio['audioBlob']);
-            console.log('audioBlob=',audioBlob);
-            return audioBlob;
-        }).then(encodedAudio=>emitUserMessage(encodedAudio, conversationData['_id'], null, [], '1', '0'));
-    };
+    return attachments;
 }
 
 /**
@@ -388,6 +102,8 @@ async function addRecorder(conversationData) {
  *         'user_avatar': 'avatar of sender',
  *         'message_id': 'id of the message',
  *         'message_text': 'text of the message',
+ *         'is_audio': true if message is an audio message
+ *         'is_announcement': true if message is considered to be an announcement
  *         'created_on': 'creation time of the message'
  *     }, ... (num of user messages returned)]
  * }
@@ -401,15 +117,12 @@ async function buildConversation(conversationData={}, remember=true,conversation
        addNewCID(conversationData['_id']);
    }
    if(configData.client === CLIENTS.MAIN) {
-       conversationParticipants[conversationData['_id']] = {};
+       getParticipants(conversationData['_id']);
    }
    const newConversationHTML = await buildConversationHTML(conversationData);
    const conversationsBody = document.getElementById(conversationParentID);
    conversationsBody.insertAdjacentHTML('afterbegin', newConversationHTML);
-   attachReplies(conversationData);
-   addAttachments(conversationData);
-   addCommunicationChannelTransformCallback(conversationData);
-   await addRecorder(conversationData);
+   initMessages(conversationData);
 
    const currentConversation = document.getElementById(conversationData['_id']);
    const conversationParent = currentConversation.parentElement;
@@ -421,35 +134,11 @@ async function buildConversation(conversationData={}, remember=true,conversation
 
     if(chatInputButton.hasAttribute('data-target-cid')) {
         chatInputButton.addEventListener('click', async (e)=>{
+            const attachments = await saveAttachedFiles(conversationData['_id']);
             const textInputElem = document.getElementById(conversationData['_id']+'-input');
-            let attachments = [];
-            const currCid = chatInputButton.getAttribute('data-target-cid');
-            const filesArr = getUploadedFiles(currCid);
-            if (filesArr.length > 0){
-                console.info('Processing attachments array...')
-                let errorOccurred = null;
-                const formData = new FormData();
-                filesArr.forEach(file=>{
-                    const generatedFileName = `${generateUUID(10,'00041000')}.${file.name.split('.').pop()}`;
-                    attachments.push({'name': generatedFileName, 'size': file.size, 'mime': file.type});
-                    const renamedFile = new File([file], generatedFileName, {type: file.type});
-                    formData.append('files', renamedFile);
-                });
-                cleanUploadedFiles(currCid);
-
-                console.log('Received attachments array: ', attachments)
-                const query_url = `${configData['CHAT_SERVER_URL_BASE']}/chat_api/${conversationData['_id']}/store_files`;
-                await fetch(query_url, {method:'POST',
-                                              body:formData})
-                    .then(response => response.ok?console.log('File stored successfully'):null).catch(err=>{
-                        errorOccurred=err;
-                    });
-                if(errorOccurred){
-                    console.error(`Error during attachments preparation: ${errorOccurred}, skipping message sending`);
-                    return
-                }
+            if(Array.isArray(attachments)) {
+                emitUserMessage(textInputElem, conversationData['_id'], null, attachments, '0', '0');
             }
-            emitUserMessage(textInputElem, e.target.getAttribute('data-target-cid'),null, attachments, '0', '0');
             textInputElem.value = "";
         });
     }
@@ -458,7 +147,7 @@ async function buildConversation(conversationData={}, remember=true,conversation
     if(chatCloseButton.hasAttribute('data-target-cid')) {
         chatCloseButton.addEventListener('click', (e)=>{
             conversationHolder.removeChild(conversationParent);
-            removeCID(conversationData['_id']);
+            removeConversation(conversationData['_id']);
         });
     }
 
@@ -478,111 +167,45 @@ async function buildConversation(conversationData={}, remember=true,conversation
             }
         }
     });
-    setParticipantsCount(conversationData['_id']);
-    await initLanguageSelector(conversationData['_id']);
-    setTimeout(() => currentConversation.getElementsByClassName('card-body')[0].getElementsByClassName('chat-list')[0].lastElementChild?.scrollIntoView(true), 0);
+    displayParticipantsCount(conversationData['_id']);
+    await initLanguageSelectors(conversationData['_id']);
+    setTimeout(() => getMessageListContainer(conversationData['_id']).lastElementChild?.scrollIntoView(true), 0);
+    await addRecorder(conversationData);
+    $('#copyrightContainer').css('position', 'inherit');
     return conversationData['_id'];
 }
 
 /**
- * Builds HTML for received conversation data
- * @param conversationData: JS Object containing conversation data of type:
- * {
- *     '_id': 'id of conversation',
- *     'conversation_name': 'title of the conversation',
- *     'chat_flow': [{
- *         'user_nickname': 'nickname of sender',
- *         'user_avatar': 'avatar of sender',
- *         'message_id': 'id of the message',
- *         'message_text': 'text of the message',
- *         'created_on': 'creation time of the message'
- *     }, ... (num of user messages returned)]
- * }
- * @returns {string} conversation HTML based on provided data
- */
-async function buildConversationHTML(conversationData = {}){
-    const cid = conversationData['_id'];
-    const conversation_name = conversationData['conversation_name'];
-    let chatFlowHTML = "";
-    if(conversationData.hasOwnProperty('chat_flow')) {
-        for (const message of Array.from(conversationData['chat_flow'])) {
-            const isMine = currentUser && message['user_nickname'] === currentUser['nickname'];
-
-            chatFlowHTML += await buildUserMessageHTML({'avatar':message['user_avatar'],'nickname':message['user_nickname'], '_id': message['user_id']},message['message_id'], message['message_text'], message['created_on'],isMine,message?.is_audio, message?.is_announcement);
-            addConversationParticipant(conversationData['_id'], message['user_nickname']);
-        }
-    }else{
-        chatFlowHTML+=`<div class="blank_chat">No messages in this chat yet...</div>`;
-    }
-    return await buildHTMLFromTemplate('conversation',
-        {'cid': cid, 'conversation_name':conversation_name, 'chat_flow': chatFlowHTML});
-}
-
-
-/**
  * Gets conversation data based on input string
  * @param input: input string text
+ * @param firstMessageID: id of the the most recent message
+ * @param maxResults: max number of messages to fetch
  * @returns {Promise<{}>} promise resolving conversation data returned
  */
-async function getConversationDataByInput(input=""){
+async function getConversationDataByInput(input="", firstMessageID=null, maxResults=10){
     let conversationData = {};
     if(input && typeof input === "string"){
-        const query_url = `${configData['CHAT_SERVER_URL_BASE']}/chat_api/search/${input}`
-        await fetch(query_url)
+        let query_url = `chat_api/search/${input}?limit_chat_history=${maxResults}`
+        if(firstMessageID){
+            query_url += `&first_message_id=${firstMessageID}`
+        }
+        await fetchServer(query_url)
             .then(response => {
                 if(response.ok){
                     return response.json();
                 }else{
-                    console.log('here')
                     throw response.statusText;
                 }
             })
             .then(data => {
+                if (getUserMessages(data).length < maxResults){
+                    console.log('All of the messages are already displayed');
+                    setDefault(setDefault(conversationState, data['_id'], {}), 'all_messages_displayed', true);
+                }
                 conversationData = data;
             }).catch(err=> console.warn('Failed to fulfill request due to error:',err));
     }
     return conversationData;
-}
-
-/**
- * Emits user message to Socket IO Server
- * @param textInputElem: DOM Element with input text (audio object if isAudio=true)
- * @param cid: Conversation ID
- * @param repliedMessageID: ID of replied message
- * @param attachments: list of attachments file names
- * @param isAudio: is audio message being emitted (defaults to '0')
- * @param isAnnouncement: is message an announcement (defaults to '0')
- */
-function emitUserMessage(textInputElem, cid, repliedMessageID=null, attachments= [], isAudio='0', isAnnouncement='0'){
-    if(isAudio === '1' || textInputElem && textInputElem.value){
-        const timeCreated = Math.floor(Date.now() / 1000);
-        let messageText;
-        if (isAudio === '1'){
-            messageText = textInputElem;
-        }else {
-            messageText = textInputElem.value;
-        }
-        addMessage(cid, currentUser['_id'],null, messageText, timeCreated,repliedMessageID,attachments, isAudio, isAnnouncement).then(messageID=>{
-            socket.emit('user_message',
-                {'cid':cid,
-                 'userID':currentUser['_id'],
-                 'messageText':messageText,
-                 'messageID':messageID,
-                 'attachments': attachments,
-                 'isAudio': isAudio,
-                 'isAnnouncement': isAnnouncement,
-                 'timeCreated':timeCreated
-                });
-            addMessageTransformCallback(cid, messageID, isAudio);
-            // TODO: support for audio message translation
-            if(isAudio !== '1'){
-                sendLanguageUpdateRequest(cid, messageID);
-            }
-        });
-        if (isAudio === '0'){
-            textInputElem.value = "";
-        }
-    }
 }
 
 /**
@@ -615,12 +238,15 @@ function addNewCID(cid){
  * Removed conversation id from local storage
  * @param cid: conversation id to remove
  */
-function removeCID(cid){
+function removeConversation(cid){
     const keyName = conversationAlignmentKey;
     let itemLayout = retrieveItemsLayout(keyName);
     itemLayout = itemLayout.filter(function(value, index, arr){
         return value !== cid;
     });
+    if (itemLayout.length === 0){
+        $('#copyrightContainer').css('position', 'absolute');
+    }
     localStorage.setItem(keyName,JSON.stringify(itemLayout));
 }
 
@@ -651,32 +277,56 @@ async function restoreChatAlignment(keyName=conversationAlignmentKey){
             if(conversationData && Object.keys(conversationData).length > 0) {
                 await buildConversation(conversationData, false);
             }else{
-                displayAlert(document.getElementById('conversationsBody'),'No matching conversation found','danger');
-                removeCID(item);
+                displayAlert(document.getElementById('conversationsBody'),'No matching conversation found','danger', 'noRestoreConversationAlert', {'type': alertBehaviors.AUTO_EXPIRE});
+                removeConversation(item);
             }
         });
     }
-    console.log('Chat Alignment Restored')
+    console.log('Chat Alignment Restored');
+    await requestChatsLanguageRefresh();
     document.dispatchEvent(chatAlignmentRestoredEvent);
+}
+
+
+/**
+ * Helper struct to decide on which kind of messages to refer
+ * "all" - all the messages
+ * "mine" - only the messages emitted by current user
+ * "others" - all the messages except "mine"
+ */
+const MESSAGE_REFER_TYPE = {
+    ALL: 'all',
+    MINE: 'mine',
+    OTHERS: 'other'
 }
 
 /**
  * Gets array of messages for provided conversation id
  * @param cid: target conversation id
+ * @param messageReferType: message refer type to consider from MESSAGE_REFER_TYPE
+ * @param idOnly: to return id only (defaults to false)
  * @return array of message DOM objects under given conversation
  */
-function getMessagesOfCID(cid){
+function getMessagesOfCID(cid, messageReferType=MESSAGE_REFER_TYPE.ALL, idOnly=false){
     let messages = []
-    const conversation = document.getElementById(cid);
-    if(conversation){
-        const listItems =  conversation.getElementsByClassName('card-body')[0]
-                                       .getElementsByClassName('chat-list')[0]
-                                       .getElementsByTagName('li');
+    const messageContainer =getMessageListContainer(cid);
+    if(messageContainer){
+        const listItems = messageContainer.getElementsByTagName('li');
         Array.from(listItems).forEach(li=>{
-           if(li.classList.contains('in') || li.classList.contains('out')){
+           try {
                const messageNode = li.getElementsByClassName('chat-body')[0].getElementsByClassName('chat-message')[0];
-               // console.debug(`pushing shout_id=${messageNode.id}`)
-               messages.push(messageNode);
+               // console.debug(`pushing shout_id=${messageNode.id}`);
+               if (messageReferType === MESSAGE_REFER_TYPE.ALL ||
+                   (messageReferType === MESSAGE_REFER_TYPE.MINE && messageNode.getAttribute('data-sender') === currentUser['nickname']) ||
+                   (messageReferType === MESSAGE_REFER_TYPE.OTHERS && messageNode.getAttribute('data-sender') !== currentUser['nickname'])){
+                   if (idOnly){
+                       messages.push(messageNode.id);
+                   }else {
+                       messages.push(messageNode);
+                   }
+               }
+           } catch (e) {
+               console.warn(`Failed to get message under node: ${li} - ${e}`);
            }
         });
     }
@@ -711,61 +361,6 @@ function getOpenedChats(){
     return cids;
 }
 
-async function setSelectedLang(clickedItem, cid){
-    const selectedLangNode = document.getElementById(`language-selected-${cid}`);
-    const selectedLangList = document.getElementById(`language-list-${cid}`);
-
-    // console.log('emitted lang update')
-    const preferredLang = getPreferredLanguage(cid);
-    const preferredLangProps = configData['supportedLanguages'][preferredLang];
-    const newKey = clickedItem.getAttribute('data-lang');
-    const newPreferredLangProps = configData['supportedLanguages'][newKey];
-    selectedLangNode.innerHTML = await buildHTMLFromTemplate('selected_lang', {'key': newKey, 'name': newPreferredLangProps['name'], 'icon': newPreferredLangProps['icon']})
-    selectedLangList.insertAdjacentHTML('beforeend', await buildLangOptionHTML(cid, preferredLang, preferredLangProps['name'], preferredLangProps['icon']));
-    clickedItem.parentNode.removeChild(clickedItem);
-    console.log(`cid=${cid};new preferredLang=${newKey}`)
-    setPreferredLanguage(cid, newKey);
-    const insertedNode = document.getElementById(getLangOptionID(cid, preferredLang));
-    sendLanguageUpdateRequest(cid, null, newKey);
-    insertedNode.addEventListener('click', async (e)=> {
-        e.preventDefault();
-        await setSelectedLang(insertedNode, cid);
-    });
-}
-
-/**
- * Initialize language selector for conversation
- * @param cid: target conversation id
- */
-async function initLanguageSelector(cid){
-   let preferredLang = getPreferredLanguage(cid);
-   const supportedLanguages = configData['supportedLanguages'];
-   if (!supportedLanguages.hasOwnProperty(preferredLang)){
-       preferredLang = 'en';
-   }
-   const selectedLangNode = document.getElementById(`language-selected-${cid}`);
-   const selectedLangList = document.getElementById(`language-list-${cid}`);
-
-   if (selectedLangList){
-      selectedLangList.innerHTML = "";
-   }
-   // selectedLangNode.innerHTML = "";
-   for (const [key, value] of Object.entries(supportedLanguages)) {
-
-      if (key === preferredLang){
-          selectedLangNode.innerHTML = await buildHTMLFromTemplate('selected_lang',
-              {'key': key, 'name': value['name'], 'icon': value['icon']})
-      }else{
-          selectedLangList.insertAdjacentHTML('beforeend', await buildLangOptionHTML(cid, key, value['name'], value['icon']));
-          const itemNode = document.getElementById(getLangOptionID(cid, key));
-          itemNode.addEventListener('click', async (e)=>{
-              e.preventDefault();
-              await setSelectedLang(itemNode, cid)
-          });
-      }
-   }
-}
-
 const CHAT_STATES = ['active', 'updating'];
 
 /**
@@ -793,62 +388,105 @@ function setChatState(cid, state='active', state_msg = ''){
             spinner.style.setProperty('display', 'none', 'important');
             spinnerUpdateMsg.innerHTML = '';
         }
+        conversationState[cid]['state'] = state;
+        conversationState[cid]['state_message'] = state_msg;
     }
+}
+
+/**
+ * Displays first conversation matching search string
+ * @param searchStr: Search string to find matching conversation
+ * @param alertParentID: id of the element to display alert in
+ */
+async function displayConversation(searchStr, alertParentID = null){
+    if (searchStr !== "") {
+        const alertParent = document.getElementById(alertParentID);
+        await getConversationDataByInput(searchStr).then(async conversationData => {
+            let responseOk = false;
+            if (getOpenedChats().includes(conversationData['_id']) && alertParent) {
+                displayAlert(alertParent, 'Chat is already displayed', 'danger');
+            } else if (conversationData && Object.keys(conversationData).length > 0) {
+                await buildConversation(conversationData);
+                for (const inputType of ['incoming', 'outcoming']){
+                    requestTranslation(conversationData['_id'], null, null, inputType);
+                }
+                responseOk = true;
+            } else {
+                if (alertParent) {
+                    displayAlert(
+                        alertParent,
+                        'Cannot find conversation matching your search',
+                        'danger',
+                        'noSuchConversationAlert',
+                        {'type': alertBehaviors.AUTO_EXPIRE}
+                        );
+                }
+            }
+            return responseOk;
+        });
+    }
+}
+
+/**
+ * Handles requests on creation new conversation by the user
+ * @param conversationName: New Conversation Name
+ * @param isPrivate: if conversation should be private (defaults to false)
+ * @param conversationID: New Conversation ID (optional)
+ */
+async function createNewConversation(conversationName, isPrivate=false, conversationID=null) {
+
+    let formData = new FormData();
+
+    formData.append('conversation_name', conversationName);
+    formData.append('conversation_id', conversationID);
+    formData.append('is_private', isPrivate)
+
+    await fetchServer(`chat_api/new`,  REQUEST_METHODS.POST, formData).then(async response => {
+        const responseJson = await response.json();
+        let responseOk = false;
+        if (response.ok) {
+            await buildConversation(responseJson).then(async cid=>{
+                await initLanguageSelectors(cid);
+                console.log(`inited language selectors for ${cid}`);
+            });
+            responseOk = true
+        } else {
+            displayAlert(document.getElementById('newConversationModalBody'),
+                `${responseJson['msg']}`,
+                'danger');
+        }
+        return responseOk;
+    });
 }
 
 document.addEventListener('DOMContentLoaded', (e)=>{
 
     document.addEventListener('supportedLanguagesLoaded', async (e)=>{
-        await refreshCurrentUser(false).then(_=>restoreChatAlignment()).then(_=>refreshCurrentUser(true)).then(_=>requestChatsLanguageRefresh());
+        await refreshCurrentUser(false).then(async _=>await restoreChatAlignment()).then(async _=> await refreshChatView(true));
     });
 
     if (configData['client'] === CLIENTS.MAIN) {
         addBySearch.addEventListener('click', async (e) => {
             e.preventDefault();
-            if (conversationSearchInput.value !== "") {
-                getConversationDataByInput(conversationSearchInput.value).then(async conversationData => {
-                    if (getOpenedChats().includes(conversationData['_id'])) {
-                        displayAlert(document.getElementById('importConversationModalBody'), 'Chat is already displayed', 'danger');
-                    } else if (conversationData && Object.keys(conversationData).length > 0) {
-                        await buildConversation(conversationData).then(async cid=>{
-                            await sendLanguageUpdateRequest(cid);
-                        });
-                    } else {
-                        displayAlert(document.getElementById('importConversationModalBody'), 'Cannot find conversation matching your search', 'danger');
-                    }
-                    conversationSearchInput.value = "";
-                });
-            }
+            displayConversation(conversationSearchInput.value, 'importConversationModalBody').then(responseOk=> {
+                conversationSearchInput.value = "";
+                if(responseOk) {
+                    importConversationModal.modal('hide');
+                }
+            });
         });
-        addNewConversation.addEventListener('click', (e) => {
+        addNewConversation.addEventListener('click', async (e) => {
             e.preventDefault();
             const newConversationID = document.getElementById('conversationID');
             const newConversationName = document.getElementById('conversationName');
             const isPrivate = document.getElementById('isPrivate');
-
-            let formData = new FormData();
-
-            formData.append('conversation_name', newConversationName.value);
-            formData.append('conversation_id', newConversationID ? newConversationID.value : null);
-            formData.append('is_private', isPrivate.checked)
-
-
-            fetch(`${configData['currentURLBase']}/chats/new`, {
-                method: 'post',
-                body: formData
-            }).then(async response => {
-                const responseJson = await response.json();
-                if (response.ok) {
-                    await buildConversation(responseJson).then(async cid=>{
-                        await initLanguageSelector(cid);
-                        console.log(`inited language selector for ${cid}`);
-                    });
-                } else {
-                    displayAlert(document.getElementById('newConversationModalBody'), 'Cannot add new conversation: ' + responseJson['detail'][0]['msg'], 'danger');
-                }
+            createNewConversation(newConversationName.value, isPrivate.checked, newConversationID ? newConversationID.value : null).then(responseOk=>{
                 newConversationName.value = "";
                 newConversationID.value = "";
                 isPrivate.checked = false;
+                if(responseOk) {
+                    newConversationModal.modal('hide');
+                }
             });
         });
     }

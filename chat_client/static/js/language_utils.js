@@ -1,13 +1,15 @@
 /**
  * Returns preferred language specified in provided cid
  * @param cid: provided conversation id
+ * @param inputType: type of the language preference to fetch:
+ * "incoming" - for external shouts, "outcoming" - for emitted shouts
  *
  * @return preferred lang by cid or "en"
  */
-function getPreferredLanguage(cid){
+function getPreferredLanguage(cid, inputType='incoming'){
     let preferredLang;
     try {
-        preferredLang = configData['chatLanguageMapping'][cid]['lang'];
+        preferredLang = configData['chatLanguageMapping'][cid][inputType]['lang'];
     }catch {
         preferredLang = 'en'
     }
@@ -18,22 +20,32 @@ function getPreferredLanguage(cid){
  * Returns preferred language specified in provided cid
  * @param cid: provided conversation id
  * @param lang: new preferred language to set
+ * @param inputType: type of the language preference to fetch:
+ * @param updateDB: to update user preferences in database
+ * "incoming" - for external shouts, "outcoming" - for emitted shouts
  */
-function setPreferredLanguage(cid, lang){
-    if (!configData.hasOwnProperty('chatLanguageMapping')){
-        configData['chatLanguageMapping'] = {};
-    } if(!configData['chatLanguageMapping'].hasOwnProperty(cid)){
-        configData['chatLanguageMapping'][cid] = {};
+async function setPreferredLanguage(cid, lang, inputType='incoming', updateDB=true){
+    let isOk = false;
+    if (updateDB) {
+        const formData = new FormData();
+        formData.append('lang', lang);
+        isOk = await fetchServer(`preferences/update_language/${cid}/${inputType}`,REQUEST_METHODS.POST, formData)
+            .then(res => {
+                return res.ok;
+            });
+    } if (isOk || !updateDB) {
+        requestTranslation(cid, null, lang, inputType);
+        setDefault(setDefault(setDefault(configData, 'chatLanguageMapping', {}), cid, {}), inputType, {});
+        configData['chatLanguageMapping'][cid][inputType]['lang'] = lang;
     }
-    configData['chatLanguageMapping'][cid]['lang'] = lang;
 }
 
 /**
  * Fetches supported languages
  */
 async function fetchSupportedLanguages(){
-    const query_url = `${configData['CHAT_SERVER_URL_BASE']}/language_api/settings`;
-    return await fetch(query_url)
+    const query_url = `language_api/settings`;
+    return await fetchServer(query_url)
             .then(response => {
                 if(response.ok){
                     return response.json();
@@ -49,38 +61,134 @@ async function fetchSupportedLanguages(){
 }
 
 /**
- * Sends request for updating target cids content to the desired language
+ * Sends request for updating target conversation(s) content to the desired language
+ * @param cid: conversation id to bound request to
+ * @param shouts: list of shout ids to bound request to
+ * @param lang: language to apply (defaults to preferred language of each fetched conversation)
+ * @param inputType: type of the language input to apply (incoming or outcoming)
  */
-function sendLanguageUpdateRequest(cid=null, shouts=null, lang=null){
+function requestTranslation(cid=null, shouts=null, lang=null, inputType='incoming'){
     let requestBody = {chat_mapping: {}};
     if(cid && getOpenedChats().includes(cid)){
+        lang = lang || getPreferredLanguage(cid, inputType);
         setChatState(cid, 'updating', 'Applying New Language...');
-        const preferredLang = getPreferredLanguage(cid)
         if(shouts && !Array.isArray(shouts)){
             shouts = [shouts];
         }
-        requestBody.chat_mapping[cid] = {'lang': lang || preferredLang, 'shouts': shouts || []}
+        if (!shouts && inputType){
+            shouts = getMessagesOfCID(cid, getMessageReferType(inputType), true);
+        }
+        setDefault(requestBody.chat_mapping, cid, {});
+        requestBody.chat_mapping[cid] = {'lang': lang, 'shouts': shouts || []}
     }else{
         requestBody.chat_mapping = configData['chatLanguageMapping'];
     }
     requestBody['user'] = currentUser['_id'];
+    requestBody['inputType'] = inputType;
     console.debug(`requestBody = ${JSON.stringify(requestBody)}`);
-    socket.emit('request_translate', requestBody);
+    socket.emitAuthorized('request_translate', requestBody);
+}
+
+/**
+ * Sets selected language to the target language selector
+ * @param clickedItem: Language selector element clicked
+ * @param cid: target conversation id
+ * @param inputType: type of the language input to apply (incoming or outcoming)
+ */
+async function setSelectedLang(clickedItem, cid, inputType="incoming"){
+    const selectedLangNode = document.getElementById(`language-selected-${cid}-${inputType}`);
+    const selectedLangList = document.getElementById(`language-list-${cid}-${inputType}`);
+
+    // console.log('emitted lang update')
+    const preferredLang = getPreferredLanguage(cid, inputType);
+    const preferredLangProps = configData['supportedLanguages'][preferredLang];
+    const newKey = clickedItem.getAttribute('data-lang');
+    const newPreferredLangProps = configData['supportedLanguages'][newKey];
+
+    const direction = inputType === 'incoming'?'down':'up';
+    selectedLangNode.innerHTML = await buildHTMLFromTemplate('selected_lang', {'key': newKey, 'name': newPreferredLangProps['name'], 'icon': newPreferredLangProps['icon'], 'direction': direction})
+    selectedLangList.getElementsByClassName('lang-container')[0].insertAdjacentHTML('beforeend', await buildLangOptionHTML(cid, preferredLang, preferredLangProps['name'], preferredLangProps['icon'], inputType));
+    if (clickedItem.parentNode){
+        clickedItem.parentNode.removeChild(clickedItem);
+    }
+    console.log(`cid=${cid};new preferredLang=${newKey}, inputType=${inputType}`);
+    await setPreferredLanguage(cid, newKey, inputType, true);
+    const insertedNode = document.getElementById(getLangOptionID(cid, preferredLang, inputType));
+    insertedNode.addEventListener('click', async (e)=> {
+        e.preventDefault();
+        await setSelectedLang(insertedNode, cid, inputType);
+    });
+}
+
+/**
+ * Initialize language selector for conversation
+ * @param cid: target conversation id
+ * @param inputType: type of the language input to apply (incoming or outcoming)
+ */
+async function initLanguageSelector(cid, inputType="incoming"){
+   let preferredLang = getPreferredLanguage(cid, inputType);
+   const supportedLanguages = configData['supportedLanguages'];
+   if (!supportedLanguages.hasOwnProperty(preferredLang)){
+       preferredLang = 'en';
+   }
+   const selectedLangNode = document.getElementById(`language-selected-${cid}-${inputType}`);
+   const langList = document.getElementById(`language-list-${cid}-${inputType}`);
+   const langListContainer = langList.getElementsByClassName('lang-container')[0]
+
+   if (langListContainer){
+      langListContainer.innerHTML = "";
+   }
+
+   // selectedLangNode.innerHTML = "";
+   for (const [key, value] of Object.entries(supportedLanguages)) {
+
+      if (key === preferredLang){
+          const direction = inputType === 'incoming'?'down':'up';
+          selectedLangNode.innerHTML = await buildHTMLFromTemplate('selected_lang',
+              {'key': key, 'name': value['name'], 'icon': value['icon'], 'direction': direction})
+      }else{
+          langListContainer.insertAdjacentHTML('beforeend', await buildLangOptionHTML(cid, key, value['name'], value['icon'], inputType));
+          const itemNode = document.getElementById(getLangOptionID(cid, key, inputType));
+          itemNode.addEventListener('click', async (e)=>{
+              e.preventDefault();
+              await setSelectedLang(itemNode, cid, inputType)
+          });
+      }
+   }
+}
+
+/**
+ * Inits both incoming and outcoming language selectors
+ * @param cid: target conversation id
+ */
+const initLanguageSelectors = async (cid) => {
+    for (const inputType of ['incoming', 'outcoming']){
+        await initLanguageSelector(cid, inputType);
+    }
+}
+
+
+function getMessageReferType(inputType){
+    return inputType === 'incoming'?MESSAGE_REFER_TYPE.OTHERS: MESSAGE_REFER_TYPE.MINE;
 }
 
 
 /**
  * Sends request to server for chat language refreshing
  */
-function requestChatsLanguageRefresh(){
-    const languageMapping = currentUser?.preferences?.chat_languages || {};
+async function requestChatsLanguageRefresh(){
+    const languageMapping = currentUser?.preferences?.chat_language_mapping || {};
     console.log(`languageMapping=${JSON.stringify(languageMapping)}`)
-    configData['chatLanguageMapping'] = {}
-    for (const [key, value] of Object.entries(languageMapping)) {
-        configData['chatLanguageMapping'][key] = {'lang': value || 'en'};
+    for (const [cid, value] of Object.entries(languageMapping)) {
+        if (isDisplayed(cid)) {
+            for (const inputType of ['incoming', 'outcoming']) {
+                const lang = value[inputType] || 'en';
+                console.log(`preferred language updated for cid=${cid},inputType=${inputType} - lang=${lang}`)
+                await setPreferredLanguage(cid, lang, inputType, false);
+            }
+        }
     }
     console.log(`chatLanguageMapping=${JSON.stringify(configData['chatLanguageMapping'])}`)
-    sendLanguageUpdateRequest();
 }
 
 /**
@@ -93,7 +201,8 @@ function requestChatsLanguageRefresh(){
  * }
  */
 async function applyTranslations(data){
-    for (const [cid, messageTranslations] of Object.entries(data)) {
+    const inputType = setDefault(data, 'input_type', 'incoming');
+    for (const [cid, messageTranslations] of Object.entries(data['translations'])) {
 
         if(!isDisplayed(cid)){
             console.log(`cid=${cid} is not displayed, skipping translations population`)
@@ -105,8 +214,9 @@ async function applyTranslations(data){
         console.debug(`Fetching translation of ${cid}`);
         // console.debug(`translations=${JSON.stringify(messageTranslations)}`)
 
-        const messageTranslationsShouts = messageTranslations['shouts']
-        const messages = getMessagesOfCID(cid);
+        const messageTranslationsShouts = messageTranslations['shouts'];
+        const messageReferType = getMessageReferType(inputType);
+        const messages = getMessagesOfCID(cid, messageReferType);
         Array.from(messages).forEach(message => {
             const messageID = message.id;
             let repliedMessage = null;
@@ -125,7 +235,7 @@ async function applyTranslations(data){
                 repliedMessage.innerHTML = messageTranslationsShouts[repliedMessageID];
             }
         });
-        await initLanguageSelector(cid);
+        await initLanguageSelector(cid, inputType);
     }
 }
 
@@ -135,8 +245,8 @@ async function applyTranslations(data){
  */
 const supportedLanguagesLoadedEvent = new CustomEvent("supportedLanguagesLoaded", { "detail": "Event that is fired when system supported languages are loaded" });
 
-document.addEventListener('DOMContentLoaded', (e)=>{
-    document.addEventListener('configLoaded',async (e)=>{
-        await fetchSupportedLanguages().then(r => document.dispatchEvent(supportedLanguagesLoadedEvent));
+document.addEventListener('DOMContentLoaded', (_)=>{
+    document.addEventListener('configLoaded',async (_)=>{
+        await fetchSupportedLanguages().then(_ => document.dispatchEvent(supportedLanguagesLoadedEvent));
     });
 });

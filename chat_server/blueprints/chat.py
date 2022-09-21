@@ -17,7 +17,7 @@
 # US Patents 2008-2021: US7424516, US20140161250, US20140177813, US8638908, US8068604, US8553852, US10530923, US10530924
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
 import os
-from typing import List
+from typing import List, Optional
 
 from time import time
 from fastapi import APIRouter, status, Request, UploadFile, File
@@ -29,6 +29,7 @@ from bson.objectid import ObjectId
 from neon_utils import LOG
 
 from chat_server.server_config import db_controller
+from chat_server.server_utils.auth import login_required
 from chat_server.server_utils.db_utils import DbUtils
 from chat_server.server_utils.http_utils import get_file_response, save_file
 from utils.http_utils import respond
@@ -48,10 +49,12 @@ class NewConversationData(BaseModel):
 
 
 @router.post("/new")
-def new_conversation(request_data: NewConversationData):
+@login_required
+async def new_conversation(request: Request, request_data: NewConversationData):
     """
         Creates new conversation from provided conversation data
 
+        :param request: Starlette Request object
         :param request_data: data for new conversation described by NewConversationData model
 
         :returns JSON response with new conversation data if added, 401 error message otherwise
@@ -61,27 +64,30 @@ def new_conversation(request_data: NewConversationData):
                                                                    'document': 'chats',
                                                                    'data': ({'_id': request_data.id})})
         if matching_conversation_id:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED, detail='Provided conversation id already exists'
-            )
-    _id = db_controller.exec_query(query=dict(document='chats', command='insert_one', data=(request_data.__dict__,)))
-    request_data.__dict__['_id'] = str(request_data.__dict__['_id'])
-    json_compatible_item_data = jsonable_encoder(request_data.__dict__)
+            return respond('Provided conversation id already exists', 400)
+    request_data_dict = request_data.__dict__
+    request_data_dict['_id'] = request_data_dict.pop('id', None)
+    _id = db_controller.exec_query(query=dict(document='chats', command='insert_one', data=(request_data_dict,)))
+    request_data_dict['_id'] = str(request_data_dict['_id'])
+    json_compatible_item_data = jsonable_encoder(request_data_dict)
     json_compatible_item_data['_id'] = str(_id.inserted_id)
     return JSONResponse(content=json_compatible_item_data)
 
 
 @router.get("/search/{search_str}")
-def get_matching_conversation(request: Request,
-                              search_str: str,
-                              chat_history_from: int = 0,
-                              limit_chat_history: int = 100):
+@login_required
+async def get_matching_conversation(request: Request,
+                                    search_str: str,
+                                    chat_history_from: int = 0,
+                                    first_message_id: Optional[str] = None,
+                                    limit_chat_history: int = 100):
     """
         Gets conversation data matching search string
 
-        :param request: client request
+        :param request: Starlette Request object
         :param search_str: provided search string
         :param chat_history_from: upper time bound for messages
+        :param first_message_id: id of the first message to start from
         :param limit_chat_history: lower time bound for messages
 
         :returns conversation data if found, 401 error code otherwise
@@ -96,9 +102,7 @@ def get_matching_conversation(request: Request,
                                                         'document': 'chats',
                                                         'data': {"$or": or_expression}})
     if not conversation_data:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail=f"Unable to get a chat by string: {search_str}"
-        )
+        return respond(f"Unable to get a chat by string: {search_str}", 404)
     conversation_data['_id'] = str(conversation_data['_id'])
 
     response_data, status_code = DbUtils.get_conversation_data(search_str=search_str)
@@ -108,7 +112,8 @@ def get_matching_conversation(request: Request,
 
     users_data = DbUtils.fetch_shout_data(conversation_data=response_data,
                                           start_idx=chat_history_from,
-                                          limit=limit_chat_history)
+                                          limit=limit_chat_history,
+                                          start_message_id=first_message_id)
 
     if users_data:
         conversation_data['chat_flow'] = []
@@ -129,42 +134,3 @@ def get_matching_conversation(request: Request,
 
     return conversation_data
 
-
-@router.post("/{cid}/store_files")
-async def send_file(cid: str,
-                    files: List[UploadFile] = File(...)):
-    """
-        Stores received files in filesystem
-
-        :param cid: target conversation id
-        :param files: list of files to process
-
-        :returns JSON-formatted response from server
-    """
-    # TODO: any file validation before storing it (Kirill)
-    for file in files:
-        await save_file(location_prefix='attachments', file=file)
-    return JSONResponse(content={'success': '1'})
-
-
-@router.get("/{msg_id}/get_file/{filename}")
-def get_message_attachment(msg_id: str, filename: str):
-    """
-        Gets file from the server
-
-        :param msg_id: parent message id
-        :param filename: name of the file to get
-    """
-    LOG.debug(f'{msg_id} - {filename}')
-    message_files = db_controller.exec_query(query={'document': 'shouts',
-                                                    'command': 'find_one',
-                                                    'data': {'_id': msg_id}})
-    if message_files:
-        attachment_data = [attachment for attachment in message_files['attachments'] if attachment['name'] == filename][0]
-        media_type = attachment_data['mime']
-        file_response = get_file_response(filename=filename, media_type=media_type, location_prefix='attachments')
-        if file_response is None:
-            return JSONResponse({'msg': 'Missing attachments in destination'}, 400)
-        return file_response
-    else:
-        return JSONResponse({'msg': f'invalid message id: {msg_id}'}, 400)

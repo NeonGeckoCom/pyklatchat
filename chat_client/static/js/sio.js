@@ -15,7 +15,14 @@ sioTriggeringEvents.forEach(event=>{
 function initSIO(){
 
     const sioServerURL = configData['CHAT_SERVER_URL_BASE'];
-    const socket = io(sioServerURL);
+    const socket = io(sioServerURL, {transports: ['polling'], extraHeaders: {
+        "session": getSessionToken()
+    }});
+
+    socket.on('auth_expired', ()=>{
+        console.log('Authorization Token expired, refreshing...')
+        location.reload();
+    });
 
     socket.on('connect', () => {
          console.info(`Socket IO Connected to Server: ${sioServerURL}`)
@@ -28,8 +35,11 @@ function initSIO(){
     socket.on('new_message', async (data) => {
         console.debug('received new_message -> ', data)
         const msgData = JSON.parse(data);
-        sendLanguageUpdateRequest(msgData['cid'], msgData['messageID']);
-        await addMessage(msgData['cid'], msgData['userID'], msgData['messageID'], msgData['messageText'], msgData['timeCreated'], msgData['repliedMessage'], msgData['attachments'], msgData?.isAudio, msgData?.isAnnouncement)
+        const preferredLang = getPreferredLanguage(msgData['cid']);
+        if (data?.lang !== preferredLang){
+            requestTranslation(msgData['cid'], msgData['messageID'], preferredLang);
+        }
+        await addNewMessage(msgData['cid'], msgData['userID'], msgData['messageID'], msgData['messageText'], msgData['timeCreated'], msgData['repliedMessage'], msgData['attachments'], msgData?.isAudio, msgData?.isAnnouncement)
             .catch(err=>console.error('Error occurred while adding new message: ',err));
         addMessageTransformCallback(msgData['cid'], msgData['messageID'], msgData?.isAudio);
     });
@@ -47,6 +57,19 @@ function initSIO(){
     socket.on('incoming_stt', async (data)=>{
        console.log('received incoming stt response');
        showSTT(data['message_id'], data['lang'], data['message_text']);
+    });
+
+    socket.__proto__.emitAuthorized = (event, data) => {
+        socket.io.opts.extraHeaders.session = getSessionToken();
+        return socket.emit(event, data);
+    }
+
+    socket.on('updated_shouts', async (data) =>{
+       for (const [cid, shouts] of Object.entries(data)){
+           if (isDisplayed(cid)){
+               requestTranslation(cid, shouts);
+           }
+       }
     });
 
     return socket;

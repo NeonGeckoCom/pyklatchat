@@ -17,7 +17,7 @@
 # US Patents 2008-2021: US7424516, US20140161250, US20140177813, US8638908, US8068604, US8553852, US10530923, US10530924
 # China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
 
-from typing import List, Tuple
+from typing import List, Tuple, Union, Dict
 
 from bson import ObjectId
 from neon_utils import LOG
@@ -40,6 +40,24 @@ class DbUtils(metaclass=Singleton):
         cls.db_controller = db_controller
 
     @classmethod
+    def get_user(cls, user_id=None, nickname=None) -> Union[dict, None]:
+        """
+            Gets user data based on provided params
+            :param user_id: target user id
+            :param nickname: target user nickname
+        """
+        if not any(x for x in (user_id, nickname,)):
+            LOG.warning('Neither user_id nor nickname was provided')
+            return
+        filter_data = {}
+        if user_id:
+            filter_data['_id'] = user_id
+        if nickname:
+            filter_data['nickname'] = nickname
+        return cls.db_controller.exec_query(query={'command': 'find_one', 'document': 'users',
+                                                   'data': filter_data})
+
+    @classmethod
     def get_conversation_data(cls, search_str):
         """
             Gets matching conversation data
@@ -60,7 +78,7 @@ class DbUtils(metaclass=Singleton):
 
     @classmethod
     def fetch_shout_data(cls, conversation_data: dict, start_idx: int = 0, limit: int = 100,
-                         fetch_senders: bool = True):
+                         fetch_senders: bool = True, start_message_id: str = None):
         """
             Fetches shout data out of conversation data
 
@@ -68,12 +86,20 @@ class DbUtils(metaclass=Singleton):
             :param start_idx: message index to start from (sorted by recency)
             :param limit: number of shouts to fetch
             :param fetch_senders: to fetch shout senders data
+            :param start_message_id: message id to start from
         """
         if conversation_data.get('chat_flow', None):
+            if start_message_id:
+                try:
+                    start_idx = len(conversation_data["chat_flow"]) - \
+                                conversation_data["chat_flow"].index(start_message_id)
+                except ValueError:
+                    LOG.warning('Matching start message id not found')
+                    return []
             if start_idx == 0:
                 conversation_data['chat_flow'] = conversation_data['chat_flow'][start_idx - limit:]
             else:
-                conversation_data['chat_flow'] = conversation_data['chat_flow'][start_idx - limit:
+                conversation_data['chat_flow'] = conversation_data['chat_flow'][-start_idx - limit:
                                                                                 -start_idx]
             shout_ids = [str(msg_id) for msg_id in conversation_data["chat_flow"]]
             shouts_data = cls.fetch_shouts(shout_ids=shout_ids, fetch_senders=fetch_senders)
@@ -138,14 +164,11 @@ class DbUtils(metaclass=Singleton):
             LOG.warning('No preferences fetched, user data will not be updated')
         for cid, cid_data in translation_mapping.items():
             lang = cid_data.get('lang', 'en')
-            if prefs:
-                bulk_update_preferences.append(UpdateOne({'_id': user_id},
-                                                         {'$set': {f'chat_languages.{cid}': lang}}))
             conversation_data, status_code = cls.get_conversation_data(search_str=cid)
             if status_code != 200:
                 LOG.error(f'Failed to fetch conversation data - {conversation_data} (status={status_code})')
                 continue
-            shout_data = cls.fetch_shout_data(conversation_data=conversation_data, fetch_senders=False)
+            shout_data = cls.fetch_shout_data(conversation_data=conversation_data, fetch_senders=False) or []
             for shout in shout_data:
                 message_text = shout.get('message_text')
                 if lang == 'en':
@@ -158,47 +181,49 @@ class DbUtils(metaclass=Singleton):
                     missing_translations.setdefault(cid, {}).setdefault('shouts', {})[shout['_id']] = message_text
             if missing_translations.get(cid):
                 missing_translations[cid]['lang'] = lang
-        if len(bulk_update_preferences) > 0:
-            cls.db_controller.exec_query(query=dict(document='user_preferences',
-                                                    command='bulk_write',
-                                                    data=bulk_update_preferences))
         return populated_translations, missing_translations
 
     @classmethod
-    def save_translations(cls, translation_mapping: dict) -> None:
+    def save_translations(cls, translation_mapping: dict) -> Dict[str, List[str]]:
         """
             Saves translations in DB
             :param translation_mapping: mapping of cid to desired translation language
+            :returns dictionary containing updated shouts (those which were translated to English)
         """
+        updated_shouts = {}
         for cid, shout_data in translation_mapping.items():
             translations = shout_data.get('shouts', {})
-            if shout_data.get('lang', 'en') != 'en':
-                bulk_update = []
-                shouts = cls.db_controller.exec_query(query={'document': 'shouts',
-                                                             'command': 'find',
-                                                             'data': {'_id': {'$in': list(translations)}}})
-                shouts = list(shouts)
-                for shout_id, translation in translations.items():
-                    matching_instance = None
-                    for shout in shouts:
-                        if shout['_id'] == shout_id:
-                            matching_instance = shout
-                            break
-                    if not matching_instance.get('translations'):
-                        filter_expression = {'_id': shout_id}
-                        update_expression = {'$set': {'translations': {}}}
-                        cls.db_controller.exec_query(query={'document': 'shouts',
-                                                            'command': 'update',
-                                                            'data': (filter_expression,
-                                                                     update_expression,)})
-                    bulk_update.append(UpdateOne({'_id': shout_id},
-                                                 {'$set': {f'translations.{shout_data["lang"]}': translation}}))
-                if len(bulk_update) > 0:
-                    cls.db_controller.exec_query(query=dict(document='shouts',
-                                                            command='bulk_write',
-                                                            data=bulk_update))
-            else:
-                LOG.info('Apply translations skipped -> lang=en')
+            bulk_update = []
+            shouts = cls.db_controller.exec_query(query={'document': 'shouts',
+                                                         'command': 'find',
+                                                         'data': {'_id': {'$in': list(translations)}}})
+            shouts = list(shouts)
+            for shout_id, translation in translations.items():
+                matching_instance = None
+                for shout in shouts:
+                    if shout['_id'] == shout_id:
+                        matching_instance = shout
+                        break
+                if not matching_instance.get('translations'):
+                    filter_expression = {'_id': shout_id}
+                    update_expression = {'$set': {'translations': {}}}
+                    cls.db_controller.exec_query(query={'document': 'shouts',
+                                                        'command': 'update',
+                                                        'data': (filter_expression,
+                                                                 update_expression,)})
+                # English is the default language, so it is treated as message text
+                if shout_data.get('lang', 'en') == 'en':
+                    updated_shouts.setdefault(cid, []).append(shout_id)
+                    bulk_update_setter = {'message_text': translation}
+                else:
+                    bulk_update_setter = {f'translations.{shout_data["lang"]}': translation}
+                bulk_update.append(UpdateOne({'_id': shout_id},
+                                             {'$set': bulk_update_setter}))
+            if len(bulk_update) > 0:
+                cls.db_controller.exec_query(query=dict(document='shouts',
+                                                        command='bulk_write',
+                                                        data=bulk_update))
+        return updated_shouts
 
     @classmethod
     def get_user_preferences(cls, user_id, create_if_not_exists: bool = False):
@@ -212,7 +237,7 @@ class DbUtils(metaclass=Singleton):
                 prefs = {
                     '_id': user_id,
                     'tts': {},
-                    'chat_languages': {}
+                    'chat_language_mapping': {}
                 }
                 cls.db_controller.exec_query(query=dict(document='user_preferences',
                                                         command='insert_one', data=prefs))

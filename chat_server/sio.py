@@ -19,6 +19,7 @@
 
 import json
 import os
+from functools import wraps
 from typing import List, Optional
 
 import pymongo
@@ -27,21 +28,67 @@ from bson.errors import InvalidId
 from bson.objectid import ObjectId
 from neon_utils import LOG
 from neon_utils.cache_utils import LRUCache
-from neon_utils.file_utils import decode_base64_string_to_file
 
+from chat_server.server_utils.auth import validate_session, AUTHORIZATION_HEADER
 from chat_server.server_utils.cache_utils import CacheFactory
 from chat_server.server_utils.db_utils import DbUtils
 from chat_server.server_utils.user_utils import get_neon_data, get_bot_data
 from chat_server.server_config import db_controller, sftp_connector
 from chat_server.utils.languages import LanguageSettings
-from chat_server.utils.os_utils import remove_if_exists
 from utils.common import generate_uuid, deep_merge, buffer_to_base64
 
 sio = socketio.AsyncServer(cors_allowed_origins='*', async_mode='asgi')
 
 
+def list_current_headers(sid: str) -> list:
+    return sio.environ.get(sio.manager.rooms['/'].get(sid, {}).get(sid), {}).get('asgi.scope', {}).get('headers', [])
+
+
+def get_header(sid: str, match_str: str):
+    for header_tuple in list_current_headers(sid):
+        if header_tuple[0].decode() == match_str.lower():
+            return header_tuple[1].decode()
+
+
+def login_required(*outer_args, **outer_kwargs):
+    """
+        Decorator that validates current authorization token
+    """
+
+    no_args = False
+    func = None
+    if len(outer_args) == 1 and not outer_kwargs and callable(outer_args[0]):
+        # Function was called with no arguments
+        no_args = True
+        func = outer_args[0]
+
+    outer_kwargs.setdefault('tmp_allowed', True)
+
+    def outer(func):
+
+        @wraps(func)
+        async def wrapper(sid, *args, **kwargs):
+            if os.environ.get('DISABLE_AUTH_CHECK', '0') != '1':
+                auth_token = get_header(sid, 'session')
+                session_validation_output = (None, None,)
+                if auth_token:
+                    session_validation_output = validate_session(auth_token,
+                                                                 check_tmp=not outer_kwargs['tmp_allowed'],
+                                                                 sio_request=True)
+                if session_validation_output[1] != 200:
+                    return await sio.emit('auth_expired', data={}, to=sid)
+            return await func(sid, *args, **kwargs)
+
+        return wrapper
+
+    if no_args:
+        return outer(func)
+    else:
+        return outer
+
+
 @sio.event
-def connect(sid, environ: dict, auth):
+async def connect(sid, environ: dict, auth):
     """
         SIO event fired on client connect
         :param sid: client session id
@@ -63,7 +110,7 @@ async def ping(sid, data):
 
 
 @sio.event
-def disconnect(sid):
+async def disconnect(sid):
     """
         SIO event fired on client disconnect
 
@@ -73,6 +120,7 @@ def disconnect(sid):
 
 
 @sio.event
+# @login_required
 async def user_message(sid, data):
     """
         SIO event fired on new user message in chat
@@ -87,6 +135,7 @@ async def user_message(sid, data):
                     'messageText': 'content of the user message',
                     'repliedMessage': 'id of replied message (optional)',
                     'bot': 'if the message is from bot (defaults to False)',
+                    'lang': 'language of the message (defaults to "en")'
                     'attachments': 'list of filenames that were send with message',
                     'context': 'message context (optional)',
                     'test': 'is test message (defaults to False)',
@@ -154,7 +203,15 @@ async def user_message(sid, data):
                           'replied_message': data.get('repliedMessage', ''),
                           'is_audio': is_audio,
                           'is_announcement': is_announcement,
+                          'translations': {},
                           'created_on': int(data['timeCreated'])}
+
+        lang = data.get('lang', 'en')
+
+        # in case message is received in some foreign language -
+        # message text is kept in that language unless English translation received
+        if lang != 'en':
+            new_shout_data['translations'][lang] = data['messageText']
 
         db_controller.exec_query({'command': 'insert_one', 'document': 'shouts', 'data': new_shout_data})
 
@@ -176,6 +233,7 @@ async def user_message(sid, data):
 
 
 @sio.event
+# @login_required
 async def save_prompt_data(sid, data):
     """
         SIO event fired on new prompt data saving request
@@ -208,6 +266,7 @@ async def save_prompt_data(sid, data):
 
 
 @sio.event
+# @login_required
 async def get_prompt_data(sid, data):
     """
         SIO event fired getting prompt data request
@@ -241,6 +300,7 @@ async def get_prompt_data(sid, data):
 
 
 @sio.event
+# @login_required
 async def request_translate(sid, data):
     """
         Handles requesting for cid translation
@@ -250,14 +310,18 @@ async def request_translate(sid, data):
     if not data:
         LOG.warning('Missing request translate data, skipping...')
     else:
-        populated_translations, missing_translations = DbUtils.get_translations(translation_mapping=data['chat_mapping'],
+        input_type = data.get('inputType', 'incoming')
+
+        populated_translations, missing_translations = DbUtils.get_translations(translation_mapping=data.get('chat_mapping', {}),
                                                                                 user_id=data['user'])
         if populated_translations and not missing_translations:
-            await sio.emit('translation_response', data=populated_translations, to=sid)
+            await sio.emit('translation_response', data={'translations': populated_translations,
+                                                         'input_type': input_type}, to=sid)
         else:
             LOG.info('Not every translation is contained in db, sending out request to Neon')
             request_id = generate_uuid()
-            caching_instance = {'translations': populated_translations, 'sid': sid}
+            caching_instance = {'translations': populated_translations, 'sid': sid,
+                                'input_type': input_type}
             CacheFactory.get('translation_cache', cache_type=LRUCache).put(key=request_id, value=caching_instance)
             await sio.emit('request_neon_translations', data={'request_id': request_id, 'data': missing_translations},)
 
@@ -284,15 +348,21 @@ async def get_neon_translations(sid, data):
             cached_data = CacheFactory.get('translation_cache').get(key=request_id)
             if not cached_data:
                 LOG.warning('Failed to get matching cached data')
+                return
             sid = cached_data.get('sid')
-            DbUtils.save_translations(data.get('translations', {}))
+            input_type = cached_data.get('input_type')
+            updated_shouts = DbUtils.save_translations(data.get('translations', {}))
             populated_translations = deep_merge(data.get('translations', {}), cached_data.get('translations', {}))
-            await sio.emit('translation_response', data=populated_translations, to=sid)
+            await sio.emit('translation_response', data={'translations': populated_translations,
+                                                         'input_type': input_type}, to=sid)
+            if updated_shouts:
+                await sio.emit('updated_shouts', data=updated_shouts, skip_sid=[sid])
         except KeyError as err:
             LOG.error(f'No translation cache detected under request_id={request_id} (err={err})')
 
 
 @sio.event
+# @login_required
 async def request_tts(sid, data):
     """
         Handles request to Neon TTS service
@@ -422,6 +492,7 @@ async def stt_response(sid, data):
 
 
 @sio.event
+# @login_required
 async def request_stt(sid, data):
     """
         Handles request to Neon STT service
@@ -483,10 +554,11 @@ async def emit_error(message: str, context: Optional[dict] = None, sids: Optiona
     """
     if not context:
         context = {}
-    emit_dict = {
-        'event': context.pop('callback_event', 'klatchat_sio_error'),
-        'data': {'msg': message, 'context': context},
-    }
-    if sids:
-        emit_dict['to'] = sids
-    await sio.emit(**emit_dict)
+    await sio.emit(context.pop('callback_event', 'klatchat_sio_error'),
+                   data={'msg': message},
+                   to=sids)
+
+
+async def emit_session_expired(sid: str):
+    """ Wrapper to emit session expired session event to desired client session """
+    await emit_error(message='Session Expired', context={'callback_event': 'auth_expired'}, sids=[sid])

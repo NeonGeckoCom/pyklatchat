@@ -24,8 +24,8 @@ from config import Configuration
 from neon_utils import LOG
 
 config_file_path = os.environ.get('CHATCLIENT_CONFIG', '~/.local/share/neon/credentials_client.json')
-server_env = os.environ.get('CLIENT_ENV', 'LOCALHOST')
 
-app_config = Configuration(from_files=[config_file_path]).config_data.get('CHAT_CLIENT', {}).get(server_env)
+config = Configuration(from_files=[config_file_path])
+app_config = config.get('CHAT_CLIENT', {}).get(Configuration.KLAT_ENV)
 
 LOG.info(f'App config: {app_config}')
