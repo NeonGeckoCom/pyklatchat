@@ -37,7 +37,6 @@ router = APIRouter(
 
 
 @router.get("/audio/{message_id}")
-@login_required
 async def get_audio_message(request: Request, message_id: str,):
     """ Gets file based on the name """
     matching_shouts = DbUtils.fetch_shouts(shout_ids=[message_id], fetch_senders=False)
