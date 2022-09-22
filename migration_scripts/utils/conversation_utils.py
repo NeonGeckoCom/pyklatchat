@@ -3,11 +3,9 @@
 # Copyright 2008-2022 Neongecko.com Inc.
 # Contributors: Daniel McKnight, Guy Daniels, Elon Gasper, Richard Leeds,
 # Regina Bloomstine, Casimiro Ferreira, Andrii Pernatii, Kirill Hrymailo
-# Neon AI Non-commercial Friendly License 2.0:
-# Educational, non-commercial and non-industry users, Public Benefit
-# Organizations and Social Purpose Corporations (and LLCs) are permitted
-# to redistribute and use, in source and binary forms, with or without
-# modification, provided that the following conditions are met:
+# BSD-3 License
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
 # 1. Redistributions of source code must retain the above copyright notice,
 #    this list of conditions and the following disclaimer.
 # 2. Redistributions in binary form must reproduce the above copyright notice,
@@ -16,17 +14,6 @@
 # 3. Neither the name of the copyright holder nor the names of its
 #    contributors may be used to endorse or promote products derived from this
 #    software without specific prior written permission.
-# Developers can contact developers@neon.ai
-# For licensing of non-educational, commercial and industrial Neon AI
-# use, and organization desiring to distribute Neon AI or derivative works,
-# please contact licenses@neon.ai for specific written permission prior to use.
-# Trademarks of Neongecko: Neon AI(TM), Neon Assistant (TM), Klat(TM)
-#
-# Conversation Processing Intelligence Corp patented conversation reconveyance
-# US Patents 2008-2021: US7424516, US20140161250, US20140177813,
-# US8638908, US8068604, US8553852, US10530923, US10530924
-# China Patent: CN102017585  -  Europe Patent: EU2156652  -  Patents Pending
-#
 # THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
 # AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
 # THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR

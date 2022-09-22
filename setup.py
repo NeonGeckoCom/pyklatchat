@@ -1,7 +1,9 @@
-# NEON AI (TM) SOFTWARE, Software Development Kit & Application Development System
+# NEON AI (TM) SOFTWARE, Software Development Kit & Application Framework
 # All trademark and other rights reserved by their respective owners
-# Copyright 2008-2021 Neongecko.com Inc.
-# BSD-3
+# Copyright 2008-2022 Neongecko.com Inc.
+# Contributors: Daniel McKnight, Guy Daniels, Elon Gasper, Richard Leeds,
+# Regina Bloomstine, Casimiro Ferreira, Andrii Pernatii, Kirill Hrymailo
+# BSD-3 License
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
 # 1. Redistributions of source code must retain the above copyright notice,
@@ -64,7 +66,7 @@ setup(
     url='https://github.com/NeonGeckoCom/pyklatchat',
     author='NeonGecko',
     author_email='developers@neon.ai',
-    license='NeonAI License v1.0',
+    license='BSD-3',
     packages=['chat_server', 'chat_client', 'services.klatchat_observer'],
     install_requires=get_requirements("requirements.txt"),
     zip_safe=True,
