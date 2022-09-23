@@ -109,7 +109,7 @@ function initLoadOldMessages(conversationData) {
     const messageList = getMessageListContainer(cid);
     const messageListParent = messageList.parentElement;
     setDefault(conversationState[cid],'lastScrollY', 0);
-    messageListParent.addEventListener("scroll", (e) => {
+    messageListParent.addEventListener("scroll", async (e) => {
         const oldScrollPosition = conversationState[cid]['scrollY'];
         conversationState[cid]['scrollY'] = e.target.scrollTop;
         if (oldScrollPosition > conversationState[cid]['scrollY'] &&
@@ -118,7 +118,7 @@ function initLoadOldMessages(conversationData) {
             setChatState(cid, 'updating', 'Loading messages...')
             addOldMessages(cid);
             for(const inputType of ['incoming', 'outcoming']){
-                requestTranslation(cid, null, null, inputType);
+                await requestTranslation(cid, null, null, inputType);
             }
             setTimeout( () => {
                 setChatState(cid, 'active');
@@ -199,7 +199,7 @@ function emitUserMessage(textInputElem, cid, repliedMessageID=null, attachments=
         }else {
             messageText = textInputElem.value;
         }
-        addNewMessage(cid, currentUser['_id'],null, messageText, timeCreated,repliedMessageID,attachments, isAudio, isAnnouncement).then(messageID=>{
+        addNewMessage(cid, currentUser['_id'],null, messageText, timeCreated,repliedMessageID,attachments, isAudio, isAnnouncement).then(async messageID=>{
             const preferredShoutLang = getPreferredLanguage(cid, 'outcoming');
             socket.emitAuthorized('user_message',
                 {'cid':cid,
@@ -213,7 +213,7 @@ function emitUserMessage(textInputElem, cid, repliedMessageID=null, attachments=
                  'timeCreated':timeCreated
                 });
             if(preferredShoutLang !== 'en'){
-                requestTranslation(cid, messageID, 'en', 'outcoming');
+                await requestTranslation(cid, messageID, 'en', 'outcoming');
             }
             addMessageTransformCallback(cid, messageID, isAudio);
         });

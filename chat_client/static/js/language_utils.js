@@ -7,13 +7,13 @@
  * @return preferred lang by cid or "en"
  */
 function getPreferredLanguage(cid, inputType='incoming'){
-    let preferredLang;
+    let preferredLang = 'en';
     try {
-        preferredLang = configData['chatLanguageMapping'][cid][inputType]['lang'];
-    }catch {
-        preferredLang = 'en'
+        preferredLang = getChatLanguageMapping(cid, inputType);
+    }catch (e) {
+        console.warn(`Failed to getChatLanguageMapping - ${e}`)
     }
-    return preferredLang || 'en';
+    return preferredLang;
 }
 
 /**
@@ -22,9 +22,10 @@ function getPreferredLanguage(cid, inputType='incoming'){
  * @param lang: new preferred language to set
  * @param inputType: type of the language preference to fetch:
  * @param updateDB: to update user preferences in database
+ * @param updateDBOnly: to update user preferences in database only (without translation request)
  * "incoming" - for external shouts, "outcoming" - for emitted shouts
  */
-async function setPreferredLanguage(cid, lang, inputType='incoming', updateDB=true){
+async function setPreferredLanguage(cid, lang, inputType='incoming', updateDB=true, updateDBOnly=false){
     let isOk = false;
     if (updateDB) {
         const formData = new FormData();
@@ -33,10 +34,9 @@ async function setPreferredLanguage(cid, lang, inputType='incoming', updateDB=tr
             .then(res => {
                 return res.ok;
             });
-    } if (isOk || !updateDB) {
-        requestTranslation(cid, null, lang, inputType);
-        setDefault(setDefault(setDefault(configData, 'chatLanguageMapping', {}), cid, {}), inputType, {});
-        configData['chatLanguageMapping'][cid][inputType]['lang'] = lang;
+    } if ((isOk || !updateDB) && !updateDBOnly) {
+        updateChatLanguageMapping(cid, inputType, lang);
+        await requestTranslation(cid, null, null, inputType);
     }
 }
 
@@ -67,9 +67,9 @@ async function fetchSupportedLanguages(){
  * @param lang: language to apply (defaults to preferred language of each fetched conversation)
  * @param inputType: type of the language input to apply (incoming or outcoming)
  */
-function requestTranslation(cid=null, shouts=null, lang=null, inputType='incoming'){
+async function requestTranslation(cid=null, shouts=null, lang=null, inputType='incoming'){
     let requestBody = {chat_mapping: {}};
-    if(cid && getOpenedChats().includes(cid)){
+    if(cid && isDisplayed(cid)){
         lang = lang || getPreferredLanguage(cid, inputType);
         setChatState(cid, 'updating', 'Applying New Language...');
         if(shouts && !Array.isArray(shouts)){
@@ -77,11 +77,20 @@ function requestTranslation(cid=null, shouts=null, lang=null, inputType='incomin
         }
         if (!shouts && inputType){
             shouts = getMessagesOfCID(cid, getMessageReferType(inputType), true);
+            if (shouts.length === 0){
+                console.log(`${cid} yet has no shouts matching type=${inputType}`);
+                setChatState(cid, 'active');
+                return
+            }
         }
         setDefault(requestBody.chat_mapping, cid, {});
         requestBody.chat_mapping[cid] = {'lang': lang, 'shouts': shouts || []}
     }else{
-        requestBody.chat_mapping = configData['chatLanguageMapping'];
+        requestBody.chat_mapping = getChatLanguageMapping();
+        if (!requestBody.chat_mapping){
+            console.log('Chat mapping is undefined - returning');
+            return
+        }
     }
     requestBody['user'] = currentUser['_id'];
     requestBody['inputType'] = inputType;
@@ -188,7 +197,7 @@ async function requestChatsLanguageRefresh(){
             }
         }
     }
-    console.log(`chatLanguageMapping=${JSON.stringify(configData['chatLanguageMapping'])}`)
+    console.log(`chatLanguageMapping=${JSON.stringify(getChatLanguageMapping())}`)
 }
 
 /**
@@ -237,6 +246,22 @@ async function applyTranslations(data){
         });
         await initLanguageSelector(cid, inputType);
     }
+}
+
+
+const getChatLanguageMapping = (cid=null, inputType=null) => {
+    let res =  setDefault(setDefault(currentUser, 'preferences', {}), 'chat_language_mapping', {});
+    if (cid){
+        res = setDefault(res, cid, {});
+    }if (inputType){
+        res = setDefault(res, inputType, 'en');
+    }
+    return res;
+}
+
+const updateChatLanguageMapping = (cid, inputType, lang) => {
+    setDefault(currentUser.preferences.chat_language_mapping, cid, {})[inputType] = lang;
+    console.log(`cid=${cid},inputType=${inputType} updated to lang=${lang}`);
 }
 
 /**
