@@ -394,9 +394,9 @@ class ChatObserver(MQConnector):
             self.__translation_requests[request_id] = {'void_callback_timer': Timer(interval=2 * 60,
                                                                                     function=self.send_translation_response,
                                                                                     kwargs=default_callback)}
-            self.__translation_requests[data['request_id']]['void_callback_timer'].start()
+            self.__translation_requests[request_id]['void_callback_timer'].start()
             self.send_message(request_data={'data': data['data'],
-                                            'request_id': data['request_id']},
+                                            'request_id': request_id},
                               vhost=self.get_vhost('translation'),
                               queue='request_libre_translations', expiration=3000)
 
