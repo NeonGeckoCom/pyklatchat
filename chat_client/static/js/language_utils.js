@@ -72,7 +72,8 @@ async function requestTranslation(cid=null, shouts=null, lang=null, inputType='i
     let requestBody = {chat_mapping: {}};
     if(cid && isDisplayed(cid)){
         lang = lang || getPreferredLanguage(cid, inputType);
-        setChatState(cid, 'updating', 'Applying New Language...');
+        if (!translateToBaseLang)
+            setChatState(cid, 'updating', 'Applying New Language...');
         if(shouts && !Array.isArray(shouts)){
             shouts = [shouts];
         }
