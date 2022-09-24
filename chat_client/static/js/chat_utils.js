@@ -203,7 +203,12 @@ async function getConversationDataByInput(input="", firstMessageID=null, maxResu
                     setDefault(setDefault(conversationState, data['_id'], {}), 'all_messages_displayed', true);
                 }
                 conversationData = data;
-            }).catch(err=> console.warn('Failed to fulfill request due to error:',err));
+            }).catch(async err=> {
+                console.warn('Failed to fulfill request due to error:',err);
+                if (input === '1'){
+                    await createNewConversation('Global', false, '1');
+                }
+            });
     }
     return conversationData;
 }
@@ -282,7 +287,8 @@ async function restoreChatAlignment(keyName=conversationAlignmentKey){
             if(conversationData && Object.keys(conversationData).length > 0) {
                 await buildConversation(conversationData, rememberToken);
             }else{
-                displayAlert(document.getElementById('conversationsBody'),`No conversation found matching "${item}"`,'danger', 'noRestoreConversationAlert', {'type': alertBehaviors.AUTO_EXPIRE});
+                if (item !== '1')
+                    displayAlert(document.getElementById('conversationsBody'),`No conversation found matching "${item}"`,'danger', 'noRestoreConversationAlert', {'type': alertBehaviors.AUTO_EXPIRE});
                 removeConversation(item);
             }
         });
