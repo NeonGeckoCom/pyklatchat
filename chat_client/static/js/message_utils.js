@@ -213,7 +213,7 @@ function emitUserMessage(textInputElem, cid, repliedMessageID=null, attachments=
                  'timeCreated':timeCreated
                 });
             if(preferredShoutLang !== 'en'){
-                await requestTranslation(cid, messageID, 'en', 'outcoming');
+                await requestTranslation(cid, messageID, 'en', 'outcoming', true);
             }
             addMessageTransformCallback(cid, messageID, isAudio);
         });

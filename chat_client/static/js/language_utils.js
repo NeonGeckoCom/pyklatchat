@@ -66,8 +66,9 @@ async function fetchSupportedLanguages(){
  * @param shouts: list of shout ids to bound request to
  * @param lang: language to apply (defaults to preferred language of each fetched conversation)
  * @param inputType: type of the language input to apply (incoming or outcoming)
+ * @param translateToBaseLang: to translate provided items to the system base lang (based on preferred)
  */
-async function requestTranslation(cid=null, shouts=null, lang=null, inputType='incoming'){
+async function requestTranslation(cid=null, shouts=null, lang=null, inputType='incoming', translateToBaseLang=false){
     let requestBody = {chat_mapping: {}};
     if(cid && isDisplayed(cid)){
         lang = lang || getPreferredLanguage(cid, inputType);
@@ -85,6 +86,9 @@ async function requestTranslation(cid=null, shouts=null, lang=null, inputType='i
         }
         setDefault(requestBody.chat_mapping, cid, {});
         requestBody.chat_mapping[cid] = {'lang': lang, 'shouts': shouts || []}
+        if (translateToBaseLang){
+            requestBody.chat_mapping[cid]['source_lang'] = getPreferredLanguage(cid);
+        }
     }else{
         requestBody.chat_mapping = getChatLanguageMapping();
         if (!requestBody.chat_mapping){
