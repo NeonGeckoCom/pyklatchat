@@ -347,8 +347,9 @@ function getMessagesOfCID(cid, messageReferType=MESSAGE_REFER_TYPE.ALL, idOnly=f
  * Refreshes chat view (e.g. when user session gets updated)
  */
 function refreshChatView(){
-    Array.from(conversationBody.getElementsByClassName('conversationContainer')).forEach(conversation=>{
-       const messages = getMessagesOfCID(conversation.getElementsByClassName('conversation-card')[0].id);
+    Array.from(conversationBody.getElementsByClassName('conversationContainer')).forEach(async conversation=>{
+       const cid = conversation.getElementsByClassName('conversation-card')[0].id
+       const messages = getMessagesOfCID(cid);
        Array.from(messages).forEach(message=>{
           if(message.hasAttribute('data-sender')){
               const messageSenderNickname = message.getAttribute('data-sender');
@@ -356,6 +357,7 @@ function refreshChatView(){
               message.parentElement.parentElement.className = (currentUser && messageSenderNickname === currentUser['nickname'])?'in':'out';
           }
        });
+       await initLanguageSelectors(cid);
     });
 }
 
@@ -456,7 +458,6 @@ async function createNewConversation(conversationName, isPrivate=false, conversa
         let responseOk = false;
         if (response.ok) {
             await buildConversation(responseJson).then(async cid=>{
-                await initLanguageSelectors(cid);
                 console.log(`inited language selectors for ${cid}`);
             });
             responseOk = true
