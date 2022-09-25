@@ -160,12 +160,11 @@ class DbUtils(metaclass=Singleton):
         return result
 
     @classmethod
-    def get_translations(cls, translation_mapping: dict, user_id=None) -> Tuple[dict, dict]:
+    def get_translations(cls, translation_mapping: dict) -> Tuple[dict, dict]:
         """
             Gets translation from db based on provided mapping
 
             :param translation_mapping: mapping of cid to desired translation language
-            :param user_id: id of the initiator user
 
             :return translations fetched from db
         """
@@ -181,15 +180,13 @@ class DbUtils(metaclass=Singleton):
             shout_data = cls.fetch_shout_data(conversation_data=conversation_data,
                                               shout_ids=shout_ids,
                                               fetch_senders=False)
-            source_lang = 'en'
+            shout_lang = 'en'
+            if len(shout_data) == 1:
+                shout_lang = shout_data[0].get('message_lang', 'en')
             for shout in shout_data:
                 message_text = shout.get('message_text')
-                if lang == 'en':
+                if shout_lang != 'en' and lang == 'en':
                     shout_text = message_text
-                    try:
-                        source_lang = cid_data.get('source_lang', list(shout.get('translations', {}))[0])
-                    except:
-                        LOG.error(f'Failed to get "source_lang" for shout={shout}')
                 else:
                     shout_text = shout.get('translations', {}).get(lang)
                 if shout_text and lang != 'en':
@@ -198,7 +195,7 @@ class DbUtils(metaclass=Singleton):
                     missing_translations.setdefault(cid, {}).setdefault('shouts', {})[shout['_id']] = message_text
             if missing_translations.get(cid):
                 missing_translations[cid]['lang'] = lang
-                missing_translations[cid]['source_lang'] = source_lang
+                missing_translations[cid]['source_lang'] = shout_lang
         return populated_translations, missing_translations
 
     @classmethod
@@ -232,7 +229,14 @@ class DbUtils(metaclass=Singleton):
                 # English is the default language, so it is treated as message text
                 if shout_data.get('lang', 'en') == 'en':
                     updated_shouts.setdefault(cid, []).append(shout_id)
-                    bulk_update_setter = {'message_text': translation}
+                    filter_expression = {'_id': shout_id}
+                    update_expression = {'$set': {'message_lang': 'en'}}
+                    cls.db_controller.exec_query(query={'document': 'shouts',
+                                                        'command': 'update',
+                                                        'data': (filter_expression,
+                                                                 update_expression,)})
+                    bulk_update_setter = {'message_text': translation,
+                                          'message_lang': 'en'}
                 else:
                     bulk_update_setter = {f'translations.{shout_data["lang"]}': translation}
                 bulk_update.append(UpdateOne({'_id': shout_id},
