@@ -29,7 +29,7 @@ import os
 from typing import List, Optional
 
 from time import time
-from fastapi import APIRouter, status, Request, UploadFile, File
+from fastapi import APIRouter, status, Request, UploadFile, File, Form
 from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import HTTPException
@@ -49,17 +49,12 @@ router = APIRouter(
 )
 
 
-class NewConversationData(BaseModel):
-    """Model for new conversation data"""
-    id: str = None
-    conversation_name: str
-    is_private: bool = False
-    created_on: int = int(time())
-
-
 @router.post("/new")
 @login_required
-async def new_conversation(request: Request, request_data: NewConversationData):
+async def new_conversation(request: Request,
+                           conversation_id: str = Form(''),
+                           conversation_name: str = Form(...),
+                           is_private: bool = Form(False)):
     """
         Creates new conversation from provided conversation data
 
@@ -68,23 +63,24 @@ async def new_conversation(request: Request, request_data: NewConversationData):
 
         :returns JSON response with new conversation data if added, 401 error message otherwise
     """
-    if request_data.id:
+    request_data = {
+        '_id': conversation_id,
+        'conversation_name': conversation_name,
+        'is_private': is_private,
+        'created_on': int(time())
+    }
+    if request_data['_id']:
         matching_conversation_id = db_controller.exec_query(query={'command': 'find_one',
                                                                    'document': 'chats',
-                                                                   'data': ({'_id': request_data.id})})
+                                                                   'data': ({'_id': request_data['_id']})})
         if matching_conversation_id:
             return respond('Provided conversation id already exists', 400)
-    request_data_dict = request_data.__dict__
-    request_data_dict['_id'] = request_data_dict.pop('id', None)
-    _id = db_controller.exec_query(query=dict(document='chats', command='insert_one', data=(request_data_dict,)))
-    request_data_dict['_id'] = str(request_data_dict['_id'])
-    json_compatible_item_data = jsonable_encoder(request_data_dict)
-    json_compatible_item_data['_id'] = str(_id.inserted_id)
-    return JSONResponse(content=json_compatible_item_data)
+    db_controller.exec_query(query=dict(document='chats', command='insert_one', data=(request_data,)))
+    return JSONResponse(content=request_data)
 
 
 @router.get("/search/{search_str}")
-@login_required
+# @login_required
 async def get_matching_conversation(request: Request,
                                     search_str: str,
                                     chat_history_from: int = 0,

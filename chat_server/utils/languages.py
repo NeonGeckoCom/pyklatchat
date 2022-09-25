@@ -27,6 +27,8 @@
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import copy
+import os
+
 import requests
 from bidict import bidict
 
@@ -60,6 +62,10 @@ class LanguageSettings:
         'ga': 'ie'
     }
 
+    __included_language_codes = os.environ.get('INCLUDED_LANGUAGES', '')
+    if __included_language_codes:
+        __included_language_codes = __included_language_codes.split(',')
+
     __excluded_language_codes__ = ['ru', 'eo']
 
     __neon_language_mapping__ = bidict({
@@ -78,10 +84,12 @@ class LanguageSettings:
                 res = requests.get(f'{url}/languages')
                 if res.ok:
                     for item in res.json():
-                        if item['code'] not in cls.__excluded_language_codes__:
-                            cls.__supported_languages__[item['code']] = {
+                        code = item['code']
+                        if code not in cls.__excluded_language_codes__ \
+                                and (not cls.__included_language_codes or code in cls.__included_language_codes):
+                            cls.__supported_languages__[code] = {
                                 'name': item['name'],
-                                'icon': cls.__code_to_icon_mapping__.get(item['code'], item['code'])
+                                'icon': cls.__code_to_icon_mapping__.get(code, code)
                             }
                     return 0
             except Exception as ex:
@@ -105,7 +113,7 @@ class LanguageSettings:
             status = cls.init_supported_languages()
             if status == -1:
                 LOG.warning('Rollback to default languages')
-                return copy.deepcopy(cls.__supported_languages__)
+                return copy.deepcopy(cls.__default_languages__)
         return copy.deepcopy(cls.__supported_languages__)
 
     @classmethod

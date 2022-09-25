@@ -203,7 +203,12 @@ async function getConversationDataByInput(input="", firstMessageID=null, maxResu
                     setDefault(setDefault(conversationState, data['_id'], {}), 'all_messages_displayed', true);
                 }
                 conversationData = data;
-            }).catch(err=> console.warn('Failed to fulfill request due to error:',err));
+            }).catch(async err=> {
+                console.warn('Failed to fulfill request due to error:',err);
+                if (input === '1'){
+                    await createNewConversation('Global', false, '1');
+                }
+            });
     }
     return conversationData;
 }
@@ -272,18 +277,23 @@ const chatAlignmentRestoredEvent = new CustomEvent("chatAlignmentRestored", { "d
 **/
 async function restoreChatAlignment(keyName=conversationAlignmentKey){
     let itemsLayout = retrieveItemsLayout(keyName);
+    let rememberToken = false;
+    if (itemsLayout?.length === 0){
+        itemsLayout = ['1'];
+        rememberToken = true;
+    }
     for (const item of itemsLayout) {
         await getConversationDataByInput(item).then(async conversationData=>{
             if(conversationData && Object.keys(conversationData).length > 0) {
-                await buildConversation(conversationData, false);
+                await buildConversation(conversationData, rememberToken);
             }else{
-                displayAlert(document.getElementById('conversationsBody'),'No matching conversation found','danger', 'noRestoreConversationAlert', {'type': alertBehaviors.AUTO_EXPIRE});
+                if (item !== '1')
+                    displayAlert(document.getElementById('conversationsBody'),`No conversation found matching "${item}"`,'danger', 'noRestoreConversationAlert', {'type': alertBehaviors.AUTO_EXPIRE});
                 removeConversation(item);
             }
         });
     }
     console.log('Chat Alignment Restored');
-    await requestChatsLanguageRefresh();
     document.dispatchEvent(chatAlignmentRestoredEvent);
 }
 
@@ -338,14 +348,16 @@ function getMessagesOfCID(cid, messageReferType=MESSAGE_REFER_TYPE.ALL, idOnly=f
  */
 function refreshChatView(){
     Array.from(conversationBody.getElementsByClassName('conversationContainer')).forEach(async conversation=>{
-       const messages = getMessagesOfCID(conversation.id);
+       const cid = conversation.getElementsByClassName('conversation-card')[0].id
+       const messages = getMessagesOfCID(cid);
        Array.from(messages).forEach(message=>{
           if(message.hasAttribute('data-sender')){
               const messageSenderNickname = message.getAttribute('data-sender');
               console.log(`messageSenderNickname=${messageSenderNickname}`)
-              message.className = currentUser && messageSenderNickname === currentUser['nickname']?'in':'out';
+              message.parentElement.parentElement.className = (currentUser && messageSenderNickname === currentUser['nickname'])?'in':'out';
           }
        });
+       await initLanguageSelectors(cid);
     });
 }
 
@@ -408,7 +420,7 @@ async function displayConversation(searchStr, alertParentID = null){
             } else if (conversationData && Object.keys(conversationData).length > 0) {
                 await buildConversation(conversationData);
                 for (const inputType of ['incoming', 'outcoming']){
-                    requestTranslation(conversationData['_id'], null, null, inputType);
+                    await requestTranslation(conversationData['_id'], null, null, inputType);
                 }
                 responseOk = true;
             } else {
@@ -446,7 +458,6 @@ async function createNewConversation(conversationName, isPrivate=false, conversa
         let responseOk = false;
         if (response.ok) {
             await buildConversation(responseJson).then(async cid=>{
-                await initLanguageSelectors(cid);
                 console.log(`inited language selectors for ${cid}`);
             });
             responseOk = true
@@ -462,7 +473,9 @@ async function createNewConversation(conversationName, isPrivate=false, conversa
 document.addEventListener('DOMContentLoaded', (e)=>{
 
     document.addEventListener('supportedLanguagesLoaded', async (e)=>{
-        await refreshCurrentUser(false).then(async _=>await restoreChatAlignment()).then(async _=> await refreshChatView(true));
+        await restoreChatAlignment()
+            .then(async _=>await refreshCurrentUser(true))
+            .then(async _=> await requestChatsLanguageRefresh());
     });
 
     if (configData['client'] === CLIENTS.MAIN) {

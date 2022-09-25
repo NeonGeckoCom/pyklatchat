@@ -87,7 +87,8 @@ class DbUtils(metaclass=Singleton):
 
     @classmethod
     def fetch_shout_data(cls, conversation_data: dict, start_idx: int = 0, limit: int = 100,
-                         fetch_senders: bool = True, start_message_id: str = None):
+                         fetch_senders: bool = True, start_message_id: str = None,
+                         shout_ids: List[str] = None) -> List[dict]:
         """
             Fetches shout data out of conversation data
 
@@ -96,8 +97,9 @@ class DbUtils(metaclass=Singleton):
             :param limit: number of shouts to fetch
             :param fetch_senders: to fetch shout senders data
             :param start_message_id: message id to start from
+            :param shout_ids: list of shout ids to fetch
         """
-        if conversation_data.get('chat_flow', None):
+        if not shout_ids and conversation_data.get('chat_flow', None):
             if start_message_id:
                 try:
                     start_idx = len(conversation_data["chat_flow"]) - \
@@ -111,8 +113,8 @@ class DbUtils(metaclass=Singleton):
                 conversation_data['chat_flow'] = conversation_data['chat_flow'][-start_idx - limit:
                                                                                 -start_idx]
             shout_ids = [str(msg_id) for msg_id in conversation_data["chat_flow"]]
-            shouts_data = cls.fetch_shouts(shout_ids=shout_ids, fetch_senders=fetch_senders)
-            return sorted(shouts_data, key=lambda user_shout: int(user_shout['created_on']))
+        shouts_data = cls.fetch_shouts(shout_ids=shout_ids, fetch_senders=fetch_senders)
+        return sorted(shouts_data, key=lambda user_shout: int(user_shout['created_on']))
 
     @classmethod
     def fetch_shouts(cls, shout_ids: List[str] = None, fetch_senders: bool = True) -> List[dict]:
@@ -123,6 +125,8 @@ class DbUtils(metaclass=Singleton):
 
             :returns Data from requested shout ids along with matching user data
         """
+        if not shout_ids:
+            return []
         shouts = cls.db_controller.exec_query(query={'document': 'shouts',
                                                      'command': 'find',
                                                      'data': {'_id': {'$in': list(set(shout_ids))}}})
@@ -167,29 +171,34 @@ class DbUtils(metaclass=Singleton):
         """
         populated_translations = {}
         missing_translations = {}
-        bulk_update_preferences = []
-        prefs = cls.get_user_preferences(user_id=user_id, create_if_not_exists=True)
-        if not prefs:
-            LOG.warning('No preferences fetched, user data will not be updated')
         for cid, cid_data in translation_mapping.items():
             lang = cid_data.get('lang', 'en')
+            shout_ids = cid_data.get('shouts', [])
             conversation_data, status_code = cls.get_conversation_data(search_str=cid)
             if status_code != 200:
                 LOG.error(f'Failed to fetch conversation data - {conversation_data} (status={status_code})')
                 continue
-            shout_data = cls.fetch_shout_data(conversation_data=conversation_data, fetch_senders=False) or []
+            shout_data = cls.fetch_shout_data(conversation_data=conversation_data,
+                                              shout_ids=shout_ids,
+                                              fetch_senders=False)
+            source_lang = 'en'
             for shout in shout_data:
                 message_text = shout.get('message_text')
                 if lang == 'en':
                     shout_text = message_text
+                    try:
+                        source_lang = cid_data.get('source_lang', list(shout.get('translations', {}))[0])
+                    except:
+                        LOG.error(f'Failed to get "source_lang" for shout={shout}')
                 else:
                     shout_text = shout.get('translations', {}).get(lang)
-                if shout_text:
+                if shout_text and lang != 'en':
                     populated_translations.setdefault(cid, {}).setdefault('shouts', {})[shout['_id']] = shout_text
                 elif message_text:
                     missing_translations.setdefault(cid, {}).setdefault('shouts', {})[shout['_id']] = message_text
             if missing_translations.get(cid):
                 missing_translations[cid]['lang'] = lang
+                missing_translations[cid]['source_lang'] = source_lang
         return populated_translations, missing_translations
 
     @classmethod

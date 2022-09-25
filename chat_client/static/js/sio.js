@@ -37,7 +37,7 @@ function initSIO(){
         const msgData = JSON.parse(data);
         const preferredLang = getPreferredLanguage(msgData['cid']);
         if (data?.lang !== preferredLang){
-            requestTranslation(msgData['cid'], msgData['messageID'], preferredLang);
+            await requestTranslation(msgData['cid'], msgData['messageID']);
         }
         await addNewMessage(msgData['cid'], msgData['userID'], msgData['messageID'], msgData['messageText'], msgData['timeCreated'], msgData['repliedMessage'], msgData['attachments'], msgData?.isAudio, msgData?.isAnnouncement)
             .catch(err=>console.error('Error occurred while adding new message: ',err));
@@ -65,9 +65,10 @@ function initSIO(){
     }
 
     socket.on('updated_shouts', async (data) =>{
-       for (const [cid, shouts] of Object.entries(data)){
+        const inputType = data['input_type'];
+        for (const [cid, shouts] of Object.entries(data['translations'])){
            if (isDisplayed(cid)){
-               requestTranslation(cid, shouts);
+               await requestTranslation(cid, shouts, null, inputType);
            }
        }
     });

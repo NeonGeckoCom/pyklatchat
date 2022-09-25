@@ -164,9 +164,10 @@ async function refreshCurrentUser(refreshChats=false){
         currentUser = data;
         console.log(`Loaded current user = ${JSON.stringify(currentUser)}`);
         updateNavbar();
-        if(refreshChats && configData['currentURLFull'].includes('chats')) {
+        if(refreshChats) {
             refreshChatView();
         }
+        console.log('current user loaded');
         document.dispatchEvent(currentUserLoaded);
     });
 }
