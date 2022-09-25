@@ -121,7 +121,12 @@ async function setSelectedLang(clickedItem, cid, inputType="incoming"){
 
     const direction = inputType === 'incoming'?'down':'up';
     selectedLangNode.innerHTML = await buildHTMLFromTemplate('selected_lang', {'key': newKey, 'name': newPreferredLangProps['name'], 'icon': newPreferredLangProps['icon'], 'direction': direction})
-    selectedLangList.getElementsByClassName('lang-container')[0].insertAdjacentHTML('beforeend', await buildLangOptionHTML(cid, preferredLang, preferredLangProps['name'], preferredLangProps['icon'], inputType));
+    if (preferredLangProps) {
+        selectedLangList.getElementsByClassName('lang-container')[0].insertAdjacentHTML('beforeend', await buildLangOptionHTML(cid, preferredLang, preferredLangProps['name'], preferredLangProps['icon'], inputType));
+    }
+    else{
+        console.warn(`"${preferredLang}" is set to be preferred but currently not supported`)
+    }
     if (clickedItem.parentNode){
         clickedItem.parentNode.removeChild(clickedItem);
     }
