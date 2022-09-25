@@ -230,27 +230,29 @@ async function applyTranslations(data){
         // console.debug(`translations=${JSON.stringify(messageTranslations)}`)
 
         const messageTranslationsShouts = messageTranslations['shouts'];
-        const messageReferType = getMessageReferType(inputType);
-        const messages = getMessagesOfCID(cid, messageReferType);
-        Array.from(messages).forEach(message => {
-            const messageID = message.id;
-            let repliedMessage = null;
-            let repliedMessageID = null;
-            try {
-                repliedMessage = message.getElementsByClassName('reply-placeholder')[0].getElementsByClassName('reply-text')[0];
-                repliedMessageID = repliedMessage.getAttribute('data-replied-id')
-                // console.debug(`repliedMessageID=${repliedMessageID}`)
-            }catch (e) {
-                // console.debug(`replied message not found for ${messageID}`);
-            }
-            if (messageID in messageTranslationsShouts){
-                message.getElementsByClassName('message-text')[0].innerHTML = messageTranslationsShouts[messageID];
-            }
-            if (repliedMessageID && repliedMessageID in messageTranslationsShouts){
-                repliedMessage.innerHTML = messageTranslationsShouts[repliedMessageID];
-            }
-        });
-        await initLanguageSelector(cid, inputType);
+        if (messageTranslationsShouts) {
+            const messageReferType = getMessageReferType(inputType);
+            const messages = getMessagesOfCID(cid, messageReferType);
+            Array.from(messages).forEach(message => {
+                const messageID = message.id;
+                let repliedMessage = null;
+                let repliedMessageID = null;
+                try {
+                    repliedMessage = message.getElementsByClassName('reply-placeholder')[0].getElementsByClassName('reply-text')[0];
+                    repliedMessageID = repliedMessage.getAttribute('data-replied-id')
+                    // console.debug(`repliedMessageID=${repliedMessageID}`)
+                } catch (e) {
+                    // console.debug(`replied message not found for ${messageID}`);
+                }
+                if (messageID in messageTranslationsShouts) {
+                    message.getElementsByClassName('message-text')[0].innerHTML = messageTranslationsShouts[messageID];
+                }
+                if (repliedMessageID && repliedMessageID in messageTranslationsShouts) {
+                    repliedMessage.innerHTML = messageTranslationsShouts[repliedMessageID];
+                }
+            });
+            await initLanguageSelector(cid, inputType);
+        }
     }
 }
 
