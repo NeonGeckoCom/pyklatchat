@@ -197,8 +197,9 @@ async function requestChatsLanguageRefresh(){
         if (isDisplayed(cid)) {
             for (const inputType of ['incoming', 'outcoming']) {
                 const lang = value[inputType] || 'en';
-                console.log(`preferred language updated for cid=${cid},inputType=${inputType} - lang=${lang}`)
-                await setPreferredLanguage(cid, lang, inputType, false);
+                if (lang !== 'en') {
+                    await setPreferredLanguage(cid, lang, inputType, false);
+                }
             }
         }
     }
