@@ -337,13 +337,13 @@ function getMessagesOfCID(cid, messageReferType=MESSAGE_REFER_TYPE.ALL, idOnly=f
  * Refreshes chat view (e.g. when user session gets updated)
  */
 function refreshChatView(){
-    Array.from(conversationBody.getElementsByClassName('conversationContainer')).forEach(async conversation=>{
+    Array.from(conversationBody.getElementsByClassName('conversationContainer')).forEach(conversation=>{
        const messages = getMessagesOfCID(conversation.id);
        Array.from(messages).forEach(message=>{
+          const messageListNode = message.parentElement.parentElement;
           if(message.hasAttribute('data-sender')){
               const messageSenderNickname = message.getAttribute('data-sender');
-              console.log(`messageSenderNickname=${messageSenderNickname}`)
-              message.className = currentUser && messageSenderNickname === currentUser['nickname']?'in':'out';
+              messageListNode.className = currentUser && messageSenderNickname === currentUser['nickname']?'in':'out';
           }
        });
     });
