@@ -25,10 +25,9 @@
 # LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, List
+from typing import Any, List, Union
 
 from utils.common import deep_merge
 
@@ -45,7 +44,6 @@ class MongoCommands(Enum):
     INSERT_ONE = 'insert_one'
     INSERT_MANY = 'insert_many'
     ## Bulk Write
-    BULK_INSERT = 'bulk_write'
     BULK_WRITE = 'bulk_write'
     # Deletion Operations
     DELETE = 'delete_many'
@@ -75,20 +73,25 @@ class MongoLogicalOperators(Enum):
     IN = 'in'
     ALL = 'all'
     ANY = 'any'
+    OR = 'or'
+    AND = 'and'
 
 
 @dataclass
 class MongoFilter:
     """ Class representing logical conditions supported by Mongo"""
-    key: str
-    value: Any
+    key: str = ''
+    value: Any = None
     logical_operator: MongoLogicalOperators = MongoLogicalOperators.EQ
 
     def to_dict(self):
         """ Converts object to the dictionary """
         if self.logical_operator.value == MongoLogicalOperators.EQ.value:
             return {self.key: self.value}
-        return {self.key: {f'${self.logical_operator.value}': self.value}}
+        elif self.logical_operator.value in (MongoLogicalOperators.OR.value, MongoLogicalOperators.AND.value,):
+            return {f'${self.logical_operator.value}': self.value}
+        else:
+            return {self.key: {f'${self.logical_operator.value}': self.value}}
 
 
 @dataclass
@@ -96,7 +99,7 @@ class MongoQuery:
     """ Object to represent Mongo Query data"""
     command: MongoCommands
     document: MongoDocuments
-    filters: List[MongoFilter] = None
+    filters: List[Union[dict, MongoFilter]] = None
     data: dict = None
     data_action: str = 'set'
     result_filters: dict = None  # To apply some filters on the resulting data e.g. limit or sort
@@ -105,10 +108,12 @@ class MongoQuery:
         """ Builds filters for Mongo Query """
         res = {}
         if self.filters:
-            if isinstance(self.filters, MongoFilter):
+            if any(isinstance(self.filters, _type) for _type in (MongoFilter, dict,)):
                 self.filters = [self.filters]
             for condition in self.filters:
-                res = deep_merge(res, condition.to_dict())
+                if isinstance(condition, MongoFilter):
+                    condition = condition.to_dict()
+                res = deep_merge(res, condition)
         return res
 
     def build_setter(self) -> dict:
@@ -116,7 +121,7 @@ class MongoQuery:
         res = None
         if self.command.value == MongoCommands.UPDATE.value:
             res = {f'${self.data_action.lower()}': self.data}
-        elif self.command.value == MongoCommands.INSERT_ONE.value:
+        elif self.command.value in (MongoCommands.INSERT_ONE.value, MongoCommands.BULK_WRITE.value,):
             res = self.data
         return res
 

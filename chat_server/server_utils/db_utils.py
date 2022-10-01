@@ -32,10 +32,12 @@ from bson import ObjectId
 from neon_utils import LOG
 from pymongo import UpdateOne
 
+from chat_server.constants.conversations import ConversationSkins
 from chat_server.constants.users import UserPatterns
 from chat_server.server_utils.factory_utils import Singleton
 from chat_server.server_utils.user_utils import create_from_pattern
 from utils.common import buffer_to_base64
+from utils.database_utils.mongo_utils import *
 
 
 class DbUtils(metaclass=Singleton):
@@ -63,27 +65,37 @@ class DbUtils(metaclass=Singleton):
             filter_data['_id'] = user_id
         if nickname:
             filter_data['nickname'] = nickname
-        return cls.db_controller.exec_query(query={'command': 'find_one', 'document': 'users',
-                                                   'data': filter_data})
+        return cls.db_controller.exec_query(MongoQuery(command=MongoCommands.FIND_ONE,
+                                                       document=MongoDocuments.USERS,
+                                                       filters=filter_data))
 
     @classmethod
-    def get_conversation_data(cls, search_str):
+    def get_conversation_data(cls, search_str: Union[list, str], column_identifiers: List[str] = None) -> Union[None,
+                                                                                                                dict]:
         """
             Gets matching conversation data
             :param search_str: search string to lookup
+            :param column_identifiers: desired column identifiers to lookup
         """
-        or_expression = [{'conversation_name': search_str}]
-        if ObjectId.is_valid(search_str):
-            search_str = ObjectId(search_str)
-        or_expression.append({'_id': search_str})
+        if isinstance(search_str, str):
+            search_str = [search_str]
+        if not column_identifiers:
+            column_identifiers = ['_id', 'conversation_name']
+        or_expression = []
+        for _keyword in [item for item in search_str if item is not None]:
+            for identifier in column_identifiers:
+                if identifier == '_id' and ObjectId.is_valid(search_str):
+                    _keyword = ObjectId(_keyword)
+                or_expression.append({identifier: _keyword})
 
-        conversation_data = cls.db_controller.exec_query(query={'command': 'find_one',
-                                                                'document': 'chats',
-                                                                'data': {"$or": or_expression}})
+        conversation_data = cls.db_controller.exec_query(MongoQuery(command=MongoCommands.FIND_ONE,
+                                                                    document=MongoDocuments.CHATS,
+                                                                    filters=MongoFilter(value=or_expression,
+                                                                                        logical_operator=MongoLogicalOperators.OR)))
         if not conversation_data:
-            return f"Unable to get a chat by string: {search_str}", 404
+            return
         conversation_data['_id'] = str(conversation_data['_id'])
-        return conversation_data, 200
+        return conversation_data
 
     @classmethod
     def fetch_shout_data(cls, conversation_data: dict, start_idx: int = 0, limit: int = 100,
@@ -115,6 +127,44 @@ class DbUtils(metaclass=Singleton):
             return sorted(shouts_data, key=lambda user_shout: int(user_shout['created_on']))
 
     @classmethod
+    def fetch_prompt_data(cls, conversation_data: dict, start_idx: int = 0, limit: int = 100,
+                          fetch_senders: bool = True, start_message_id: str = None) -> List[dict]:
+        """
+            Fetches prompt data out of conversation data
+
+            :param conversation_data: input conversation data
+            :param start_idx: message index to start from (sorted by recency)
+            :param limit: number of shouts to fetch
+            :param fetch_senders: to fetch shout senders data
+            :param start_message_id: message id to start from
+        """
+        matching_prompts = cls.db_controller.exec_query(query={'document': 'prompts',
+                                                               'command': 'find',
+                                                               'data': {'cid': conversation_data['_id']}})
+
+    @classmethod
+    def fetch_skin_message_data(cls, skin: ConversationSkins, conversation_data: dict, start_idx: int = 0,
+                                limit: int = 100,
+                                fetch_senders: bool = True, start_message_id: str = None):
+        """ Fetches message data based on provided conversation skin """
+        if skin == ConversationSkins.BASE:
+            message_data = cls.fetch_shout_data(conversation_data=conversation_data,
+                                                fetch_senders=fetch_senders,
+                                                start_idx=start_idx,
+                                                start_message_id=start_message_id,
+                                                limit=limit)
+        elif skin == ConversationSkins.PROMPTS:
+            message_data = cls.fetch_prompt_data(conversation_data=conversation_data,
+                                                 fetch_senders=fetch_senders,
+                                                 start_idx=start_idx,
+                                                 start_message_id=start_message_id,
+                                                 limit=limit)
+        else:
+            LOG.error(f'Failed to resolve skin={skin}')
+            message_data = []
+        return message_data
+
+    @classmethod
     def fetch_shouts(cls, shout_ids: List[str] = None, fetch_senders: bool = True) -> List[dict]:
         """
             Fetches shout data from provided shouts list
@@ -123,18 +173,20 @@ class DbUtils(metaclass=Singleton):
 
             :returns Data from requested shout ids along with matching user data
         """
-        shouts = cls.db_controller.exec_query(query={'document': 'shouts',
-                                                     'command': 'find',
-                                                     'data': {'_id': {'$in': list(set(shout_ids))}}})
+        shouts = cls.db_controller.exec_query(query=MongoQuery(command=MongoCommands.FIND_MANY,
+                                                               document=MongoDocuments.SHOUTS,
+                                                               filters=MongoFilter('_id', list(set(shout_ids)),
+                                                                                   MongoLogicalOperators.IN)))
         shouts = list(shouts)
         result = list()
 
         if fetch_senders:
             user_ids = list(set([shout['user_id'] for shout in shouts]))
 
-            users_from_shouts = cls.db_controller.exec_query(query={'document': 'users',
-                                                                    'command': 'find',
-                                                                    'data': {'_id': {'$in': user_ids}}})
+            users_from_shouts = cls.db_controller.exec_query(query=MongoQuery(command=MongoCommands.FIND_MANY,
+                                                                              document=MongoDocuments.USERS,
+                                                                              filters=MongoFilter('_id', user_ids,
+                                                                                                  MongoLogicalOperators.IN)))
 
             formatted_users = dict()
             for users_from_shout in users_from_shouts:
@@ -167,15 +219,14 @@ class DbUtils(metaclass=Singleton):
         """
         populated_translations = {}
         missing_translations = {}
-        bulk_update_preferences = []
         prefs = cls.get_user_preferences(user_id=user_id, create_if_not_exists=True)
         if not prefs:
             LOG.warning('No preferences fetched, user data will not be updated')
         for cid, cid_data in translation_mapping.items():
             lang = cid_data.get('lang', 'en')
-            conversation_data, status_code = cls.get_conversation_data(search_str=cid)
-            if status_code != 200:
-                LOG.error(f'Failed to fetch conversation data - {conversation_data} (status={status_code})')
+            conversation_data = cls.get_conversation_data(search_str=cid)
+            if not conversation_data:
+                LOG.error(f'Failed to fetch conversation data - {cid}')
                 continue
             shout_data = cls.fetch_shout_data(conversation_data=conversation_data, fetch_senders=False) or []
             for shout in shout_data:
@@ -203,10 +254,11 @@ class DbUtils(metaclass=Singleton):
         for cid, shout_data in translation_mapping.items():
             translations = shout_data.get('shouts', {})
             bulk_update = []
-            shouts = cls.db_controller.exec_query(query={'document': 'shouts',
-                                                         'command': 'find',
-                                                         'data': {'_id': {'$in': list(translations)}}})
-            shouts = list(shouts)
+            shouts = cls.db_controller.exec_query(query=MongoQuery(command=MongoCommands.FIND_MANY,
+                                                                   document=MongoDocuments.SHOUTS,
+                                                                   filters=MongoFilter('_id', list(translations),
+                                                                                       MongoLogicalOperators.IN)),
+                                                  as_cursor=False)
             for shout_id, translation in translations.items():
                 matching_instance = None
                 for shout in shouts:
@@ -215,23 +267,24 @@ class DbUtils(metaclass=Singleton):
                         break
                 if not matching_instance.get('translations'):
                     filter_expression = {'_id': shout_id}
-                    update_expression = {'$set': {'translations': {}}}
-                    cls.db_controller.exec_query(query={'document': 'shouts',
-                                                        'command': 'update',
-                                                        'data': (filter_expression,
-                                                                 update_expression,)})
+                    cls.db_controller.exec_query(query=MongoQuery(command=MongoCommands.UPDATE,
+                                                                  document=MongoDocuments.SHOUTS,
+                                                                  filters=filter_expression,
+                                                                  data={'translations': {}},
+                                                                  data_action='set'))
                 # English is the default language, so it is treated as message text
                 if shout_data.get('lang', 'en') == 'en':
                     updated_shouts.setdefault(cid, []).append(shout_id)
                     bulk_update_setter = {'message_text': translation}
                 else:
                     bulk_update_setter = {f'translations.{shout_data["lang"]}': translation}
+                # TODO: make a convenience wrapper to make bulk insertion easier to follow
                 bulk_update.append(UpdateOne({'_id': shout_id},
                                              {'$set': bulk_update_setter}))
             if len(bulk_update) > 0:
-                cls.db_controller.exec_query(query=dict(document='shouts',
-                                                        command='bulk_write',
-                                                        data=bulk_update))
+                cls.db_controller.exec_query(query=MongoQuery(command=MongoCommands.BULK_WRITE,
+                                                              document=MongoDocuments.SHOUTS,
+                                                              data=bulk_update))
         return updated_shouts
 
     @classmethod
@@ -239,17 +292,18 @@ class DbUtils(metaclass=Singleton):
         """ Gets preferences of specified user """
         prefs = {}
         if user_id:
-            prefs = cls.db_controller.exec_query(query={'document': 'user_preferences',
-                                                        'command': 'find_one',
-                                                        'data': {'_id': user_id}}) or {}
+            prefs = cls.db_controller.exec_query(MongoQuery(command=MongoCommands.FIND_ONE,
+                                                            document=MongoDocuments.USER_PREFERENCES,
+                                                            filters=MongoFilter('_id', user_id)))
             if not prefs and create_if_not_exists:
                 prefs = {
                     '_id': user_id,
                     'tts': {},
                     'chat_language_mapping': {}
                 }
-                cls.db_controller.exec_query(query=dict(document='user_preferences',
-                                                        command='insert_one', data=prefs))
+                cls.db_controller.exec_query(MongoQuery(command=MongoCommands.INSERT_ONE,
+                                                        document=MongoDocuments.USER_PREFERENCES,
+                                                        data=prefs))
         else:
             LOG.warning('user_id is None')
         return prefs
@@ -270,13 +324,13 @@ class DbUtils(metaclass=Singleton):
 
         audio_file_name = f'{shout_id}_{lang}_{gender}.wav'
         filter_expression = {'_id': shout_id}
-        update_expression = {'$set': {f'audio.{lang}.{gender}': audio_file_name}}
         try:
             sftp_connector.put_file_object(file_object=audio_data, save_to=f'audio/{audio_file_name}')
-            cls.db_controller.exec_query(query={'document': 'shouts',
-                                                'command': 'update',
-                                                'data': (filter_expression,
-                                                         update_expression,)})
+            cls.db_controller.exec_query(query=MongoQuery(command=MongoCommands.UPDATE,
+                                                          document=MongoDocuments.SHOUTS,
+                                                          filters=filter_expression,
+                                                          data={f'audio.{lang}.{gender}': audio_file_name},
+                                                          data_action='set'))
             operation_success = True
         except Exception as ex:
             LOG.error(f'Failed to save TTS response to db - {ex}')
@@ -293,12 +347,12 @@ class DbUtils(metaclass=Singleton):
             :param lang: language of speech (defaults to English)
         """
         filter_expression = {'_id': shout_id}
-        update_expression = {'$set': {f'transcripts.{lang}': message_text}}
         try:
-            cls.db_controller.exec_query(query={'document': 'shouts',
-                                                'command': 'update',
-                                                'data': (filter_expression,
-                                                         update_expression,)})
+            cls.db_controller.exec_query(query=MongoQuery(command=MongoCommands.UPDATE,
+                                                          document=MongoDocuments.SHOUTS,
+                                                          filters=filter_expression,
+                                                          data={f'transcripts.{lang}': message_text},
+                                                          data_action='set'))
         except Exception as ex:
             LOG.error(f'Failed to save STT response to db - {ex}')
 

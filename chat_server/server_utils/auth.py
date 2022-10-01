@@ -250,7 +250,7 @@ def login_required(*outer_args, **outer_kwargs):
         @wraps(func)
         async def wrapper(request: Request, *args, **kwargs):
             session_validation_output = validate_session(request, check_tmp=not outer_kwargs.get('tmp_allowed'))
-            LOG.info(f'(url={request.url}) Received session validation output: {session_validation_output}')
+            LOG.debug(f'(url={request.url}) Received session validation output: {session_validation_output}')
             if session_validation_output[1] != 200:
                 return respond(*session_validation_output)
             return await func(request, *args, **kwargs)
