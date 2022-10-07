@@ -83,7 +83,7 @@ async def new_conversation(request: Request, request_data: NewConversationData):
 
 
 @router.get("/search/{search_str}")
-@login_required
+# @login_required
 async def get_matching_conversation(request: Request,
                                     search_str: str,
                                     chat_history_from: int = 0,

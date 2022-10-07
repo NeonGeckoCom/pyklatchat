@@ -469,7 +469,7 @@ function refreshChatView(){
                 }
             });
         }
-        await initLanguageSelectors(cid);
+        await initLanguageSelectors(conversation.id);
     });
 }
 

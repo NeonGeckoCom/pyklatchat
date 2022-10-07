@@ -40,7 +40,7 @@ from neon_utils.cache_utils import LRUCache
 
 from chat_server.server_utils.auth import validate_session, AUTHORIZATION_HEADER
 from chat_server.server_utils.cache_utils import CacheFactory
-from chat_server.server_utils.db_utils import DbUtils
+from chat_server.server_utils.db_utils import DbUtils, MongoCommands, MongoDocuments, MongoQuery
 from chat_server.server_utils.user_utils import get_neon_data, get_bot_data
 from chat_server.server_config import db_controller, sftp_connector
 from chat_server.utils.languages import LanguageSettings
@@ -156,13 +156,8 @@ async def user_message(sid, data):
     """
     LOG.debug(f'Got new user message from {sid}: {data}')
     try:
-        try:
-            filter_expression = dict(_id=ObjectId(data['cid']))
-        except InvalidId:
-            LOG.warning('Received invalid id for ObjectId, trying to apply str')
-            filter_expression = dict(_id=data['cid'])
-
-        cid_data = db_controller.exec_query({'command': 'find_one', 'document': 'chats', 'data': filter_expression})
+        filter_expression = dict(_id=data['cid'])
+        cid_data = DbUtils.get_conversation_data(data['cid'], column_identifiers=['_id'])
         if not cid_data:
             msg = 'Shouting to non-existent conversation, skipping further processing'
             await emit_error(sids=[sid], message=msg)
@@ -188,13 +183,13 @@ async def user_message(sid, data):
         if is_audio != '1':
             is_audio = '0'
 
-        file_path = f'{data["messageID"]}_audio.wav'
+        audio_path = f'{data["messageID"]}_audio.wav'
         try:
             if is_audio == '1':
                 message_text = data['messageText'].split(',')[-1]
-                sftp_connector.put_file_object(file_object=message_text, save_to=f'audio/{file_path}')
+                sftp_connector.put_file_object(file_object=message_text, save_to=f'audio/{audio_path}')
                 # for audio messages "message_text" references the name of the audio stored
-                data['messageText'] = file_path
+                data['messageText'] = audio_path
         except Exception as ex:
             LOG.error(f'Failed to located file - {ex}')
             return -1
@@ -223,17 +218,20 @@ async def user_message(sid, data):
         if lang != 'en':
             new_shout_data['translations'][lang] = data['messageText']
 
-        db_controller.exec_query({'command': 'insert_one', 'document': 'shouts', 'data': new_shout_data})
-
-        push_expression = {'$push': {'chat_flow': new_shout_data['_id']}}
-        db_controller.exec_query({'command': 'update', 'document': 'chats', 'data': (filter_expression,
-                                                                                     push_expression,)})
+        db_controller.exec_query(MongoQuery(command=MongoCommands.INSERT_ONE,
+                                            document=MongoDocuments.SHOUTS,
+                                            data=new_shout_data))
+        db_controller.exec_query(query=MongoQuery(command=MongoCommands.UPDATE,
+                                                  document=MongoDocuments.CHATS,
+                                                  filters=filter_expression,
+                                                  data={'chat_flow': new_shout_data['_id']},
+                                                  data_action='push'))
 
         message_tts = data.get('messageTTS', {})
         for language, gender_mapping in message_tts.items():
             for gender, audio_data in gender_mapping.items():
-                sftp_connector.put_file_object(file_object=audio_data, save_to=f'audio/{file_path}')
-                DbUtils.save_tts_response(shout_id=data['messageID'], audio_file_name=file_path,
+                sftp_connector.put_file_object(file_object=audio_data, save_to=f'audio/{audio_path}')
+                DbUtils.save_tts_response(shout_id=data['messageID'], audio_file_name=audio_path,
                                           lang=language, gender=gender)
 
         await sio.emit('new_message', data=json.dumps(data), skip_sid=[sid])

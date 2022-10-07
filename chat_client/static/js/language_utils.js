@@ -153,27 +153,29 @@ async function initLanguageSelector(cid, inputType="incoming"){
    }
    const selectedLangNode = document.getElementById(`language-selected-${cid}-${inputType}`);
    const langList = document.getElementById(`language-list-${cid}-${inputType}`);
-   const langListContainer = langList.getElementsByClassName('lang-container')[0]
+   if (langList) {
+       const langListContainer = langList.getElementsByClassName('lang-container')[0]
 
-   if (langListContainer){
-      langListContainer.innerHTML = "";
-   }
+       if (langListContainer) {
+           langListContainer.innerHTML = "";
+       }
 
-   // selectedLangNode.innerHTML = "";
-   for (const [key, value] of Object.entries(supportedLanguages)) {
+       // selectedLangNode.innerHTML = "";
+       for (const [key, value] of Object.entries(supportedLanguages)) {
 
-      if (key === preferredLang){
-          const direction = inputType === 'incoming'?'down':'up';
-          selectedLangNode.innerHTML = await buildHTMLFromTemplate('selected_lang',
-              {'key': key, 'name': value['name'], 'icon': value['icon'], 'direction': direction})
-      }else{
-          langListContainer.insertAdjacentHTML('beforeend', await buildLangOptionHTML(cid, key, value['name'], value['icon'], inputType));
-          const itemNode = document.getElementById(getLangOptionID(cid, key, inputType));
-          itemNode.addEventListener('click', async (e)=>{
-              e.preventDefault();
-              await setSelectedLang(itemNode, cid, inputType)
-          });
-      }
+           if (key === preferredLang) {
+               const direction = inputType === 'incoming' ? 'down' : 'up';
+               selectedLangNode.innerHTML = await buildHTMLFromTemplate('selected_lang',
+                   {'key': key, 'name': value['name'], 'icon': value['icon'], 'direction': direction})
+           } else {
+               langListContainer.insertAdjacentHTML('beforeend', await buildLangOptionHTML(cid, key, value['name'], value['icon'], inputType));
+               const itemNode = document.getElementById(getLangOptionID(cid, key, inputType));
+               itemNode.addEventListener('click', async (e) => {
+                   e.preventDefault();
+                   await setSelectedLang(itemNode, cid, inputType)
+               });
+           }
+       }
    }
 }
 
