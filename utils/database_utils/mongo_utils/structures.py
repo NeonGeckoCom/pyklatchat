@@ -36,7 +36,7 @@ class MongoCommands(Enum):
     """Enumeration of possible commands supported by MongoDB API """
     # Selection Operations
     FIND = 'find'
-    FIND_MANY = 'find'
+    FIND_ALL = 'find'
     FIND_ONE = 'find_one'
     # Insertion operations
     ## Basic Insertion
