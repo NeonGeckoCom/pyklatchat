@@ -91,6 +91,50 @@ const saveAttachedFiles = async (cid) => {
     return attachments;
 }
 
+const CONVERSATION_SKINS = {
+    BASE: 'base',
+    PROMPTS: 'prompts'
+}
+
+let holdTimer = 0;
+
+
+const startTimer = () => {
+    holdTimer =Date.now();
+}
+
+const stopTimer = () => {
+    const timeDue = Date.now() - holdTimer;
+    holdTimer = 0;
+    return timeDue;
+}
+
+const startSelection = (table, exportToExcelBtn) => {
+    table.classList.remove('selected');
+    const container = table.parentElement.parentElement;
+    if(Array.from(container.getElementsByClassName('selected')).length === 0){
+       exportToExcelBtn.disabled = true;
+    }
+    startTimer();
+}
+
+const selectTable = (table, exportToExcelBtn) => {
+    const timePassed = stopTimer();
+    if (timePassed >= 300){
+      exportToExcelBtn.disabled = false;
+      table.classList.add('selected');
+    }
+}
+
+
+function exportTablesToExcel(tables, filePrefix = 'table_export') {
+
+    const exportTable = new TableExport(table, {formats:['xlsx'],filename: "test_export",sheet_name: 'Test_Sheet', bootstrap: true, exportButtons: false});
+    const exportData = exportTable.getExportData();
+    const xlsxData = exportData[table.id].xlsx;
+    exportTable.export2file(xlsxData.data, xlsxData.mimeType, xlsxData.filename, xlsxData.fileExtension, xlsxData.merges, xlsxData.RTL, xlsxData.sheetname)
+}
+
 /**
  * Builds new conversation HTML from provided data and attaches it to the list of displayed conversations
  * @param conversationData: JS Object containing conversation data of type:
