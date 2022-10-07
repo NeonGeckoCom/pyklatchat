@@ -48,15 +48,18 @@
                 {% endif %}
             </ul>
             <ul class="navbar-nav ml-auto">
-                <li class="nav-item">
-                    <a class="nav-link" href="#" style="color: #fff">
-                        Help
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" style="color: #fff" href="#" id="navbarDropdownHelp" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                      Help
                     </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="#" style="color: #fff">
-                        About Us
-                    </a>
+                    <div class="dropdown-menu" aria-labelledby="navbarDropdown">
+                      <a class="dropdown-item" href="#" data-toggle="modal"
+                         data-target="#userManual">User Manual</a>
+                      <div class="dropdown-divider"></div>
+                      <a class="dropdown-item nav-link" data-toggle="modal" data-target="#licenseModal">
+                        License Agreement
+                      </a>
+                    </div>
                 </li>
                 <li class="nav-item" id="currentUserNavDisplay">
                     <a class="nav-link" href="#" style="color: #fff">
