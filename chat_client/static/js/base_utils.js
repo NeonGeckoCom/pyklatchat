@@ -13,6 +13,10 @@ const alertBehaviors = {
  */
 function displayAlert(parentElem,text='Error Occurred',alertType='danger',alertID='alert',
                       alertBehaviorProperties=null){
+    if (!parentElem){
+        console.warn('Alert is not displayed as parentElem is not defined');
+        return
+    }
     if(!['info','success','warning','danger','primary','secondary','dark'].includes(alertType)){
         alertType = 'danger'; //default
     }
@@ -130,6 +134,18 @@ function setDefault(obj, key, val){
     return obj[key];
 }
 
+/**
+ * Deletes provided element from DOM
+ * @param elem: DOM Object to delete
+ */
 function deleteElement(elem){
     if (elem) return elem.parentElement.removeChild(elem);
+}
+
+/**
+ * Returns current UNIX timestamp in seconds
+ * @return {number}: current unix timestamp
+ */
+const getCurrentTimestamp = () => {
+    return Math.floor(Date.now() / 1000);
 }

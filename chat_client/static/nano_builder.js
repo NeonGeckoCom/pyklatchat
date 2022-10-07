@@ -58,7 +58,7 @@ class NanoBuilder {
         Array.from(chatData).forEach(chat => {
             getConversationDataByInput(chat['CID']).then(async conversationData=>{
             if(conversationData) {
-                await buildConversation(conversationData, false, chat['PARENT_ID']);
+                await buildConversation(conversationData, CONVERSATION_SKINS.BASE, false, chat['PARENT_ID']);
             }else{
                 console.error(`No conversation found matching provided id: ${chat['CID']}`);
             }

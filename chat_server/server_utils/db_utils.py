@@ -28,6 +28,7 @@
 
 from typing import List, Tuple, Union, Dict
 
+import pymongo
 from bson import ObjectId
 from neon_utils import LOG
 from pymongo import UpdateOne
@@ -70,6 +71,32 @@ class DbUtils(metaclass=Singleton):
                                                        filters=filter_data))
 
     @classmethod
+    def list_items(cls, document: MongoDocuments, source_set: list, key: str = 'id') -> dict:
+        """
+            Lists items under provided document belonging to source set of provided column values
+
+            :param document: source document to query
+            :param key: document's key to check
+            :param source_set: list of :param key values to check
+            :returns results aggregated by :param column value
+        """
+        if key == 'id':
+            key = '_id'
+        aggregated_data = {}
+        if source_set:
+            source_set = list(set(source_set))
+            items = cls.db_controller.exec_query(MongoQuery(command=MongoCommands.FIND_ALL,
+                                                            document=document,
+                                                            filters=MongoFilter(key=key,
+                                                                                value=source_set,
+                                                                                logical_operator=MongoLogicalOperators.IN)))
+            for item in items:
+                items_key = item.pop(key, None)
+                if items_key:
+                    aggregated_data.setdefault(items_key, []).append(item)
+        return aggregated_data
+
+    @classmethod
     def get_conversation_data(cls, search_str: Union[list, str], column_identifiers: List[str] = None) -> Union[None,
                                                                                                                 dict]:
         """
@@ -99,7 +126,7 @@ class DbUtils(metaclass=Singleton):
 
     @classmethod
     def fetch_shout_data(cls, conversation_data: dict, start_idx: int = 0, limit: int = 100,
-                         fetch_senders: bool = True, start_message_id: str = None):
+                         fetch_senders: bool = True, id_from: str = None):
         """
             Fetches shout data out of conversation data
 
@@ -107,13 +134,13 @@ class DbUtils(metaclass=Singleton):
             :param start_idx: message index to start from (sorted by recency)
             :param limit: number of shouts to fetch
             :param fetch_senders: to fetch shout senders data
-            :param start_message_id: message id to start from
+            :param id_from: message id to start from
         """
         if conversation_data.get('chat_flow', None):
-            if start_message_id:
+            if id_from:
                 try:
                     start_idx = len(conversation_data["chat_flow"]) - \
-                                conversation_data["chat_flow"].index(start_message_id)
+                                conversation_data["chat_flow"].index(id_from)
                 except ValueError:
                     LOG.warning('Matching start message id not found')
                     return []
@@ -127,20 +154,48 @@ class DbUtils(metaclass=Singleton):
             return sorted(shouts_data, key=lambda user_shout: int(user_shout['created_on']))
 
     @classmethod
-    def fetch_prompt_data(cls, conversation_data: dict, start_idx: int = 0, limit: int = 100,
-                          fetch_senders: bool = True, start_message_id: str = None) -> List[dict]:
+    def fetch_users_from_prompt(cls, prompt: dict):
+        """ Fetches user ids detected in provided prompt """
+        prompt_data = prompt['data']
+        user_ids = prompt_data.get('participating_subminds', [])
+        return cls.list_items(document=MongoDocuments.USERS, source_set=user_ids)
+
+    @classmethod
+    def fetch_messages_from_prompt(cls, prompt: dict):
+        """ Fetches message ids detected in provided prompt """
+        prompt_data = prompt['data']
+        message_ids = []
+        for column in ('proposed_responses', 'submind_opinions',):
+            message_ids.extend(list(prompt_data.get(column, {}).values()))
+        return cls.list_items(document=MongoDocuments.SHOUTS, source_set=message_ids)
+
+    @classmethod
+    def fetch_prompt_data(cls, conversation_data: dict, limit: int = 100, id_from: str = None) -> List[dict]:
         """
             Fetches prompt data out of conversation data
 
             :param conversation_data: input conversation data
-            :param start_idx: message index to start from (sorted by recency)
-            :param limit: number of shouts to fetch
-            :param fetch_senders: to fetch shout senders data
-            :param start_message_id: message id to start from
+            :param limit: number of prompts to fetch
+            :param id_from: prompt id to start from
         """
-        matching_prompts = cls.db_controller.exec_query(query={'document': 'prompts',
-                                                               'command': 'find',
-                                                               'data': {'cid': conversation_data['_id']}})
+        filters = [MongoFilter('cid', conversation_data['_id'])]
+        if id_from:
+            checkpoint_prompt = cls.db_controller.exec_query(MongoQuery(document=MongoDocuments.PROMPTS,
+                                                                        command=MongoCommands.FIND_ONE,
+                                                                        filters=MongoFilter('_id', id_from)))
+            if checkpoint_prompt:
+                filters.append(MongoFilter('created_on', checkpoint_prompt['created_on'], MongoLogicalOperators.LT))
+        matching_prompts = cls.db_controller.exec_query(query=MongoQuery(document=MongoDocuments.PROMPTS,
+                                                                         command=MongoCommands.FIND_ALL,
+                                                                         filters=filters,
+                                                                         result_filters={'sort': [('created_on',
+                                                                                                   pymongo.DESCENDING)],
+                                                                                         'limit': limit}),
+                                                        as_cursor=False)
+        for prompt in matching_prompts:
+            prompt['user_mapping'] = cls.fetch_users_from_prompt(prompt)
+            prompt['message_mapping'] = cls.fetch_messages_from_prompt(prompt)
+        return matching_prompts
 
     @classmethod
     def fetch_skin_message_data(cls, skin: ConversationSkins, conversation_data: dict, start_idx: int = 0,
@@ -151,13 +206,11 @@ class DbUtils(metaclass=Singleton):
             message_data = cls.fetch_shout_data(conversation_data=conversation_data,
                                                 fetch_senders=fetch_senders,
                                                 start_idx=start_idx,
-                                                start_message_id=start_message_id,
+                                                id_from=start_message_id,
                                                 limit=limit)
         elif skin == ConversationSkins.PROMPTS:
             message_data = cls.fetch_prompt_data(conversation_data=conversation_data,
-                                                 fetch_senders=fetch_senders,
-                                                 start_idx=start_idx,
-                                                 start_message_id=start_message_id,
+                                                 id_from=start_message_id,
                                                  limit=limit)
         else:
             LOG.error(f'Failed to resolve skin={skin}')
@@ -173,17 +226,17 @@ class DbUtils(metaclass=Singleton):
 
             :returns Data from requested shout ids along with matching user data
         """
-        shouts = cls.db_controller.exec_query(query=MongoQuery(command=MongoCommands.FIND_MANY,
+        shouts = cls.db_controller.exec_query(query=MongoQuery(command=MongoCommands.FIND_ALL,
                                                                document=MongoDocuments.SHOUTS,
                                                                filters=MongoFilter('_id', list(set(shout_ids)),
-                                                                                   MongoLogicalOperators.IN)))
-        shouts = list(shouts)
+                                                                                   MongoLogicalOperators.IN)),
+                                              as_cursor=False)
         result = list()
 
         if fetch_senders:
             user_ids = list(set([shout['user_id'] for shout in shouts]))
 
-            users_from_shouts = cls.db_controller.exec_query(query=MongoQuery(command=MongoCommands.FIND_MANY,
+            users_from_shouts = cls.db_controller.exec_query(query=MongoQuery(command=MongoCommands.FIND_ALL,
                                                                               document=MongoDocuments.USERS,
                                                                               filters=MongoFilter('_id', user_ids,
                                                                                                   MongoLogicalOperators.IN)))
@@ -203,9 +256,8 @@ class DbUtils(metaclass=Singleton):
                 shout['message_id'] = shout['_id']
                 shout_data = {**shout, **matching_user}
                 result.append(shout_data)
-        else:
-            result = shouts
-        return result
+            shouts = result
+        return shouts
 
     @classmethod
     def get_translations(cls, translation_mapping: dict, user_id=None) -> Tuple[dict, dict]:
@@ -254,7 +306,7 @@ class DbUtils(metaclass=Singleton):
         for cid, shout_data in translation_mapping.items():
             translations = shout_data.get('shouts', {})
             bulk_update = []
-            shouts = cls.db_controller.exec_query(query=MongoQuery(command=MongoCommands.FIND_MANY,
+            shouts = cls.db_controller.exec_query(query=MongoQuery(command=MongoCommands.FIND_ALL,
                                                                    document=MongoDocuments.SHOUTS,
                                                                    filters=MongoFilter('_id', list(translations),
                                                                                        MongoLogicalOperators.IN)),

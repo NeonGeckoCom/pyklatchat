@@ -93,10 +93,10 @@ async function buildUserMessageHTML(userData, messageID, messageText, timeCreate
     let imageComponent;
     let shortedNick = `${userData['nickname'][0]}${userData['nickname'][userData['nickname'].length - 1]}`;
     if (userData.hasOwnProperty('avatar') && userData['avatar']){
-        imageComponent = `<img alt="${shortedNick}" onerror="handleImgError(this);" src="${configData["CHAT_SERVER_URL_BASE"]}/files/avatar/${userData['_id']}" class="lazyload">`
+        imageComponent = `<img alt="${shortedNick}" onerror="handleImgError(this);" src="${configData["CHAT_SERVER_URL_BASE"]}/files/avatar/${userData['_id']}" loading="lazy">`
     }
     else{
-        imageComponent = `<p>${userData['nickname'][0]}${userData['nickname'][userData['nickname'].length - 1]}</p>`;
+        imageComponent = `<p>${shortedNick}</p>`;
     }
     const messageClass = isAnnouncement === '1'?'announcement':isMine?'in':'out';
     const templateName = isAudio === '1'?'user_message_audio': 'user_message';
@@ -111,24 +111,76 @@ async function buildUserMessageHTML(userData, messageID, messageText, timeCreate
             'message_time': messageTime});
 }
 
+
+async function buildSubmindHTML(submindID, submindUserData, submindResponse, submindOpinion, submindVote) {
+    return await buildHTMLFromTemplate("prompt_participant",
+        {'user_first_name': submindUserData['first_name'],
+            'user_last_name': submindUserData['last_name'],
+            'user_nickname': submindUserData['nickname'],
+            'user_avatar': `${configData["CHAT_SERVER_URL_BASE"]}/files/avatar/${submindID}`,
+            'response': submindResponse,
+            'opinion': submindOpinion,
+            'vote':submindVote});
+}
+
+
+/**
+ * Builds prompt HTML from received prompt data
+ * @param prompt: prompt object
+ * @return Prompt HTML
+ */
+async function buildPromptHTML(prompt) {
+    let submindsHTML = "";
+    const promptData = prompt['data'];
+    for (const submindID of Array.from(setDefault(promptData, 'participating_subminds', []))) {
+        const submindResponse = promptData['proposed_responses'][submindID];
+        const submindOpinion = promptData['submind_opinions'][submindID];
+        const submindVote = promptData['votes'][submindID];
+        let submindUserData;
+        try {
+            submindUserData = promptData['user_mapping'][submindID][0];
+        } catch (e) {
+            console.warn('Detected legacy prompt structure')
+            submindUserData = {
+                'nickname': submindID,
+                'first_name': 'Klat',
+                'last_name': 'User'
+            }
+        }
+        submindsHTML += await buildSubmindHTML(submindID, submindUserData, submindResponse, submindOpinion, submindVote);
+    }
+    return await buildHTMLFromTemplate("prompt_table",
+        {'prompt_text': promptData['prompt_text'],
+            'selected_winner': promptData['winner'],
+            'prompt_participants_data': submindsHTML,
+            'prompt_id':prompt['_id'],
+            'cid': prompt['cid'],
+            'message_time': prompt['created_on']});
+}
+
 /**
  * Gets user message HTML from received message data object
  * @param message: Message Object received
+ * @param skin: conversation skin
  * @return {Promise<string>} HTML by the provided message data
  */
-async function messageHTMLFromData(message){
-    const isMine = currentUser && message['user_nickname'] === currentUser['nickname'];
-    return buildUserMessageHTML({
-            'avatar': message['user_avatar'],
-            'nickname': message['user_nickname'],
-            '_id': message['user_id']
-        },
-        message['message_id'],
-        message['message_text'],
-        message['created_on'],
-        isMine,
-        message?.is_audio,
-        message?.is_announcement);
+async function messageHTMLFromData(message, skin=CONVERSATION_SKINS.BASE){
+    if (skin === CONVERSATION_SKINS.BASE) {
+        const isMine = currentUser && message['user_nickname'] === currentUser['nickname'];
+        return buildUserMessageHTML({
+                'avatar': message['user_avatar'],
+                'nickname': message['user_nickname'],
+                '_id': message['user_id']
+            },
+            message['message_id'],
+            message['message_text'],
+            message['created_on'],
+            isMine,
+            message?.is_audio,
+            message?.is_announcement);
+    } else if (skin === CONVERSATION_SKINS.PROMPTS){
+        return buildPromptHTML(message);
+    }
 }
 
 /**
@@ -145,20 +197,23 @@ async function messageHTMLFromData(message){
  *         'created_on': 'creation time of the message'
  *     }, ... (num of user messages returned)]
  * }
+ * @param skin: conversation skin to build
  * @returns {string} conversation HTML based on provided data
  */
-async function buildConversationHTML(conversationData = {}){
+async function buildConversationHTML(conversationData = {}, skin = CONVERSATION_SKINS.BASE){
     const cid = conversationData['_id'];
     const conversation_name = conversationData['conversation_name'];
     let chatFlowHTML = "";
     if(conversationData.hasOwnProperty('chat_flow')) {
         for (const message of Array.from(conversationData['chat_flow'])) {
-            chatFlowHTML += await messageHTMLFromData(message);
-            addConversationParticipant(conversationData['_id'], message['user_nickname']);
+            chatFlowHTML += await messageHTMLFromData(message, skin);
+            if (skin === CONVERSATION_SKINS.BASE) {
+                addConversationParticipant(cid, message['user_nickname']);
+            }
         }
     }else{
         chatFlowHTML+=`<div class="blank_chat">No messages in this chat yet...</div>`;
     }
     return await buildHTMLFromTemplate('conversation',
-        {'cid': cid, 'conversation_name':conversation_name, 'chat_flow': chatFlowHTML});
+        {'cid': cid, 'conversation_name':conversation_name, 'chat_flow': chatFlowHTML}, `skin=${skin}`);
 }

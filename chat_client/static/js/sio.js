@@ -35,6 +35,11 @@ function initSIO(){
     socket.on('new_message', async (data) => {
         console.debug('received new_message -> ', data)
         const msgData = JSON.parse(data);
+        // TODO: resolve user message if its belonging to other skins e.g. is related to prompt
+        if (getCIDStoreProperty(msgData['cid'], 'skin') !== CONVERSATION_SKINS.BASE){
+            console.log('Skipping message sent to non base skin for now')
+            return
+        }
         const preferredLang = getPreferredLanguage(msgData['cid']);
         if (data?.lang !== preferredLang){
             requestTranslation(msgData['cid'], msgData['messageID'], preferredLang);
@@ -66,7 +71,7 @@ function initSIO(){
 
     socket.on('updated_shouts', async (data) =>{
        for (const [cid, shouts] of Object.entries(data)){
-           if (isDisplayed(cid)){
+           if (isDisplayed(cid) && getCIDStoreProperty(cid, 'skin') === CONVERSATION_SKINS.BASE){
                requestTranslation(cid, shouts);
            }
        }

@@ -69,14 +69,15 @@ async function fetchSupportedLanguages(){
  */
 function requestTranslation(cid=null, shouts=null, lang=null, inputType='incoming'){
     let requestBody = {chat_mapping: {}};
-    if(cid && getOpenedChats().includes(cid)){
+    const skin = getCIDStoreProperty(cid, 'skin');
+    if(cid && getOpenedChats().includes(cid) && skin === CONVERSATION_SKINS.BASE){
         lang = lang || getPreferredLanguage(cid, inputType);
-        setChatState(cid, 'updating', 'Applying New Language...');
+        if (lang !== 'en' && getMessagesOfCID(cid).length > 0) setChatState(cid, 'updating', 'Applying New Language...');
         if(shouts && !Array.isArray(shouts)){
             shouts = [shouts];
         }
         if (!shouts && inputType){
-            shouts = getMessagesOfCID(cid, getMessageReferType(inputType), true);
+            shouts = getMessagesOfCID(cid, getMessageReferType(inputType),skin, true);
         }
         setDefault(requestBody.chat_mapping, cid, {});
         requestBody.chat_mapping[cid] = {'lang': lang, 'shouts': shouts || []}
@@ -204,7 +205,7 @@ async function applyTranslations(data){
     const inputType = setDefault(data, 'input_type', 'incoming');
     for (const [cid, messageTranslations] of Object.entries(data['translations'])) {
 
-        if(!isDisplayed(cid)){
+        if(!isDisplayed(cid) || getCIDStoreProperty(cid, 'skin') !== CONVERSATION_SKINS.BASE){
             console.log(`cid=${cid} is not displayed, skipping translations population`)
             continue;
         }

@@ -11,12 +11,17 @@ const getMessageListContainer = (cid) => {
 }
 
 /**
- * Gets message id from the message container DOM element
+ * Gets message node from the message container
  * @param messageContainer: DOM Message Container element to consider
- * @return {string} ID of the message
+ * @param skin: target conversation skin to consider
+ * @return {HTMLElement} ID of the message
  */
-const getMessageId = (messageContainer) => {
-    return messageContainer.getElementsByClassName('chat-body')[0].getElementsByClassName('chat-message')[0].id;
+const getMessageNode = (messageContainer, skin) => {
+    if (skin === CONVERSATION_SKINS.PROMPTS){
+        return messageContainer.getElementsByTagName('table')[0];
+    }else {
+        return messageContainer.getElementsByClassName('chat-body')[0].getElementsByClassName('chat-message')[0];
+    }
 }
 
 /**
@@ -63,24 +68,25 @@ async function addNewMessage(cid, userID=null, messageID=null, messageText, time
 /**
  * Gets list of the next n-older messages
  * @param cid: target conversation id
+ * @param skin: target conversation skin
  * @param numMessages: number of messages to add
  */
-function addOldMessages(cid, numMessages = 10){
+function addOldMessages(cid, skin=CONVERSATION_SKINS.BASE, numMessages = 10){
     const messageContainer = getMessageListContainer(cid);
     if(messageContainer.children.length > 0) {
         const firstMessageItem = messageContainer.children[0];
-        const firstMessageID = getMessageId(firstMessageItem);
-        getConversationDataByInput(cid, firstMessageID).then(async conversationData => {
+        const firstMessageID = getMessageNode(firstMessageItem, skin).id;
+        getConversationDataByInput(cid, skin, firstMessageID).then(async conversationData => {
             if (messageContainer) {
                 const userMessageList = getUserMessages(conversationData);
                 userMessageList.sort((a, b) => {
                     a['created_on'] - b['created_on'];
                 }).reverse();
                 for (const message of userMessageList) {
-                    const messageHTML = await messageHTMLFromData(message);
+                    const messageHTML = await messageHTMLFromData(message, skin);
                     messageContainer.insertAdjacentHTML('afterbegin', messageHTML);
                 }
-                initMessages(conversationData);
+                initMessages(conversationData, skin);
             }
         }).then(_=>{
             firstMessageItem.scrollIntoView({behavior: "smooth"});
@@ -103,12 +109,13 @@ const getUserMessages = (conversationData) => {
 /**
  * Initializes listener for loading old message on scrolling conversation box
  * @param conversationData: Conversation Data object to fetch
+ * @param skin: conversation skin to apply
  */
-function initLoadOldMessages(conversationData) {
+function initLoadOldMessages(conversationData, skin) {
     const cid = conversationData['_id'];
     const messageList = getMessageListContainer(cid);
     const messageListParent = messageList.parentElement;
-    setDefault(conversationState[cid],'lastScrollY', 0);
+    setDefault(setDefault(conversationState, cid, {}),'lastScrollY', 0);
     messageListParent.addEventListener("scroll", (e) => {
         const oldScrollPosition = conversationState[cid]['scrollY'];
         conversationState[cid]['scrollY'] = e.target.scrollTop;
@@ -116,7 +123,7 @@ function initLoadOldMessages(conversationData) {
             !conversationState[cid]['all_messages_displayed'] &&
             conversationState[cid]['scrollY'] === 0) {
             setChatState(cid, 'updating', 'Loading messages...')
-            addOldMessages(cid);
+            addOldMessages(cid, skin);
             for(const inputType of ['incoming', 'outcoming']){
                 requestTranslation(cid, null, null, inputType);
             }
@@ -148,11 +155,22 @@ function addProfileDisplay(cid, messageId){
  * @param conversationData: target conversation data
  */
 function initProfileDisplay(conversationData){
-    if(conversationData.hasOwnProperty('chat_flow')) {
-        getUserMessages(conversationData).forEach(message => {
-            addProfileDisplay(conversationData['_id'], message['message_id']);
-        });
-    }
+    getUserMessages(conversationData).forEach(message => {
+        addProfileDisplay(conversationData['_id'], message['message_id']);
+    });
+}
+
+
+// const ResizableTableColumns = window.validide_resizableTableColumns.ResizableTableColumns;
+
+/**
+ * Initialize resizable table property on each rendered prompt summary table
+ * @param conversationData: target conversation data
+ */
+function initResizableTable(conversationData){
+    getUserMessages(conversationData).forEach(message => {
+        // TODO: implement resizable table
+    });
 }
 
 
@@ -172,13 +190,19 @@ function initProfileDisplay(conversationData){
  *         'created_on': 'creation time of the message'
  *     }, ... (num of user messages returned)]
  * }
+ * @param skin: target conversation skin to consider
  */
-function initMessages(conversationData){
-   initProfileDisplay(conversationData);
-   attachReplies(conversationData);
-   addAttachments(conversationData);
-   initLoadOldMessages(conversationData);
-   addCommunicationChannelTransformCallback(conversationData);
+function initMessages(conversationData, skin = CONVERSATION_SKINS.BASE){
+   if (skin === CONVERSATION_SKINS.BASE) {
+       initProfileDisplay(conversationData);
+       attachReplies(conversationData);
+       addAttachments(conversationData);
+       addCommunicationChannelTransformCallback(conversationData);
+   }else if (skin === CONVERSATION_SKINS.PROMPTS){
+       initResizableTable(conversationData);
+   }
+   // common logic
+   initLoadOldMessages(conversationData, skin);
 }
 
 /**
@@ -192,7 +216,7 @@ function initMessages(conversationData){
  */
 function emitUserMessage(textInputElem, cid, repliedMessageID=null, attachments= [], isAudio='0', isAnnouncement='0'){
     if(isAudio === '1' || textInputElem && textInputElem.value){
-        const timeCreated = Math.floor(Date.now() / 1000);
+        const timeCreated = getCurrentTimestamp();
         let messageText;
         if (isAudio === '1'){
             messageText = textInputElem;
