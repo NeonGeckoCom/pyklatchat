@@ -126,7 +126,8 @@ class DbUtils(metaclass=Singleton):
 
     @classmethod
     def fetch_shout_data(cls, conversation_data: dict, start_idx: int = 0, limit: int = 100,
-                         fetch_senders: bool = True, id_from: str = None):
+                         fetch_senders: bool = True, id_from: str = None,
+                         shout_ids: List[str] = None) -> List[dict]:
         """
             Fetches shout data out of conversation data
 
@@ -135,8 +136,9 @@ class DbUtils(metaclass=Singleton):
             :param limit: number of shouts to fetch
             :param fetch_senders: to fetch shout senders data
             :param id_from: message id to start from
+            :param shout_ids: list of shout ids to fetch
         """
-        if conversation_data.get('chat_flow', None):
+        if not shout_ids and conversation_data.get('chat_flow', None):
             if id_from:
                 try:
                     start_idx = len(conversation_data["chat_flow"]) - \
@@ -150,8 +152,8 @@ class DbUtils(metaclass=Singleton):
                 conversation_data['chat_flow'] = conversation_data['chat_flow'][-start_idx - limit:
                                                                                 -start_idx]
             shout_ids = [str(msg_id) for msg_id in conversation_data["chat_flow"]]
-            shouts_data = cls.fetch_shouts(shout_ids=shout_ids, fetch_senders=fetch_senders)
-            return sorted(shouts_data, key=lambda user_shout: int(user_shout['created_on']))
+        shouts_data = cls.fetch_shouts(shout_ids=shout_ids, fetch_senders=fetch_senders)
+        return sorted(shouts_data, key=lambda user_shout: int(user_shout['created_on']))
 
     @classmethod
     def fetch_users_from_prompt(cls, prompt: dict):
@@ -226,6 +228,8 @@ class DbUtils(metaclass=Singleton):
 
             :returns Data from requested shout ids along with matching user data
         """
+        if not shout_ids:
+            return []
         shouts = cls.db_controller.exec_query(query=MongoQuery(command=MongoCommands.FIND_ALL,
                                                                document=MongoDocuments.SHOUTS,
                                                                filters=MongoFilter('_id', list(set(shout_ids)),
@@ -260,39 +264,42 @@ class DbUtils(metaclass=Singleton):
         return shouts
 
     @classmethod
-    def get_translations(cls, translation_mapping: dict, user_id=None) -> Tuple[dict, dict]:
+    def get_translations(cls, translation_mapping: dict) -> Tuple[dict, dict]:
         """
             Gets translation from db based on provided mapping
 
             :param translation_mapping: mapping of cid to desired translation language
-            :param user_id: id of the initiator user
 
             :return translations fetched from db
         """
         populated_translations = {}
         missing_translations = {}
-        prefs = cls.get_user_preferences(user_id=user_id, create_if_not_exists=True)
-        if not prefs:
-            LOG.warning('No preferences fetched, user data will not be updated')
         for cid, cid_data in translation_mapping.items():
             lang = cid_data.get('lang', 'en')
+            shout_ids = cid_data.get('shouts', [])
             conversation_data = cls.get_conversation_data(search_str=cid)
             if not conversation_data:
                 LOG.error(f'Failed to fetch conversation data - {cid}')
                 continue
-            shout_data = cls.fetch_shout_data(conversation_data=conversation_data, fetch_senders=False) or []
+            shout_data = cls.fetch_shout_data(conversation_data=conversation_data,
+                                              shout_ids=shout_ids,
+                                              fetch_senders=False)
+            shout_lang = 'en'
+            if len(shout_data) == 1:
+                shout_lang = shout_data[0].get('message_lang', 'en')
             for shout in shout_data:
                 message_text = shout.get('message_text')
-                if lang == 'en':
+                if shout_lang != 'en' and lang == 'en':
                     shout_text = message_text
                 else:
                     shout_text = shout.get('translations', {}).get(lang)
-                if shout_text:
+                if shout_text and lang != 'en':
                     populated_translations.setdefault(cid, {}).setdefault('shouts', {})[shout['_id']] = shout_text
                 elif message_text:
                     missing_translations.setdefault(cid, {}).setdefault('shouts', {})[shout['_id']] = message_text
             if missing_translations.get(cid):
                 missing_translations[cid]['lang'] = lang
+                missing_translations[cid]['source_lang'] = shout_lang
         return populated_translations, missing_translations
 
     @classmethod
@@ -327,7 +334,14 @@ class DbUtils(metaclass=Singleton):
                 # English is the default language, so it is treated as message text
                 if shout_data.get('lang', 'en') == 'en':
                     updated_shouts.setdefault(cid, []).append(shout_id)
-                    bulk_update_setter = {'message_text': translation}
+                    filter_expression = {'_id': shout_id}
+                    update_expression = {'$set': {'message_lang': 'en'}}
+                    cls.db_controller.exec_query(query={'document': 'shouts',
+                                                        'command': 'update',
+                                                        'data': (filter_expression,
+                                                                 update_expression,)})
+                    bulk_update_setter = {'message_text': translation,
+                                          'message_lang': 'en'}
                 else:
                     bulk_update_setter = {f'translations.{shout_data["lang"]}': translation}
                 # TODO: make a convenience wrapper to make bulk insertion easier to follow

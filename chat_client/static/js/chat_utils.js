@@ -291,7 +291,12 @@ async function getConversationDataByInput(input="", skin=CONVERSATION_SKINS.BASE
                     setDefault(setDefault(conversationState, data['_id'], {}), 'all_messages_displayed', true);
                 }
                 conversationData = data;
-            }).catch(err=> console.warn('Failed to fulfill request due to error:',err));
+            }).catch(async err=> {
+                console.warn('Failed to fulfill request due to error:',err);
+                if (input === '1'){
+                    await createNewConversation('Global', false, '1');
+                }
+            });
     }
     return conversationData;
 }
@@ -381,20 +386,24 @@ const chatAlignmentRestoredEvent = new CustomEvent("chatAlignmentRestored", { "d
 **/
 async function restoreChatAlignment(keyName=conversationAlignmentKey){
     const itemsLayout = retrieveItemsLayout(keyName);
-    const sortedEntries = Object.entries(itemsLayout).sort((a, b) => a[1]['added_on'] - b[1]['added_on'])
+    let sortedEntries = Object.entries(itemsLayout).sort((a, b) => a[1]['added_on'] - b[1]['added_on']);
+    if (!sortedEntries){
+        sortedEntries = {'1': {'added_on': getCurrentTimestamp(), 'skin': CONVERSATION_SKINS.BASE}}
+    }
     for (const [cid, props] of sortedEntries) {
         const cidSkin = props?.skin;
         await getConversationDataByInput(cid, cidSkin).then(async conversationData=>{
             if(conversationData && Object.keys(conversationData).length > 0) {
                 await buildConversation(conversationData, cidSkin, false);
             }else{
-                displayAlert(document.getElementById('conversationsBody'),'No matching conversation found','danger', 'noRestoreConversationAlert', {'type': alertBehaviors.AUTO_EXPIRE});
+                if (cid !== '1') {
+                    displayAlert(document.getElementById('conversationsBody'), 'No matching conversation found', 'danger', 'noRestoreConversationAlert', {'type': alertBehaviors.AUTO_EXPIRE});
+                }
                 removeConversation(cid);
             }
         });
     }
     console.log('Chat Alignment Restored');
-    await requestChatsLanguageRefresh();
     document.dispatchEvent(chatAlignmentRestoredEvent);
 }
 
@@ -449,18 +458,18 @@ function getMessagesOfCID(cid, messageReferType=MESSAGE_REFER_TYPE.ALL, skin=CON
  * Refreshes chat view (e.g. when user session gets updated)
  */
 function refreshChatView(){
-    Array.from(conversationBody.getElementsByClassName('conversationContainer')).forEach(conversation=>{
+    Array.from(conversationBody.getElementsByClassName('conversationContainer')).forEach(async conversation=>{
         const skin = getCIDStoreProperty(conversation.id, 'skin');
         if (skin === CONVERSATION_SKINS.BASE) {
             const messages = getMessagesOfCID(conversation.id);
             Array.from(messages).forEach(message => {
-                const messageListNode = message.parentElement.parentElement;
                 if (message.hasAttribute('data-sender')) {
                     const messageSenderNickname = message.getAttribute('data-sender');
-                    messageListNode.className = currentUser && messageSenderNickname === currentUser['nickname'] ? 'in' : 'out';
+                    message.parentElement.parentElement.className = (currentUser && messageSenderNickname === currentUser['nickname'])?'in':'out';
                 }
             });
         }
+        await initLanguageSelectors(cid);
     });
 }
 
@@ -524,7 +533,7 @@ async function displayConversation(searchStr, skin=CONVERSATION_SKINS.BASE, aler
             } else if (conversationData && Object.keys(conversationData).length > 0) {
                 await buildConversation(conversationData, skin);
                 for (const inputType of ['incoming', 'outcoming']){
-                    requestTranslation(conversationData['_id'], null, null, inputType);
+                    await requestTranslation(conversationData['_id'], null, null, inputType);
                 }
                 responseOk = true;
             } else {
@@ -559,8 +568,7 @@ async function createNewConversation(conversationName, isPrivate=false, conversa
         const responseJson = await response.json();
         let responseOk = false;
         if (response.ok) {
-            await buildConversation(responseJson, CONVERSATION_SKINS.BASE).then(async cid=>{
-                await initLanguageSelectors(cid);
+            await buildConversation(responseJson).then(async cid=>{
                 console.log(`inited language selectors for ${cid}`);
             });
             responseOk = true
@@ -576,7 +584,9 @@ async function createNewConversation(conversationName, isPrivate=false, conversa
 document.addEventListener('DOMContentLoaded', (e)=>{
 
     document.addEventListener('supportedLanguagesLoaded', async (e)=>{
-        await refreshCurrentUser(false).then(async _=>await restoreChatAlignment()).then(async _=> refreshChatView());
+        await restoreChatAlignment()
+            .then(async _=>await refreshCurrentUser(true))
+            .then(async _=> await requestChatsLanguageRefresh());
     });
 
     if (configData['client'] === CLIENTS.MAIN) {

@@ -116,7 +116,7 @@ function initLoadOldMessages(conversationData, skin) {
     const messageList = getMessageListContainer(cid);
     const messageListParent = messageList.parentElement;
     setDefault(setDefault(conversationState, cid, {}),'lastScrollY', 0);
-    messageListParent.addEventListener("scroll", (e) => {
+    messageListParent.addEventListener("scroll", async (e) => {
         const oldScrollPosition = conversationState[cid]['scrollY'];
         conversationState[cid]['scrollY'] = e.target.scrollTop;
         if (oldScrollPosition > conversationState[cid]['scrollY'] &&
@@ -125,7 +125,7 @@ function initLoadOldMessages(conversationData, skin) {
             setChatState(cid, 'updating', 'Loading messages...')
             addOldMessages(cid, skin);
             for(const inputType of ['incoming', 'outcoming']){
-                requestTranslation(cid, null, null, inputType);
+                await requestTranslation(cid, null, null, inputType);
             }
             setTimeout( () => {
                 setChatState(cid, 'active');
@@ -161,19 +161,6 @@ function initProfileDisplay(conversationData){
 }
 
 
-// const ResizableTableColumns = window.validide_resizableTableColumns.ResizableTableColumns;
-
-/**
- * Initialize resizable table property on each rendered prompt summary table
- * @param conversationData: target conversation data
- */
-function initResizableTable(conversationData){
-    getUserMessages(conversationData).forEach(message => {
-        // TODO: implement resizable table
-    });
-}
-
-
 /**
  * Initializes messages based on provided conversation aata
  * @param conversationData: JS Object containing conversation data of type:
@@ -198,8 +185,6 @@ function initMessages(conversationData, skin = CONVERSATION_SKINS.BASE){
        attachReplies(conversationData);
        addAttachments(conversationData);
        addCommunicationChannelTransformCallback(conversationData);
-   }else if (skin === CONVERSATION_SKINS.PROMPTS){
-       initResizableTable(conversationData);
    }
    // common logic
    initLoadOldMessages(conversationData, skin);
@@ -223,7 +208,7 @@ function emitUserMessage(textInputElem, cid, repliedMessageID=null, attachments=
         }else {
             messageText = textInputElem.value;
         }
-        addNewMessage(cid, currentUser['_id'],null, messageText, timeCreated,repliedMessageID,attachments, isAudio, isAnnouncement).then(messageID=>{
+        addNewMessage(cid, currentUser['_id'],null, messageText, timeCreated,repliedMessageID,attachments, isAudio, isAnnouncement).then(async messageID=>{
             const preferredShoutLang = getPreferredLanguage(cid, 'outcoming');
             socket.emitAuthorized('user_message',
                 {'cid':cid,
@@ -237,7 +222,7 @@ function emitUserMessage(textInputElem, cid, repliedMessageID=null, attachments=
                  'timeCreated':timeCreated
                 });
             if(preferredShoutLang !== 'en'){
-                requestTranslation(cid, messageID, 'en', 'outcoming');
+                await requestTranslation(cid, messageID, 'en', 'outcoming', true);
             }
             addMessageTransformCallback(cid, messageID, isAudio);
         });

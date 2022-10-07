@@ -204,18 +204,19 @@ async def user_message(sid, data):
         if is_announcement != '1':
             is_announcement = '0'
 
+        lang = data.get('lang', 'en')
+
         new_shout_data = {'_id': data['messageID'],
                           'user_id': data['userID'],
                           'prompt_id': data.get('promptID', ''),
                           'message_text': data['messageText'],
+                          'message_lang': lang,
                           'attachments': data.get('attachments', []),
                           'replied_message': data.get('repliedMessage', ''),
                           'is_audio': is_audio,
                           'is_announcement': is_announcement,
                           'translations': {},
                           'created_on': int(data['timeCreated'])}
-
-        lang = data.get('lang', 'en')
 
         # in case message is received in some foreign language -
         # message text is kept in that language unless English translation received
@@ -321,8 +322,7 @@ async def request_translate(sid, data):
     else:
         input_type = data.get('inputType', 'incoming')
 
-        populated_translations, missing_translations = DbUtils.get_translations(translation_mapping=data.get('chat_mapping', {}),
-                                                                                user_id=data['user'])
+        populated_translations, missing_translations = DbUtils.get_translations(translation_mapping=data.get('chat_mapping', {}))
         if populated_translations and not missing_translations:
             await sio.emit('translation_response', data={'translations': populated_translations,
                                                          'input_type': input_type}, to=sid)

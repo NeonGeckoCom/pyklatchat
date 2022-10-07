@@ -26,7 +26,7 @@
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from fastapi import APIRouter, Request, Response
+from fastapi import APIRouter
 from starlette.responses import JSONResponse
 
 from chat_server.utils.languages import LanguageSettings
@@ -38,12 +38,9 @@ router = APIRouter(
 
 
 @router.get("/settings")
-async def supported_languages(request: Request, response: Response):
+async def list_language_settings():
     """
-        Returns supported languages by the Neon API
-
-        :param request: incoming FastAPI Request Object
-        :param response: outgoing FastAPI Response Object
+        Returns language settings
 
         :returns JSON-formatted response from server
     """

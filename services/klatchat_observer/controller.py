@@ -383,17 +383,22 @@ class ChatObserver(MQConnector):
 
     def request_neon_translations(self, data: dict):
         """ Requests translations from neon """
-        self.__translation_requests[data['request_id']] = {'void_callback_timer': Timer(interval=2 * 60,
-                                                                                        function=self.send_translation_response,
-                                                                                        kwargs=
-                                                                                        {'data': {'request_id': data[
-                                                                                            'request_id'],
-                                                                                                  'translations': {}}})}
-        self.__translation_requests[data['request_id']]['void_callback_timer'].start()
-        self.send_message(request_data={'data': data['data'],
-                                        'request_id': data['request_id']},
-                          vhost=self.get_vhost('translation'),
-                          queue='request_libre_translations', expiration=3000)
+        request_id = data.pop('request_id', None)
+        if request_id:
+            default_callback = {
+                'data': {
+                    'request_id': request_id,
+                    'translations': {}
+                }
+            }
+            self.__translation_requests[request_id] = {'void_callback_timer': Timer(interval=2 * 60,
+                                                                                    function=self.send_translation_response,
+                                                                                    kwargs=default_callback)}
+            self.__translation_requests[request_id]['void_callback_timer'].start()
+            self.send_message(request_data={'data': data['data'],
+                                            'request_id': request_id},
+                              vhost=self.get_vhost('translation'),
+                              queue='request_libre_translations', expiration=3000)
 
     @create_mq_callback()
     def on_neon_translations_response(self, body: dict):
