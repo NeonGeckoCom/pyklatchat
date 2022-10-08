@@ -43,6 +43,7 @@ from chat_server.server_utils.cache_utils import CacheFactory
 from chat_server.server_utils.db_utils import DbUtils
 from chat_server.server_utils.user_utils import get_neon_data, get_bot_data
 from chat_server.server_config import db_controller, sftp_connector
+from chat_server.services.controller import PopularityCounter
 from chat_server.utils.languages import LanguageSettings
 from utils.common import generate_uuid, deep_merge, buffer_to_base64
 
@@ -235,6 +236,8 @@ async def user_message(sid, data):
                 sftp_connector.put_file_object(file_object=audio_data, save_to=f'audio/{file_path}')
                 DbUtils.save_tts_response(shout_id=data['messageID'], audio_file_name=file_path,
                                           lang=language, gender=gender)
+
+        PopularityCounter.increment_cid_popularity(new_shout_data['cid'])
 
         await sio.emit('new_message', data=json.dumps(data), skip_sid=[sid])
     except Exception as ex:
