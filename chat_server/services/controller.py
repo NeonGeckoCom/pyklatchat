@@ -15,7 +15,11 @@ class PopularityCounter:
 
     @classmethod
     def init_data(cls):
-        data = {'cid': {'popularity': 0, 'conversation_name': ''}}
+        data = DbUtils.db_controller.connector.connection["chats"].aggregate(
+            [
+                {"$project": {"conversation_name" : 1, "popularity":{ "$size": "$chat_flow" }}}
+            ]
+        )
         return data
 
     @classmethod
