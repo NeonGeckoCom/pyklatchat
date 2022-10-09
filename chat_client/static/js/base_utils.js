@@ -66,11 +66,12 @@ function generateUUID(length=8, strPattern='00-0-4-1-000') {
  * Shrinks text to fit into desired length
  * @param text: Text to shrink
  * @param maxLength: max length of text to save
+ * @param suffix: suffix to apply after shrunk string
  * @returns {string} Shrunk text, fitting into "maxLength"
  */
-function shrinkToFit(text, maxLength){
+function shrinkToFit(text, maxLength, suffix='...'){
     if(text.length>maxLength){
-        text = text.substring(0, maxLength) + '...';
+        text = text.substring(0, maxLength) + suffix;
     }return text;
 }
 

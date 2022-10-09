@@ -127,12 +127,28 @@ const selectTable = (table, exportToExcelBtn) => {
 }
 
 
-function exportTablesToExcel(tables, filePrefix = 'table_export') {
-
-    const exportTable = new TableExport(table, {formats:['xlsx'],filename: "test_export",sheet_name: 'Test_Sheet', bootstrap: true, exportButtons: false});
-    const exportData = exportTable.getExportData();
-    const xlsxData = exportData[table.id].xlsx;
-    exportTable.export2file(xlsxData.data, xlsxData.mimeType, xlsxData.filename, xlsxData.fileExtension, xlsxData.merges, xlsxData.RTL, xlsxData.sheetname)
+function exportTablesToExcel(tables, filePrefix = 'table_export', sheetPrefix="") {
+    const tablesData = [];
+    const sheetNames = [];
+    let xlsxData = null;
+    tables = Array.from(tables);
+    tables.forEach(table=>{
+        const exportTable = new TableExport(table, {formats:['xlsx'],filename: "test_export",sheet_name: 'Test_Sheet', bootstrap: false, exportButtons: false});
+        const exportData = exportTable.getExportData();
+        if (!xlsxData){
+            xlsxData = exportData[table.id].xlsx;
+        }
+        tablesData.push(exportData[table.id].xlsx.data);
+        if (sheetPrefix) {
+            const sheetName = sheetPrefix.replaceAll("{id}", table.id);
+            sheetNames.push(sheetName)
+        }
+    });
+    const fileExtension = xlsxData.fileExtension;
+    const mimeType = xlsxData.mimeType;
+    const fileName = `${filePrefix}_${getCurrentTimestamp()}`;
+    const exportTable = new TableExport(tables[0], {formats:['xlsx'],filename: "test_export",sheet_name: 'Test_Sheet', bootstrap: false, exportButtons: false});
+    exportMultiSheet(exportTable, tablesData, mimeType, fileName, sheetNames, fileExtension)
 }
 
 /**
@@ -247,7 +263,11 @@ async function buildConversation(conversationData={}, skin = CONVERSATION_SKINS.
 
        });
        exportToExcelBtn.addEventListener('click', (e)=>{
-           exportTablesToExcel(messageListContainer.getElementsByClassName('selected'));
+           const selectedTables = messageListContainer.getElementsByClassName('selected');
+           exportTablesToExcel(selectedTables, `prompts_of_${cid}`, 'prompt_{id}');
+           Array.from(selectedTables).forEach(selectedTable => {
+               selectedTable.classList.remove('selected');
+           })
        });
     }
 
