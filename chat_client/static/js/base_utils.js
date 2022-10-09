@@ -1,5 +1,10 @@
+/**
+ * Enum of possible Alert Behaviours:
+ * - DEFAULT: static alert message appeared with no expiration time
+ * - AUTO_EXPIRE: alert message will be expired after some amount of time (defaults to 3 seconds)
+ */
 const alertBehaviors = {
-    DEFAULT: 'default',
+    STATIC: 'static',
     AUTO_EXPIRE: 'auto_expire'
 }
 
@@ -34,7 +39,7 @@ function displayAlert(parentElem,text='Error Occurred',alertType='danger',alertI
                     </button>
                   </div>`);
         if (alertBehaviorProperties){
-           setDefault(alertBehaviorProperties, 'type', alertBehaviors.DEFAULT);
+           setDefault(alertBehaviorProperties, 'type', alertBehaviors.STATIC);
            if (alertBehaviorProperties['type'] === alertBehaviors.AUTO_EXPIRE){
                const expirationTime = setDefault(alertBehaviorProperties, 'expiration', 3000);
                const slideLength = setDefault(alertBehaviorProperties, 'fadeLength', 500);
@@ -140,13 +145,5 @@ function setDefault(obj, key, val){
  * @param elem: DOM Object to delete
  */
 function deleteElement(elem){
-    if (elem) return elem.parentElement.removeChild(elem);
-}
-
-/**
- * Returns current UNIX timestamp in seconds
- * @return {number}: current unix timestamp
- */
-const getCurrentTimestamp = () => {
-    return Math.floor(Date.now() / 1000);
+    if (elem && elem?.parentElement) return elem.parentElement.removeChild(elem);
 }

@@ -91,24 +91,20 @@ const saveAttachedFiles = async (cid) => {
     return attachments;
 }
 
+/**
+ * Supported conversation skins
+ * @type Object
+ */
 const CONVERSATION_SKINS = {
     BASE: 'base',
     PROMPTS: 'prompts'
 }
 
-let holdTimer = 0;
-
-
-const startTimer = () => {
-    holdTimer =Date.now();
-}
-
-const stopTimer = () => {
-    const timeDue = Date.now() - holdTimer;
-    holdTimer = 0;
-    return timeDue;
-}
-
+/**
+ *
+ * @param table
+ * @param exportToExcelBtn
+ */
 const startSelection = (table, exportToExcelBtn) => {
     table.classList.remove('selected');
     const container = table.parentElement.parentElement;
@@ -118,15 +114,27 @@ const startSelection = (table, exportToExcelBtn) => {
     startTimer();
 }
 
-const selectTable = (table, exportToExcelBtn) => {
+
+/**
+ * Marks target table as selected
+ * @param table: HTMLTable element
+ * @param exportToExcelBtn: export to excel button (optional)
+ */
+const selectTable = (table, exportToExcelBtn=null) => {
     const timePassed = stopTimer();
     if (timePassed >= 300){
-      exportToExcelBtn.disabled = false;
+      exportToExcelBtn?.disabled = false;
       table.classList.add('selected');
     }
 }
 
 
+/**
+ * Wraps provided array of HTMLTable elements into XLSX file and exports it to the invoked user
+ * @param tables: array of HTMLTable elements to export
+ * @param filePrefix: prefix of the file name to be imported
+ * @param sheetPrefix: prefix to apply for each sheet generated per HTMLTable
+ */
 function exportTablesToExcel(tables, filePrefix = 'table_export', sheetPrefix="") {
     const tablesData = [];
     const sheetNames = [];
@@ -147,8 +155,8 @@ function exportTablesToExcel(tables, filePrefix = 'table_export', sheetPrefix=""
     const fileExtension = xlsxData.fileExtension;
     const mimeType = xlsxData.mimeType;
     const fileName = `${filePrefix}_${getCurrentTimestamp()}`;
-    const exportTable = new TableExport(tables[0], {formats:['xlsx'],filename: "test_export",sheet_name: 'Test_Sheet', bootstrap: false, exportButtons: false});
-    exportMultiSheet(exportTable, tablesData, mimeType, fileName, sheetNames, fileExtension)
+    const defaultExportTable = new TableExport(tables[0], {formats:['xlsx'],filename: "test_export",sheet_name: 'Test_Sheet', bootstrap: false, exportButtons: false});
+    exportMultiSheet(defaultExportTable, tablesData, mimeType, fileName, sheetNames, fileExtension)
 }
 
 /**
@@ -505,7 +513,15 @@ function getOpenedChats(){
     return cids;
 }
 
-const CHAT_STATES = ['active', 'updating'];
+/**
+ * Enum of possible displayed chat states
+ * "active" - ready to be used by user
+ * "updating" - in processes of applying changes, temporary unavailable
+ */
+const CHAT_STATES = {
+    ACTIVE: 'active',
+    UPDATING: 'updating',
+}
 
 /**
  * Sets state to the desired cid
