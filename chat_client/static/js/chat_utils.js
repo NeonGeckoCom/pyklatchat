@@ -123,8 +123,9 @@ const startSelection = (table, exportToExcelBtn) => {
 const selectTable = (table, exportToExcelBtn=null) => {
     const timePassed = stopTimer();
     if (timePassed >= 300){
-      exportToExcelBtn?.disabled = false;
-      table.classList.add('selected');
+        if(exportToExcelBtn)
+            exportToExcelBtn.disabled = false;
+        table.classList.add('selected');
     }
 }
 
