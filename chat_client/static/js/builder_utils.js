@@ -111,12 +111,31 @@ async function buildUserMessageHTML(userData, messageID, messageText, timeCreate
             'message_time': messageTime});
 }
 
+/**
+ *
+ * @param nick: nickname to shorten
+ * @return {string} - shortened nickname
+ */
+const shrinkNickname = (nick) => {
+    return `${nick[0]}${nick[nick.length - 1]}`;
+}
 
+
+/**
+ * Builds Prompt Skin HTML for submind responses
+ * @param submindID: user id of submind
+ * @param submindUserData: user data of submind
+ * @param submindResponse: Responding shout of submind to incoming prompt
+ * @param submindOpinion: Discussion shout of submind to incoming prompt
+ * @param submindVote: Vote of submind in prompt
+ * @return {Promise<string|void>} - Submind Data HTML populated with provided data
+ */
 async function buildSubmindHTML(submindID, submindUserData, submindResponse, submindOpinion, submindVote) {
+    const userNickname = shrinkNickname(submindUserData['nickname']);
     return await buildHTMLFromTemplate("prompt_participant",
         {'user_first_name': submindUserData['first_name'],
             'user_last_name': submindUserData['last_name'],
-            'user_nickname': submindUserData['nickname'],
+            'user_nickname': userNickname,
             'user_avatar': `${configData["CHAT_SERVER_URL_BASE"]}/files/avatar/${submindID}`,
             'response': submindResponse,
             'opinion': submindOpinion,

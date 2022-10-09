@@ -10,6 +10,14 @@ const conversationBody = document.getElementById('conversationsBody');
 let conversationState = {};
 
 /**
+ * Clears conversation state cache
+ * @param cid: Conversation ID to clear
+ */
+const clearStateCache = (cid) => {
+    delete conversationState[cid];
+}
+
+/**
  * Gets participants data listed under conversation id
  * @param cid: target conversation id
  * @return {*} participants data object
@@ -284,6 +292,7 @@ async function buildConversation(conversationData={}, skin = CONVERSATION_SKINS.
        chatCloseButton.addEventListener('click', (e) => {
            conversationHolder.removeChild(conversationParent);
            removeConversation(cid);
+           clearStateCache(cid);
        });
     }
     // $('#copyrightContainer').css('position', 'inherit');
@@ -533,25 +542,20 @@ const CHAT_STATES = {
 function setChatState(cid, state='active', state_msg = ''){
     // TODO: refactor this method to handle when there are multiple messages on a stack
     console.log(`cid=${cid}, state=${state}, state_msg=${state_msg}`)
-    if (!CHAT_STATES.includes(state)){
-        console.error(`Invalid transition state provided, should be one of ${CHAT_STATES}`);
-        return -1;
-    }else{
-        const cidNode = document.getElementById(cid);
-        const spinner = document.getElementById(`${cid}-spinner`);
-        const spinnerUpdateMsg = document.getElementById(`${cid}-update-msg`);
-        if (state === 'updating'){
-            cidNode.classList.add('chat-loading');
-            spinner.style.setProperty('display', 'flex', 'important');
-            spinnerUpdateMsg.innerHTML = state_msg;
-        }else if(state === 'active'){
-            cidNode.classList.remove('chat-loading');
-            spinner.style.setProperty('display', 'none', 'important');
-            spinnerUpdateMsg.innerHTML = '';
-        }
-        conversationState[cid]['state'] = state;
-        conversationState[cid]['state_message'] = state_msg;
+    const cidNode = document.getElementById(cid);
+    const spinner = document.getElementById(`${cid}-spinner`);
+    const spinnerUpdateMsg = document.getElementById(`${cid}-update-msg`);
+    if (state === 'updating'){
+        cidNode.classList.add('chat-loading');
+        spinner.style.setProperty('display', 'flex', 'important');
+        spinnerUpdateMsg.innerHTML = state_msg;
+    }else if(state === 'active'){
+        cidNode.classList.remove('chat-loading');
+        spinner.style.setProperty('display', 'none', 'important');
+        spinnerUpdateMsg.innerHTML = '';
     }
+    conversationState[cid]['state'] = state;
+    conversationState[cid]['state_message'] = state_msg;
 }
 
 /**

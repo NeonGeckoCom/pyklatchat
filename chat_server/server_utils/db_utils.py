@@ -197,7 +197,7 @@ class DbUtils(metaclass=Singleton):
         for prompt in matching_prompts:
             prompt['user_mapping'] = cls.fetch_users_from_prompt(prompt)
             prompt['message_mapping'] = cls.fetch_messages_from_prompt(prompt)
-        return matching_prompts
+        return sorted(matching_prompts, key=lambda _prompt: int(_prompt['created_on']))
 
     @classmethod
     def fetch_skin_message_data(cls, skin: ConversationSkins, conversation_data: dict, start_idx: int = 0,
