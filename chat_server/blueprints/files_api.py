@@ -27,16 +27,15 @@
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 from typing import List
 
-from fastapi import APIRouter, status, UploadFile, File
-from fastapi.exceptions import HTTPException
+from fastapi import APIRouter, UploadFile, File
 from neon_utils import LOG
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 
 from chat_server.server_config import db_controller
-from chat_server.server_utils.auth import login_required
-from chat_server.server_utils.db_utils import DbUtils
-from chat_server.server_utils.http_utils import get_file_response, save_file
+from chat_server.utils.auth import login_required
+from chat_server.utils.db_utils import DbUtils
+from chat_server.utils.http_utils import get_file_response, save_file
 from utils.http_utils import respond
 
 router = APIRouter(

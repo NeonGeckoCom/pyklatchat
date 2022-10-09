@@ -35,8 +35,8 @@ from pymongo import UpdateOne
 
 from chat_server.constants.conversations import ConversationSkins
 from chat_server.constants.users import UserPatterns
-from chat_server.server_utils.factory_utils import Singleton
-from chat_server.server_utils.user_utils import create_from_pattern
+from chat_server.utils.factory_utils import Singleton
+from chat_server.utils.user_utils import create_from_pattern
 from utils.common import buffer_to_base64
 from utils.database_utils.mongo_utils import *
 

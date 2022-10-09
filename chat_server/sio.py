@@ -33,15 +33,14 @@ from typing import List, Optional
 
 import pymongo
 import socketio
-from bson.errors import InvalidId
-from bson.objectid import ObjectId
 from neon_utils import LOG
 from neon_utils.cache_utils import LRUCache
 
-from chat_server.server_utils.auth import validate_session, AUTHORIZATION_HEADER
-from chat_server.server_utils.cache_utils import CacheFactory
-from chat_server.server_utils.db_utils import DbUtils, MongoCommands, MongoDocuments, MongoQuery
-from chat_server.server_utils.user_utils import get_neon_data, get_bot_data
+from chat_server.utils.auth import validate_session
+from chat_server.utils.cache_utils import CacheFactory
+from chat_server.utils.db_utils import DbUtils, MongoCommands, MongoDocuments, MongoQuery, MongoFilter
+from chat_server.utils.prompt_utils import handle_prompt_message
+from chat_server.utils.user_utils import get_neon_data, get_bot_data
 from chat_server.server_config import db_controller, sftp_connector
 from chat_server.utils.languages import LanguageSettings
 from utils.common import generate_uuid, deep_merge, buffer_to_base64
@@ -175,7 +174,8 @@ async def user_message(sid, data):
             neon_data = get_neon_data(db_controller=db_controller)
             data['userID'] = neon_data['_id']
         elif data.get('bot', False):
-            bot_data = get_bot_data(db_controller=db_controller, nickname=data['userID'], context=data.get('context', None))
+            bot_data = get_bot_data(db_controller=db_controller, nickname=data['userID'],
+                                    context=data.get('context', None))
             data['userID'] = bot_data['_id']
 
         is_audio = data.get('isAudio', '0')
@@ -200,10 +200,11 @@ async def user_message(sid, data):
             is_announcement = '0'
 
         lang = data.get('lang', 'en')
+        prompt_id = data.get('promptID', '')
 
         new_shout_data = {'_id': data['messageID'],
                           'user_id': data['userID'],
-                          'prompt_id': data.get('promptID', ''),
+                          'prompt_id': prompt_id,
                           'message_text': data['messageText'],
                           'message_lang': lang,
                           'attachments': data.get('attachments', []),
@@ -226,6 +227,9 @@ async def user_message(sid, data):
                                                   filters=filter_expression,
                                                   data={'chat_flow': new_shout_data['_id']},
                                                   data_action='push'))
+        # TODO: make a cleaner way to detect proctor messages
+        if not is_announcement:
+            handle_prompt_message(data)
 
         message_tts = data.get('messageTTS', {})
         for language, gender_mapping in message_tts.items():
@@ -257,20 +261,17 @@ async def save_prompt_data(sid, data):
         ```
     """
     prompt_id = data['context']['prompt']['prompt_id']
-    existing_prompt = db_controller.exec_query({'command': 'find_one', 'document': 'prompts',
-                                                'data': {'_id': prompt_id}})
-    if existing_prompt:
-        LOG.warning(f'Failed to save prompt: prompt id {existing_prompt["_id"]} already exists')
-    else:
-        prompt_summary_keys = ['available_subminds', 'participating_subminds', 'proposed_responses',
-                               'submind_opinions', 'votes', 'votes_per_submind', 'winner']
-        prompt_summary_agg = {
-            '_id': data['context']['prompt']['prompt_id'],
-            'cid': data['cid'],
-            'data': {k: v for k, v in data['context'].items() if k in prompt_summary_keys},
-            'created_on': int(data['timeCreated'])
-        }
-        db_controller.exec_query({'command': 'insert_one', 'document': 'prompts', 'data': prompt_summary_agg})
+    prompt_summary_keys = ['winner', 'prompt_text']
+    prompt_summary_agg = {
+        'data': {k: v for k, v in data['context'].items() if k in prompt_summary_keys},
+    }
+    try:
+        db_controller.exec_query(MongoQuery(command=MongoCommands.UPDATE,
+                                            document=MongoDocuments.PROMPTS,
+                                            filters=MongoFilter(key='_id', value=prompt_id),
+                                            data=prompt_summary_agg))
+    except:
+        LOG.error(f'Prompt "{prompt_id}" was not updated as it was not created')
 
 
 @sio.event
@@ -297,13 +298,13 @@ async def get_prompt_data(sid, data):
     else:
         limit = data.get('limit', 5)
         _prompt_data = db_controller.exec_query({'command': 'find', 'document': 'prompts',
-                                                'filters': {'sort': [('created_on', pymongo.DESCENDING)],
-                                                            'limit': limit}})
+                                                 'filters': {'sort': [('created_on', pymongo.DESCENDING)],
+                                                             'limit': limit}})
         prompt_data = []
         _prompt_data = sorted(_prompt_data, key=lambda x: x['created_on'])
         for item in _prompt_data:
             prompt_data.append({'_id': item['_id'], 'created_on': item['created_on'], **item['data']})
-    result = dict(data=prompt_data, receiver=data['nick'], cid=data['cid'], request_id=data['request_id'],)
+    result = dict(data=prompt_data, receiver=data['nick'], cid=data['cid'], request_id=data['request_id'], )
     await sio.emit('prompt_data', data=result)
 
 
@@ -320,7 +321,8 @@ async def request_translate(sid, data):
     else:
         input_type = data.get('inputType', 'incoming')
 
-        populated_translations, missing_translations = DbUtils.get_translations(translation_mapping=data.get('chat_mapping', {}))
+        populated_translations, missing_translations = DbUtils.get_translations(
+            translation_mapping=data.get('chat_mapping', {}))
         if populated_translations and not missing_translations:
             await sio.emit('translation_response', data={'translations': populated_translations,
                                                          'input_type': input_type}, to=sid)
@@ -330,7 +332,7 @@ async def request_translate(sid, data):
             caching_instance = {'translations': populated_translations, 'sid': sid,
                                 'input_type': input_type}
             CacheFactory.get('translation_cache', cache_type=LRUCache).put(key=request_id, value=caching_instance)
-            await sio.emit('request_neon_translations', data={'request_id': request_id, 'data': missing_translations},)
+            await sio.emit('request_neon_translations', data={'request_id': request_id, 'data': missing_translations}, )
 
 
 @sio.event
@@ -385,7 +387,7 @@ async def request_tts(sid, data):
                    }
         ```
     """
-    required_keys = ('cid', 'message_id', 'user_id', )
+    required_keys = ('cid', 'message_id', 'user_id',)
     if not all(key in list(data) for key in required_keys):
         LOG.error(f'Missing one of the required keys - {required_keys}')
     else:

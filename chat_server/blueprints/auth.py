@@ -26,18 +26,14 @@
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-import jwt
-
 from time import time
 
-from fastapi import APIRouter, Form, status, Request
+from fastapi import APIRouter, Form, Request
 from fastapi.responses import JSONResponse
-from fastapi.exceptions import HTTPException
 
 from chat_server.server_config import db_controller
 from utils.common import get_hash, generate_uuid
-from chat_server.server_utils.auth import get_current_user, secret_key, jwt_encryption_algo, \
-    check_password_strength, get_current_user_data, generate_session_token
+from chat_server.utils.auth import check_password_strength, get_current_user_data, generate_session_token
 from utils.http_utils import respond
 
 router = APIRouter(
