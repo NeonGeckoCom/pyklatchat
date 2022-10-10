@@ -503,7 +503,8 @@ function refreshChatView(){
             Array.from(messages).forEach(message => {
                 if (message.hasAttribute('data-sender')) {
                     const messageSenderNickname = message.getAttribute('data-sender');
-                    message.parentElement.parentElement.className = (currentUser && messageSenderNickname === currentUser['nickname'])?'in':'out';
+                    if (message.parentElement.parentElement.className !== 'announcement')
+                        message.parentElement.parentElement.className = (currentUser && messageSenderNickname === currentUser['nickname'])?'in':'out';
                 }
             });
         }
