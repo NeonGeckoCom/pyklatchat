@@ -217,6 +217,7 @@ async function buildConversation(conversationData={}, skin = CONVERSATION_SKINS.
        const chatInputButton = document.getElementById(conversationData['_id'] + '-send');
        const filenamesContainer = document.getElementById(`filename-container-${conversationData['_id']}`)
        const attachmentsButton = document.getElementById('file-input-' + conversationData['_id']);
+       const promptModeButton = document.getElementById(`prompt-mode-${conversationData['_id']}`);
 
        if (chatInputButton.hasAttribute('data-target-cid')) {
            chatInputButton.addEventListener('click', async (e) => {
@@ -247,10 +248,8 @@ async function buildConversation(conversationData={}, skin = CONVERSATION_SKINS.
        });
        displayParticipantsCount(conversationData['_id']);
        await initLanguageSelectors(conversationData['_id']);
-       setTimeout(() => getMessageListContainer(conversationData['_id']).lastElementChild?.scrollIntoView(true), 0);
        await addRecorder(conversationData);
 
-       const promptModeButton = document.getElementById(`prompt-mode-${conversationData['_id']}`);
 
        promptModeButton.addEventListener('click', async (e) => {
            e.preventDefault();
@@ -295,6 +294,7 @@ async function buildConversation(conversationData={}, skin = CONVERSATION_SKINS.
            clearStateCache(cid);
        });
     }
+    setTimeout(() => getMessageListContainer(conversationData['_id']).lastElementChild?.scrollIntoView(true), 0);
     // $('#copyrightContainer').css('position', 'inherit');
     return cid;
 }
@@ -468,7 +468,7 @@ const MESSAGE_REFER_TYPE = {
  */
 function getMessagesOfCID(cid, messageReferType=MESSAGE_REFER_TYPE.ALL, skin=CONVERSATION_SKINS.BASE, idOnly=false){
     let messages = []
-    const messageContainer =getMessageListContainer(cid);
+    const messageContainer = getMessageListContainer(cid);
     if(messageContainer){
         const listItems = messageContainer.getElementsByTagName('li');
         Array.from(listItems).forEach(li=>{
@@ -497,9 +497,10 @@ function getMessagesOfCID(cid, messageReferType=MESSAGE_REFER_TYPE.ALL, skin=CON
  */
 function refreshChatView(){
     Array.from(conversationBody.getElementsByClassName('conversationContainer')).forEach(async conversation=>{
-        const skin = getCIDStoreProperty(conversation.id, 'skin');
+        const cid = conversation.getElementsByClassName('card')[0].id;
+        const skin = getCIDStoreProperty(cid, 'skin');
         if (skin === CONVERSATION_SKINS.BASE) {
-            const messages = getMessagesOfCID(conversation.id);
+            const messages = getMessagesOfCID(cid);
             Array.from(messages).forEach(message => {
                 if (message.hasAttribute('data-sender')) {
                     const messageSenderNickname = message.getAttribute('data-sender');
@@ -508,7 +509,7 @@ function refreshChatView(){
                 }
             });
         }
-        await initLanguageSelectors(conversation.id);
+        await initLanguageSelectors(cid);
     });
 }
 
