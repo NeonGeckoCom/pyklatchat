@@ -152,12 +152,15 @@ async function buildPromptHTML(prompt) {
     let submindsHTML = "";
     const promptData = prompt['data'];
     for (const submindID of Array.from(setDefault(promptData, 'participating_subminds', []))) {
-        const submindResponse = promptData['proposed_responses'][submindID];
-        const submindOpinion = promptData['submind_opinions'][submindID];
-        const submindVote = promptData['votes'][submindID];
         let submindUserData;
+        let submindResponse = promptData['proposed_responses'][submindID];
+        let submindOpinion = promptData['submind_opinions'][submindID];
+        let submindVote = promptData['votes'][submindID];
         try {
-            submindUserData = promptData['user_mapping'][submindID][0];
+            submindUserData = prompt['user_mapping'][submindID][0];
+            submindResponse = prompt['message_mapping'][submindResponse][0]['message_text'];
+            submindOpinion = prompt['message_mapping'][submindOpinion][0]['message_text'];
+            submindVote = prompt['message_mapping'][submindVote][0]['message_text'];
         } catch (e) {
             console.warn('Detected legacy prompt structure')
             submindUserData = {

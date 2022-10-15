@@ -63,24 +63,29 @@ def handle_prompt_message(message: dict) -> None:
                                                               document=MongoDocuments.PROMPTS,
                                                               filters=MongoFilter(key='_id', value=prompt_id))) or {}
         if not existing_prompt:
-            if prompt_state == PromptStates.WAIT:
-                __PROMPT_LOCKED_CIDS.pop(cid, None)
-                db_controller.exec_query(MongoQuery(command=MongoCommands.INSERT_ONE,
-                                                    document=MongoDocuments.PROMPTS,
-                                                    data={'_id': prompt_id,
-                                                          'cid': cid,
-                                                          'data': {},
-                                                          'created_on': int(time())}))
-            else:
-                LOG.error(f'Malformed prompt_id={prompt_id}! Received prompt_state={prompt_state}')
-                # lock on prompt id to prevent querying malformed prompts
-                __PROMPT_LOCKED_CIDS[cid] = prompt_id
+            # if prompt_state == PromptStates.WAIT:
+            #     __PROMPT_LOCKED_CIDS.pop(cid, None)
+            db_controller.exec_query(MongoQuery(command=MongoCommands.INSERT_ONE,
+                                                document=MongoDocuments.PROMPTS,
+                                                data={'_id': prompt_id,
+                                                      'cid': cid,
+                                                      'data': {},
+                                                      'created_on': int(time())}))
+        if user_id not in existing_prompt.get('data', {}).get('participating_subminds', []):
+            data_kwargs = {
+                'data': {'data.participating_subminds': user_id},
+                'data_action': 'push'
+            }
+            db_controller.exec_query(MongoQuery(command=MongoCommands.UPDATE,
+                                                document=MongoDocuments.PROMPTS,
+                                                filters=MongoFilter(key='_id', value=prompt_id),
+                                                **data_kwargs))
 
         prompt_state_mapping = {
-            PromptStates.WAIT: {'key': 'participating_subminds', 'type': list},
-            PromptStates.RESP: {'key': 'proposed_responses', 'type': dict},
-            PromptStates.DISC: {'key': 'submind_opinions', 'type': dict},
-            PromptStates.VOTE: {'key': 'votes', 'type': dict}
+            # PromptStates.WAIT: {'key': 'participating_subminds', 'type': list},
+            PromptStates.RESP: {'key': f'proposed_responses.{user_id}', 'type': dict, 'data': message_id},
+            PromptStates.DISC: {'key': f'submind_opinions.{user_id}', 'type': dict, 'data': message_id},
+            PromptStates.VOTE: {'key': f'votes.{user_id}', 'type': dict, 'data': message_id}
         }
         store_key_properties = prompt_state_mapping.get(prompt_state)
         if not store_key_properties:
@@ -88,23 +93,15 @@ def handle_prompt_message(message: dict) -> None:
         else:
             store_key = store_key_properties['key']
             store_type = store_key_properties['type']
-            if user_id in list(existing_prompt.get(store_key, {})):
+            store_data = store_key_properties['data']
+            if user_id in list(existing_prompt.get('data', {}).get(store_key, {})):
                 LOG.error(
-                    f'user_id={user_id} tried to enlist for the second time to prompt_id={prompt_id}, store_key={store_key}')
+                    f'user_id={user_id} tried to duplicate data to prompt_id={prompt_id}, store_key={store_key}')
             else:
-                if store_type == list:
-                    data_kwargs = {
-                        'data': {f'data.{store_type}': user_id},
-                        'data_action': 'push'
-                    }
-                elif store_type == dict:
-                    data_kwargs = {
-                        'data': {f'data.{store_type}.{user_id}': message_id},
-                        'data_action': 'set'
-                    }
-                else:
-                    LOG.error(f'Unresolved store type - {store_key}')
-                    return -1
+                data_kwargs = {
+                    'data': {f'data.{store_key}': store_data},
+                    'data_action': 'push' if store_type == list else 'set'
+                }
                 db_controller.exec_query(MongoQuery(command=MongoCommands.UPDATE,
                                                     document=MongoDocuments.PROMPTS,
                                                     filters=MongoFilter(key='_id', value=prompt_id),

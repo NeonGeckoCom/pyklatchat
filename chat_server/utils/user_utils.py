@@ -82,7 +82,8 @@ def get_bot_data(db_controller: DatabaseController, nickname: str, context: dict
     """
     if not context:
         context = {}
-
+    full_nickname = nickname
+    nickname = nickname.split('-')[0]
     bot_data = db_controller.exec_query({'command': 'find_one', 'document': 'users',
                                         'data': {'nickname': nickname}})
     if not bot_data:
@@ -91,8 +92,8 @@ def get_bot_data(db_controller: DatabaseController, nickname: str, context: dict
                         last_name=context.get('last_name', ''),
                         avatar=context.get('avatar', ''),
                         password=get_hash(generate_uuid()),
-                        nickname=nickname.split('-')[0],
-                        full_nickname=nickname,
+                        nickname=nickname,
+                        full_nickname=full_nickname,
                         date_created=int(time()),
                         is_tmp=False)
         db_controller.exec_query({'command': 'insert_one', 'document': 'users', 'data': bot_data})

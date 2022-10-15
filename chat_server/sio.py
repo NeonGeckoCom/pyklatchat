@@ -227,8 +227,7 @@ async def user_message(sid, data):
                                                   filters=filter_expression,
                                                   data={'chat_flow': new_shout_data['_id']},
                                                   data_action='push'))
-        # TODO: make a cleaner way to detect proctor messages
-        if not is_announcement:
+        if is_announcement == '0' and prompt_id:
             handle_prompt_message(data)
 
         message_tts = data.get('messageTTS', {})
@@ -261,17 +260,16 @@ async def save_prompt_data(sid, data):
         ```
     """
     prompt_id = data['context']['prompt']['prompt_id']
-    prompt_summary_keys = ['winner', 'prompt_text']
-    prompt_summary_agg = {
-        'data': {k: v for k, v in data['context'].items() if k in prompt_summary_keys},
-    }
+    prompt_summary_keys = ['winner', 'prompt_text', 'votes_per_submind']
+    prompt_summary_agg = {f'data.{k}': v for k, v in data['context'].items() if k in prompt_summary_keys}
     try:
         db_controller.exec_query(MongoQuery(command=MongoCommands.UPDATE,
                                             document=MongoDocuments.PROMPTS,
                                             filters=MongoFilter(key='_id', value=prompt_id),
-                                            data=prompt_summary_agg))
-    except:
-        LOG.error(f'Prompt "{prompt_id}" was not updated as it was not created')
+                                            data=prompt_summary_agg,
+                                            data_action='set'))
+    except Exception as ex:
+        LOG.error(f'Prompt "{prompt_id}" was not updated due to exception - {ex}')
 
 
 @sio.event
@@ -288,20 +286,15 @@ async def get_prompt_data(sid, data):
                     'promptID': 'id of related prompt'}
         ```
     """
-    if data.get('prompt_id'):
-        filter_expr = {
-            '_id': data['prompt_id'],
-            'cid': data['cid']
-        }
-        prompt_data = db_controller.exec_query({'command': 'find_one', 'document': 'prompts', 'data': filter_expr})
-        prompt_data = {'_id': prompt_data['_id'], **prompt_data.get('data')}
+    prompt_id = data.get('prompt_id')
+    _prompt_data = DbUtils.fetch_prompt_data(cid=data['cid'],
+                                             limit=data.get('limit', 5),
+                                             prompt_id=prompt_id,
+                                             fetch_user_data=True)
+    if prompt_id:
+        prompt_data = {'_id': _prompt_data[0]['_id'], **_prompt_data[0].get('data')}
     else:
-        limit = data.get('limit', 5)
-        _prompt_data = db_controller.exec_query({'command': 'find', 'document': 'prompts',
-                                                 'filters': {'sort': [('created_on', pymongo.DESCENDING)],
-                                                             'limit': limit}})
         prompt_data = []
-        _prompt_data = sorted(_prompt_data, key=lambda x: x['created_on'])
         for item in _prompt_data:
             prompt_data.append({'_id': item['_id'], 'created_on': item['created_on'], **item['data']})
     result = dict(data=prompt_data, receiver=data['nick'], cid=data['cid'], request_id=data['request_id'], )

@@ -71,15 +71,18 @@ class DbUtils(metaclass=Singleton):
                                                        filters=filter_data))
 
     @classmethod
-    def list_items(cls, document: MongoDocuments, source_set: list, key: str = 'id') -> dict:
+    def list_items(cls, document: MongoDocuments, source_set: list, key: str = 'id', value_keys: list = None) -> dict:
         """
             Lists items under provided document belonging to source set of provided column values
 
             :param document: source document to query
             :param key: document's key to check
             :param source_set: list of :param key values to check
+            :param value_keys: list of value keys to return
             :returns results aggregated by :param column value
         """
+        if not value_keys:
+            value_keys = []
         if key == 'id':
             key = '_id'
         aggregated_data = {}
@@ -93,7 +96,8 @@ class DbUtils(metaclass=Singleton):
             for item in items:
                 items_key = item.pop(key, None)
                 if items_key:
-                    aggregated_data.setdefault(items_key, []).append(item)
+                    aggregated_data.setdefault(items_key, []).append({k: v for k, v in item.items() if k in value_keys
+                                                                      or not value_keys})
         return aggregated_data
 
     @classmethod
@@ -160,33 +164,43 @@ class DbUtils(metaclass=Singleton):
         """ Fetches user ids detected in provided prompt """
         prompt_data = prompt['data']
         user_ids = prompt_data.get('participating_subminds', [])
-        return cls.list_items(document=MongoDocuments.USERS, source_set=user_ids)
+        return cls.list_items(document=MongoDocuments.USERS, source_set=user_ids, value_keys=['first_name',
+                                                                                              'last_name',
+                                                                                              'nickname',
+                                                                                              'avatar'])
 
     @classmethod
     def fetch_messages_from_prompt(cls, prompt: dict):
         """ Fetches message ids detected in provided prompt """
         prompt_data = prompt['data']
         message_ids = []
-        for column in ('proposed_responses', 'submind_opinions',):
+        for column in ('proposed_responses', 'submind_opinions', 'votes',):
             message_ids.extend(list(prompt_data.get(column, {}).values()))
         return cls.list_items(document=MongoDocuments.SHOUTS, source_set=message_ids)
 
     @classmethod
-    def fetch_prompt_data(cls, conversation_data: dict, limit: int = 100, id_from: str = None) -> List[dict]:
+    def fetch_prompt_data(cls, cid: str, limit: int = 100, id_from: str = None,
+                          prompt_id: str = None, fetch_user_data: bool = False) -> List[dict]:
         """
             Fetches prompt data out of conversation data
 
-            :param conversation_data: input conversation data
+            :param cid: target conversation id
             :param limit: number of prompts to fetch
             :param id_from: prompt id to start from
+            :param prompt_id: prompt id to fetch
+            :param fetch_user_data: to fetch user data in the
+
+            :returns list of matching prompt data along with matching messages and users
         """
-        filters = [MongoFilter('cid', conversation_data['_id'])]
+        filters = [MongoFilter('cid', cid)]
         if id_from:
             checkpoint_prompt = cls.db_controller.exec_query(MongoQuery(document=MongoDocuments.PROMPTS,
                                                                         command=MongoCommands.FIND_ONE,
                                                                         filters=MongoFilter('_id', id_from)))
             if checkpoint_prompt:
                 filters.append(MongoFilter('created_on', checkpoint_prompt['created_on'], MongoLogicalOperators.LT))
+        if prompt_id:
+            filters.append(MongoFilter('_id', prompt_id, MongoLogicalOperators.EQ))
         matching_prompts = cls.db_controller.exec_query(query=MongoQuery(document=MongoDocuments.PROMPTS,
                                                                          command=MongoCommands.FIND_ALL,
                                                                          filters=filters,
@@ -197,6 +211,19 @@ class DbUtils(metaclass=Singleton):
         for prompt in matching_prompts:
             prompt['user_mapping'] = cls.fetch_users_from_prompt(prompt)
             prompt['message_mapping'] = cls.fetch_messages_from_prompt(prompt)
+            if fetch_user_data:
+                for user in prompt.get('data', {}).get('participating_subminds', []):
+                    try:
+                        nick = prompt['user_mapping'][user][0]['nickname']
+                    except KeyError:
+                        LOG.warning(f'user_id - "{user}" was not detected setting it as nick')
+                        nick = user
+                    for k in ('proposed_responses', 'submind_opinions', 'votes',):
+                        msg_id = prompt['data'][k].pop(user, '')
+                        if msg_id:
+                            prompt['data'][k][nick] = prompt['message_mapping'].get(msg_id, [{}])[0].get('message_text') or msg_id
+                prompt['data']['participating_subminds'] = [prompt['user_mapping'][x][0]['nickname']
+                                                            for x in prompt['data']['participating_subminds']]
         return sorted(matching_prompts, key=lambda _prompt: int(_prompt['created_on']))
 
     @classmethod
@@ -211,7 +238,7 @@ class DbUtils(metaclass=Singleton):
                                                 id_from=start_message_id,
                                                 limit=limit)
         elif skin == ConversationSkins.PROMPTS:
-            message_data = cls.fetch_prompt_data(conversation_data=conversation_data,
+            message_data = cls.fetch_prompt_data(cid=conversation_data['_id'],
                                                  id_from=start_message_id,
                                                  limit=limit)
         else:
