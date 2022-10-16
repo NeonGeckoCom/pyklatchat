@@ -65,6 +65,52 @@ async function addNewMessage(cid, userID=null, messageID=null, messageText, time
     }
 }
 
+const PROMPT_STATES = {
+    1: 'RESP',
+    2: 'DISC',
+    3: 'VOTE'
+}
+
+/**
+ * Returns HTML Element representing user row in prompt
+ * @param promptID: target prompt id
+ * @param userID: target user id
+ * @return {HTMLElement}: HTML Element containing user prompt data
+ */
+const getUserPromptTR = (promptID, userID) => {
+    return document.getElementById(`${promptID}_${userID}_prompt_row`);
+}
+
+/**
+ * Adds prompt message of specified user id
+ * @param cid: target conversation id
+ * @param userID: target submind user id
+ * @param messageText: message of submind
+ * @param promptId: target prompt id
+ * @param promptState: prompt state to consider
+ */
+async function addPromptMessage(cid, userID, messageText, promptId, promptState){
+    const tableBody = document.getElementById(`${promptId}_tbody`);
+    if (isDisplayed(cid) && tableBody){
+        try {
+            promptState = PROMPT_STATES[promptState].toLowerCase();
+            if (!getUserPromptTR(promptId, userID)) {
+                const userData = await getUserData(userID);
+                const newUserRow = await buildSubmindHTML(promptId, userID, userData, '', '', '');
+                tableBody.insertAdjacentHTML('beforeend', newUserRow);
+            }
+            try {
+                const messageElem = document.getElementById(`${promptId}_${userID}_${promptState}`);
+                messageElem.innerText = messageText;
+            } catch (e) {
+                console.warn(`Failed to add prompt message (${cid},${userID}, ${messageText}, ${promptId}, ${promptState}) - ${e}`)
+            }
+        } catch (e) {
+            console.info(`Skipping message of invalid prompt state - ${promptState}`);
+        }
+    }
+}
+
 /**
  * Gets list of the next n-older messages
  * @param cid: target conversation id

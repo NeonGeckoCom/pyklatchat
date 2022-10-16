@@ -32,21 +32,45 @@ function initSIO(){
       console.log(`connect_error due to ${err.message}`);
     });
 
+    socket.on('new_prompt_created', async (prompt) => {
+        const messageContainer = getMessageListContainer(prompt['cid']);
+        const promptID = prompt['_id'];
+        if (!document.getElementById(promptID)){
+            const messageHTML = await buildPromptHTML(prompt);
+            messageContainer.insertAdjacentHTML('beforeend', messageHTML);
+        }
+    });
+
     socket.on('new_message', async (data) => {
         console.debug('received new_message -> ', data)
         const msgData = JSON.parse(data);
-        // TODO: resolve user message if its belonging to other skins e.g. is related to prompt
-        if (getCIDStoreProperty(msgData['cid'], 'skin') !== CONVERSATION_SKINS.BASE){
-            console.log('Skipping message sent to non base skin for now')
-            return
+        const skin = getCIDStoreProperty(msgData['cid'], 'skin');
+        if (skin === CONVERSATION_SKINS.BASE) {
+            const preferredLang = getPreferredLanguage(msgData['cid']);
+            if (data?.lang !== preferredLang) {
+                await requestTranslation(msgData['cid'], msgData['messageID']);
+            }
+            await addNewMessage(msgData['cid'], msgData['userID'], msgData['messageID'], msgData['messageText'], msgData['timeCreated'], msgData['repliedMessage'], msgData['attachments'], msgData?.isAudio, msgData?.isAnnouncement)
+                .catch(err => console.error('Error occurred while adding new message: ', err));
+            addMessageTransformCallback(msgData['cid'], msgData['messageID'], msgData?.isAudio);
         }
-        const preferredLang = getPreferredLanguage(msgData['cid']);
-        if (data?.lang !== preferredLang){
-            await requestTranslation(msgData['cid'], msgData['messageID']);
+    });
+
+    socket.on('new_prompt_message', async (message) => {
+        await addPromptMessage(message['cid'], message['userID'], message['messageText'], message['promptID'], message['promptState'])
+                .catch(err => console.error('Error occurred while adding new prompt data: ', err));
+    });
+
+    socket.on('set_prompt_completed', async (data) => {
+        const promptID = data['prompt_id'];
+        const promptElem = document.getElementById(promptID);
+        console.info(`setting prompt_id=${promptID} as completed`);
+        if (promptElem){
+            const promptWinner = document.getElementById(`${promptID}_winner`);
+            promptWinner.innerText = getPromptWinnerText(data['winner']);
+        }else {
+            console.warn(`Failed to get HTML element from prompt_id=${promptID}`);
         }
-        await addNewMessage(msgData['cid'], msgData['userID'], msgData['messageID'], msgData['messageText'], msgData['timeCreated'], msgData['repliedMessage'], msgData['attachments'], msgData?.isAudio, msgData?.isAnnouncement)
-            .catch(err=>console.error('Error occurred while adding new message: ',err));
-        addMessageTransformCallback(msgData['cid'], msgData['messageID'], msgData?.isAudio);
     });
 
     socket.on('translation_response', async (data) => {

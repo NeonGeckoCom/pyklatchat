@@ -27,7 +27,6 @@
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 from enum import IntEnum
-from time import time
 from neon_utils import LOG
 
 from chat_server.server_config import db_controller
@@ -44,65 +43,61 @@ class PromptStates(IntEnum):
     WAIT = 5  # Bot is waiting for the proctor to ask them to respond (not participating)
 
 
-# Lock of malformed prompts going on per conversation id, should be released on valid entry
-__PROMPT_LOCKED_CIDS = {}
-
-
-def handle_prompt_message(message: dict) -> None:
+def handle_prompt_message(message: dict) -> bool:
     """
         Handles received prompt message
         :param message: message dictionary received
+        :returns True if prompt message was handled, false otherwise
     """
-    prompt_id = message.get('promptID')
-    prompt_state = PromptStates(int(message.get('promptState', PromptStates.IDLE.value)))
-    user_id = message['userID']
-    message_id = message['messageID']
-    cid = message['cid']
-    if prompt_id and not __PROMPT_LOCKED_CIDS.get(cid) == prompt_id:
-        existing_prompt = db_controller.exec_query(MongoQuery(command=MongoCommands.FIND_ONE,
-                                                              document=MongoDocuments.PROMPTS,
-                                                              filters=MongoFilter(key='_id', value=prompt_id))) or {}
-        if not existing_prompt:
-            # if prompt_state == PromptStates.WAIT:
-            #     __PROMPT_LOCKED_CIDS.pop(cid, None)
-            db_controller.exec_query(MongoQuery(command=MongoCommands.INSERT_ONE,
-                                                document=MongoDocuments.PROMPTS,
-                                                data={'_id': prompt_id,
-                                                      'cid': cid,
-                                                      'data': {},
-                                                      'created_on': int(time())}))
-        if user_id not in existing_prompt.get('data', {}).get('participating_subminds', []):
-            data_kwargs = {
-                'data': {'data.participating_subminds': user_id},
-                'data_action': 'push'
-            }
-            db_controller.exec_query(MongoQuery(command=MongoCommands.UPDATE,
-                                                document=MongoDocuments.PROMPTS,
-                                                filters=MongoFilter(key='_id', value=prompt_id),
-                                                **data_kwargs))
+    try:
+        prompt_id = message.get('promptID')
+        prompt_state = PromptStates(int(message.get('promptState', PromptStates.IDLE.value)))
+        user_id = message['userID']
+        message_id = message['messageID']
+        ok = True
+        if prompt_id:
+            existing_prompt = db_controller.exec_query(MongoQuery(command=MongoCommands.FIND_ONE,
+                                                                  document=MongoDocuments.PROMPTS,
+                                                                  filters=MongoFilter(key='_id', value=prompt_id))) or {}
+            if existing_prompt and existing_prompt['is_completed'] == '0':
+                if user_id not in existing_prompt.get('data', {}).get('participating_subminds', []):
+                    data_kwargs = {
+                        'data': {'data.participating_subminds': user_id},
+                        'data_action': 'push'
+                    }
+                    db_controller.exec_query(MongoQuery(command=MongoCommands.UPDATE,
+                                                        document=MongoDocuments.PROMPTS,
+                                                        filters=MongoFilter(key='_id', value=prompt_id),
+                                                        **data_kwargs))
 
-        prompt_state_mapping = {
-            # PromptStates.WAIT: {'key': 'participating_subminds', 'type': list},
-            PromptStates.RESP: {'key': f'proposed_responses.{user_id}', 'type': dict, 'data': message_id},
-            PromptStates.DISC: {'key': f'submind_opinions.{user_id}', 'type': dict, 'data': message_id},
-            PromptStates.VOTE: {'key': f'votes.{user_id}', 'type': dict, 'data': message_id}
-        }
-        store_key_properties = prompt_state_mapping.get(prompt_state)
-        if not store_key_properties:
-            LOG.warning(f'Prompt State - {prompt_state.name} has no db store properties')
-        else:
-            store_key = store_key_properties['key']
-            store_type = store_key_properties['type']
-            store_data = store_key_properties['data']
-            if user_id in list(existing_prompt.get('data', {}).get(store_key, {})):
-                LOG.error(
-                    f'user_id={user_id} tried to duplicate data to prompt_id={prompt_id}, store_key={store_key}')
-            else:
-                data_kwargs = {
-                    'data': {f'data.{store_key}': store_data},
-                    'data_action': 'push' if store_type == list else 'set'
+                prompt_state_mapping = {
+                    # PromptStates.WAIT: {'key': 'participating_subminds', 'type': list},
+                    PromptStates.RESP: {'key': f'proposed_responses.{user_id}', 'type': dict, 'data': message_id},
+                    PromptStates.DISC: {'key': f'submind_opinions.{user_id}', 'type': dict, 'data': message_id},
+                    PromptStates.VOTE: {'key': f'votes.{user_id}', 'type': dict, 'data': message_id}
                 }
-                db_controller.exec_query(MongoQuery(command=MongoCommands.UPDATE,
-                                                    document=MongoDocuments.PROMPTS,
-                                                    filters=MongoFilter(key='_id', value=prompt_id),
-                                                    **data_kwargs))
+                store_key_properties = prompt_state_mapping.get(prompt_state)
+                if not store_key_properties:
+                    LOG.warning(f'Prompt State - {prompt_state.name} has no db store properties')
+                else:
+                    store_key = store_key_properties['key']
+                    store_type = store_key_properties['type']
+                    store_data = store_key_properties['data']
+                    if user_id in list(existing_prompt.get('data', {}).get(store_key, {})):
+                        LOG.error(
+                            f'user_id={user_id} tried to duplicate data to prompt_id={prompt_id}, store_key={store_key}')
+                    else:
+                        data_kwargs = {
+                            'data': {f'data.{store_key}': store_data},
+                            'data_action': 'push' if store_type == list else 'set'
+                        }
+                        db_controller.exec_query(MongoQuery(command=MongoCommands.UPDATE,
+                                                            document=MongoDocuments.PROMPTS,
+                                                            filters=MongoFilter(key='_id', value=prompt_id),
+                                                            **data_kwargs))
+        else:
+            ok = False
+    except Exception as ex:
+        LOG.error(f'Failed to handle prompt message - {message} ({ex})')
+        ok = False
+    return ok

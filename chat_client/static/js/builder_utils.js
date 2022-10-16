@@ -123,6 +123,7 @@ const shrinkNickname = (nick) => {
 
 /**
  * Builds Prompt Skin HTML for submind responses
+ * @param promptID: target prompt id
  * @param submindID: user id of submind
  * @param submindUserData: user data of submind
  * @param submindResponse: Responding shout of submind to incoming prompt
@@ -130,16 +131,35 @@ const shrinkNickname = (nick) => {
  * @param submindVote: Vote of submind in prompt
  * @return {Promise<string|void>} - Submind Data HTML populated with provided data
  */
-async function buildSubmindHTML(submindID, submindUserData, submindResponse, submindOpinion, submindVote) {
+async function buildSubmindHTML(promptID, submindID, submindUserData, submindResponse, submindOpinion, submindVote) {
     const userNickname = shrinkNickname(submindUserData['nickname']);
     return await buildHTMLFromTemplate("prompt_participant",
-        {'user_first_name': submindUserData['first_name'],
+        {
+            'prompt_id': promptID,
+            'user_id': submindID,
+            'user_first_name': submindUserData['first_name'],
             'user_last_name': submindUserData['last_name'],
             'user_nickname': userNickname,
             'user_avatar': `${configData["CHAT_SERVER_URL_BASE"]}/files/avatar/${submindID}`,
             'response': submindResponse,
             'opinion': submindOpinion,
             'vote':submindVote});
+}
+
+
+/**
+ * Gets winner text based on the provided winner data
+ * @param winner: provided winner
+ * @return {string} generated winner text
+ */
+const getPromptWinnerText = (winner) => {
+    let res;
+    if (winner){
+        res = `Selected winner "${winner}"`;
+    }else{
+        res = 'Consensus not reached';
+    }
+    return res;
 }
 
 
@@ -151,25 +171,37 @@ async function buildSubmindHTML(submindID, submindUserData, submindResponse, sub
 async function buildPromptHTML(prompt) {
     let submindsHTML = "";
     const promptData = prompt['data'];
+    if (prompt['is_completed'] === '0'){
+        promptData['winner'] = `Prompt in progress 
+        <div class="spinner-border spinner-border-sm text-dark" role="status">
+            <span class="sr-only">Loading...</span>
+        </div>`
+    }else {
+        promptData['winner'] = getPromptWinnerText(promptData['winner']);
+    }
     for (const submindID of Array.from(setDefault(promptData, 'participating_subminds', []))) {
         let submindUserData;
-        let submindResponse = promptData['proposed_responses'][submindID];
-        let submindOpinion = promptData['submind_opinions'][submindID];
-        let submindVote = promptData['votes'][submindID];
         try {
-            submindUserData = prompt['user_mapping'][submindID][0];
-            submindResponse = prompt['message_mapping'][submindResponse][0]['message_text'];
-            submindOpinion = prompt['message_mapping'][submindOpinion][0]['message_text'];
-            submindVote = prompt['message_mapping'][submindVote][0]['message_text'];
-        } catch (e) {
-            console.warn('Detected legacy prompt structure')
-            submindUserData = {
-                'nickname': submindID,
-                'first_name': 'Klat',
-                'last_name': 'User'
+            let submindResponse = promptData['proposed_responses'][submindID];
+            let submindOpinion = promptData['submind_opinions'][submindID];
+            let submindVote = promptData['votes'][submindID];
+            try {
+                submindUserData = prompt['user_mapping'][submindID][0];
+                submindResponse = prompt['message_mapping'][submindResponse][0]['message_text'];
+                submindOpinion = prompt['message_mapping'][submindOpinion][0]['message_text'];
+                submindVote = prompt['message_mapping'][submindVote][0]['message_text'];
+            } catch (e) {
+                console.warn('Detected legacy prompt structure')
+                submindUserData = {
+                    'nickname': submindID,
+                    'first_name': 'Klat',
+                    'last_name': 'User'
+                }
             }
+            submindsHTML += await buildSubmindHTML(prompt['_id'], submindID, submindUserData, submindResponse, submindOpinion, submindVote);
+        }catch (e) {
+            console.log(`Malformed data for ${submindID} (prompt_id=${prompt['_id']})`);
         }
-        submindsHTML += await buildSubmindHTML(submindID, submindUserData, submindResponse, submindOpinion, submindVote);
     }
     return await buildHTMLFromTemplate("prompt_table",
         {'prompt_text': promptData['prompt_text'],
