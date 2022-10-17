@@ -38,7 +38,6 @@ from chat_server.server_config import db_controller
 from chat_server.utils.auth import login_required
 from chat_server.utils.conversation_utils import build_message_json
 from chat_server.utils.db_utils import DbUtils
-from chat_server.server_utils.http_utils import get_file_response, save_file
 from chat_server.services.popularity_counter import PopularityCounter
 from utils.http_utils import respond
 

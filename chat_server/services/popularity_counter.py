@@ -29,7 +29,7 @@
 from time import time
 from neon_utils import LOG
 
-from chat_server.server_utils.db_utils import DbUtils
+from chat_server.utils.db_utils import DbUtils
 
 
 class PopularityCounter:
