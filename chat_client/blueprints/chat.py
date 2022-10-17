@@ -32,6 +32,7 @@ from uuid import uuid4
 from fastapi import APIRouter, Request, Form
 from fastapi.responses import JSONResponse
 from fastapi.templating import Jinja2Templates
+from chat_server.server_utils.auth import login_required
 from neon_utils import LOG
 
 from chat_client.client_config import app_config

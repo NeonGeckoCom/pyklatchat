@@ -38,6 +38,8 @@ from chat_server.server_config import db_controller
 from chat_server.utils.auth import login_required
 from chat_server.utils.conversation_utils import build_message_json
 from chat_server.utils.db_utils import DbUtils
+from chat_server.server_utils.http_utils import get_file_response, save_file
+from chat_server.services.popularity_counter import PopularityCounter
 from utils.http_utils import respond
 
 router = APIRouter(
@@ -118,3 +120,16 @@ async def get_matching_conversation(request: Request,
         conversation_data['chat_flow'].append(message_record)
 
     return conversation_data
+
+
+@router.get("/get_popular_cids")
+async def get_popular_cids(search_str: str = "",
+                           limit: int = 10):
+    """
+        Returns n-most popular conversations
+
+        :param search_str: Searched substring to match
+        :param limit: limit returned amount of matched instances
+    """
+    items = PopularityCounter.get_first_n_items(search_str, limit)
+    return JSONResponse(content=items)
