@@ -25,15 +25,15 @@
 # LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-from typing import Optional
+from typing import Optional, Union
 from pymongo import MongoClient
-from neon_utils import LOG
 
 from utils.database_utils.base_connector import DatabaseConnector, DatabaseTypes
+from utils.database_utils.mongo_utils.structures import MongoQuery
 
 
 class MongoDBConnector(DatabaseConnector):
+    """ Connector implementing interface for interaction with Mongo DB API """
 
     mongo_recognised_commands = ('insert_one', 'insert_many', 'delete_one', 'bulk_write',
                                  'delete_many', 'find', 'find_one', 'update')
@@ -49,7 +49,7 @@ class MongoDBConnector(DatabaseConnector):
     def abort_connection(self):
         self._cnx.close()
 
-    def exec_raw_query(self, query: dict, as_cursor: bool = True, *args, **kwargs) -> Optional[dict]:
+    def exec_raw_query(self, query: Union[MongoQuery, dict], as_cursor: bool = True, *args, **kwargs) -> Optional[dict]:
         """
             Generic method for executing query over mongo db
 
@@ -62,6 +62,8 @@ class MongoDBConnector(DatabaseConnector):
 
             :returns result of the query execution if any
         """
+        if isinstance(query, MongoQuery):
+            query = query.to_dict()
         received_command = query.get('command', 'find')
         if received_command not in self.mongo_recognised_commands:
             raise NotImplementedError(f'Query command: {received_command} is not supported, '
@@ -74,8 +76,9 @@ class MongoDBConnector(DatabaseConnector):
         query_output = db_command(*query.get('data'), *args, **kwargs)
         if received_command == 'find':
             filters = query.get('filters', {})
-            for name, value in filters.items():
-                query_output = getattr(query_output, name)(value)
+            if filters:
+                for name, value in filters.items():
+                    query_output = getattr(query_output, name)(value)
         if not as_cursor:
             query_output = list(query_output)
         return query_output

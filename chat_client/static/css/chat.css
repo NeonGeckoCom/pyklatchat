@@ -13,19 +13,15 @@ body{
     color: #ffffff;
 }
 
-.chat-list .chat-img {
-    float: left;
-    width: 48px;
-}
-
-.chat-list .chat-img img {
+.chat-img img {
     -webkit-border-radius: 50px;
     -moz-border-radius: 50px;
     border-radius: 50px;
     width: 100%;
 }
 
-.chat-list .chat-img p {
+
+.chat-img p {
     -webkit-border-radius: 50px;
     -moz-border-radius: 50px;
     border-radius: 50px;
@@ -37,6 +33,32 @@ body{
     user-select: none;
     font-size: 14px;
 }
+
+
+.chat-list .chat-img {
+    float: left;
+    width: 48px;
+}
+
+/*.chat-list .chat-img img {*/
+/*    -webkit-border-radius: 50px;*/
+/*    -moz-border-radius: 50px;*/
+/*    border-radius: 50px;*/
+/*    width: 100%;*/
+/*}*/
+
+/*.chat-list .chat-img p {*/
+/*    -webkit-border-radius: 50px;*/
+/*    -moz-border-radius: 50px;*/
+/*    border-radius: 50px;*/
+/*    width: 100%;*/
+/*    background: #512DA8;*/
+/*    color: #fff;*/
+/*    text-align: center;*/
+/*    line-height: 50px;*/
+/*    user-select: none;*/
+/*    font-size: 14px;*/
+/*}*/
 
 .chat-list .chat-message {
     -webkit-border-radius: 10px;
@@ -157,6 +179,16 @@ body{
 }
 
 /* End message styling */
+
+.conversationContainer .card {
+    resize: both;
+    overflow:auto;
+    width: 40%;
+    min-width: 450px;
+    max-width: 90%;
+    min-height: 300px!important;
+    max-height: 80vh;
+}
 
 .card .card-header:first-child {
     -webkit-border-radius: 0.3rem 0.3rem 0 0;
@@ -333,4 +365,28 @@ body{
 .lang-container {
     height: 300px!important;
     overflow-y: scroll;
+}
+
+/* Prompt Skin Styling */
+
+.prompt-submind-img {
+    max-height: 50px!important;
+    max-width: 50px!important;
+}
+
+.selected {
+    background-color: royalblue;
+}
+
+.excel-icon{
+    vertical-align: text-top;
+}
+
+.chat-list .prompt-item {
+    text-align: center!important;
+    resize: both;
+    max-height: unset!important;
+    min-height: 50px!important;
+    min-width: 250px!important;
+    transition: transform 2s ease-in-out;
 }

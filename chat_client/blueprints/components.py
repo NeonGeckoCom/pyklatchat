@@ -79,6 +79,20 @@ async def get_profile_modal(request: Request, nickname: str = '', edit: str = '0
     return callback_template(request=request, template_name=template_name, context=context)
 
 
+@router.get('/conversation')
+async def render_conversation(request: Request, skin: str = 'base'):
+    """
+        Base renderer by the provided HTML template name
+
+        :param request: FastAPI request object
+        :param skin: conversation skin to render (defaults to 'base')
+
+        :returns chats conversation response
+    """
+    folder = 'conversation_skins'
+    return callback_template(request=request, template_name=f'{folder}/{skin}')
+
+
 @router.get('/{template_name}')
 async def render_template(request: Request, template_name: str):
     """

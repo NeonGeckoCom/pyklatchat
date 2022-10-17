@@ -75,7 +75,7 @@ async def create_chat(conversation_name: str = Form(...),
         :returns JSON-formatted response from server
     """
 
-    new_conversation = dict(id=conversation_id or uuid4().hex,
+    new_conversation = dict(_id=conversation_id or uuid4().hex,
                             conversation_name=conversation_name,
                             is_private=is_private,
                             created_on=int(time()))

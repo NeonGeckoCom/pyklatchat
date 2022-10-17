@@ -70,15 +70,17 @@ async function fetchSupportedLanguages(){
  */
 async function requestTranslation(cid=null, shouts=null, lang=null, inputType='incoming', translateToBaseLang=false){
     let requestBody = {chat_mapping: {}};
-    if(cid && isDisplayed(cid)){
+    const skin = getCIDStoreProperty(cid, 'skin');
+    if(cid && isDisplayed(cid) && skin === CONVERSATION_SKINS.BASE){
         lang = lang || getPreferredLanguage(cid, inputType);
-        if (!translateToBaseLang)
-            setChatState(cid, 'updating', 'Applying New Language...');
+        if (lang !== 'en' || translateToBaseLang && getMessagesOfCID(cid).length > 0){
+             setChatState(cid, 'updating', 'Applying New Language...');
+        }
         if(shouts && !Array.isArray(shouts)){
             shouts = [shouts];
         }
         if (!shouts && inputType){
-            shouts = getMessagesOfCID(cid, getMessageReferType(inputType), true);
+            shouts = getMessagesOfCID(cid, getMessageReferType(inputType), skin, true);
             if (shouts.length === 0){
                 console.log(`${cid} yet has no shouts matching type=${inputType}`);
                 setChatState(cid, 'active');
@@ -152,27 +154,29 @@ async function initLanguageSelector(cid, inputType="incoming"){
    }
    const selectedLangNode = document.getElementById(`language-selected-${cid}-${inputType}`);
    const langList = document.getElementById(`language-list-${cid}-${inputType}`);
-   const langListContainer = langList.getElementsByClassName('lang-container')[0]
+   if (langList) {
+       const langListContainer = langList.getElementsByClassName('lang-container')[0]
 
-   if (langListContainer){
-      langListContainer.innerHTML = "";
-   }
+       if (langListContainer) {
+           langListContainer.innerHTML = "";
+       }
 
-   // selectedLangNode.innerHTML = "";
-   for (const [key, value] of Object.entries(supportedLanguages)) {
+       // selectedLangNode.innerHTML = "";
+       for (const [key, value] of Object.entries(supportedLanguages)) {
 
-      if (key === preferredLang){
-          const direction = inputType === 'incoming'?'down':'up';
-          selectedLangNode.innerHTML = await buildHTMLFromTemplate('selected_lang',
-              {'key': key, 'name': value['name'], 'icon': value['icon'], 'direction': direction})
-      }else{
-          langListContainer.insertAdjacentHTML('beforeend', await buildLangOptionHTML(cid, key, value['name'], value['icon'], inputType));
-          const itemNode = document.getElementById(getLangOptionID(cid, key, inputType));
-          itemNode.addEventListener('click', async (e)=>{
-              e.preventDefault();
-              await setSelectedLang(itemNode, cid, inputType)
-          });
-      }
+           if (key === preferredLang) {
+               const direction = inputType === 'incoming' ? 'down' : 'up';
+               selectedLangNode.innerHTML = await buildHTMLFromTemplate('selected_lang',
+                   {'key': key, 'name': value['name'], 'icon': value['icon'], 'direction': direction})
+           } else {
+               langListContainer.insertAdjacentHTML('beforeend', await buildLangOptionHTML(cid, key, value['name'], value['icon'], inputType));
+               const itemNode = document.getElementById(getLangOptionID(cid, key, inputType));
+               itemNode.addEventListener('click', async (e) => {
+                   e.preventDefault();
+                   await setSelectedLang(itemNode, cid, inputType)
+               });
+           }
+       }
    }
 }
 
@@ -224,7 +228,7 @@ async function applyTranslations(data){
     const inputType = setDefault(data, 'input_type', 'incoming');
     for (const [cid, messageTranslations] of Object.entries(data['translations'])) {
 
-        if(!isDisplayed(cid)){
+        if(!isDisplayed(cid) || getCIDStoreProperty(cid, 'skin') !== CONVERSATION_SKINS.BASE){
             console.log(`cid=${cid} is not displayed, skipping translations population`)
             continue;
         }

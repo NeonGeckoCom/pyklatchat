@@ -1,15 +1,7 @@
-<div class="conversationContainer col-xl-6 col-lg-6 col-md-6 col-sm-12 col-12 m-2">
-    <div class="d-flex flex-column align-items-center justify-content-center chat-spinner non-selectable" id="{cid}-spinner" style="display: none!important;">
-        <div class="row">
-           <div class="spinner-border" role="status">
-               <span class="sr-only">Loading...</span>
-           </div>
-        </div>
-        <div class="row">
-          <strong id="{cid}-update-msg">Loading...</strong>
-        </div>
-    </div>
-    <div class="card conversation-card non-selectable" id="{cid}">
+{% extends "components/conversation_wrapper.html" %}
+
+{% block skin_body %}
+    <div class="card non-selectable" id="{cid}">
         <div class="card-header">{conversation_name}
             <span class="ml-3" id="participants-list-{cid}">
                 <i class="icon-user" aria-hidden="true"></i> <span id="participants-count-{cid}">0</span>
@@ -34,6 +26,9 @@
                     <div class="lang-container"></div>
                 </div>
             </div>
+            <button type="button" class="btn btn-light ml-3" id="prompt-mode-{cid}">
+                <span aria-hidden="true" class="icon-table"></span>
+            </button>
             <button type="button" id="close-{cid}" data-target-cid="{cid}" class="close-cid">
                 <span aria-hidden="true">×</span>
             </button>
@@ -56,4 +51,4 @@
             </button>
         </div>
     </div>
-</div>
+{% endblock %}

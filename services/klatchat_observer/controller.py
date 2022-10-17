@@ -118,6 +118,11 @@ class ChatObserver(MQConnector):
                                queue='save_prompt',
                                callback=self.handle_saving_prompt_data,
                                on_error=self.default_error_handler)
+        self.register_consumer(name='new_prompt',
+                               vhost=self.get_vhost('chatbots'),
+                               queue='new_prompt',
+                               callback=self.handle_new_prompt,
+                               on_error=self.default_error_handler)
         self.register_consumer(name='get_prompt_data',
                                vhost=self.get_vhost('chatbots'),
                                queue='get_prompt',
@@ -516,6 +521,23 @@ class ChatObserver(MQConnector):
                               queue='chatbot_response_error', expiration=3000)
 
     @create_mq_callback()
+    def handle_new_prompt(self, body: dict):
+        """
+            Handles announcement of new prompt
+            :param body: new prompt body
+            :return:
+        """
+        response_required_keys = ('cid', 'prompt_id', 'prompt_text',)
+        if all(required_key in list(body) for required_key in response_required_keys):
+            self.sio.emit('new_prompt', data=body)
+        else:
+            error_msg = f'Skipping received data {body} as it lacks one of the required keys: ' \
+                        f'({",".join(response_required_keys)})'
+            LOG.error(error_msg)
+            self.send_message(request_data={'msg': error_msg}, vhost=self.get_vhost('chatbots'),
+                              queue='chatbot_response_error', expiration=3000)
+
+    @create_mq_callback()
     def handle_saving_prompt_data(self, body: dict):
         """
             Handles requests for saving prompt data
@@ -526,7 +548,7 @@ class ChatObserver(MQConnector):
         response_required_keys = ('userID', 'cid', 'messageText', 'bot', 'timeCreated', 'context',)
 
         if all(required_key in list(body) for required_key in response_required_keys):
-            self.sio.emit('save_prompt_data', data=body)
+            self.sio.emit('prompt_completed', data=body)
         else:
             error_msg = f'Skipping received data {body} as it lacks one of the required keys: ' \
                         f'({",".join(response_required_keys)})'

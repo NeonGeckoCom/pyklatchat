@@ -1,0 +1,24 @@
+{% extends "components/conversation_wrapper.html" %}
+
+{% block skin_body %}
+    <div class="card non-selectable" id="{cid}">
+        <div class="card-header">Prompts of "{conversation_name}"
+            <button type="button" class="btn btn-light ml-3" id="base-mode-{cid}">
+                <span aria-hidden="true" class="icon-file-text"></span>
+            </button>
+            <button type="button" id="close-prompts-{cid}" data-target-cid="{cid}" class="close-cid">
+                <span aria-hidden="true">×</span>
+            </button>
+        </div>
+        <div class="card-body height3" style="overflow-y: auto; height: 450px!important;">
+            <ul class="chat-list">
+                {chat_flow}
+            </ul>
+        </div>
+        <div class="card-footer">
+            <button class="btn btn-outline-primary export-to-excel-button" title="Export to Excel" id="{cid}-export-to-excel" disabled>
+                <img class="excel-icon" src="../../../static/img/icons/excel.svg" alt="Export To Excel" style="width: 20px; height: 20px" />
+            </button>
+        </div>
+    </div>
+{% endblock %}
