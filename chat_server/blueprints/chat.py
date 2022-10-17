@@ -142,9 +142,7 @@ async def get_matching_conversation(request: Request,
 
 
 @router.get("/get_popular_cids")
-# @login_required
-async def get_popular_cids(request: Request,
-                           search_str: str = "",
+async def get_popular_cids(search_str: str = "",
                            limit: int = 10):
     """
         Returns n-most popular conversations

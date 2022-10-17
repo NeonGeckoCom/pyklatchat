@@ -1,5 +1,7 @@
 const importConversationModal = $('#importConversationModal');
 const conversationSearchInput = document.getElementById('conversationSearchInput');
+const importConversationModalSuggestions = document.getElementById('importConversationModalSuggestions');
+
 const addBySearch = document.getElementById('addBySearch');
 
 const newConversationModal = $('#newConversationModal');
@@ -488,6 +490,8 @@ document.addEventListener('DOMContentLoaded', (e)=>{
                 }
             });
         });
+        conversationSearchInput.addEventListener('input', async (e)=>{ await renderSuggestions();});
+        conversationSearchInput.addEventListener('propertychange', async (e)=>{ await renderSuggestions();});
         addNewConversation.addEventListener('click', async (e) => {
             e.preventDefault();
             const newConversationID = document.getElementById('conversationID');

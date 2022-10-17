@@ -162,3 +162,13 @@ async function buildConversationHTML(conversationData = {}){
     return await buildHTMLFromTemplate('conversation',
         {'cid': cid, 'conversation_name':conversation_name, 'chat_flow': chatFlowHTML});
 }
+
+/**
+ * Builds suggestion HTML
+ * @param cid: target conversation id
+ * @param name: target conversation name
+ * @return {Promise<string|void>} HTML with fetched data
+ */
+const buildSuggestionHTML = async (cid, name) => {
+    return await buildHTMLFromTemplate('suggestion', {'cid': cid, 'conversation_name': name})
+}
