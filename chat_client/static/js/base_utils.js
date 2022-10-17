@@ -1,5 +1,10 @@
+/**
+ * Enum of possible Alert Behaviours:
+ * - DEFAULT: static alert message appeared with no expiration time
+ * - AUTO_EXPIRE: alert message will be expired after some amount of time (defaults to 3 seconds)
+ */
 const alertBehaviors = {
-    DEFAULT: 'default',
+    STATIC: 'static',
     AUTO_EXPIRE: 'auto_expire'
 }
 
@@ -13,6 +18,10 @@ const alertBehaviors = {
  */
 function displayAlert(parentElem,text='Error Occurred',alertType='danger',alertID='alert',
                       alertBehaviorProperties=null){
+    if (!parentElem){
+        console.warn('Alert is not displayed as parentElem is not defined');
+        return
+    }
     if(!['info','success','warning','danger','primary','secondary','dark'].includes(alertType)){
         alertType = 'danger'; //default
     }
@@ -30,7 +39,7 @@ function displayAlert(parentElem,text='Error Occurred',alertType='danger',alertI
                     </button>
                   </div>`);
         if (alertBehaviorProperties){
-           setDefault(alertBehaviorProperties, 'type', alertBehaviors.DEFAULT);
+           setDefault(alertBehaviorProperties, 'type', alertBehaviors.STATIC);
            if (alertBehaviorProperties['type'] === alertBehaviors.AUTO_EXPIRE){
                const expirationTime = setDefault(alertBehaviorProperties, 'expiration', 3000);
                const slideLength = setDefault(alertBehaviorProperties, 'fadeLength', 500);
@@ -62,11 +71,12 @@ function generateUUID(length=8, strPattern='00-0-4-1-000') {
  * Shrinks text to fit into desired length
  * @param text: Text to shrink
  * @param maxLength: max length of text to save
+ * @param suffix: suffix to apply after shrunk string
  * @returns {string} Shrunk text, fitting into "maxLength"
  */
-function shrinkToFit(text, maxLength){
+function shrinkToFit(text, maxLength, suffix='...'){
     if(text.length>maxLength){
-        text = text.substring(0, maxLength) + '...';
+        text = text.substring(0, maxLength) + suffix;
     }return text;
 }
 
@@ -130,6 +140,10 @@ function setDefault(obj, key, val){
     return obj[key];
 }
 
+/**
+ * Deletes provided element from DOM
+ * @param elem: DOM Object to delete
+ */
 function deleteElement(elem){
-    if (elem) return elem.parentElement.removeChild(elem);
+    if (elem && elem?.parentElement) return elem.parentElement.removeChild(elem);
 }

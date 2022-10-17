@@ -36,6 +36,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(
 
 from config import Configuration
 from utils.connection_utils import create_ssh_tunnel
+from utils.database_utils.mongo_utils import *
 
 
 class TestDBController(unittest.TestCase):
@@ -81,5 +82,25 @@ class TestDBController(unittest.TestCase):
         self.db_controller.exec_query(query={'command': 'delete_many',
                                              'document': 'test',
                                              'data': test_data})
+
+    def test_simple_interaction_mongo_new_design(self):
+        self.db_controller = self.configuration.get_db_controller(name='pyklatchat_3333')
+        self.assertIsNotNone(self.db_controller)
+        test_data = {"name": "John", "address": "Highway 37"}
+        self.db_controller.exec_query(MongoQuery(command=MongoCommands.INSERT_ONE,
+                                                 document=MongoDocuments.TEST,
+                                                 data=test_data))
+        inserted_data = self.db_controller.exec_query(MongoQuery(command=MongoCommands.FIND_ONE,
+                                                                 document=MongoDocuments.TEST,
+                                                                 filters=[MongoFilter(key='name', value='John'),
+                                                                          MongoFilter(key='address',
+                                                                                      value='Highway 37')]))
+        LOG.debug(f'Received inserted data: {inserted_data}')
+        self.assertIsNotNone(inserted_data)
+        self.assertIsInstance(inserted_data, dict)
+        self.db_controller.exec_query(MongoQuery(command=MongoCommands.DELETE_MANY,
+                                                 document=MongoDocuments.TEST,
+                                                 filters=[MongoFilter(key='name', value='John'),
+                                                          MongoFilter(key='address', value='Highway 37')]))
 
 

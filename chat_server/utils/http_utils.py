@@ -35,7 +35,7 @@ from neon_utils import LOG
 from starlette.responses import FileResponse, StreamingResponse
 
 from chat_server.server_config import app_config, sftp_connector
-from chat_server.server_utils.enums import DataSources
+from chat_server.utils.enums import DataSources
 from utils.common import generate_uuid
 from utils.http_utils import respond
 

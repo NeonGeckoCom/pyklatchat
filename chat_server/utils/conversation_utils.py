@@ -26,4 +26,29 @@
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-__version__ = "0.3.0"
+from neon_utils.logger import LOG
+
+from chat_server.constants.conversations import ConversationSkins
+
+
+def build_message_json(raw_message: dict, skin: ConversationSkins = ConversationSkins.BASE) -> dict:
+    """ Builds user message json based on provided conversation skin """
+    if skin == ConversationSkins.BASE:
+        message = {'user_id': raw_message['user_id'],
+                   'created_on': int(raw_message['created_on']),
+                   'message_id': raw_message['message_id'],
+                   'message_text': raw_message['message_text'],
+                   'is_audio': raw_message.get('is_audio', '0'),
+                   'is_announcement': raw_message.get('is_announcement', '0'),
+                   'replied_message': raw_message['replied_message'],
+                   'attachments': raw_message.get('attachments', []),
+                   'user_first_name': raw_message['first_name'],
+                   'user_last_name': raw_message['last_name'],
+                   'user_nickname': raw_message['nickname'],
+                   'user_avatar': raw_message.get('avatar', '')}
+    elif skin == ConversationSkins.PROMPTS:
+        return raw_message
+    else:
+        LOG.error(f'Undefined skin = {skin}')
+        message = {}
+    return message
