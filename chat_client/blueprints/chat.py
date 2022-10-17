@@ -33,7 +33,6 @@ from fastapi import APIRouter, Request, Form
 from fastapi.responses import JSONResponse
 from fastapi.templating import Jinja2Templates
 from chat_server.server_utils.auth import login_required
-from chat_server.services.controller import PopularityCounter
 from neon_utils import LOG
 
 from chat_client.client_config import app_config
@@ -88,11 +87,3 @@ async def create_chat(conversation_name: str = Form(...),
     LOG.debug(f'Chat data {new_conversation} creation response: {json_data}')
 
     return JSONResponse(content=json_data, status_code=post_response.status_code)
-
-@router.get("/get_popular_cids")
-@login_required
-async def get_popular_cids(request: Request,
-                           search_str: str,
-                           limit: int = 10):
-    items = PopularityCounter.get_first_items(search_str, limit)
-    return JSONResponse(content=items)

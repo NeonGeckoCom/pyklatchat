@@ -43,7 +43,7 @@ from chat_server.server_utils.cache_utils import CacheFactory
 from chat_server.server_utils.db_utils import DbUtils
 from chat_server.server_utils.user_utils import get_neon_data, get_bot_data
 from chat_server.server_config import db_controller, sftp_connector
-from chat_server.services.controller import PopularityCounter
+from chat_server.services.popularity_counter import PopularityCounter
 from chat_server.utils.languages import LanguageSettings
 from utils.common import generate_uuid, deep_merge, buffer_to_base64
 
