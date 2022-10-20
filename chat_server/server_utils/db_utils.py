@@ -115,8 +115,8 @@ class DbUtils(metaclass=Singleton):
         or_expression = []
         for _keyword in [item for item in search_str if item is not None]:
             for identifier in column_identifiers:
-                if identifier == '_id' and ObjectId.is_valid(search_str):
-                    _keyword = ObjectId(_keyword)
+                if identifier == '_id' and isinstance(_keyword, str):
+                    or_expression.append({identifier: ObjectId(_keyword)})
                 or_expression.append({identifier: _keyword})
 
         conversation_data = cls.db_controller.exec_query(MongoQuery(command=MongoCommands.FIND_ONE,

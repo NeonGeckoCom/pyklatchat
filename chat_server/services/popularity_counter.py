@@ -27,9 +27,9 @@
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 from time import time
-from neon_utils import LOG
 
-from chat_server.server_utils.db_utils import DbUtils
+from bson import ObjectId
+from neon_utils import LOG
 
 
 class PopularityCounter:
@@ -53,11 +53,16 @@ class PopularityCounter:
             Initialise items popularity from DB
             Current implementation considers length of number of message container under given conversation
         """
+        from chat_server.server_utils.db_utils import DbUtils
         data = list(DbUtils.db_controller.connector.connection["chats"].aggregate(
             [
-                {"$project": {"conversation_name": 1, "popularity": {"$size": "$chat_flow"}}}
+                {"$project": {"conversation_name": 1,
+                              "popularity": {"$size": {"$cond": [{"$isArray": "$chat_flow"}, "$chat_flow", []]}}}}
             ]
         ))
+        for item in data:
+            if ObjectId.is_valid(item['_id']):
+                item['_id'] = str(item['_id'])
         cls.last_updated_ts = int(time())
         return data
 

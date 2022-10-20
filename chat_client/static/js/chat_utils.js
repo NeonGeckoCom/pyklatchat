@@ -435,7 +435,7 @@ async function restoreChatAlignment(keyName=conversationAlignmentKey){
     if (!sortedEntries || Object.keys(sortedEntries).length === 0){
         sortedEntries = {'1': {'added_on': getCurrentTimestamp(), 'skin': CONVERSATION_SKINS.BASE}}
     }
-    for (const [cid, props] of sortedEntries) {
+    for (const [cid, props] of Object.entries(sortedEntries)) {
         const cidSkin = props?.skin;
         await getConversationDataByInput(cid, cidSkin).then(async conversationData=>{
             if(conversationData && Object.keys(conversationData).length > 0) {

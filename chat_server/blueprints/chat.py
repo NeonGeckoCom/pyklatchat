@@ -32,6 +32,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel
+from neon_utils import LOG
 
 from chat_server.constants.conversations import ConversationSkins
 from chat_server.server_config import db_controller
@@ -130,5 +131,9 @@ async def get_popular_cids(search_str: str = "",
         :param search_str: Searched substring to match
         :param limit: limit returned amount of matched instances
     """
-    items = PopularityCounter.get_first_n_items(search_str, limit)
+    try:
+        items = PopularityCounter.get_first_n_items(search_str, limit)
+    except Exception as ex:
+        LOG.error(f'Failed to extract most popular items - {ex}')
+        items = []
     return JSONResponse(content=items)
