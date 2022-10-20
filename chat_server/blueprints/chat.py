@@ -124,15 +124,19 @@ async def get_matching_conversation(request: Request,
 
 @router.get("/get_popular_cids")
 async def get_popular_cids(search_str: str = "",
+                           exclude_items="",
                            limit: int = 10):
     """
         Returns n-most popular conversations
 
         :param search_str: Searched substring to match
+        :param exclude_items: list of conversation ids to exclude from search
         :param limit: limit returned amount of matched instances
     """
     try:
-        items = PopularityCounter.get_first_n_items(search_str, limit)
+        if exclude_items:
+            exclude_items = exclude_items.split(',')
+        items = PopularityCounter.get_first_n_items(search_str, exclude_items, limit)
     except Exception as ex:
         LOG.error(f'Failed to extract most popular items - {ex}')
         items = []

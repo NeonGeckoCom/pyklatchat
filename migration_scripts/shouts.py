@@ -28,8 +28,9 @@
 import copy
 
 from neon_utils import LOG
-from pymongo import ReplaceOne
+from pymongo import ReplaceOne, UpdateOne
 
+from chat_server.server_utils.db_utils import DbUtils, MongoQuery, MongoCommands, MongoDocuments
 from migration_scripts.utils.shout_utils import prepare_nicks_for_sql
 from migration_scripts.utils.sql_utils import iterable_to_sql_array, sql_arr_is_null
 
@@ -102,3 +103,48 @@ def migrate_shouts(old_db_controller, new_db_controller, nick_to_uuid_mapping: d
         except Exception as ex:
             LOG.error(f'Skipping processing of shout data "{record}" due to exception: {ex}')
             continue
+
+
+def remap_creation_timestamp(db_controller):
+    """ Remaps creation timestamp from millis to seconds """
+    filter_stage = {
+        '$match': {
+            'created_on': {
+                '$gte': 10 ** 12
+            }
+        }
+    }
+    bulk_update = []
+    res = list(DbUtils.db_controller.connector.connection["shouts"].aggregate([filter_stage]))
+    for item in res:
+        bulk_update.append(UpdateOne({'_id': item['_id']},
+                                     {'$set': {'created_on': item['created_on'] // 10 ** 3}}))
+    db_controller.exec_query(query=MongoQuery(command=MongoCommands.BULK_WRITE,
+                                              document=MongoDocuments.SHOUTS,
+                                              data=bulk_update))
+
+
+def set_cid_to_shouts(db_controller):
+    """ Sets correspondent cid to new shouts """
+    conversion_stage = {
+        '$addFields': {'str_id': {'$toString': "$_id"}}
+    }
+    add_str_length = {
+        '$addFields': {'length': {'$strLenCP': "$str_id"}}
+    }
+    filter_stage = {
+        '$match': {
+            'length': {
+                '$gt': 5
+            }
+        }
+    }
+    bulk_update = []
+    res = list(db_controller.connector.connection["chats"].aggregate([conversion_stage, add_str_length, filter_stage]))
+    for item in res:
+        for shout in item.get('chat_flow', []):
+            bulk_update.append(UpdateOne({'_id': shout},
+                                         {'$set': {'cid': item['_id']}}))
+    DbUtils.db_controller.exec_query(query=MongoQuery(command=MongoCommands.BULK_WRITE,
+                                     document=MongoDocuments.SHOUTS,
+                                     data=bulk_update))
