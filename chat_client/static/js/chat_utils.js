@@ -432,7 +432,7 @@ const chatAlignmentRestoredEvent = new CustomEvent("chatAlignmentRestored", { "d
 async function restoreChatAlignment(keyName=conversationAlignmentKey){
     const itemsLayout = retrieveItemsLayout(keyName);
     let sortedEntries = Object.entries(itemsLayout).sort((a, b) => a[1]['added_on'] - b[1]['added_on']);
-    if (!sortedEntries){
+    if (!sortedEntries || Object.keys(sortedEntries).length === 0){
         sortedEntries = {'1': {'added_on': getCurrentTimestamp(), 'skin': CONVERSATION_SKINS.BASE}}
     }
     for (const [cid, props] of sortedEntries) {
