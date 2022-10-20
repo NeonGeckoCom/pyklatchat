@@ -29,7 +29,7 @@
 from fastapi import APIRouter, Response, Request, Form
 from neon_utils import LOG
 from chat_server.server_config import db_controller
-from chat_server.utils.auth import get_current_user, login_required
+from chat_server.server_utils.auth import get_current_user, login_required
 from utils.http_utils import respond
 
 router = APIRouter(

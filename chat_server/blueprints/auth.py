@@ -33,7 +33,7 @@ from fastapi.responses import JSONResponse
 
 from chat_server.server_config import db_controller
 from utils.common import get_hash, generate_uuid
-from chat_server.utils.auth import check_password_strength, get_current_user_data, generate_session_token
+from chat_server.server_utils.auth import check_password_strength, get_current_user_data, generate_session_token
 from utils.http_utils import respond
 
 router = APIRouter(

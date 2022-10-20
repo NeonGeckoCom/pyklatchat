@@ -35,9 +35,9 @@ from pydantic import BaseModel
 
 from chat_server.constants.conversations import ConversationSkins
 from chat_server.server_config import db_controller
-from chat_server.utils.auth import login_required
-from chat_server.utils.conversation_utils import build_message_json
-from chat_server.utils.db_utils import DbUtils
+from chat_server.server_utils.auth import login_required
+from chat_server.server_utils.conversation_utils import build_message_json
+from chat_server.server_utils.db_utils import DbUtils
 from chat_server.services.popularity_counter import PopularityCounter
 from utils.http_utils import respond
 

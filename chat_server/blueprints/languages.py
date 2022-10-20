@@ -29,7 +29,7 @@
 from fastapi import APIRouter
 from starlette.responses import JSONResponse
 
-from chat_server.utils.languages import LanguageSettings
+from chat_server.server_utils.languages import LanguageSettings
 
 router = APIRouter(
     prefix="/language_api",

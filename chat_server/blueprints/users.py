@@ -33,9 +33,9 @@ from fastapi.encoders import jsonable_encoder
 from neon_utils import LOG
 
 from chat_server.server_config import db_controller
-from chat_server.utils.auth import get_current_user, check_password_strength, get_current_user_data, \
+from chat_server.server_utils.auth import get_current_user, check_password_strength, get_current_user_data, \
     login_required
-from chat_server.utils.http_utils import save_file
+from chat_server.server_utils.http_utils import save_file
 from utils.common import get_hash
 from utils.http_utils import respond
 

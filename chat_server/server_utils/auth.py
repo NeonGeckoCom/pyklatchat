@@ -122,7 +122,7 @@ def create_unauthorized_user(authorize: bool = True, nano_token: str = None) -> 
 
         :returns: generated UserData
     """
-    from chat_server.utils.user_utils import create_from_pattern
+    from chat_server.server_utils.user_utils import create_from_pattern
 
     guest_nickname = f'guest_{generate_uuid(length=8)}'
 
@@ -222,7 +222,7 @@ def validate_session(request: Union[str, Request], check_tmp: bool = False, sio_
     if session:
         payload = jwt.decode(jwt=session, key=secret_key, algorithms=jwt_encryption_algo)
         if check_tmp:
-            from chat_server.utils.db_utils import DbUtils
+            from chat_server.server_utils.db_utils import DbUtils
             user = DbUtils.get_user(user_id=payload['sub'])
             if user.get('is_tmp'):
                 return 'Permission denied', 403
