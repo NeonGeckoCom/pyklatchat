@@ -25,6 +25,7 @@
 # LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+import logging
 import os
 import random
 import string
@@ -65,7 +66,8 @@ def create_app(testing_mode: bool = False, sio_server: socketio.AsyncServer = si
     LOG.name = os.environ.get('LOG_NAME', 'server_err')
     LOG.base_path = os.environ.get('LOG_BASE_PATH', '.')
     LOG.init(config={'level': os.environ.get('LOG_LEVEL', 'INFO'), 'path': os.environ.get('LOG_PATH', os.getcwd())})
-    LOG.create_logger('chat_server')
+    logger = LOG.create_logger('chat_server')
+    logger.addHandler(logging.StreamHandler())
     LOG.info(f'Starting Klatchat Server v{app_version}')
     chat_app = FastAPI(title="Klatchat Server API",
                        version=app_version)

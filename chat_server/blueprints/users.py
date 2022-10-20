@@ -79,7 +79,7 @@ async def get_user(request: Request,
 
 
 @router.get('/get_users')
-@login_required
+# @login_required
 async def fetch_received_user_ids(request: Request, user_ids: str = None, nicknames: str = None):
     """
         Gets users data based on provided user ids

@@ -19,6 +19,11 @@ function initSIO(){
         "session": getSessionToken()
     }});
 
+    socket.__proto__.emitAuthorized = (event, data) => {
+        socket.io.opts.extraHeaders.session = getSessionToken();
+        return socket.emit(event, data);
+    }
+
     socket.on('auth_expired', ()=>{
         console.log('Authorization Token expired, refreshing...')
         location.reload();
@@ -87,11 +92,6 @@ function initSIO(){
        console.log('received incoming stt response');
        showSTT(data['message_id'], data['lang'], data['message_text']);
     });
-
-    socket.__proto__.emitAuthorized = (event, data) => {
-        socket.io.opts.extraHeaders.session = getSessionToken();
-        return socket.emit(event, data);
-    }
 
     socket.on('updated_shouts', async (data) =>{
         const inputType = data['input_type'];

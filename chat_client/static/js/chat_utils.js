@@ -347,8 +347,13 @@ async function getConversationDataByInput(input="", skin=CONVERSATION_SKINS.BASE
  * @returns {Array} array of conversations from local storage
  */
 function retrieveItemsLayout(keyName=conversationAlignmentKey){
-    const itemsLayout = localStorage.getItem(keyName);
-    return itemsLayout?JSON.parse(itemsLayout): {};
+    let itemsLayout = localStorage.getItem(keyName);
+    itemsLayout = itemsLayout?JSON.parse(itemsLayout): {};
+    if (Array.isArray(itemsLayout)){
+        console.warn('Invalid items layout, cleaning up');
+        itemsLayout = itemsLayout.filter(x=>![null, undefined].includes(x))[0];
+    }
+    return itemsLayout || {};
 }
 
 /**
