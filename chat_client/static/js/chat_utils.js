@@ -344,7 +344,7 @@ async function getConversationDataByInput(input="", skin=CONVERSATION_SKINS.BASE
 /**
  * Retrieves conversation layout from local storage
  * @param keyName: key to lookup in local storage (defaults to provided in config.js)
- * @returns {Array} array of conversations from local storage
+ * @returns {Object} mapping of conversation id to properties from local storage
  */
 function retrieveItemsLayout(keyName=conversationAlignmentKey){
     let itemsLayout = localStorage.getItem(keyName);
@@ -431,7 +431,7 @@ const chatAlignmentRestoredEvent = new CustomEvent("chatAlignmentRestored", { "d
 **/
 async function restoreChatAlignment(keyName=conversationAlignmentKey){
     let itemsLayout = retrieveItemsLayout(keyName);
-    if (!sortedEntries || Object.keys(sortedEntries).length === 0){
+    if (!itemsLayout || Object.keys(itemsLayout).length === 0){
         itemsLayout = {'1': {'added_on': getCurrentTimestamp(), 'skin': CONVERSATION_SKINS.BASE}}
     }
     let sortedEntries = Object.entries(itemsLayout).sort((a, b) => a[1]['added_on'] - b[1]['added_on']);
