@@ -404,7 +404,7 @@ async function getCIDStoreProperty(cid, key, defaultValue=null){
         defaultValue = CONVERSATION_SKINS.BASE;
     }
     let storeProperty;
-    const cachedValue = setDefault(setDefault(__storePropertyFastCache,cid, {}), key, {})
+    const cachedValue = setDefault(setDefault(__storePropertyFastCache,cid, {}), key, null)
     if (cachedValue){
         storeProperty = cachedValue
     }else {
