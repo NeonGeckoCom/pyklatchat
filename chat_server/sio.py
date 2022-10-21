@@ -205,6 +205,7 @@ async def user_message(sid, data):
         prompt_id = data.get('promptID', '')
 
         new_shout_data = {'_id': data['messageID'],
+                          'cid': data['cid'],
                           'user_id': data['userID'],
                           'prompt_id': prompt_id,
                           'message_text': data['messageText'],
