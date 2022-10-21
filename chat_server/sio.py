@@ -401,7 +401,11 @@ async def get_neon_translations(sid, data):
             await sio.emit('translation_response', data={'translations': populated_translations,
                                                          'input_type': input_type}, to=sid)
             if updated_shouts:
-                await sio.emit('updated_shouts', data=updated_shouts, skip_sid=[sid])
+                send_dict = {
+                    'input_type': input_type,
+                    'translations': updated_shouts,
+                }
+                await sio.emit('updated_shouts', data=send_dict, skip_sid=[sid])
         except KeyError as err:
             LOG.error(f'No translation cache detected under request_id={request_id} (err={err})')
 
