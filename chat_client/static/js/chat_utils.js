@@ -430,11 +430,11 @@ const chatAlignmentRestoredEvent = new CustomEvent("chatAlignmentRestored", { "d
  * @param keyName: name of the local storage key
 **/
 async function restoreChatAlignment(keyName=conversationAlignmentKey){
-    const itemsLayout = retrieveItemsLayout(keyName);
-    let sortedEntries = Object.entries(itemsLayout).sort((a, b) => a[1]['added_on'] - b[1]['added_on']);
+    let itemsLayout = retrieveItemsLayout(keyName);
     if (!sortedEntries || Object.keys(sortedEntries).length === 0){
-        sortedEntries = {'1': {'added_on': getCurrentTimestamp(), 'skin': CONVERSATION_SKINS.BASE}}
+        itemsLayout = {'1': {'added_on': getCurrentTimestamp(), 'skin': CONVERSATION_SKINS.BASE}}
     }
+    let sortedEntries = Object.entries(itemsLayout).sort((a, b) => a[1]['added_on'] - b[1]['added_on']);
     for (const [cid, props] of sortedEntries) {
         const cidSkin = props?.skin;
         await getConversationDataByInput(cid, cidSkin).then(async conversationData=>{
