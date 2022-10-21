@@ -49,7 +49,7 @@ function initSIO(){
     socket.on('new_message', async (data) => {
         console.debug('received new_message -> ', data)
         const msgData = JSON.parse(data);
-        const skin = getCIDStoreProperty(msgData['cid'], 'skin');
+        const skin = await getCIDStoreProperty(msgData['cid'], 'skin');
         if (skin === CONVERSATION_SKINS.BASE) {
             const preferredLang = getPreferredLanguage(msgData['cid']);
             if (data?.lang !== preferredLang) {
@@ -96,7 +96,7 @@ function initSIO(){
     socket.on('updated_shouts', async (data) =>{
         const inputType = data['input_type'];
         for (const [cid, shouts] of Object.entries(data['translations'])){
-           if (isDisplayed(cid) && getCIDStoreProperty(cid, 'skin') === CONVERSATION_SKINS.BASE){
+           if (await isDisplayed(cid) && await getCIDStoreProperty(cid, 'skin') === CONVERSATION_SKINS.BASE){
                await requestTranslation(cid, shouts, null, inputType);
            }
        }

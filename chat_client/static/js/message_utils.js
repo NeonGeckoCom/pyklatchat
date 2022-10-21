@@ -91,7 +91,7 @@ const getUserPromptTR = (promptID, userID) => {
  */
 async function addPromptMessage(cid, userID, messageText, promptId, promptState){
     const tableBody = document.getElementById(`${promptId}_tbody`);
-    if (isDisplayed(cid) && tableBody){
+    if (await isDisplayed(cid) && tableBody){
         try {
             promptState = PROMPT_STATES[promptState].toLowerCase();
             if (!getUserPromptTR(promptId, userID)) {
