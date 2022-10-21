@@ -611,7 +611,7 @@ async function createNewConversation(conversationName, isPrivate=false, conversa
     let formData = new FormData();
 
     formData.append('conversation_name', conversationName);
-    formData.append('conversation_id', conversationID);
+    formData.append('id', conversationID);
     formData.append('is_private', isPrivate)
 
     await fetchServer(`chat_api/new`,  REQUEST_METHODS.POST, formData).then(async response => {
