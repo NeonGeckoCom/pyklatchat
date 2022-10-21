@@ -375,10 +375,7 @@ async function addNewCID(cid, skin){
  * @param cid: conversation id to remove
  */
 async function removeConversation(cid){
-    if (__storePropertyFastCache.hasOwnProperty(cid)){
-        delete __storePropertyFastCache[cid];
-    }
-    return await getChatAlignmentDb().delete(cid);
+    return await getChatAlignmentDb().where({cid: cid}).delete();
 }
 
 /**
@@ -391,7 +388,6 @@ async function isDisplayed(cid){
 }
 
 
-const __storePropertyFastCache = {}
 /**
  * Gets value of desired property in stored conversation
  * @param cid: target conversation id
@@ -403,15 +399,7 @@ async function getCIDStoreProperty(cid, key, defaultValue=null){
     if (key === 'skin'){
         defaultValue = CONVERSATION_SKINS.BASE;
     }
-    let storeProperty;
-    const cachedValue = setDefault(setDefault(__storePropertyFastCache,cid, {}), key, null)
-    if (cachedValue){
-        storeProperty = cachedValue
-    }else {
-        storeProperty = await getChatAlignmentDb().where( {cid: cid} ).first()[key] || defaultValue;
-        __storePropertyFastCache[cid][key] = storeProperty;
-    }
-    return storeProperty;
+    return await getChatAlignmentDb().where( {cid: cid} ).first()[key] || defaultValue;;
 }
 
 /**
