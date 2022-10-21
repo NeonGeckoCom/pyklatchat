@@ -35,8 +35,8 @@ from pymongo import UpdateOne
 
 from chat_server.constants.conversations import ConversationSkins
 from chat_server.constants.users import UserPatterns
-from chat_server.utils.factory_utils import Singleton
-from chat_server.utils.user_utils import create_from_pattern
+from chat_server.server_utils.factory_utils import Singleton
+from chat_server.server_utils.user_utils import create_from_pattern
 from utils.common import buffer_to_base64
 from utils.database_utils.mongo_utils import *
 
@@ -115,8 +115,11 @@ class DbUtils(metaclass=Singleton):
         or_expression = []
         for _keyword in [item for item in search_str if item is not None]:
             for identifier in column_identifiers:
-                if identifier == '_id' and ObjectId.is_valid(search_str):
-                    _keyword = ObjectId(_keyword)
+                if identifier == '_id' and isinstance(_keyword, str):
+                    try:
+                        or_expression.append({identifier: ObjectId(_keyword)})
+                    except:
+                        pass
                 or_expression.append({identifier: _keyword})
 
         conversation_data = cls.db_controller.exec_query(MongoQuery(command=MongoCommands.FIND_ONE,

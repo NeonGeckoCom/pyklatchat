@@ -33,9 +33,9 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse
 
 from chat_server.server_config import db_controller
-from chat_server.utils.auth import login_required
-from chat_server.utils.db_utils import DbUtils
-from chat_server.utils.http_utils import get_file_response, save_file
+from chat_server.server_utils.auth import login_required
+from chat_server.server_utils.db_utils import DbUtils
+from chat_server.server_utils.http_utils import get_file_response, save_file
 from utils.http_utils import respond
 
 router = APIRouter(
@@ -70,18 +70,16 @@ async def get_avatar(user_id: str):
                                                 'data': {'_id': user_id}}) or {}
     if user_data.get('avatar', None):
         num_attempts = 0
-        while num_attempts < 3:
-            num_attempts += 1
-            try:
-                return get_file_response(filename=user_data['avatar'], location_prefix='avatars')
-            except Exception as ex:
-                LOG.error(f'(attempt={num_attempts}) get_file_response(filename={user_data["avatar"]}, '
-                          f'location_prefix="avatars") failed with ex - {ex}')
+        try:
+            return get_file_response(filename=user_data['avatar'], location_prefix='avatars')
+        except Exception as ex:
+            LOG.error(f'(attempt={num_attempts}) get_file_response(filename={user_data["avatar"]}, '
+                      f'location_prefix="avatars") failed with ex - {ex}')
     return respond(f'Failed to get avatar of {user_id}', 404)
 
 
 @router.get("/{msg_id}/get_attachment/{filename}")
-@login_required
+# @login_required
 async def get_message_attachment(request: Request, msg_id: str, filename: str):
     """
         Gets file from the server

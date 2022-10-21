@@ -73,7 +73,7 @@ async function requestTranslation(cid=null, shouts=null, lang=null, inputType='i
     const skin = getCIDStoreProperty(cid, 'skin');
     if(cid && isDisplayed(cid) && skin === CONVERSATION_SKINS.BASE){
         lang = lang || getPreferredLanguage(cid, inputType);
-        if (lang !== 'en' || translateToBaseLang && getMessagesOfCID(cid).length > 0){
+        if (lang !== 'en' && getMessagesOfCID(cid).length > 0){
              setChatState(cid, 'updating', 'Applying New Language...');
         }
         if(shouts && !Array.isArray(shouts)){

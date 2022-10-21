@@ -390,3 +390,9 @@ body{
     min-width: 250px!important;
     transition: transform 2s ease-in-out;
 }
+
+.suggestion-item {
+    cursor: default;
+    text-decoration: none;
+    z-index: 1000;
+}

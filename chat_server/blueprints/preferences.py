@@ -27,8 +27,9 @@
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 from fastapi import APIRouter, Response, Request, Form
+from neon_utils import LOG
 from chat_server.server_config import db_controller
-from chat_server.utils.auth import get_current_user, login_required
+from chat_server.server_utils.auth import get_current_user, login_required
 from utils.http_utils import respond
 
 router = APIRouter(
@@ -41,7 +42,11 @@ router = APIRouter(
 @login_required
 async def update_language(request: Request, response: Response, cid: str, input_type: str, lang: str = Form(...)):
     """ Updates preferred language of user in conversation """
-    current_user_id = get_current_user(request, response)['_id']
+    try:
+        current_user_id = get_current_user(request, response)['_id']
+    except Exception as ex:
+        LOG.error(ex)
+        return respond(f'Failed to update language of {cid}/{input_type} to {lang}')
     db_controller.exec_query({'command': 'update', 'document': 'user_preferences',
                               'data': ({'_id': current_user_id},
                                        {'$set': {f'chat_language_mapping.{cid}.{input_type}': lang}})})

@@ -38,12 +38,12 @@ from neon_utils import LOG
 from neon_utils.cache_utils import LRUCache
 
 from utils.common import generate_uuid, deep_merge, buffer_to_base64
-from chat_server.utils.auth import validate_session, AUTHORIZATION_HEADER
-from chat_server.utils.cache_utils import CacheFactory
-from chat_server.utils.db_utils import DbUtils, MongoCommands, MongoDocuments, MongoQuery, MongoFilter
-from chat_server.utils.prompt_utils import handle_prompt_message
-from chat_server.utils.user_utils import get_neon_data, get_bot_data
-from chat_server.utils.languages import LanguageSettings
+from chat_server.server_utils.auth import validate_session, AUTHORIZATION_HEADER
+from chat_server.server_utils.cache_utils import CacheFactory
+from chat_server.server_utils.db_utils import DbUtils, MongoCommands, MongoDocuments, MongoQuery, MongoFilter
+from chat_server.server_utils.prompt_utils import handle_prompt_message
+from chat_server.server_utils.user_utils import get_neon_data, get_bot_data
+from chat_server.server_utils.languages import LanguageSettings
 from chat_server.server_config import db_controller, sftp_connector
 from chat_server.services.popularity_counter import PopularityCounter
 

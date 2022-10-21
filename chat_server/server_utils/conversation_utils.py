@@ -40,7 +40,7 @@ def build_message_json(raw_message: dict, skin: ConversationSkins = Conversation
                    'message_text': raw_message['message_text'],
                    'is_audio': raw_message.get('is_audio', '0'),
                    'is_announcement': raw_message.get('is_announcement', '0'),
-                   'replied_message': raw_message['replied_message'],
+                   'replied_message': raw_message.get('replied_message', ''),
                    'attachments': raw_message.get('attachments', []),
                    'user_first_name': raw_message['first_name'],
                    'user_last_name': raw_message['last_name'],

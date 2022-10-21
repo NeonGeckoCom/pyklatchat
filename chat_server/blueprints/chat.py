@@ -28,18 +28,19 @@
 from typing import Optional
 
 from time import time
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Request, Form
 from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel
+from neon_utils import LOG
 
 from chat_server.constants.conversations import ConversationSkins
 from chat_server.server_config import db_controller
-from chat_server.utils.auth import login_required
-from chat_server.utils.conversation_utils import build_message_json
-from chat_server.utils.db_utils import DbUtils
-from chat_server.server_utils.http_utils import get_file_response, save_file
+from chat_server.server_utils.auth import login_required
+from chat_server.server_utils.conversation_utils import build_message_json
+from chat_server.server_utils.db_utils import DbUtils, MongoQuery, MongoCommands, MongoDocuments
 from chat_server.services.popularity_counter import PopularityCounter
+from utils.common import generate_uuid
 from utils.http_utils import respond
 
 router = APIRouter(
@@ -48,40 +49,38 @@ router = APIRouter(
 )
 
 
-class NewConversationData(BaseModel):
-    """Model for new conversation data"""
-    id: str = None
-    conversation_name: str
-    is_private: bool = False
-    created_on: int = int(time())
-
-
 @router.post("/new")
 @login_required
-async def new_conversation(request: Request, request_data: NewConversationData):
+async def new_conversation(request: Request,
+                           conversation_id: str = Form(None),
+                           conversation_name: str = Form(...),
+                           is_private: str = Form(False),):
     """
         Creates new conversation from provided conversation data
 
         :param request: Starlette Request object
-        :param request_data: data for new conversation described by NewConversationData model
+        :param conversation_id: new conversation id (optional)
+        :param conversation_name: new conversation name (optional)
+        :param is_private: if new conversation should be private (defaults to False)
 
         :returns JSON response with new conversation data if added, 401 error message otherwise
     """
 
-    conversation_data = DbUtils.get_conversation_data(search_str=[request_data.id, request_data.conversation_name])
+    conversation_data = DbUtils.get_conversation_data(search_str=[conversation_id, conversation_name])
     if conversation_data:
-        if conversation_data['_id'] == request_data.id:
+        if conversation_data['_id'] == conversation_id:
             duplicated_field = 'id'
         else:
             duplicated_field = 'conversation name'
         return respond(f'Conversation with provided {duplicated_field} already exists', 400)
-    request_data_dict = request_data.__dict__
-    request_data_dict['_id'] = request_data_dict.pop('id', None)
-    _id = db_controller.exec_query(query=dict(document='chats', command='insert_one', data=(request_data_dict,)))
-    request_data_dict['_id'] = str(request_data_dict['_id'])
-    json_compatible_item_data = jsonable_encoder(request_data_dict)
-    json_compatible_item_data['_id'] = str(_id.inserted_id)
-    return JSONResponse(content=json_compatible_item_data)
+    request_data_dict = {'_id': conversation_id or generate_uuid(),
+                         'conversation_name': conversation_name,
+                         'is_private': is_private,
+                         'created_on': int(time())}
+    db_controller.exec_query(query=MongoQuery(command=MongoCommands.INSERT_ONE,
+                                              document=MongoDocuments.CHATS,
+                                              data=request_data_dict))
+    return JSONResponse(content=request_data_dict)
 
 
 @router.get("/search/{search_str}")
@@ -124,12 +123,20 @@ async def get_matching_conversation(request: Request,
 
 @router.get("/get_popular_cids")
 async def get_popular_cids(search_str: str = "",
+                           exclude_items="",
                            limit: int = 10):
     """
         Returns n-most popular conversations
 
         :param search_str: Searched substring to match
+        :param exclude_items: list of conversation ids to exclude from search
         :param limit: limit returned amount of matched instances
     """
-    items = PopularityCounter.get_first_n_items(search_str, limit)
+    try:
+        if exclude_items:
+            exclude_items = exclude_items.split(',')
+        items = PopularityCounter.get_first_n_items(search_str, exclude_items, limit)
+    except Exception as ex:
+        LOG.error(f'Failed to extract most popular items - {ex}')
+        items = []
     return JSONResponse(content=items)

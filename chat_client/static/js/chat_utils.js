@@ -344,11 +344,16 @@ async function getConversationDataByInput(input="", skin=CONVERSATION_SKINS.BASE
 /**
  * Retrieves conversation layout from local storage
  * @param keyName: key to lookup in local storage (defaults to provided in config.js)
- * @returns {Array} array of conversations from local storage
+ * @returns {Object} mapping of conversation id to properties from local storage
  */
 function retrieveItemsLayout(keyName=conversationAlignmentKey){
-    const itemsLayout = localStorage.getItem(keyName);
-    return itemsLayout?JSON.parse(itemsLayout): {};
+    let itemsLayout = localStorage.getItem(keyName);
+    itemsLayout = itemsLayout?JSON.parse(itemsLayout): {};
+    if (Array.isArray(itemsLayout)){
+        console.warn('Invalid items layout, cleaning up');
+        itemsLayout = itemsLayout.filter(x=>![null, undefined].includes(x))[0];
+    }
+    return itemsLayout || {};
 }
 
 /**
@@ -425,11 +430,11 @@ const chatAlignmentRestoredEvent = new CustomEvent("chatAlignmentRestored", { "d
  * @param keyName: name of the local storage key
 **/
 async function restoreChatAlignment(keyName=conversationAlignmentKey){
-    const itemsLayout = retrieveItemsLayout(keyName);
-    let sortedEntries = Object.entries(itemsLayout).sort((a, b) => a[1]['added_on'] - b[1]['added_on']);
-    if (!sortedEntries){
-        sortedEntries = {'1': {'added_on': getCurrentTimestamp(), 'skin': CONVERSATION_SKINS.BASE}}
+    let itemsLayout = retrieveItemsLayout(keyName);
+    if (!itemsLayout || Object.keys(itemsLayout).length === 0){
+        itemsLayout = {'1': {'added_on': getCurrentTimestamp(), 'skin': CONVERSATION_SKINS.BASE}}
     }
+    let sortedEntries = Object.entries(itemsLayout).sort((a, b) => a[1]['added_on'] - b[1]['added_on']);
     for (const [cid, props] of sortedEntries) {
         const cidSkin = props?.skin;
         await getConversationDataByInput(cid, cidSkin).then(async conversationData=>{
@@ -606,7 +611,7 @@ async function createNewConversation(conversationName, isPrivate=false, conversa
     let formData = new FormData();
 
     formData.append('conversation_name', conversationName);
-    formData.append('conversation_id', conversationID);
+    formData.append('id', conversationID);
     formData.append('is_private', isPrivate)
 
     await fetchServer(`chat_api/new`,  REQUEST_METHODS.POST, formData).then(async response => {

@@ -27,9 +27,8 @@
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 from time import time
-from neon_utils import LOG
 
-from chat_server.server_utils.db_utils import DbUtils
+from neon_utils import LOG
 
 
 class PopularityCounter:
@@ -44,22 +43,33 @@ class PopularityCounter:
         """ Retrieves popularity data"""
         ts = int(time())
         if cls.__DATA is None or ts - cls.last_updated_ts > cls.__EXPIRATION_PERIOD:
-            cls.__DATA = cls.init_data()
+            cls.init_data()
         return cls.__DATA
 
     @classmethod
-    def init_data(cls):
+    def init_data(cls, actuality_days: int = 7):
         """
             Initialise items popularity from DB
             Current implementation considers length of number of message container under given conversation
+
+            :param actuality_days: number of days for message to affect the chat popularity
         """
-        data = list(DbUtils.db_controller.connector.connection["chats"].aggregate(
-            [
-                {"$project": {"conversation_name": 1, "popularity": {"$size": "$chat_flow"}}}
-            ]
-        ))
+        from chat_server.server_utils.db_utils import DbUtils
+        curr_time = int(time())
+        chats = list(DbUtils.db_controller.connector.connection["chats"].find({'is_private': False}))
+        relevant_shouts = set(x['_id'] for x in DbUtils.db_controller.connector.connection["shouts"].find({'created_on': {
+            '$gte': curr_time - 3600 * 24 * actuality_days
+        }}, {'_id': 1}))
+        formatted_chats = []
+        for chat in chats:
+            chat_flow = set(chat.get('chat_flow', []))
+            popularity = len(chat_flow.intersection(relevant_shouts))
+            if chat['_id'] is not None:
+                formatted_chats.append({'_id': str(chat['_id']),
+                                        'conversation_name': chat['conversation_name'],
+                                        'popularity': popularity})
         cls.last_updated_ts = int(time())
-        return data
+        cls.__DATA = sorted(formatted_chats, key=lambda x: x['popularity'], reverse=True)
 
     @classmethod
     def increment_cid_popularity(cls, cid):
@@ -72,12 +82,16 @@ class PopularityCounter:
             LOG.error(f'No cid matching = {cid}')
 
     @classmethod
-    def get_first_n_items(cls, search_str, limit: int = 10):
+    def get_first_n_items(cls, search_str, exclude_items: list = None, limit: int = 10):
         """
             Returns first N items matching searched string
 
             :param search_str: Substring to match
+            :param exclude_items: list of conversation ids to exclude from search
             :param limit: number of highest rated results to return
         """
-        data = [item for item in cls.get_data() if search_str.lower() in item['conversation_name'].lower()]
+        if not exclude_items:
+            exclude_items = []
+        data = [item for item in cls.get_data() if search_str.lower() in item['conversation_name'].lower()
+                and item['_id'] not in exclude_items]
         return sorted(data, key=lambda item: item['popularity'], reverse=True)[:limit]
