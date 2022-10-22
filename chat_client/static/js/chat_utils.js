@@ -384,22 +384,29 @@ async function removeConversation(cid){
  * @return true if cid is stored in client db, false otherwise
  */
 async function isDisplayed(cid){
-    return await getChatAlignmentDb().where({cid: cid}).first() !== undefined;
+    return await getStoredConversationData(cid) !== undefined;
 }
 
 
 /**
  * Gets value of desired property in stored conversation
  * @param cid: target conversation id
- * @param key: key of stored conversation
- * @param defaultValue: default value to return
  * @return true if cid is displayed, false otherwise
  */
-async function getCIDStoreProperty(cid, key, defaultValue=null){
-    if (key === 'skin'){
-        defaultValue = CONVERSATION_SKINS.BASE;
-    }
-    return await getChatAlignmentDb().where( {cid: cid} ).first()[key] || defaultValue;;
+async function getStoredConversationData(cid){
+    return await getChatAlignmentDb().where( {cid: cid} ).first();
+}
+
+/**
+ * Returns current skin of provided conversation id
+ * @param cid: target conversation id
+ * @return {string} skin from CONVERSATION_SKINS
+ */
+async function getCurrentSkin(cid){
+    const storedCID = await getStoredConversationData(cid);
+    if(storedCID) {
+        return storedCID['skin'];
+    }return null;
 }
 
 /**
@@ -500,7 +507,7 @@ function getMessagesOfCID(cid, messageReferType=MESSAGE_REFER_TYPE.ALL, skin=CON
 function refreshChatView(){
     Array.from(conversationBody.getElementsByClassName('conversationContainer')).forEach(async conversation=>{
         const cid = conversation.getElementsByClassName('card')[0].id;
-        const skin = await getCIDStoreProperty(cid, 'skin');
+        const skin = await getCurrentSkin(cid);
         if (skin === CONVERSATION_SKINS.BASE) {
             const messages = getMessagesOfCID(cid);
             Array.from(messages).forEach(message => {

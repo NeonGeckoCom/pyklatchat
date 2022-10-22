@@ -11,8 +11,11 @@ const getSessionToken = () => {
 }
 
 const setSessionToken = (val) => {
-    localStorage.setItem('session', val);
-    location.reload();
+    const currentValue = getSessionToken();
+    if (currentValue!==val) {
+        localStorage.setItem( 'session', val );
+        location.reload();
+    }
 }
 
 const fetchServer = async (urlSuffix, method=REQUEST_METHODS.GET, body=null, noCors=false) => {
