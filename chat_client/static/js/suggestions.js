@@ -2,7 +2,7 @@
  * Renders suggestions HTML
  */
 async function renderSuggestions() {
-    const displayedCids = Object.keys(retrieveItemsLayout()).join(',');
+    const displayedCids = Object.values(await retrieveItemsLayout(true)).join(',');
     await fetchServer(`chat_api/get_popular_cids?limit=5&search_str=${conversationSearchInput.value}&exclude_items=${displayedCids}`).then(async response => {
         const items = await response.json();
         importConversationModalSuggestions.innerHTML = "";

@@ -205,6 +205,7 @@ async def user_message(sid, data):
         prompt_id = data.get('promptID', '')
 
         new_shout_data = {'_id': data['messageID'],
+                          'cid': data['cid'],
                           'user_id': data['userID'],
                           'prompt_id': prompt_id,
                           'message_text': data['messageText'],
@@ -400,7 +401,11 @@ async def get_neon_translations(sid, data):
             await sio.emit('translation_response', data={'translations': populated_translations,
                                                          'input_type': input_type}, to=sid)
             if updated_shouts:
-                await sio.emit('updated_shouts', data=updated_shouts, skip_sid=[sid])
+                send_dict = {
+                    'input_type': input_type,
+                    'translations': updated_shouts,
+                }
+                await sio.emit('updated_shouts', data=send_dict, skip_sid=[sid])
         except KeyError as err:
             LOG.error(f'No translation cache detected under request_id={request_id} (err={err})')
 

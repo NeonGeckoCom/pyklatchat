@@ -40,16 +40,18 @@ function initSIO(){
     socket.on('new_prompt_created', async (prompt) => {
         const messageContainer = getMessageListContainer(prompt['cid']);
         const promptID = prompt['_id'];
-        if (!document.getElementById(promptID)){
-            const messageHTML = await buildPromptHTML(prompt);
-            messageContainer.insertAdjacentHTML('beforeend', messageHTML);
+        if (await getCurrentSkin(prompt['cid']) === CONVERSATION_SKINS.PROMPTS) {
+            if (!document.getElementById( promptID )) {
+                const messageHTML = await buildPromptHTML( prompt );
+                messageContainer.insertAdjacentHTML( 'beforeend', messageHTML );
+            }
         }
     });
 
     socket.on('new_message', async (data) => {
         console.debug('received new_message -> ', data)
         const msgData = JSON.parse(data);
-        const skin = getCIDStoreProperty(msgData['cid'], 'skin');
+        const skin = await getCurrentSkin(msgData['cid']);
         if (skin === CONVERSATION_SKINS.BASE) {
             const preferredLang = getPreferredLanguage(msgData['cid']);
             if (data?.lang !== preferredLang) {
@@ -96,7 +98,7 @@ function initSIO(){
     socket.on('updated_shouts', async (data) =>{
         const inputType = data['input_type'];
         for (const [cid, shouts] of Object.entries(data['translations'])){
-           if (isDisplayed(cid) && getCIDStoreProperty(cid, 'skin') === CONVERSATION_SKINS.BASE){
+           if (await getCurrentSkin(cid) === CONVERSATION_SKINS.BASE){
                await requestTranslation(cid, shouts, null, inputType);
            }
        }

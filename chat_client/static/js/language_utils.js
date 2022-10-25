@@ -70,8 +70,8 @@ async function fetchSupportedLanguages(){
  */
 async function requestTranslation(cid=null, shouts=null, lang=null, inputType='incoming', translateToBaseLang=false){
     let requestBody = {chat_mapping: {}};
-    const skin = getCIDStoreProperty(cid, 'skin');
-    if(cid && isDisplayed(cid) && skin === CONVERSATION_SKINS.BASE){
+    const skin = await getCurrentSkin(cid);
+    if(cid && await isDisplayed(cid) && skin === CONVERSATION_SKINS.BASE){
         lang = lang || getPreferredLanguage(cid, inputType);
         if (lang !== 'en' && getMessagesOfCID(cid).length > 0){
              setChatState(cid, 'updating', 'Applying New Language...');
@@ -203,7 +203,7 @@ async function requestChatsLanguageRefresh(){
     const languageMapping = currentUser?.preferences?.chat_language_mapping || {};
     console.log(`languageMapping=${JSON.stringify(languageMapping)}`)
     for (const [cid, value] of Object.entries(languageMapping)) {
-        if (isDisplayed(cid)) {
+        if (await isDisplayed(cid)) {
             for (const inputType of ['incoming', 'outcoming']) {
                 const lang = value[inputType] || 'en';
                 if (lang !== 'en') {
@@ -228,7 +228,7 @@ async function applyTranslations(data){
     const inputType = setDefault(data, 'input_type', 'incoming');
     for (const [cid, messageTranslations] of Object.entries(data['translations'])) {
 
-        if(!isDisplayed(cid) || getCIDStoreProperty(cid, 'skin') !== CONVERSATION_SKINS.BASE){
+        if(await getCurrentSkin(cid) !== CONVERSATION_SKINS.BASE){
             console.log(`cid=${cid} is not displayed, skipping translations population`)
             continue;
         }

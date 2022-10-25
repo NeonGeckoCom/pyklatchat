@@ -91,7 +91,7 @@ const getUserPromptTR = (promptID, userID) => {
  */
 async function addPromptMessage(cid, userID, messageText, promptId, promptState){
     const tableBody = document.getElementById(`${promptId}_tbody`);
-    if (isDisplayed(cid) && tableBody){
+    if (await getCurrentSkin(cid) === CONVERSATION_SKINS.PROMPTS){
         try {
             promptState = PROMPT_STATES[promptState].toLowerCase();
             if (!getUserPromptTR(promptId, userID)) {

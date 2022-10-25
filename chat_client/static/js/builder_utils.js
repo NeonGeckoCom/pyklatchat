@@ -179,28 +179,42 @@ async function buildPromptHTML(prompt) {
     }else {
         promptData['winner'] = getPromptWinnerText(promptData['winner']);
     }
+    const emptyAnswer = `<h4>-</h4>`;
     for (const submindID of Array.from(setDefault(promptData, 'participating_subminds', []))) {
         let submindUserData;
         try {
-            let submindResponse = promptData['proposed_responses'][submindID];
-            let submindOpinion = promptData['submind_opinions'][submindID];
-            let submindVote = promptData['votes'][submindID];
+            const searchedKeys = ['proposed_responses', 'submind_opinions', 'votes'];
+            let isLegacy = false;
             try {
                 submindUserData = prompt['user_mapping'][submindID][0];
-                submindResponse = prompt['message_mapping'][submindResponse][0]['message_text'];
-                submindOpinion = prompt['message_mapping'][submindOpinion][0]['message_text'];
-                submindVote = prompt['message_mapping'][submindVote][0]['message_text'];
             } catch (e) {
-                console.warn('Detected legacy prompt structure')
+                console.warn('Detected legacy prompt structure');
                 submindUserData = {
                     'nickname': submindID,
                     'first_name': 'Klat',
                     'last_name': 'User'
                 }
+                isLegacy = true
             }
-            submindsHTML += await buildSubmindHTML(prompt['_id'], submindID, submindUserData, submindResponse, submindOpinion, submindVote);
+            const data = {}
+            searchedKeys.forEach(key=>{
+                try {
+                    let value = promptData[key][submindID];
+                    if (!isLegacy) {
+                        value = prompt['message_mapping'][value][0]['message_text'];
+                    }
+                    if (!value) {
+                        value = emptyAnswer
+                    }
+                    data[key] = value;
+                }catch (e) {
+                    data[key] = emptyAnswer;
+                }
+            });
+            submindsHTML += await buildSubmindHTML(prompt['_id'], submindID, submindUserData,
+                                                   data.proposed_responses, data.submind_opinions, data.votes);
         }catch (e) {
-            console.log(`Malformed data for ${submindID} (prompt_id=${prompt['_id']})`);
+            console.log(`Malformed data for ${submindID} (prompt_id=${prompt['_id']}) ex=${e}`);
         }
     }
     return await buildHTMLFromTemplate("prompt_table",

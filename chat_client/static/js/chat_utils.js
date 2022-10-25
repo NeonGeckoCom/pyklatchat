@@ -200,7 +200,7 @@ async function buildConversation(conversationData={}, skin = CONVERSATION_SKINS.
         return -1;
     }
     if(remember){
-       addNewCID(cid, skin);
+       await addNewCID(cid, skin);
     }
     const newConversationHTML = await buildConversationHTML(conversationData, skin);
     const conversationsBody = document.getElementById(conversationParentID);
@@ -290,9 +290,9 @@ async function buildConversation(conversationData={}, skin = CONVERSATION_SKINS.
     }
 
     if (chatCloseButton.hasAttribute('data-target-cid')) {
-       chatCloseButton.addEventListener('click', (e) => {
+       chatCloseButton.addEventListener('click', async (e) => {
            conversationHolder.removeChild(conversationParent);
-           removeConversation(cid);
+           await removeConversation(cid);
            clearStateCache(cid);
        });
     }
@@ -341,19 +341,24 @@ async function getConversationDataByInput(input="", skin=CONVERSATION_SKINS.BASE
     return conversationData;
 }
 
+
+/**
+ * Returns table representing chat alignment
+ * @return {Table}
+ */
+const getChatAlignmentDb = () => {
+    return getDb(DATABASES.CHATS, DB_TABLES.CHAT_ALIGNMENT);
+}
 /**
  * Retrieves conversation layout from local storage
- * @param keyName: key to lookup in local storage (defaults to provided in config.js)
- * @returns {Object} mapping of conversation id to properties from local storage
+ * @returns {Array} collection of database-stored elements
  */
-function retrieveItemsLayout(keyName=conversationAlignmentKey){
-    let itemsLayout = localStorage.getItem(keyName);
-    itemsLayout = itemsLayout?JSON.parse(itemsLayout): {};
-    if (Array.isArray(itemsLayout)){
-        console.warn('Invalid items layout, cleaning up');
-        itemsLayout = itemsLayout.filter(x=>![null, undefined].includes(x))[0];
+async function retrieveItemsLayout(idOnly=false){
+    let layout = await getChatAlignmentDb().orderBy("added_on").toArray();
+    if (idOnly){
+        layout = layout.map(a => a.cid);
     }
-    return itemsLayout || {};
+    return layout;
 }
 
 /**
@@ -361,48 +366,47 @@ function retrieveItemsLayout(keyName=conversationAlignmentKey){
  * @param cid: conversation id to add
  * @param skin: conversation skin to add
  */
-function addNewCID(cid, skin){
-    const keyName = conversationAlignmentKey;
-    let itemLayout = retrieveItemsLayout(keyName) || {};
-    itemLayout[cid] = {'skin': skin, 'added_on': getCurrentTimestamp()};
-    localStorage.setItem(keyName,JSON.stringify(itemLayout));
+async function addNewCID(cid, skin){
+    return await getChatAlignmentDb().put({'cid': cid, 'skin': skin, 'added_on': getCurrentTimestamp()}, [cid]);
 }
 
 /**
  * Removed conversation id from local storage
  * @param cid: conversation id to remove
  */
-function removeConversation(cid){
-    const keyName = conversationAlignmentKey;
-    let itemLayout = retrieveItemsLayout(keyName);
-    delete itemLayout[cid];
-    if (Object.keys(itemLayout).length === 0){
-        $('#copyrightContainer').css('position', 'absolute');
-    }
-    localStorage.setItem(keyName,JSON.stringify(itemLayout));
+async function removeConversation(cid){
+    return await getChatAlignmentDb().where({cid: cid}).delete();
 }
 
 /**
  * Checks if conversation is displayed
  * @param cid: target conversation id
- * @return true if cid is displayed, false otherwise
+ * @return true if cid is stored in client db, false otherwise
  */
-function isDisplayed(cid){
-    return Object.keys(retrieveItemsLayout()).includes(cid);
+async function isDisplayed(cid){
+    return await getStoredConversationData(cid) !== undefined;
 }
+
 
 /**
  * Gets value of desired property in stored conversation
  * @param cid: target conversation id
- * @param key: key of stored conversation
- * @param defaultValue: default value to return
  * @return true if cid is displayed, false otherwise
  */
-function getCIDStoreProperty(cid, key, defaultValue=null){
-    if (key === 'skin'){
-        defaultValue = CONVERSATION_SKINS.BASE;
-    }
-    return setDefault(setDefault(retrieveItemsLayout(), cid, {}), key, defaultValue);
+async function getStoredConversationData(cid){
+    return await getChatAlignmentDb().where( {cid: cid} ).first();
+}
+
+/**
+ * Returns current skin of provided conversation id
+ * @param cid: target conversation id
+ * @return {string} skin from CONVERSATION_SKINS
+ */
+async function getCurrentSkin(cid){
+    const storedCID = await getStoredConversationData(cid);
+    if(storedCID) {
+        return storedCID['skin'];
+    }return null;
 }
 
 /**
@@ -412,10 +416,9 @@ function getCIDStoreProperty(cid, key, defaultValue=null){
  * @param value: value to set
  */
 function updateCIDStoreProperty(cid, property, value){
-    const keyName = conversationAlignmentKey;
-    let itemLayout = retrieveItemsLayout(keyName);
-    setDefault(itemLayout, cid, {})[property] = value;
-    localStorage.setItem(keyName,JSON.stringify(itemLayout));
+    const updateObj = {}
+    updateObj[property] = value;
+    return getChatAlignmentDb().update(cid, updateObj);
 }
 
 /**
@@ -430,21 +433,20 @@ const chatAlignmentRestoredEvent = new CustomEvent("chatAlignmentRestored", { "d
  * @param keyName: name of the local storage key
 **/
 async function restoreChatAlignment(keyName=conversationAlignmentKey){
-    let itemsLayout = retrieveItemsLayout(keyName);
-    if (!itemsLayout || Object.keys(itemsLayout).length === 0){
-        itemsLayout = {'1': {'added_on': getCurrentTimestamp(), 'skin': CONVERSATION_SKINS.BASE}}
+    let cachedItems = await retrieveItemsLayout();
+    if (cachedItems.length === 0){
+        cachedItems = [{'cid': '1', 'added_on': getCurrentTimestamp(), 'skin': CONVERSATION_SKINS.BASE}]
+        await addNewCID('1', CONVERSATION_SKINS.BASE);
     }
-    let sortedEntries = Object.entries(itemsLayout).sort((a, b) => a[1]['added_on'] - b[1]['added_on']);
-    for (const [cid, props] of sortedEntries) {
-        const cidSkin = props?.skin;
-        await getConversationDataByInput(cid, cidSkin).then(async conversationData=>{
+    for (const item of cachedItems) {
+        await getConversationDataByInput(item.cid, item.skin).then(async conversationData=>{
             if(conversationData && Object.keys(conversationData).length > 0) {
-                await buildConversation(conversationData, cidSkin, false);
+                await buildConversation(conversationData, item.skin, false);
             }else{
-                if (cid !== '1') {
+                if (item.cid !== '1') {
                     displayAlert(document.getElementById('conversationsBody'), 'No matching conversation found', 'danger', 'noRestoreConversationAlert', {'type': alertBehaviors.AUTO_EXPIRE});
                 }
-                removeConversation(cid);
+                await removeConversation(item.cid);
             }
         });
     }
@@ -505,7 +507,7 @@ function getMessagesOfCID(cid, messageReferType=MESSAGE_REFER_TYPE.ALL, skin=CON
 function refreshChatView(){
     Array.from(conversationBody.getElementsByClassName('conversationContainer')).forEach(async conversation=>{
         const cid = conversation.getElementsByClassName('card')[0].id;
-        const skin = getCIDStoreProperty(cid, 'skin');
+        const skin = await getCurrentSkin(cid);
         if (skin === CONVERSATION_SKINS.BASE) {
             const messages = getMessagesOfCID(cid);
             Array.from(messages).forEach(message => {
@@ -578,7 +580,7 @@ async function displayConversation(searchStr, skin=CONVERSATION_SKINS.BASE, aler
         const alertParent = document.getElementById(alertParentID);
         await getConversationDataByInput(searchStr, skin).then(async conversationData => {
             let responseOk = false;
-            if (isDisplayed(conversationData['_id'])) {
+            if (await isDisplayed(conversationData['_id'])) {
                 displayAlert(alertParent, 'Chat is already displayed', 'danger');
             } else if (conversationData && Object.keys(conversationData).length > 0) {
                 await buildConversation(conversationData, skin);
