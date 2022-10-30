@@ -139,36 +139,73 @@ const selectTable = (table, exportToExcelBtn=null) => {
     }
 }
 
-
 /**
  * Wraps provided array of HTMLTable elements into XLSX file and exports it to the invoked user
  * @param tables: array of HTMLTable elements to export
  * @param filePrefix: prefix of the file name to be imported
  * @param sheetPrefix: prefix to apply for each sheet generated per HTMLTable
+ * @param appname: name of the application to export (defaults to Excel)
  */
-function exportTablesToExcel(tables, filePrefix = 'table_export', sheetPrefix="") {
-    const tablesData = [];
-    const sheetNames = [];
-    let xlsxData = null;
-    tables = Array.from(tables);
-    tables.forEach(table=>{
-        const exportTable = new TableExport(table, {formats:['xlsx'],filename: "test_export",sheet_name: 'Test_Sheet', bootstrap: false, exportButtons: false});
-        const exportData = exportTable.getExportData();
-        if (!xlsxData){
-            xlsxData = exportData[table.id].xlsx;
+const exportTablesToExcel = (function() {
+    let uri = 'data:application/vnd.ms-excel;base64,'
+    , tmplWorkbookXML = '<?xml version="1.0"?><?mso-application progid="Excel.Sheet"?><Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">'
+      + '<DocumentProperties xmlns="urn:schemas-microsoft-com:office:office"><Author>Axel Richter</Author><Created>{created}</Created></DocumentProperties>'
+      + '<Styles>'
+      + '<Style ss:ID="Currency"><NumberFormat ss:Format="Currency"></NumberFormat></Style>'
+      + '<Style ss:ID="Date"><NumberFormat ss:Format="Medium Date"></NumberFormat></Style>'
+      + '</Styles>'
+      + '{worksheets}</Workbook>'
+    , tmplWorksheetXML = '<Worksheet ss:Name="{nameWS}"><Table>{rows}</Table></Worksheet>'
+    , tmplCellXML = '<Cell{attributeStyleID}{attributeFormula}><Data ss:Type="{nameType}">{data}</Data></Cell>'
+    , base64 = function(s) { return window.btoa(unescape(encodeURIComponent(s))) }
+    , format = function(s, c) { return s.replace(/{(\w+)}/g, function(m, p) { return c[p]; }) }
+    return function(tables, filePrefix, sheetPrefix='', appname='Excel') {
+      let ctx = "";
+      let workbookXML = "";
+      let worksheetsXML = "";
+      let rowsXML = "";
+
+      for (let i = 0; i < tables.length; i++) {
+        if (!tables[i].nodeType) tables[i] = document.getElementById(tables[i]);
+        for (let j = 0; j < tables[i].rows.length; j++) {
+          rowsXML += '<Row>'
+          for (let k = 0; k < tables[i].rows[j].cells.length; k++) {
+            let dataType = tables[i].rows[j].cells[k].getAttribute("data-type");
+            let dataStyle = tables[i].rows[j].cells[k].getAttribute("data-style");
+            let dataValue = tables[i].rows[j].cells[k].getAttribute("data-value");
+            dataValue = (dataValue)?dataValue:tables[i].rows[j].cells[k].innerHTML;
+            let dataFormula = tables[i].rows[j].cells[k].getAttribute("data-formula");
+            dataFormula = (dataFormula)?dataFormula:(appname=='Calc' && dataType=='DateTime')?dataValue:null;
+            ctx = {  attributeStyleID: (dataStyle=='Currency' || dataStyle=='Date')?' ss:StyleID="'+dataStyle+'"':''
+                   , nameType: (dataType=='Number' || dataType=='DateTime' || dataType=='Boolean' || dataType=='Error')?dataType:'String'
+                   , data: (dataFormula)?'':dataValue
+                   , attributeFormula: (dataFormula)?' ss:Formula="'+dataFormula+'"':''
+                  };
+            rowsXML += format(tmplCellXML, ctx);
+          }
+          rowsXML += '</Row>'
         }
-        tablesData.push(exportData[table.id].xlsx.data);
-        if (sheetPrefix) {
-            const sheetName = sheetPrefix.replaceAll("{id}", table.id);
-            sheetNames.push(sheetName)
-        }
-    });
-    const fileExtension = xlsxData.fileExtension;
-    const mimeType = xlsxData.mimeType;
-    const fileName = `${filePrefix}_${getCurrentTimestamp()}`;
-    const defaultExportTable = new TableExport(tables[0], {formats:['xlsx'],filename: "test_export",sheet_name: 'Test_Sheet', bootstrap: false, exportButtons: false});
-    exportMultiSheet(defaultExportTable, tablesData, mimeType, fileName, sheetNames, fileExtension)
-}
+        const sheetName = sheetPrefix.replaceAll("{id}", tables[i].id);
+        ctx = {rows: rowsXML, nameWS: sheetName || 'Sheet' + i};
+        worksheetsXML += format(tmplWorksheetXML, ctx);
+        rowsXML = "";
+      }
+
+      ctx = {created: (new Date()).getTime(), worksheets: worksheetsXML};
+      workbookXML = format(tmplWorkbookXML, ctx);
+
+     console.log(workbookXML);
+
+      let link = document.createElement("A");
+      link.href = uri + base64(workbookXML);
+      const fileName = `${filePrefix}_${getCurrentTimestamp()}`;
+      link.download = `${fileName}.xls`;
+      link.target = '_blank';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+  })();
 
 /**
  * Builds new conversation HTML from provided data and attaches it to the list of displayed conversations
