@@ -16,7 +16,7 @@ async function renderSuggestions() {
                     await displayConversation(cid);
                     conversationSearchInput.value = "";
                     importConversationModal.modal('hide');
-                    importConversationModalSuggestions.innerHTML = "";
+                    // importConversationModalSuggestions.innerHTML = "";
                 });
                 item.addEventListener('mouseover', (event) => {
                    item.classList.add('selected')

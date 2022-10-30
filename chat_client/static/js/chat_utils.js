@@ -642,9 +642,12 @@ async function createNewConversation(conversationName, isPrivate=false, conversa
 document.addEventListener('DOMContentLoaded', (e)=>{
 
     document.addEventListener('supportedLanguagesLoaded', async (e)=>{
-        await restoreChatAlignment()
+
+        await refreshCurrentUser(false)
+            .then(async _ => await restoreChatAlignment())
             .then(async _=>await refreshCurrentUser(true))
-            .then(async _=> await requestChatsLanguageRefresh());
+            .then(async _=> await requestChatsLanguageRefresh())
+            .then(async _=> renderSuggestions());
     });
 
     if (configData['client'] === CLIENTS.MAIN) {
@@ -658,7 +661,6 @@ document.addEventListener('DOMContentLoaded', (e)=>{
             });
         });
         conversationSearchInput.addEventListener('input', async (e)=>{ await renderSuggestions();});
-        conversationSearchInput.addEventListener('propertychange', async (e)=>{ await renderSuggestions();});
         addNewConversation.addEventListener('click', async (e) => {
             e.preventDefault();
             const newConversationID = document.getElementById('conversationID');

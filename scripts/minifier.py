@@ -38,6 +38,9 @@ from files_manipulator import FilesManipulator
 class FilesMinifier(FilesManipulator):
     """ Intelligent minifier of frontend modules """
 
+    __css_lib_installed = False
+    __js_lib_installed = False
+
     def __init__(self,
                  working_dir: str,
                  processing_pattern: str,
@@ -81,9 +84,14 @@ class FilesMinifier(FilesManipulator):
         else:
             # dest_path = dest_path.replace('.js', '.min.js')
             if source_path.endswith('css'):
+                if not self.__css_lib_installed:
+                    os.system('npm install uglifycss -g')
+                    self.__css_lib_installed = True
                 command = f'uglifycss --ugly-comments --output {dest_path} {source_path}'
             elif source_path.endswith('js'):
-                token = 'uglifyjs'
+                if not self.__js_lib_installed:
+                    os.system(f"npm install uglify-js -g")
+                    self.__js_lib_installed = True
                 command = f"uglifyjs --compress --mangle --output {dest_path}  -- {source_path}"
             else:
                 print(f'{source_path} is skipped')
@@ -92,8 +100,6 @@ class FilesMinifier(FilesManipulator):
 
     def run(self):
         # Ensures we have npm installed
-        os.system(f"npm install uglify-js -g")
-        os.system('npm install uglifycss -g')
         return self.walk_tree()
 
 

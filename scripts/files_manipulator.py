@@ -78,7 +78,7 @@ class FilesManipulator(ABC):
         print(f'walking through folder: {target_folder}')
         for item in listdir(target_folder):
             print(f'checking path: {item}')
-            if os.path.isdir(item) and item not in self.skip_dirs:
+            if os.path.isdir(os.path.join(self.working_dir, item)) and item not in self.skip_dirs:
                 self.walk_tree(item)
             else:
                 file_path = os.path.join(folder, item)
