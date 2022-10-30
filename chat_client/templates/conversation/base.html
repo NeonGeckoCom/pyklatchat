@@ -2,8 +2,7 @@
 
 {% block css_imports %}
     {{ super() }}
-    <link rel="stylesheet" href="../../static/css/sidebar.css">
-    <link rel="stylesheet" href="../../static/css/chat.css">
+    <link rel="stylesheet" href="{{ url_for('css', path='chat.css') }}">
 {% endblock %}
 
 {% block header %}
@@ -22,13 +21,15 @@
 
 {% block js_imports %}
     {{ super() }}
-    <script src="../../static/js/suggestions.js"></script>
-    <script src="../../static/js/replies.js"></script>
-    <script src="../../static/js/attachments.js"></script>
-    <script src="../../static/js/scroller_utils.js"></script>
-    <script src="../../static/js/speak_utils.js"></script>
-    <script src="../../static/js/message_utils.js"></script>
-    <script src="../../static/js/message_type_utils.js"></script>
-    <script src="../../static/js/chat_utils.js"></script>
-    <script src="../../static/js/profile.js"></script>
+    {% for js_module in ['suggestions.js',
+                         'replies.js',
+                         'attachments.js',
+                         'scroller_utils.js',
+                         'speak_utils.js',
+                         'message_utils.js',
+                         'message_type_utils.js',
+                         'chat_utils.js',
+                         'profile.js'] %}
+        <script type="text/javascript" src="{{ url_for('js', path=js_module) }}"></script>
+    {% endfor %}
 {% endblock %}

@@ -104,12 +104,13 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    static_suffix = '/build' if os.environ.get('KLAT_ENV', 'dev').upper() == 'PROD' else ''
+    chat_app.mount("/css", StaticFiles(directory=f"chat_client/static/css{static_suffix}"), name="css")
+    chat_app.mount("/js", StaticFiles(directory=f"chat_client/static/js{static_suffix}"), name="js")
 
-    chat_app.mount("/static", StaticFiles(directory="chat_client/static"), name="static")
     chat_app.include_router(base_blueprint.router)
     chat_app.include_router(chat_blueprint.router)
     chat_app.include_router(users_blueprint.router)
     chat_app.include_router(auth_blueprint.router)
     chat_app.include_router(components_blueprint.router)
-
     return chat_app

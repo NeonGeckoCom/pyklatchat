@@ -307,12 +307,15 @@ async function buildConversation(conversationData={}, skin = CONVERSATION_SKINS.
  * @param firstMessageID: id of the the most recent message
  * @param skin: resolves by server for which data to return
  * @param maxResults: max number of messages to fetch
+ * @param alertParent: parent of error alert (optional)
  * @returns {Promise<{}>} promise resolving conversation data returned
  */
-async function getConversationDataByInput(input="", skin=CONVERSATION_SKINS.BASE, firstMessageID=null, maxResults=10){
+async function getConversationDataByInput(input="", skin=CONVERSATION_SKINS.BASE, firstMessageID=null, maxResults=10, alertParent=null){
     let conversationData = {};
     if(input && typeof input === "string"){
-        // TODO: add skin resolver
+        if (await isDisplayed(input) && input !== '1'){
+            return displayAlert(alertParent, 'Chat is already displayed', 'danger');
+        }
         let query_url = `chat_api/search/${input}?limit_chat_history=${maxResults}&skin=${skin}`;
         if(firstMessageID){
             query_url += `&first_message_id=${firstMessageID}`;
@@ -578,17 +581,9 @@ function setChatState(cid, state='active', state_msg = ''){
 async function displayConversation(searchStr, skin=CONVERSATION_SKINS.BASE, alertParentID = null){
     if (searchStr !== "") {
         const alertParent = document.getElementById(alertParentID);
-        await getConversationDataByInput(searchStr, skin).then(async conversationData => {
+        await getConversationDataByInput(searchStr, skin, null, 10, alertParent).then(async conversationData => {
             let responseOk = false;
-            if (await isDisplayed(conversationData['_id'])) {
-                displayAlert(alertParent, 'Chat is already displayed', 'danger');
-            } else if (conversationData && Object.keys(conversationData).length > 0) {
-                await buildConversation(conversationData, skin);
-                for (const inputType of ['incoming', 'outcoming']){
-                    await requestTranslation(conversationData['_id'], null, null, inputType);
-                }
-                responseOk = true;
-            } else {
+            if (!conversationData || Object.keys(conversationData).length === 0){
                 displayAlert(
                     alertParent,
                     'Cannot find conversation matching your search',
@@ -596,6 +591,17 @@ async function displayConversation(searchStr, skin=CONVERSATION_SKINS.BASE, aler
                     'noSuchConversationAlert',
                     {'type': alertBehaviors.AUTO_EXPIRE}
                     );
+            }
+            else if (await isDisplayed(conversationData['_id'])) {
+                displayAlert(alertParent, 'Chat is already displayed', 'danger');
+            } else {
+                await buildConversation(conversationData, skin);
+                if (skin === CONVERSATION_SKINS.BASE) {
+                    for (const inputType of ['incoming', 'outcoming']) {
+                        await requestTranslation( conversationData['_id'], null, null, inputType );
+                    }
+                }
+                responseOk = true;
             }
             return responseOk;
         });

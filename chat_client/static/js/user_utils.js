@@ -31,7 +31,7 @@ let currentUser = null;
  */
 async function getUserData(userID=null){
     let userData = {}
-    let query_url = `users_api`;
+    let query_url = `users_api/`;
     if(userID){
         query_url+='?user_id='+userID;
     }
