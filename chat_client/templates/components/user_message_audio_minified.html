@@ -1,0 +1,23 @@
+<li class="{message_class}" style="overflow-x:hidden!important;">
+    <div class="chat-body w-100">
+        <div class="btn-group drop{message_orientation}">
+            <button type="button" class="btn btn-light" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+               <i class="fa fa-ellipsis-vertical"></i>
+            </button>
+            <div class="dropdown-menu" style="min-width: fit-content!important;">
+                <button id="{message_id}_text" class="btn btn-light fa fa-file-text fa-lg w-100"></button>
+            </div>
+        </div>
+        <div class="chat-message selectable" id="{message_id}" data-sender="{nickname}">
+            <div class="reply-placeholder"></div>
+            <small>{message_time}</small>&nbsp;&nbsp;<b class="message-nickname">{nickname}:&nbsp;</b>
+            <audio class="message-text message-audio" controls preload="none">
+                <source src="{audio_url}" type="audio/wav">
+                Your browser does not support the audio element.
+            </audio>
+            <span id="{message_id}-stt" class="stt-content mb-1"></span>
+            <span class="attachment-toggle fa fa-paperclip fa-lg"><br></span>
+            <span class="attachments-placeholder" style="display: none;"><br></span>
+        </div>
+    </div>
+</li>

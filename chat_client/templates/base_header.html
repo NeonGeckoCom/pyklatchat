@@ -33,16 +33,14 @@
                 </li>
                 {% if 'chats' in request.url|string %}
                     <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" style="color: #fff" href="#" id="navbarDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                        <a class="nav-link dropdown-toggle" style="color: #fff" href="#" id="navbarDropdownManageChats" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                           Chats
                         </a>
-                        <div class="dropdown-menu" aria-labelledby="navbarDropdown">
+                        <div class="dropdown-menu" aria-labelledby="navbarDropdownManageChats">
                           <a class="dropdown-item" href="#" data-toggle="modal"
                              data-target="#newConversationModal">Create</a>
-                          <a class="dropdown-item" href="#" data-toggle="modal"
+                          <a class="dropdown-item" id="importConversationOpener" href="#" data-toggle="modal"
                              data-target="#importConversationModal">Import</a>
-                          <div class="dropdown-divider"></div>
-                          <a class="dropdown-item" href="#">Search</a>
                         </div>
                     </li>
                 {% endif %}
@@ -52,11 +50,10 @@
                     <a class="nav-link dropdown-toggle" style="color: #fff" href="#" id="navbarDropdownHelp" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                       Help
                     </a>
-                    <div class="dropdown-menu" aria-labelledby="navbarDropdown">
+                    <div class="dropdown-menu" aria-labelledby="navbarDropdownHelp">
                       <a class="dropdown-item" href="#" data-toggle="modal"
                          data-target="#userManual">User Manual</a>
-                      <div class="dropdown-divider"></div>
-                      <a class="dropdown-item nav-link" data-toggle="modal" data-target="#licenseModal">
+                      <a class="dropdown-item" data-toggle="modal" data-target="#licenseModal">
                         Terms
                       </a>
                     </div>

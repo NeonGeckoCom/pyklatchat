@@ -1,0 +1,19 @@
+<li class="{message_class}" style="overflow-x:hidden!important;">
+    <div class="chat-body w-100">
+        <div class="btn-group drop{message_orientation}">
+            <button type="button" class="btn btn-light" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+               <i class="fa fa-ellipsis-vertical"></i>
+            </button>
+            <div class="dropdown-menu" style="min-width: fit-content!important;">
+                <button id="{message_id}_speak" class="btn btn-light fa fa-volume-up fa-lg w-100"></button>
+            </div>
+        </div>
+        <div class="chat-message selectable" id="{message_id}" data-sender="{nickname}">
+            <div class="reply-placeholder"></div>
+            <small>{message_time}</small>&nbsp;&nbsp;<b class="message-nickname">{nickname}:&nbsp;</b>
+            <span class="message-text" style="overflow-wrap: break-word;">{message_text}</span>
+            <span class="attachment-toggle fa fa-paperclip fa-lg" style="display: none;"><br></span>
+            <span class="attachments-placeholder" style="display: none;"></span>
+        </div>
+     </div>
+</li>
