@@ -180,6 +180,10 @@ body{
 
 /* End message styling */
 
+.conversationContainer {
+    position: relative;
+}
+
 .conversationContainer .card {
     resize: both;
     overflow:auto;
