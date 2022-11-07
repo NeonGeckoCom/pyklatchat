@@ -106,6 +106,9 @@ async function buildUserMessageHTML(userData, messageID, messageText, timeCreate
     }
     let templateSuffix = minificationEnabled? '_minified': '';
     const templateName = isAudio === '1'?`user_message_audio${templateSuffix}`: `user_message${templateSuffix}`;
+    if (isAudio === '0') {
+        messageText = messageText.replaceAll( '\n', '<br>' );
+    }
     return await buildHTMLFromTemplate(templateName,
         {'message_class': messageClass,
             'is_announcement': isAnnouncement,
