@@ -180,6 +180,12 @@ body{
 
 /* End message styling */
 
+.user_input{
+    min-height: 45px;
+    height: 45px;
+    max-height: 200px;
+}
+
 .conversationContainer {
     position: relative;
 }

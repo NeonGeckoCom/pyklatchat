@@ -207,6 +207,23 @@ const exportTablesToExcel = (function() {
     }
   })();
 
+
+/**
+ * Sends message based on input
+ * @param inputElem: input DOM element
+ * @param cid: conversation id
+ * @param repliedMessageId: replied message id
+ * @param isAudio: is message audio
+ * @param isAnnouncement: is message an announcement
+ */
+const sendMessage = async (inputElem, cid, repliedMessageId=null, isAudio='0', isAnnouncement='0') => {
+    const attachments = await saveAttachedFiles(cid);
+    if (Array.isArray(attachments)) {
+       emitUserMessage(inputElem, cid, repliedMessageId, attachments, isAudio, isAnnouncement);
+    }
+    inputElem.value = "";
+}
+
 /**
  * Builds new conversation HTML from provided data and attaches it to the list of displayed conversations
  * @param conversationData: JS Object containing conversation data of type:
@@ -257,15 +274,16 @@ async function buildConversation(conversationData={}, skin = CONVERSATION_SKINS.
        const filenamesContainer = document.getElementById(`filename-container-${conversationData['_id']}`)
        const attachmentsButton = document.getElementById('file-input-' + conversationData['_id']);
        const promptModeButton = document.getElementById(`prompt-mode-${conversationData['_id']}`);
+       const textInputElem = document.getElementById(conversationData['_id'] + '-input');
 
        if (chatInputButton.hasAttribute('data-target-cid')) {
-           chatInputButton.addEventListener('click', async (e) => {
-               const attachments = await saveAttachedFiles(conversationData['_id']);
-               const textInputElem = document.getElementById(conversationData['_id'] + '-input');
-               if (Array.isArray(attachments)) {
-                   emitUserMessage(textInputElem, conversationData['_id'], null, attachments, '0', '0');
+           textInputElem.addEventListener('keydown', async (e)=>{
+               if (e.code.includes('Shift')){
+                  await sendMessage(textInputElem, conversationData['_id']);
                }
-               textInputElem.value = "";
+           });
+           chatInputButton.addEventListener('click', async (e) => {
+               await sendMessage(textInputElem, conversationData['_id']);
            });
        }
 
