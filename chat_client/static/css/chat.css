@@ -188,12 +188,17 @@ body{
 
 .conversationContainer {
     position: relative;
+    display: inline-flex;
+    margin: 1px;
+    width: fit-content!important;
 }
 
 .conversationContainer .card {
     resize: both;
     overflow:auto;
-    width: 40%;
+    /*width: 40%;*/
+    height: 75vh;
+    width: 450px;
     min-width: 450px;
     max-width: 90%;
     min-height: 300px!important;
