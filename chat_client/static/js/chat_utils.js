@@ -368,9 +368,6 @@ async function buildConversation(conversationData={}, skin = CONVERSATION_SKINS.
 async function getConversationDataByInput(input="", skin=CONVERSATION_SKINS.BASE, firstMessageID=null, maxResults=10, alertParent=null){
     let conversationData = {};
     if(input && typeof input === "string"){
-        if (await isDisplayed(input) && input !== '1'){
-            return displayAlert(alertParent, 'Chat is already displayed', 'danger');
-        }
         let query_url = `chat_api/search/${input}?limit_chat_history=${maxResults}&skin=${skin}`;
         if(firstMessageID){
             query_url += `&first_message_id=${firstMessageID}`;
