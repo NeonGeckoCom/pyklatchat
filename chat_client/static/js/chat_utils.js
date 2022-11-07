@@ -277,8 +277,8 @@ async function buildConversation(conversationData={}, skin = CONVERSATION_SKINS.
        const textInputElem = document.getElementById(conversationData['_id'] + '-input');
 
        if (chatInputButton.hasAttribute('data-target-cid')) {
-           textInputElem.addEventListener('keydown', async (e)=>{
-               if (e.code.includes('Shift')){
+           textInputElem.addEventListener('keyup', async (e)=>{
+               if (e.shiftKey && e.key === 'Enter'){
                   await sendMessage(textInputElem, conversationData['_id']);
                }
            });
