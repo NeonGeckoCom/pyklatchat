@@ -30,6 +30,7 @@
     Script for building single import-ready widget source
 """
 import argparse
+import os
 from os.path import join
 from typing import Dict, Optional, List
 
@@ -63,7 +64,7 @@ class FileMerger(FilesManipulator):
         super().__init__(working_dir=working_dir, skip_files=skip_files)
         self.weighted_dirs = weighted_dirs or {}
         self.weighted_files = weighted_files or {}
-        self.save_to = save_to or f'foutput{self.DEFAULT_FILE_EXTENSION}'
+        self.save_to = save_to or f'output{self.DEFAULT_FILE_EXTENSION}'
         self.current_content = ""
 
     @staticmethod
@@ -123,7 +124,7 @@ class FileMerger(FilesManipulator):
             matching_dirs = self.weighted_dirs.get(str(weight), ())
             for folder in matching_dirs:
                 self.walk_tree(folder)
-        with open(self.save_to, 'w') as f:
+        with open(os.path.join(self.working_dir, self.save_to), 'w') as f:
             f.write(self.current_content)
         self.current_content = ""
 

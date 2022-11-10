@@ -158,14 +158,15 @@ const currentUserLoaded = new CustomEvent("currentUserLoaded", { "detail": "Even
 /**
  * Convenience method encapsulating refreshing page view based on current user
  * @param refreshChats: to refresh the chats (defaults to false)
+ * @param conversationContainer: DOM Element representing conversation container
  */
-async function refreshCurrentUser(refreshChats=false){
+async function refreshCurrentUser(refreshChats=false, conversationContainer=null){
     await getUserData().then(data=>{
         currentUser = data;
         console.log(`Loaded current user = ${JSON.stringify(currentUser)}`);
         updateNavbar();
         if(refreshChats) {
-            refreshChatView();
+            refreshChatView(conversationContainer);
         }
         console.log('current user loaded');
         document.dispatchEvent(currentUserLoaded);

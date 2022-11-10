@@ -91,6 +91,7 @@ const saveAttachedFiles = async (cid) => {
             }).catch(err=>{
                 errorOccurred=err;
             });
+        setChatState(cid, 'active')
         if(errorOccurred){
             console.error(`Error during attachments preparation: ${errorOccurred}, skipping message sending`);
             return -1
@@ -311,7 +312,7 @@ async function buildConversation(conversationData={}, skin = CONVERSATION_SKINS.
        promptModeButton.addEventListener('click', async (e) => {
            e.preventDefault();
            chatCloseButton.click();
-           await displayConversation(conversationData['_id'], CONVERSATION_SKINS.PROMPTS)
+           await displayConversation(conversationData['_id'], CONVERSATION_SKINS.PROMPTS, null, conversationParentID);
        });
     }
     else if (skin === CONVERSATION_SKINS.PROMPTS) {
@@ -323,7 +324,7 @@ async function buildConversation(conversationData={}, skin = CONVERSATION_SKINS.
        baseModeButton.addEventListener('click', async (e) => {
            e.preventDefault();
            chatCloseButton.click();
-           await displayConversation(cid, CONVERSATION_SKINS.BASE);
+           await displayConversation(cid, CONVERSATION_SKINS.BASE, null, conversationParentID);
        });
 
        // TODO: make an array of prompt tables only in dedicated conversation
@@ -340,7 +341,7 @@ async function buildConversation(conversationData={}, skin = CONVERSATION_SKINS.
            exportTablesToExcel(selectedTables, `prompts_of_${cid}`, 'prompt_{id}');
            Array.from(selectedTables).forEach(selectedTable => {
                selectedTable.classList.remove('selected');
-           })
+           });
        });
     }
 
@@ -350,6 +351,10 @@ async function buildConversation(conversationData={}, skin = CONVERSATION_SKINS.
            await removeConversation(cid);
            clearStateCache(cid);
        });
+    }
+    // Hide close button for Nano Frames
+    if (configData.client === CLIENTS.NANO){
+        chatCloseButton.hidden = true;
     }
     setTimeout(() => getMessageListContainer(conversationData['_id']).lastElementChild?.scrollIntoView(true), 0);
     // $('#copyrightContainer').css('position', 'inherit');
@@ -559,8 +564,11 @@ function getMessagesOfCID(cid, messageReferType=MESSAGE_REFER_TYPE.ALL, skin=CON
 /**
  * Refreshes chat view (e.g. when user session gets updated)
  */
-function refreshChatView(){
-    Array.from(conversationBody.getElementsByClassName('conversationContainer')).forEach(async conversation=>{
+function refreshChatView(conversationContainer=null){
+    if (!conversationContainer){
+        conversationContainer = conversationBody;
+    }
+    Array.from(conversationContainer.getElementsByClassName('conversationContainer')).forEach(async conversation=>{
         const cid = conversation.getElementsByClassName('card')[0].id;
         const skin = await getCurrentSkin(cid);
         if (skin === CONVERSATION_SKINS.BASE) {
@@ -629,8 +637,9 @@ function setChatState(cid, state='active', state_msg = ''){
  * @param searchStr: Search string to find matching conversation
  * @param skin: target conversation skin to display
  * @param alertParentID: id of the element to display alert in
+ * @param conversationParentID: parent Node ID of the conversation
  */
-async function displayConversation(searchStr, skin=CONVERSATION_SKINS.BASE, alertParentID = null){
+async function displayConversation(searchStr, skin=CONVERSATION_SKINS.BASE, alertParentID = null, conversationParentID='conversationsBody'){
     if (searchStr !== "") {
         const alertParent = document.getElementById(alertParentID);
         await getConversationDataByInput(searchStr, skin, null, 10, alertParent).then(async conversationData => {
@@ -647,7 +656,7 @@ async function displayConversation(searchStr, skin=CONVERSATION_SKINS.BASE, aler
             else if (await isDisplayed(conversationData['_id'])) {
                 displayAlert(alertParent, 'Chat is already displayed', 'danger');
             } else {
-                await buildConversation(conversationData, skin);
+                await buildConversation(conversationData, skin, true, conversationParentID);
                 if (skin === CONVERSATION_SKINS.BASE) {
                     for (const inputType of ['incoming', 'outcoming']) {
                         await requestTranslation( conversationData['_id'], null, null, inputType );
@@ -693,16 +702,14 @@ async function createNewConversation(conversationName, isPrivate=false, conversa
 
 document.addEventListener('DOMContentLoaded', (e)=>{
 
-    document.addEventListener('supportedLanguagesLoaded', async (e)=>{
-
-        await refreshCurrentUser(false)
+    if (configData['client'] === CLIENTS.MAIN) {
+        document.addEventListener('supportedLanguagesLoaded', async (e)=>{
+            await refreshCurrentUser(false)
             .then(async _ => await restoreChatAlignment())
             .then(async _=>await refreshCurrentUser(true))
             .then(async _=> await requestChatsLanguageRefresh())
             .then(async _=> renderSuggestions());
-    });
-
-    if (configData['client'] === CLIENTS.MAIN) {
+        });
         addBySearch.addEventListener('click', async (e) => {
             e.preventDefault();
             displayConversation(conversationSearchInput.value, CONVERSATION_SKINS.BASE, 'importConversationModalBody').then(responseOk=> {

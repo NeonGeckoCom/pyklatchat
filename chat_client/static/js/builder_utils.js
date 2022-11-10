@@ -304,4 +304,4 @@ async function buildConversationHTML(conversationData = {}, skin = CONVERSATION_
  */
 const buildSuggestionHTML = async (cid, name) => {
     return await buildHTMLFromTemplate('suggestion', {'cid': cid, 'conversation_name': name})
-}
+};

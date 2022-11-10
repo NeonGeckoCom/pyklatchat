@@ -190,7 +190,7 @@ function addProfileDisplay(cid, messageId){
     if (messageAvatar){
         messageAvatar.addEventListener('click', async (e)=>{
             const userNickname = messageAvatar.getAttribute('data-target');
-            if(userNickname) await showProfileModal(userNickname);
+            if(userNickname && configData.client === CLIENTS.MAIN) await showProfileModal(userNickname)
         });
     }
 }
