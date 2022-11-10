@@ -1,5 +1,6 @@
 const myAccountLink = document.getElementById('myAccountLink');
 const importConversationOpener = document.getElementById('importConversationOpener');
+const settingsLink = document.getElementById('settingsLink');
 
 /**
  * Shows modal associated with profile
@@ -136,5 +137,9 @@ document.addEventListener('DOMContentLoaded', (e)=> {
        e.preventDefault();
        conversationSearchInput.value = "";
        await renderSuggestions();
+    });
+    settingsLink.addEventListener('click', (e)=>{
+        e.preventDefault();
+        // await initSettingsModal();
     });
 });
