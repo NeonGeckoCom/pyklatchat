@@ -28,6 +28,7 @@ class NanoBuilder {
          * - CHAT_CLIENT_URL_BASE: HTTP Endpoint for Klatchat Client
          */
         this.options = options;
+        this.options.SOCKET_IO_SERVER_URL = options.SOCKET_IO_SERVER_URL || options.CHAT_SERVER_URL_BASE;
         configData.client = CLIENTS.NANO;
         this.applyConfigs();
         fetchSupportedLanguages()
@@ -80,7 +81,7 @@ class NanoBuilder {
      * @param options: provided nano builder options
      */
     resolveSIO(options){
-        configData['SOCKET_IO_SERVER_URL'] = options.SOCKET_IO_SERVER_URL || options.CHAT_SERVER_URL_BASE;
+        configData['SOCKET_IO_SERVER_URL'] = options.SOCKET_IO_SERVER_URL;
         document.dispatchEvent(configNanoLoadedEvent);
     }
 
