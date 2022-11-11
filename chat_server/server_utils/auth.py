@@ -37,6 +37,7 @@ from neon_utils import LOG
 
 from chat_server.constants.users import UserPatterns
 from chat_server.server_config import db_controller, app_config
+from chat_server.server_utils.db_utils import DbUtils
 from utils.common import generate_uuid
 from utils.http_utils import respond
 
@@ -140,14 +141,17 @@ def create_unauthorized_user(authorize: bool = True, nano_token: str = None) -> 
     return UserData(user=new_user, session=token)
 
 
-def get_current_user_data(request: Request, response: Response = None, force_tmp: bool = False, nano_token: str = None, sio_request: bool = False) -> UserData:
+def get_current_user_data(request: Request,
+                          force_tmp: bool = False,
+                          nano_token: str = None,
+                          sio_request: bool = False) -> UserData:
     """
         Gets current user according to response cookies
 
         :param request: Starlet request object
-        :param response: Starlet response object
         :param force_tmp: to force setting temporal credentials
         :param nano_token: token from nano client (optional)
+        :param sio_request: if request is from Socket IO server
 
         :returns UserData based on received authorization header or sets temporal user credentials if not found
     """
@@ -168,20 +172,14 @@ def get_current_user_data(request: Request, response: Response = None, force_tmp
                     payload = jwt.decode(jwt=session, key=secret_key, algorithms=jwt_encryption_algo)
                     current_timestamp = time()
                     if (int(current_timestamp) - int(payload.get('creation_time', 0))) <= session_lifetime:
-                        user = db_controller.exec_query(query={'command': 'find_one',
-                                                               'document': 'users',
-                                                               'data': ({'_id': payload['sub']})})
+                        user_id = payload['sub']
+                        user = DbUtils.get_user(user_id=user_id)
                         LOG.info(f'Fetched user data: {user}')
-                        user_preference_data = db_controller.exec_query(query={'document': 'user_preferences',
-                                                                               'command': 'find_one',
-                                                                               'data': {'_id': payload['sub']}}) or {}
-                        user_preference_data.pop('_id', None)
-                        user['preferences'] = user_preference_data
+                        user['preferences'] = DbUtils.get_user_preferences(user_id=user_id)
                         LOG.info(f'Fetched user preferences data: {user["preferences"]}')
                         if not user:
                             LOG.info(f'{payload["sub"]} is not found among users, setting temporal user credentials')
                         else:
-                            user_id = user['_id']
                             if (int(current_timestamp) - int(payload.get('last_refresh_time', 0))) >= session_refresh_rate:
                                 session = refresh_session(payload=payload)
                                 LOG.info('Session was refreshed')
@@ -196,9 +194,9 @@ def get_current_user_data(request: Request, response: Response = None, force_tmp
     return user_data
 
 
-def get_current_user(request: Request, response: Response = None, force_tmp: bool = False, nano_token: str = None) -> dict:
+def get_current_user(request: Request, force_tmp: bool = False, nano_token: str = None) -> dict:
     """ Backward compatibility method to support previous invocations """
-    return get_current_user_data(request=request, response=response, force_tmp=force_tmp, nano_token=nano_token).user
+    return get_current_user_data(request=request, force_tmp=force_tmp, nano_token=nano_token).user
 
 
 def refresh_session(payload: dict):

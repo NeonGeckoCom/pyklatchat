@@ -23,6 +23,7 @@
             {% include 'conversation/modals/login.html' %}
             {% include 'conversation/modals/signup.html' %}
             {% include 'conversation/modals/license.html' %}
+            {% include 'conversation/modals/user_settings.html' %}
         {% endblock %}
     </header>
     <div id="main">
@@ -51,6 +52,7 @@
                              'date_utils.js',
                              'file_utils.js',
                              'language_utils.js',
+                             'user_settings.js'
                              ] %}
             <script type="text/javascript" src="{{ url_for('js', path=js_module) }}"></script>
         {% endfor %}

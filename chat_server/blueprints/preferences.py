@@ -26,10 +26,11 @@
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from fastapi import APIRouter, Response, Request, Form
+from fastapi import APIRouter, Request, Form
 from neon_utils import LOG
 from chat_server.server_config import db_controller
 from chat_server.server_utils.auth import get_current_user, login_required
+from chat_server.server_utils.db_utils import DbUtils
 from utils.http_utils import respond
 
 router = APIRouter(
@@ -40,14 +41,13 @@ router = APIRouter(
 
 @router.post("/update_language/{cid}/{input_type}")
 @login_required
-async def update_language(request: Request, response: Response, cid: str, input_type: str, lang: str = Form(...)):
+async def update_language(request: Request, cid: str, input_type: str, lang: str = Form(...)):
     """ Updates preferred language of user in conversation """
     try:
-        current_user_id = get_current_user(request, response)['_id']
+        current_user_id = get_current_user(request)['_id']
     except Exception as ex:
         LOG.error(ex)
         return respond(f'Failed to update language of {cid}/{input_type} to {lang}')
-    db_controller.exec_query({'command': 'update', 'document': 'user_preferences',
-                              'data': ({'_id': current_user_id},
-                                       {'$set': {f'chat_language_mapping.{cid}.{input_type}': lang}})})
+    DbUtils.set_user_preferences(user_id=current_user_id,
+                                 preferences_mapping={f'chat_language_mapping.{cid}.{input_type}': lang})
     return respond(f'Updated cid={cid}, input_type={input_type} to language={lang}')

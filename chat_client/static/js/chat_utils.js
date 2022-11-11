@@ -1,4 +1,5 @@
 const importConversationModal = $('#importConversationModal');
+const importConversationOpener = document.getElementById('importConversationOpener');
 const conversationSearchInput = document.getElementById('conversationSearchInput');
 const importConversationModalSuggestions = document.getElementById('importConversationModalSuggestions');
 
@@ -733,6 +734,11 @@ document.addEventListener('DOMContentLoaded', (e)=>{
                     newConversationModal.modal('hide');
                 }
             });
+        });
+        importConversationOpener.addEventListener('click', async (e)=>{
+            e.preventDefault();
+            conversationSearchInput.value = "";
+            await renderSuggestions();
         });
     }
 });

@@ -170,9 +170,9 @@ async function refreshCurrentUser(refreshChats=false, conversationContainer=null
         }
         console.log('current user loaded');
         document.dispatchEvent(currentUserLoaded);
+        return data;
     });
 }
-
 
 document.addEventListener('DOMContentLoaded', (e)=>{
     if (configData['client'] === CLIENTS.MAIN) {

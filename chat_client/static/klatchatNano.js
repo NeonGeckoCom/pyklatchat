@@ -411,7 +411,7 @@ imageComponent = `<p>${shortedNick}</p>`;
 }
 const messageClass = isAnnouncement === '1'?'announcement':isMine?'in':'out';
 const messageOrientation = isMine?'right': 'left';
-let minificationEnabled = currentUser?.preferences?.minifyMessages === '1';
+let minificationEnabled = currentUser?.preferences?.minify_messages === '1';
 if(isAnnouncement === '1'){
 minificationEnabled = false;
 }

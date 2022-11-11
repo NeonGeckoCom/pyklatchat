@@ -1,5 +1,4 @@
 const myAccountLink = document.getElementById('myAccountLink');
-const importConversationOpener = document.getElementById('importConversationOpener');
 const settingsLink = document.getElementById('settingsLink');
 
 /**
@@ -129,17 +128,10 @@ async function initProfileEditModal(){
 
 document.addEventListener('DOMContentLoaded', (e)=> {
 
-    myAccountLink.addEventListener('click', async (e) => {
-        e.preventDefault();
-        await initProfileEditModal();
-    });
-    importConversationOpener.addEventListener('click', async (e)=>{
-       e.preventDefault();
-       conversationSearchInput.value = "";
-       await renderSuggestions();
-    });
-    settingsLink.addEventListener('click', (e)=>{
-        e.preventDefault();
-        // await initSettingsModal();
-    });
+    if (configData.client === CLIENTS.MAIN) {
+        myAccountLink.addEventListener( 'click', async (e) => {
+            e.preventDefault();
+            await initProfileEditModal();
+        } );
+    }
 });
