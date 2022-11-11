@@ -111,7 +111,5 @@ def create_app() -> FastAPI:
 
     chat_app.include_router(base_blueprint.router)
     chat_app.include_router(chat_blueprint.router)
-    chat_app.include_router(users_blueprint.router)
-    chat_app.include_router(auth_blueprint.router)
     chat_app.include_router(components_blueprint.router)
     return chat_app
