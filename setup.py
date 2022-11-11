@@ -72,7 +72,7 @@ setup(
     zip_safe=True,
     classifiers=[
         'Intended Audience :: Developers',
-        'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.8',
     ],
     entry_points={
         'console_scripts': [
