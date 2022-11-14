@@ -108,10 +108,10 @@ class ChatObserver(MQConnector):
                                queue='neon_tts_response',
                                callback=self.on_tts_response,
                                on_error=self.default_error_handler)
-        self.register_consumer(name='submind_response',
+        self.register_consumer(name='submind_shout',
                                vhost=self.get_vhost('chatbots'),
                                queue='submind_response',
-                               callback=self.handle_submind_response,
+                               callback=self.handle_submind_shout,
                                on_error=self.default_error_handler)
         self.register_consumer(name='save_prompt_data',
                                vhost=self.get_vhost('chatbots'),
@@ -501,18 +501,20 @@ class ChatObserver(MQConnector):
         LOG.error(f'Error response from Neon API: {body}')
 
     @create_mq_callback()
-    def handle_submind_response(self, body: dict):
+    def handle_submind_shout(self, body: dict):
         """
-            Handles responses from subminds
+            Handles shouts from subminds outside the PyKlatchat
 
             :param body: request body (dict)
 
         """
 
-        response_required_keys = ('userID', 'cid', 'messageText', 'bot', 'timeCreated',)
+        response_required_keys = ('userID', 'cid', 'messageText',)
 
         if all(required_key in list(body) for required_key in response_required_keys):
+            body.setdefault('timeCreated', int(time.time()))
             self.sio.emit('user_message', data=body)
+            self.handle_message(data=body)
         else:
             error_msg = f'Skipping received data {body} as it lacks one of the required keys: ' \
                         f'({",".join(response_required_keys)})'
