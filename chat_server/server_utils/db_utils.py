@@ -488,6 +488,7 @@ class DbUtils(metaclass=Singleton):
 
     @staticmethod
     def get_query_properties(cid=None, message_id=None) -> Tuple[MongoDocuments, MongoFilter]:
+        """ Returns query properties based on provided ids """
         if not any(x for x in (cid, message_id,)):
             LOG.warning('Blank both cid and message_id')
             return None, None
