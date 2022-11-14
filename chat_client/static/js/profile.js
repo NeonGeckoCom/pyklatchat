@@ -1,4 +1,5 @@
 const myAccountLink = document.getElementById('myAccountLink');
+const settingsLink = document.getElementById('settingsLink');
 
 /**
  * Shows modal associated with profile
@@ -127,8 +128,10 @@ async function initProfileEditModal(){
 
 document.addEventListener('DOMContentLoaded', (e)=> {
 
-    myAccountLink.addEventListener('click', async (e) => {
-        e.preventDefault();
-        await initProfileEditModal();
-    });
+    if (configData.client === CLIENTS.MAIN) {
+        myAccountLink.addEventListener( 'click', async (e) => {
+            e.preventDefault();
+            await initProfileEditModal();
+        } );
+    }
 });

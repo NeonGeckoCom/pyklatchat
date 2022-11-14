@@ -1,4 +1,5 @@
 const importConversationModal = $('#importConversationModal');
+const importConversationOpener = document.getElementById('importConversationOpener');
 const conversationSearchInput = document.getElementById('conversationSearchInput');
 const importConversationModalSuggestions = document.getElementById('importConversationModalSuggestions');
 
@@ -91,6 +92,7 @@ const saveAttachedFiles = async (cid) => {
             }).catch(err=>{
                 errorOccurred=err;
             });
+        setChatState(cid, 'active')
         if(errorOccurred){
             console.error(`Error during attachments preparation: ${errorOccurred}, skipping message sending`);
             return -1
@@ -139,35 +141,89 @@ const selectTable = (table, exportToExcelBtn=null) => {
     }
 }
 
-
 /**
  * Wraps provided array of HTMLTable elements into XLSX file and exports it to the invoked user
  * @param tables: array of HTMLTable elements to export
  * @param filePrefix: prefix of the file name to be imported
  * @param sheetPrefix: prefix to apply for each sheet generated per HTMLTable
+ * @param appname: name of the application to export (defaults to Excel)
  */
-function exportTablesToExcel(tables, filePrefix = 'table_export', sheetPrefix="") {
-    const tablesData = [];
-    const sheetNames = [];
-    let xlsxData = null;
-    tables = Array.from(tables);
-    tables.forEach(table=>{
-        const exportTable = new TableExport(table, {formats:['xlsx'],filename: "test_export",sheet_name: 'Test_Sheet', bootstrap: false, exportButtons: false});
-        const exportData = exportTable.getExportData();
-        if (!xlsxData){
-            xlsxData = exportData[table.id].xlsx;
+const exportTablesToExcel = (function() {
+    let uri = 'data:application/vnd.ms-excel;base64,'
+    , tmplWorkbookXML = '<?xml version="1.0"?><?mso-application progid="Excel.Sheet"?><Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">'
+      + '<DocumentProperties xmlns="urn:schemas-microsoft-com:office:office"><Author>Axel Richter</Author><Created>{created}</Created></DocumentProperties>'
+      + '<Styles>'
+      + '<Style ss:ID="Currency"><NumberFormat ss:Format="Currency"></NumberFormat></Style>'
+      + '<Style ss:ID="Date"><NumberFormat ss:Format="Medium Date"></NumberFormat></Style>'
+      + '</Styles>'
+      + '{worksheets}</Workbook>'
+    , tmplWorksheetXML = '<Worksheet ss:Name="{nameWS}"><Table>{rows}</Table></Worksheet>'
+    , tmplCellXML = '<Cell{attributeStyleID}{attributeFormula}><Data ss:Type="{nameType}">{data}</Data></Cell>'
+    , base64 = function(s) { return window.btoa(unescape(encodeURIComponent(s))) }
+    , format = function(s, c) { return s.replace(/{(\w+)}/g, function(m, p) { return c[p]; }) }
+    return function(tables, filePrefix, sheetPrefix='', appname='Excel') {
+      let ctx = "";
+      let workbookXML = "";
+      let worksheetsXML = "";
+      let rowsXML = "";
+
+      for (let i = 0; i < tables.length; i++) {
+        if (!tables[i].nodeType) tables[i] = document.getElementById(tables[i]);
+        for (let j = 0; j < tables[i].rows.length; j++) {
+          rowsXML += '<Row>'
+          for (let k = 0; k < tables[i].rows[j].cells.length; k++) {
+            let dataType = tables[i].rows[j].cells[k].getAttribute("data-type");
+            let dataStyle = tables[i].rows[j].cells[k].getAttribute("data-style");
+            let dataValue = tables[i].rows[j].cells[k].getAttribute("data-value");
+            dataValue = (dataValue)?dataValue:tables[i].rows[j].cells[k].innerHTML;
+            let dataFormula = tables[i].rows[j].cells[k].getAttribute("data-formula");
+            dataFormula = (dataFormula)?dataFormula:(appname=='Calc' && dataType=='DateTime')?dataValue:null;
+            ctx = {  attributeStyleID: (dataStyle=='Currency' || dataStyle=='Date')?' ss:StyleID="'+dataStyle+'"':''
+                   , nameType: (dataType=='Number' || dataType=='DateTime' || dataType=='Boolean' || dataType=='Error')?dataType:'String'
+                   , data: (dataFormula)?'':dataValue
+                   , attributeFormula: (dataFormula)?' ss:Formula="'+dataFormula+'"':''
+                  };
+            rowsXML += format(tmplCellXML, ctx);
+          }
+          rowsXML += '</Row>'
         }
-        tablesData.push(exportData[table.id].xlsx.data);
-        if (sheetPrefix) {
-            const sheetName = sheetPrefix.replaceAll("{id}", table.id);
-            sheetNames.push(sheetName)
-        }
-    });
-    const fileExtension = xlsxData.fileExtension;
-    const mimeType = xlsxData.mimeType;
-    const fileName = `${filePrefix}_${getCurrentTimestamp()}`;
-    const defaultExportTable = new TableExport(tables[0], {formats:['xlsx'],filename: "test_export",sheet_name: 'Test_Sheet', bootstrap: false, exportButtons: false});
-    exportMultiSheet(defaultExportTable, tablesData, mimeType, fileName, sheetNames, fileExtension)
+        const sheetName = sheetPrefix.replaceAll("{id}", tables[i].id);
+        ctx = {rows: rowsXML, nameWS: sheetName || 'Sheet' + i};
+        worksheetsXML += format(tmplWorksheetXML, ctx);
+        rowsXML = "";
+      }
+
+      ctx = {created: (new Date()).getTime(), worksheets: worksheetsXML};
+      workbookXML = format(tmplWorkbookXML, ctx);
+
+     console.log(workbookXML);
+
+      let link = document.createElement("A");
+      link.href = uri + base64(workbookXML);
+      const fileName = `${filePrefix}_${getCurrentTimestamp()}`;
+      link.download = `${fileName}.xls`;
+      link.target = '_blank';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+  })();
+
+
+/**
+ * Sends message based on input
+ * @param inputElem: input DOM element
+ * @param cid: conversation id
+ * @param repliedMessageId: replied message id
+ * @param isAudio: is message audio
+ * @param isAnnouncement: is message an announcement
+ */
+const sendMessage = async (inputElem, cid, repliedMessageId=null, isAudio='0', isAnnouncement='0') => {
+    const attachments = await saveAttachedFiles(cid);
+    if (Array.isArray(attachments)) {
+       emitUserMessage(inputElem, cid, repliedMessageId, attachments, isAudio, isAnnouncement);
+    }
+    inputElem.value = "";
 }
 
 /**
@@ -220,15 +276,16 @@ async function buildConversation(conversationData={}, skin = CONVERSATION_SKINS.
        const filenamesContainer = document.getElementById(`filename-container-${conversationData['_id']}`)
        const attachmentsButton = document.getElementById('file-input-' + conversationData['_id']);
        const promptModeButton = document.getElementById(`prompt-mode-${conversationData['_id']}`);
+       const textInputElem = document.getElementById(conversationData['_id'] + '-input');
 
        if (chatInputButton.hasAttribute('data-target-cid')) {
-           chatInputButton.addEventListener('click', async (e) => {
-               const attachments = await saveAttachedFiles(conversationData['_id']);
-               const textInputElem = document.getElementById(conversationData['_id'] + '-input');
-               if (Array.isArray(attachments)) {
-                   emitUserMessage(textInputElem, conversationData['_id'], null, attachments, '0', '0');
+           textInputElem.addEventListener('keyup', async (e)=>{
+               if (e.shiftKey && e.key === 'Enter'){
+                  await sendMessage(textInputElem, conversationData['_id']);
                }
-               textInputElem.value = "";
+           });
+           chatInputButton.addEventListener('click', async (e) => {
+               await sendMessage(textInputElem, conversationData['_id']);
            });
        }
 
@@ -256,7 +313,7 @@ async function buildConversation(conversationData={}, skin = CONVERSATION_SKINS.
        promptModeButton.addEventListener('click', async (e) => {
            e.preventDefault();
            chatCloseButton.click();
-           await displayConversation(conversationData['_id'], CONVERSATION_SKINS.PROMPTS)
+           await displayConversation(conversationData['_id'], CONVERSATION_SKINS.PROMPTS, null, conversationParentID);
        });
     }
     else if (skin === CONVERSATION_SKINS.PROMPTS) {
@@ -268,7 +325,7 @@ async function buildConversation(conversationData={}, skin = CONVERSATION_SKINS.
        baseModeButton.addEventListener('click', async (e) => {
            e.preventDefault();
            chatCloseButton.click();
-           await displayConversation(cid, CONVERSATION_SKINS.BASE);
+           await displayConversation(cid, CONVERSATION_SKINS.BASE, null, conversationParentID);
        });
 
        // TODO: make an array of prompt tables only in dedicated conversation
@@ -285,7 +342,7 @@ async function buildConversation(conversationData={}, skin = CONVERSATION_SKINS.
            exportTablesToExcel(selectedTables, `prompts_of_${cid}`, 'prompt_{id}');
            Array.from(selectedTables).forEach(selectedTable => {
                selectedTable.classList.remove('selected');
-           })
+           });
        });
     }
 
@@ -295,6 +352,10 @@ async function buildConversation(conversationData={}, skin = CONVERSATION_SKINS.
            await removeConversation(cid);
            clearStateCache(cid);
        });
+    }
+    // Hide close button for Nano Frames
+    if (configData.client === CLIENTS.NANO){
+        chatCloseButton.hidden = true;
     }
     setTimeout(() => getMessageListContainer(conversationData['_id']).lastElementChild?.scrollIntoView(true), 0);
     // $('#copyrightContainer').css('position', 'inherit');
@@ -307,12 +368,12 @@ async function buildConversation(conversationData={}, skin = CONVERSATION_SKINS.
  * @param firstMessageID: id of the the most recent message
  * @param skin: resolves by server for which data to return
  * @param maxResults: max number of messages to fetch
+ * @param alertParent: parent of error alert (optional)
  * @returns {Promise<{}>} promise resolving conversation data returned
  */
-async function getConversationDataByInput(input="", skin=CONVERSATION_SKINS.BASE, firstMessageID=null, maxResults=10){
+async function getConversationDataByInput(input="", skin=CONVERSATION_SKINS.BASE, firstMessageID=null, maxResults=10, alertParent=null){
     let conversationData = {};
     if(input && typeof input === "string"){
-        // TODO: add skin resolver
         let query_url = `chat_api/search/${input}?limit_chat_history=${maxResults}&skin=${skin}`;
         if(firstMessageID){
             query_url += `&first_message_id=${firstMessageID}`;
@@ -504,8 +565,11 @@ function getMessagesOfCID(cid, messageReferType=MESSAGE_REFER_TYPE.ALL, skin=CON
 /**
  * Refreshes chat view (e.g. when user session gets updated)
  */
-function refreshChatView(){
-    Array.from(conversationBody.getElementsByClassName('conversationContainer')).forEach(async conversation=>{
+function refreshChatView(conversationContainer=null){
+    if (!conversationContainer){
+        conversationContainer = conversationBody;
+    }
+    Array.from(conversationContainer.getElementsByClassName('conversationContainer')).forEach(async conversation=>{
         const cid = conversation.getElementsByClassName('card')[0].id;
         const skin = await getCurrentSkin(cid);
         if (skin === CONVERSATION_SKINS.BASE) {
@@ -574,21 +638,14 @@ function setChatState(cid, state='active', state_msg = ''){
  * @param searchStr: Search string to find matching conversation
  * @param skin: target conversation skin to display
  * @param alertParentID: id of the element to display alert in
+ * @param conversationParentID: parent Node ID of the conversation
  */
-async function displayConversation(searchStr, skin=CONVERSATION_SKINS.BASE, alertParentID = null){
+async function displayConversation(searchStr, skin=CONVERSATION_SKINS.BASE, alertParentID = null, conversationParentID='conversationsBody'){
     if (searchStr !== "") {
         const alertParent = document.getElementById(alertParentID);
-        await getConversationDataByInput(searchStr, skin).then(async conversationData => {
+        await getConversationDataByInput(searchStr, skin, null, 10, alertParent).then(async conversationData => {
             let responseOk = false;
-            if (await isDisplayed(conversationData['_id'])) {
-                displayAlert(alertParent, 'Chat is already displayed', 'danger');
-            } else if (conversationData && Object.keys(conversationData).length > 0) {
-                await buildConversation(conversationData, skin);
-                for (const inputType of ['incoming', 'outcoming']){
-                    await requestTranslation(conversationData['_id'], null, null, inputType);
-                }
-                responseOk = true;
-            } else {
+            if (!conversationData || Object.keys(conversationData).length === 0){
                 displayAlert(
                     alertParent,
                     'Cannot find conversation matching your search',
@@ -596,6 +653,17 @@ async function displayConversation(searchStr, skin=CONVERSATION_SKINS.BASE, aler
                     'noSuchConversationAlert',
                     {'type': alertBehaviors.AUTO_EXPIRE}
                     );
+            }
+            else if (await isDisplayed(conversationData['_id'])) {
+                displayAlert(alertParent, 'Chat is already displayed', 'danger');
+            } else {
+                await buildConversation(conversationData, skin, true, conversationParentID);
+                if (skin === CONVERSATION_SKINS.BASE) {
+                    for (const inputType of ['incoming', 'outcoming']) {
+                        await requestTranslation( conversationData['_id'], null, null, inputType );
+                    }
+                }
+                responseOk = true;
             }
             return responseOk;
         });
@@ -635,13 +703,14 @@ async function createNewConversation(conversationName, isPrivate=false, conversa
 
 document.addEventListener('DOMContentLoaded', (e)=>{
 
-    document.addEventListener('supportedLanguagesLoaded', async (e)=>{
-        await restoreChatAlignment()
-            .then(async _=>await refreshCurrentUser(true))
-            .then(async _=> await requestChatsLanguageRefresh());
-    });
-
     if (configData['client'] === CLIENTS.MAIN) {
+        document.addEventListener('supportedLanguagesLoaded', async (e)=>{
+            await refreshCurrentUser(false)
+            .then(async _ => await restoreChatAlignment())
+            .then(async _=>await refreshCurrentUser(true))
+            .then(async _=> await requestChatsLanguageRefresh())
+            .then(async _=> renderSuggestions());
+        });
         addBySearch.addEventListener('click', async (e) => {
             e.preventDefault();
             displayConversation(conversationSearchInput.value, CONVERSATION_SKINS.BASE, 'importConversationModalBody').then(responseOk=> {
@@ -652,7 +721,6 @@ document.addEventListener('DOMContentLoaded', (e)=>{
             });
         });
         conversationSearchInput.addEventListener('input', async (e)=>{ await renderSuggestions();});
-        conversationSearchInput.addEventListener('propertychange', async (e)=>{ await renderSuggestions();});
         addNewConversation.addEventListener('click', async (e) => {
             e.preventDefault();
             const newConversationID = document.getElementById('conversationID');
@@ -666,6 +734,11 @@ document.addEventListener('DOMContentLoaded', (e)=>{
                     newConversationModal.modal('hide');
                 }
             });
+        });
+        importConversationOpener.addEventListener('click', async (e)=>{
+            e.preventDefault();
+            conversationSearchInput.value = "";
+            await renderSuggestions();
         });
     }
 });

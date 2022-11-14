@@ -147,3 +147,17 @@ function setDefault(obj, key, val){
 function deleteElement(elem){
     if (elem && elem?.parentElement) return elem.parentElement.removeChild(elem);
 }
+
+const MIMES = [
+    ["xml","application/xml"],
+    ["bin","application/vnd.ms-excel.sheet.binary.macroEnabled.main"],
+    ["vml","application/vnd.openxmlformats-officedocument.vmlDrawing"],
+    ["data","application/vnd.openxmlformats-officedocument.model+data"],
+    ["bmp","image/bmp"],["png","image/png"],
+    ["gif","image/gif"],["emf","image/x-emf"],
+    ["wmf","image/x-wmf"],["jpg","image/jpeg"],
+    ["jpeg","image/jpeg"],["tif","image/tiff"],
+    ["tiff","image/tiff"], ["jfif","image/jfif"],["pdf","application/pdf"],
+    ["rels","application/vnd.openxmlformats-package.relationships+xml"]];
+
+const IMAGE_EXTENSIONS = MIMES.filter(item => item[1].startsWith('image/')).map(item=>item[0]);

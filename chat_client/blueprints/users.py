@@ -45,7 +45,7 @@ router = APIRouter(
 
 
 @router.get("/")
-def get_user(response: Response, request: Request, user_id: Optional[str] = None):
+async def get_user(response: Response, request: Request, user_id: Optional[str] = None):
     """
         Forwards getting user by id to the server API and handles the response cookies
 
@@ -70,7 +70,7 @@ def get_user(response: Response, request: Request, user_id: Optional[str] = None
 
 
 @router.post("/update")
-def update_user(request: Request,
+async def update_user(request: Request,
                 user_id: str = Form(...),
                 first_name: str = Form(""),
                 last_name: str = Form(""),

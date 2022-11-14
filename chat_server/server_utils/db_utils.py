@@ -384,25 +384,39 @@ class DbUtils(metaclass=Singleton):
         return updated_shouts
 
     @classmethod
-    def get_user_preferences(cls, user_id, create_if_not_exists: bool = False):
-        """ Gets preferences of specified user """
-        prefs = {}
+    def get_user_preferences(cls, user_id):
+        """ Gets preferences of specified user, creates default if not exists """
+        prefs = {
+            'tts': {},
+            'chat_language_mapping': {}
+        }
         if user_id:
-            prefs = cls.db_controller.exec_query(MongoQuery(command=MongoCommands.FIND_ONE,
-                                                            document=MongoDocuments.USER_PREFERENCES,
-                                                            filters=MongoFilter('_id', user_id)))
-            if not prefs and create_if_not_exists:
-                prefs = {
-                    '_id': user_id,
-                    'tts': {},
-                    'chat_language_mapping': {}
-                }
-                cls.db_controller.exec_query(MongoQuery(command=MongoCommands.INSERT_ONE,
-                                                        document=MongoDocuments.USER_PREFERENCES,
-                                                        data=prefs))
+            user = cls.get_user(user_id=user_id) or {}
+            if user and not user.get('preferences'):
+                cls.db_controller.exec_query(MongoQuery(command=MongoCommands.UPDATE,
+                                                        document=MongoDocuments.USERS,
+                                                        filters=MongoFilter(key='_id', value=user_id),
+                                                        data={'preferences': prefs},
+                                                        data_action='set'))
+            else:
+                prefs = user.get('preferences')
         else:
             LOG.warning('user_id is None')
         return prefs
+
+    @classmethod
+    def set_user_preferences(cls, user_id, preferences_mapping: dict):
+        """ Sets user preferences for specified user according to preferences mapping """
+        if user_id:
+            try:
+                update_mapping = {f'preferences.{key}': val for key, val in preferences_mapping.items()}
+                cls.db_controller.exec_query(MongoQuery(command=MongoCommands.UPDATE,
+                                                        document=MongoDocuments.USERS,
+                                                        filters=MongoFilter('_id', user_id),
+                                                        data=update_mapping,
+                                                        data_action='set'))
+            except Exception as ex:
+                LOG.error(f'Failed to update preferences for user_id={user_id} - {ex}')
 
     @classmethod
     def save_tts_response(cls, shout_id, audio_data: str, lang: str = 'en', gender: str = 'female') -> bool:
@@ -419,12 +433,11 @@ class DbUtils(metaclass=Singleton):
         from chat_server.server_config import sftp_connector
 
         audio_file_name = f'{shout_id}_{lang}_{gender}.wav'
-        filter_expression = {'_id': shout_id}
         try:
             sftp_connector.put_file_object(file_object=audio_data, save_to=f'audio/{audio_file_name}')
             cls.db_controller.exec_query(query=MongoQuery(command=MongoCommands.UPDATE,
                                                           document=MongoDocuments.SHOUTS,
-                                                          filters=filter_expression,
+                                                          filters=MongoFilter('_id', shout_id),
                                                           data={f'audio.{lang}.{gender}': audio_file_name},
                                                           data_action='set'))
             operation_success = True
@@ -442,11 +455,10 @@ class DbUtils(metaclass=Singleton):
             :param message_text: STT result transcript
             :param lang: language of speech (defaults to English)
         """
-        filter_expression = {'_id': shout_id}
         try:
             cls.db_controller.exec_query(query=MongoQuery(command=MongoCommands.UPDATE,
                                                           document=MongoDocuments.SHOUTS,
-                                                          filters=filter_expression,
+                                                          filters=MongoFilter('_id', shout_id),
                                                           data={f'transcripts.{lang}': message_text},
                                                           data_action='set'))
         except Exception as ex:

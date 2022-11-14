@@ -12,8 +12,8 @@ const getSessionToken = () => {
 
 const setSessionToken = (val) => {
     const currentValue = getSessionToken();
-    if (currentValue!==val) {
-        localStorage.setItem( 'session', val );
+    localStorage.setItem( 'session', val );
+    if (currentValue && currentValue!==val) {
         location.reload();
     }
 }
@@ -33,7 +33,8 @@ const fetchServer = async (urlSuffix, method=REQUEST_METHODS.GET, body=null, noC
         if (response.status === 401){
             const responseJson = await response.json();
             if (responseJson['msg'] === 'Session Expired'){
-               location.reload();
+                localStorage.removeItem('session');
+                location.reload();
             }
         }
         return response;

@@ -23,41 +23,43 @@
             <ul class="navbar-nav ml-3">
                 <li class="nav-item">
                     <a class="nav-link" href="#" style="color: #fff" id="myAccountLink">
-                        My Account
+                        Profile
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="#" style="color: #fff">
+                    <a class="nav-link" href="#" style="color: #fff" id="settingsLink">
                         Settings
                     </a>
                 </li>
                 {% if 'chats' in request.url|string %}
                     <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" style="color: #fff" href="#" id="navbarDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                          Manage Conversations
+                        <a class="nav-link dropdown-toggle" style="color: #fff" href="#" id="navbarDropdownManageChats" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                          Chats
                         </a>
-                        <div class="dropdown-menu" aria-labelledby="navbarDropdown">
+                        <div class="dropdown-menu" aria-labelledby="navbarDropdownManageChats">
                           <a class="dropdown-item" href="#" data-toggle="modal"
-                             data-target="#newConversationModal">Create New</a>
-                          <a class="dropdown-item" href="#" data-toggle="modal"
-                             data-target="#importConversationModal">Import Existing</a>
-                          <div class="dropdown-divider"></div>
-                          <a class="dropdown-item" href="#">Search in Conversations</a>
+                             data-target="#newConversationModal">Create</a>
+                          <a class="dropdown-item" id="importConversationOpener" href="#" data-toggle="modal"
+                             data-target="#importConversationModal">Import</a>
                         </div>
                     </li>
                 {% endif %}
             </ul>
             <ul class="navbar-nav ml-auto">
+                <li class="nav-item">
+                    <a class="nav-link" href="/chats/nano_demo" target="_blank" style="color: #fff" id="nanoLink">
+                        Nano
+                    </a>
+                </li>
                 <li class="nav-item dropdown">
                     <a class="nav-link dropdown-toggle" style="color: #fff" href="#" id="navbarDropdownHelp" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                       Help
                     </a>
-                    <div class="dropdown-menu" aria-labelledby="navbarDropdown">
+                    <div class="dropdown-menu" aria-labelledby="navbarDropdownHelp">
                       <a class="dropdown-item" href="#" data-toggle="modal"
                          data-target="#userManual">User Manual</a>
-                      <div class="dropdown-divider"></div>
-                      <a class="dropdown-item nav-link" data-toggle="modal" data-target="#licenseModal">
-                        License Agreement
+                      <a class="dropdown-item" data-toggle="modal" data-target="#licenseModal">
+                        Terms
                       </a>
                     </div>
                 </li>

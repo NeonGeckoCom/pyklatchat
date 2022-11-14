@@ -99,7 +99,16 @@ async function buildUserMessageHTML(userData, messageID, messageText, timeCreate
         imageComponent = `<p>${shortedNick}</p>`;
     }
     const messageClass = isAnnouncement === '1'?'announcement':isMine?'in':'out';
-    const templateName = isAudio === '1'?'user_message_audio': 'user_message';
+    const messageOrientation = isMine?'right': 'left';
+    let minificationEnabled = currentUser?.preferences?.minify_messages === '1';
+    if(isAnnouncement === '1'){
+        minificationEnabled = false;
+    }
+    let templateSuffix = minificationEnabled? '_minified': '';
+    const templateName = isAudio === '1'?`user_message_audio${templateSuffix}`: `user_message${templateSuffix}`;
+    if (isAudio === '0') {
+        messageText = messageText.replaceAll( '\n', '<br>' );
+    }
     return await buildHTMLFromTemplate(templateName,
         {'message_class': messageClass,
             'is_announcement': isAnnouncement,
@@ -107,6 +116,7 @@ async function buildUserMessageHTML(userData, messageID, messageText, timeCreate
             'message_id':messageID,
             'nickname': userData['nickname'],
             'message_text':messageText,
+            'message_orientation': messageOrientation,
             'audio_url': `${configData["CHAT_SERVER_URL_BASE"]}/files/audio/${messageID}`,
             'message_time': messageTime});
 }
@@ -294,4 +304,4 @@ async function buildConversationHTML(conversationData = {}, skin = CONVERSATION_
  */
 const buildSuggestionHTML = async (cid, name) => {
     return await buildHTMLFromTemplate('suggestion', {'cid': cid, 'conversation_name': name})
-}
+};

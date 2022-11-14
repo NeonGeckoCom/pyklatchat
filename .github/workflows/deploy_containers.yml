@@ -28,6 +28,15 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
+    - name: Install Node JS
+      run: |
+        sudo apt-get update && sudo apt-get install nodejs && sudo apt-get install npm
+    - name: Build minified js files
+      run: |
+        cd scripts && python minifier.py --working_dir ../chat_client/static/js --processing_pattern .*\.js$ --skipping_pattern .*\.min\.js$ --skip_dirs build
+    - name: Build minified css files
+      run: |
+        cd scripts && python minifier.py --working_dir ../chat_client/static/css --processing_pattern .*\.css$ --skipping_pattern .*\.min\.css$ --skip_dirs build
     - name: Authorize Github Token
       run: |
         echo $GITHUB_TOKEN | docker login ghcr.io -u neongeckocom --password-stdin

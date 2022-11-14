@@ -1,0 +1,30 @@
+<div class="modal fade" id="userSettingsModal" tabindex="-1" role="dialog" aria-labelledby="signupModalTitle" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title w-100 d-flex justify-content-center" id="userSettingsModalTitle">User Settings</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body non-selectable" id="userSettingsModalBody">
+          <div class="d-flex align-content-stretch flex-wrap">
+              <nav class="nav nav-pills flex-column w-25">
+                  <a class="nav-link nav-user-settings active" data-section-name="main" href="#">Main</a>
+                  <a class="nav-link nav-user-settings disabled" data-section-name="audio" href="#">Audio</a>
+                  <a class="nav-link nav-user-settings disabled" data-section-name="prompts" href="#">Prompts</a>
+              </nav>
+              <div class="flex-column w-75 m-auto user-settings-section justify-content-center text-center" id="user-settings-main-section">
+                    <div class="form-check">
+                        <label class="form-check-label" for="minifyMessages">Minify messages:&nbsp;&nbsp;</label>
+                        <input type="checkbox" class="user-settings-checkbox" id="minifyMessages">
+                    </div>
+              </div>
+          </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-info m-auto" id="applyUserSettings">Apply New Settings</button>
+      </div>
+    </div>
+  </div>
+</div>

@@ -30,9 +30,11 @@
     Script for building single import-ready widget source
 """
 import argparse
-from os import listdir
-from os.path import isfile, join
+import os
+from os.path import join
 from typing import Dict, Optional, List
+
+from scripts.files_manipulator import FilesManipulator
 
 
 class ParseKwargs(argparse.Action):
@@ -46,7 +48,7 @@ class ParseKwargs(argparse.Action):
             getattr(namespace, self.dest)[key] = value
 
 
-class FileMerger:
+class FileMerger(FilesManipulator):
     """
         File Merger is a convenience class for merging files dependencies
         into the single considering the order of insertion
@@ -59,11 +61,11 @@ class FileMerger:
                  weighted_files: Optional[Dict[str, tuple]] = None,
                  skip_files: Optional[List[str]] = None,
                  save_to: str = None):
-        self.working_dir = working_dir or '.'
+        super().__init__(working_dir=working_dir, skip_files=skip_files)
         self.weighted_dirs = weighted_dirs or {}
         self.weighted_files = weighted_files or {}
-        self.skip_files = skip_files or []
-        self.save_to = save_to or f'foutput{self.DEFAULT_FILE_EXTENSION}'
+        self.save_to = save_to or f'output{self.DEFAULT_FILE_EXTENSION}'
+        self.current_content = ""
 
     @staticmethod
     def build_from_args():
@@ -103,6 +105,9 @@ class FileMerger:
             lines = "\n".join(lines)
             return lines
 
+    def on_valid_file(self, file_path):
+        self.current_content += self.get_content(self.full_path(file_path))
+
     def run(self):
         """
             Runs merging based on provided attributes
@@ -111,20 +116,17 @@ class FileMerger:
 
         weights_list = sorted(weights_list, reverse=True)
 
-        current_content = ""
-
         for weight in weights_list:
             matching_files = self.weighted_files.get(str(weight), ())
             for file in matching_files:
                 if file not in self.skip_files:
-                    current_content += self.get_content(file)
+                    self.current_content += self.get_content(file)
             matching_dirs = self.weighted_dirs.get(str(weight), ())
             for folder in matching_dirs:
-                for file in [f for f in listdir(join(self.working_dir, folder)) if
-                             isfile(join(self.working_dir, folder, f)) and f'{folder}/{f}' not in self.skip_files]:
-                    current_content += self.get_content(join(self.working_dir, folder, file))
-        with open(self.save_to, 'w') as f:
-            f.write(current_content)
+                self.walk_tree(folder)
+        with open(os.path.join(self.working_dir, self.save_to), 'w') as f:
+            f.write(self.current_content)
+        self.current_content = ""
 
 
 def merge_files_by_arguments():

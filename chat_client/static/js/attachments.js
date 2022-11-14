@@ -95,6 +95,26 @@ function activateAttachments(cid, elem=null){
     });
 }
 
+
+/**
+ * Returns DOM element to include as file resolver based on its name
+ * @param filename: name of file to fetch
+ * @return {string}: resulting DOM element
+ */
+function attachmentHTMLBasedOnFilename(filename){
+
+    let fSplitted = filename.split('.');
+    if (fSplitted.length > 1){
+        const extension = fSplitted.pop();
+        const shrinkedName = shrinkToFit(filename, 12, `...${extension}`);
+        if (IMAGE_EXTENSIONS.includes(extension)){
+            return `<i class="fa fa-file-image"></i> ${shrinkedName}`;
+        }else{
+            return shrinkedName;
+        }
+    }return shrinkToFit(filename, 12);
+}
+
 /**
  * Resolves attachments to the message
  * @param cid: id of conversation
@@ -111,7 +131,7 @@ function resolveMessageAttachments(cid, messageID,attachments = []){
                     const attachmentPlaceholder = messageElem.getElementsByClassName('attachments-placeholder')[0];
                     attachments.forEach(attachment => {
                         const attachmentHTML = `<span class="attachment-item" data-file-name="${attachment['name']}" data-mime="${attachment['mime']}" data-size="${attachment['size']}">
-                                            ${shrinkToFit(attachment['name'], 10)}
+                                            ${attachmentHTMLBasedOnFilename(attachment['name'])}
                                         </span><br>`;
                         attachmentPlaceholder.insertAdjacentHTML('afterbegin', attachmentHTML);
                     });
@@ -119,6 +139,8 @@ function resolveMessageAttachments(cid, messageID,attachments = []){
                         attachmentPlaceholder.style.display = attachmentPlaceholder.style.display === "none" ? "" : "none";
                     });
                     activateAttachments(cid, attachmentPlaceholder);
+                    attachmentToggle.style.display = "";
+                    // attachmentPlaceholder.style.display = "";
                 }
             } else {
                 attachmentToggle.style.display = "none";

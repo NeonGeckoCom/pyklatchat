@@ -86,3 +86,16 @@ async def create_chat(conversation_name: str = Form(...),
     LOG.debug(f'Chat data {new_conversation} creation response: {json_data}')
 
     return JSONResponse(content=json_data, status_code=post_response.status_code)
+
+
+@router.get("/nano_demo")
+async def nano_demo(request: Request):
+    """
+        Minimal working Example of Nano
+    """
+    return conversation_templates.TemplateResponse("sample_nano.html",
+                                                   {"request": request,
+                                                    'title': 'Nano Demonstration',
+                                                    'description': 'Klatchat Nano is injectable JS module, '
+                                                                   'allowing to render Klat conversations on any third-party pages, '
+                                                                   'supporting essential features.'})

@@ -5,26 +5,36 @@ const configNanoLoadedEvent = new CustomEvent("configNanoLoaded", { "detail": "E
  */
 class NanoBuilder {
 
-    requiredProperties = ['CHAT_DATA', 'SOCKET_IO_SERVER_URL', 'CHAT_SERVER_URL_BASE'];
+    requiredProperties = ['CHAT_DATA', 'CHAT_SERVER_URL_BASE'];
     propertyHandlers = {
         'SOCKET_IO_SERVER_URL': this.resolveSIO,
-        'CHAT_SERVER_URL_BASE': this.addConfig
+        'CHAT_SERVER_URL_BASE': this.addConfig,
+        'CHAT_CLIENT_URL_BASE': this.setClientURL
     }
     /**
      * Constructing NanoBuilder instance
      * @param options: JS Object containing list of properties for built conversation
      */
-    async constructor(options = {}) {
+    constructor(options) {
         /**
          * Attributes for options:
-         * - parentID: id of parent Node (required)
-         * - cid: id of desired conversation (required)
+         * - CHAT_DATA: array of chat configs of type:
+         *      {
+         *           PARENT_ID: id of parent Node (required)
+         *           CID: id of desired conversation (required)
+         *      }
+         * - SOCKET_IO_SERVER_URL: HTTP Endpoint of Socket IO Server
+         * - CHAT_SERVER_URL_BASE: HTTP Endpoint for Klatchat Server
+         * - CHAT_CLIENT_URL_BASE: HTTP Endpoint for Klatchat Client
          */
         this.options = options;
+        this.options.SOCKET_IO_SERVER_URL = options.SOCKET_IO_SERVER_URL || options.CHAT_SERVER_URL_BASE;
         configData.client = CLIENTS.NANO;
         this.applyConfigs();
-        await refreshCurrentUser(true, false);
-        this.resolveChatData(this.options);
+        fetchSupportedLanguages()
+            .then(async _ => await refreshCurrentUser(false))
+            .then(_=>this.resolveChatData(this.options))
+            .then(async _=> await requestChatsLanguageRefresh());
     }
 
     /**
@@ -39,7 +49,7 @@ class NanoBuilder {
         for (const [key, value] of Object.entries(this.options)) {
             if(this.propertyHandlers.hasOwnProperty(key)){
                 const handler = this.propertyHandlers[key];
-                if (handler === this.addConfig){
+                if ([this.addConfig, this.setClientURL].includes(handler)){
                     handler(key, value);
                 }
                 else {
@@ -83,4 +93,14 @@ class NanoBuilder {
     addConfig(key, value){
         configData[key] = value;
     }
+
+    setClientURL(key, value){
+        configData['currentURLBase'] = value;
+    }
 }
+
+const initKlatChat = (options) => {
+    document.addEventListener('DOMContentLoaded', (e)=>{
+        return new NanoBuilder(options);
+    })
+};

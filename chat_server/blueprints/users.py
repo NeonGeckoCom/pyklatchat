@@ -35,6 +35,7 @@ from neon_utils import LOG
 from chat_server.server_config import db_controller
 from chat_server.server_utils.auth import get_current_user, check_password_strength, get_current_user_data, \
     login_required
+from chat_server.server_utils.db_utils import DbUtils
 from chat_server.server_utils.http_utils import save_file
 from utils.common import get_hash
 from utils.http_utils import respond
@@ -138,9 +139,7 @@ async def update_profile(request: Request,
         :returns status: 200 if data updated successfully, 403 if operation is on tmp user, 401 if something went wrong
     """
     user = get_current_user(request=request)
-    if user['_id'] != user_id:
-        return respond(msg='Cannot update data of unauthorized user', status_code=status.HTTP_403_FORBIDDEN)
-    elif user.get('is_tmp'):
+    if user.get('is_tmp'):
         return respond(msg=f"Unable to update data of 'tmp' user", status_code=status.HTTP_403_FORBIDDEN)
     update_dict = {'first_name': first_name,
                    'last_name': last_name,
@@ -156,7 +155,7 @@ async def update_profile(request: Request,
     if avatar:
         update_dict['avatar'] = await save_file(location_prefix='avatars', file=avatar)
     try:
-        filter_expression = {'_id': user_id}
+        filter_expression = {'_id': user['_id']}
         update_expression = {'$set': {k: v for k, v in update_dict.items() if v}}
         db_controller.exec_query(query={'document': 'users',
                                         'command': 'update',
@@ -166,3 +165,21 @@ async def update_profile(request: Request,
     except Exception as ex:
         LOG.error(ex)
         return respond(msg='Unable to update user data at the moment', status_code=status.HTTP_422_UNPROCESSABLE_ENTITY)
+
+
+@router.post("/settings/update")
+@login_required
+async def update_settings(request: Request,
+                          minify_messages: str = Form("0"),):
+    """
+    Updates user settings with provided form data
+    :param request: FastAPI Request Object
+    :param minify_messages: "1" if user prefers to get minified messages
+    :return: status 200 if OK, error code otherwise
+    """
+    user = get_current_user(request=request)
+    preferences_mapping = {
+        'minify_messages': minify_messages
+    }
+    DbUtils.set_user_preferences(user_id=user['_id'], preferences_mapping=preferences_mapping)
+    return respond(msg='OK')

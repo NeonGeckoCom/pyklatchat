@@ -4,7 +4,7 @@
     <div class="card non-selectable" id="{cid}">
         <div class="card-header">{conversation_name}
             <span class="ml-3" id="participants-list-{cid}">
-                <i class="icon-user" aria-hidden="true"></i> <span id="participants-count-{cid}">0</span>
+                <i class="fa-solid fa-user" aria-hidden="true"></i> <span id="participants-count-{cid}">0</span>
             </span>
             <div class="dropdown language ml-3" style="display: inline!important;">
                 <button class="btn btn-secondary dropdown-toggle" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" id="language-selected-{cid}-outcoming">
@@ -27,7 +27,7 @@
                 </div>
             </div>
             <button type="button" class="btn btn-light ml-3" id="prompt-mode-{cid}">
-                <span aria-hidden="true" class="icon-table"></span>
+                <span aria-hidden="true" class="fa fa-table-cells"></span>
             </button>
             <button type="button" id="close-{cid}" data-target-cid="{cid}" class="close-cid">
                 <span aria-hidden="true">×</span>
@@ -39,15 +39,16 @@
             </ul>
         </div>
         <div class="card-footer">
-            <input class="user_input form-control mb-2" id="{cid}-input" type="text" placeholder='Write a Message to {conversation_name}'>
+            <textarea class="user_input form-control mb-2" id="{cid}-input" rows="1" cols="50"
+                      placeholder='Write a Message to {conversation_name}'></textarea>
             <button class="send_user_input btn btn-success" id="{cid}-send" data-target-cid="{cid}">Send Message</button>
             <label for="file-input-{cid}" class="attachment-label">
-              <i class="icon-paperclip icon-large" aria-hidden="true"></i>
+              <i class="fa fa-paperclip fa-lg" aria-hidden="true"></i>
             </label>
             <input type="file" class="file-input fa fa-paperclip" data-target-cid="{cid}" style="display: none;" name="file-input" id="file-input-{cid}" multiple>
             <div class="filename-container" id="filename-container-{cid}" style="display: none"></div>
             <button class="btn btn-info rounded-circle float-right" id="{cid}-audio-input">
-                <i class="icon-microphone"></i>
+                <i class="fa fa-microphone"></i>
             </button>
         </div>
     </div>

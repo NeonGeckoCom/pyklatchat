@@ -95,14 +95,14 @@ function initSIO(){
        showSTT(data['message_id'], data['lang'], data['message_text']);
     });
 
-    socket.on('updated_shouts', async (data) =>{
-        const inputType = data['input_type'];
-        for (const [cid, shouts] of Object.entries(data['translations'])){
-           if (await getCurrentSkin(cid) === CONVERSATION_SKINS.BASE){
-               await requestTranslation(cid, shouts, null, inputType);
-           }
-       }
-    });
+    // socket.on('updated_shouts', async (data) =>{
+    //     const inputType = data['input_type'];
+    //     for (const [cid, shouts] of Object.entries(data['translations'])){
+    //        if (await getCurrentSkin(cid) === CONVERSATION_SKINS.BASE){
+    //            await requestTranslation(cid, shouts, null, inputType);
+    //        }
+    //    }
+    // });
 
     return socket;
 }
