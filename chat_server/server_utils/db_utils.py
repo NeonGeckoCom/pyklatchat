@@ -36,7 +36,7 @@ from pymongo import UpdateOne
 from chat_server.constants.conversations import ConversationSkins
 from chat_server.constants.users import UserPatterns
 from chat_server.server_utils.factory_utils import Singleton
-from chat_server.server_utils.user_utils import create_from_pattern
+from chat_server.server_utils.user_utils import create_from_pattern, UserReactions
 from utils.common import buffer_to_base64
 from utils.database_utils.mongo_utils import *
 
@@ -485,3 +485,61 @@ class DbUtils(metaclass=Singleton):
             else:
                 LOG.error(f'Empty buffer received while fetching audio of message id = {message_id}')
             return ''
+
+    @staticmethod
+    def get_query_properties(cid=None, message_id=None) -> Tuple[MongoDocuments, MongoFilter]:
+        if not any(x for x in (cid, message_id,)):
+            LOG.warning('Blank both cid and message_id')
+            return None, None
+        if message_id:
+            document = MongoDocuments.SHOUTS
+            _filter = MongoFilter('_id', message_id)
+        else:
+            document = MongoDocuments.CHATS
+            _filter = MongoFilter('_id', cid)
+        return document, _filter
+
+    @classmethod
+    def get_reactions(cls, cid=None, message_id=None) -> Dict[str, str]:
+        """ Gets reactions made on target cid or message id """
+        document, _filter = cls.get_query_properties(cid, message_id)
+        res = {}
+        if document and _filter:
+            data = cls.db_controller.exec_query(query=MongoQuery(command=MongoCommands.FIND_ONE,
+                                                                 document=document,
+                                                                 filters=_filter))
+            res = data.get('reactions', {})
+        return res
+
+    @classmethod
+    def set_reaction(cls, user_id, reaction: UserReactions, cid=None, message_id=None):
+        """
+            Sets reaction to the specified element
+            :param user_id: id of reacted user
+            :param cid: id of target conversation
+            :param reaction: user reaction code
+            :param message_id: target message id (if None, reaction relates to :param cid)
+        """
+        document, _filter = cls.get_query_properties(cid, message_id)
+        if document and _filter:
+            cls.db_controller.exec_query(query=MongoQuery(command=MongoCommands.UPDATE,
+                                                          document=document,
+                                                          filters=_filter,
+                                                          data={f'reactions.{user_id}': reaction.value},
+                                                          data_action='set'))
+
+    @classmethod
+    def unset_reaction(cls, user_id, cid=None, message_id=None):
+        """
+            Sets reaction to the specified element
+            :param user_id: id of reacted user
+            :param cid: id of target conversation
+            :param message_id: target message id (if None, reaction relates to :param cid)
+        """
+        document, _filter = cls.get_query_properties(cid, message_id)
+        if document and _filter:
+            cls.db_controller.exec_query(query=MongoQuery(command=MongoCommands.UPDATE,
+                                                          document=document,
+                                                          filters=_filter,
+                                                          data={f'reactions.{user_id}': '1'},
+                                                          data_action='unset'))

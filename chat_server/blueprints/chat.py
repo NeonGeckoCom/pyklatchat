@@ -36,9 +36,10 @@ from neon_utils import LOG
 
 from chat_server.constants.conversations import ConversationSkins
 from chat_server.server_config import db_controller
-from chat_server.server_utils.auth import login_required
+from chat_server.server_utils.auth import login_required, get_current_user
 from chat_server.server_utils.conversation_utils import build_message_json
 from chat_server.server_utils.db_utils import DbUtils, MongoQuery, MongoCommands, MongoDocuments
+from chat_server.server_utils.user_utils import UserReactions
 from chat_server.services.popularity_counter import PopularityCounter
 from utils.common import generate_uuid
 from utils.http_utils import respond
@@ -140,3 +141,80 @@ async def get_popular_cids(search_str: str = "",
         LOG.error(f'Failed to extract most popular items - {ex}')
         items = []
     return JSONResponse(content=items)
+
+
+@router.get("/vote/{cid}")
+@login_required
+async def vote_cid(request: Request, cid, up: str = '1'):
+    """
+        Votes for specified conversation id
+        :param request: Fast API request object
+        :param cid: target conversation id
+        :param up: 1 to upvote conversation, 0 to down-vote
+        :return: 403 if access is forbidden, 401 if request processed with error, 200 otherwise
+    """
+    user = get_current_user(request=request)
+    try:
+        reaction = UserReactions.LIKE if up == '1' else UserReactions.DISLIKE
+        DbUtils.set_reaction(user_id=user['_id'],
+                             cid=cid,
+                             reaction=reaction)
+    except Exception as ex:
+        LOG.error(f'Failed to set conversation reaction of user_id={user["_id"]}, cid={cid}, ex={ex}')
+        return respond('Something went wrong', 401)
+
+
+@router.delete("/vote/{cid}")
+@login_required
+async def unvote_cid(request: Request, cid):
+    """
+        Removes vote for specified conversation id
+        :param request: Fast API request object
+        :param cid: target conversation id
+        :return: 403 if access is forbidden, 401 if request processed with error, 200 otherwise
+    """
+    user = get_current_user(request=request)
+    try:
+        DbUtils.unset_reaction(user_id=user['_id'],
+                               cid=cid)
+    except Exception as ex:
+        LOG.error(f'Failed to unset conversation reaction of user_id={user["_id"]}, cid={cid}, ex={ex}')
+        return respond('Something went wrong', 401)
+
+
+@router.get("/vote_message/{message_id}")
+@login_required
+async def react_to_message(request: Request, message_id: str, reaction: str = UserReactions.LIKE.value):
+    """
+        Reacts to specified message id
+        :param request: Fast API request object
+        :param message_id: target message_id
+        :param reaction: reaction to the target message
+        :return: 403 if access is forbidden, 401 if malformed request, 200 otherwise
+    """
+    user = get_current_user(request=request)
+    try:
+        DbUtils.set_reaction(user_id=user['_id'],
+                             message_id=message_id,
+                             reaction=UserReactions(reaction))
+    except Exception as ex:
+        LOG.error(f'Failed to set message reaction of user_id={user["_id"]}, message_id={message_id}, ex={ex}')
+        return respond('Something went wrong', 401)
+
+
+@router.delete("/vote_message/{message_id}")
+@login_required
+async def cancel_message_reaction(request: Request, message_id: str):
+    """
+        Removes reaction to specified message id
+        :param request: Fast API request object
+        :param message_id: target message_id
+        :return: 403 if access is forbidden, 401 if malformed request, 200 otherwise
+    """
+    user = get_current_user(request=request)
+    try:
+        DbUtils.unset_reaction(user_id=user['_id'],
+                               message_id=message_id)
+    except Exception as ex:
+        LOG.error(f'Failed to unset message reaction of user_id={user["_id"]}, message_id={message_id}, ex={ex}')
+        return respond('Something went wrong', 401)

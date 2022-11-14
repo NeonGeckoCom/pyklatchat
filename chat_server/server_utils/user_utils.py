@@ -26,6 +26,7 @@
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 import copy
+from enum import Enum
 from time import time
 
 from chat_server.constants.users import UserPatterns
@@ -98,3 +99,13 @@ def get_bot_data(db_controller: DatabaseController, nickname: str, context: dict
                         is_tmp=False)
         db_controller.exec_query({'command': 'insert_one', 'document': 'users', 'data': bot_data})
     return bot_data
+
+
+class UserReactions(Enum):
+    """ Enumeration of supported reactions """
+    LIKE = 'LIKE'
+    DISLIKE = 'DISLIKE'
+    LOVE = 'LOVE'
+    HATE = 'HATE'
+    FIRE = 'FIRE'
+    SMILE = 'SMILE'
