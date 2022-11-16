@@ -143,15 +143,18 @@ class ChatObserver(MQConnector):
             :returns extracted recipient
         """
         callback = dict(recipient=Recipients.UNRESOLVED, context={})
-        if message.lower().startswith('!prompt:'):
+        message_formatted = message.upper().strip()
+        if message_formatted.startswith('!PROMPT:'):
             callback['recipient'] = Recipients.CHATBOT_CONTROLLER
-            callback['context'] = {'requested_participants': ['proctor']}
-        elif message.lower().startswith('show score:'):
+            callback['context'] = dict(requested_participants=['proctor'])
+        elif message_formatted.startswith('SHOW SCORE:'):
             callback['recipient'] = Recipients.CHATBOT_CONTROLLER
-            callback['context'] = {'requested_participants': ['scorekeeper']}
+            callback['context'] = dict(requested_participants=['scorekeeper'])
+        elif any(message_formatted.startswith(command) for command in ('!START_AUTO_PROMPTS', '!STOP_AUTO_PROMPTS',)):
+            callback['recipient'] = Recipients.CHATBOT_CONTROLLER
         else:
             for recipient, recipient_prefixes in cls.recipient_prefixes.items():
-                if any(message.lower().startswith(x.lower()) for x in recipient_prefixes):
+                if any(message_formatted.startswith(x.upper()) for x in recipient_prefixes):
                     callback['recipient'] = recipient
                     break
         return callback
