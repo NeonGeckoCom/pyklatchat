@@ -108,10 +108,10 @@ class ChatObserver(MQConnector):
                                queue='neon_tts_response',
                                callback=self.on_tts_response,
                                on_error=self.default_error_handler)
-        self.register_consumer(name='submind_response',
+        self.register_consumer(name='submind_shout',
                                vhost=self.get_vhost('chatbots'),
                                queue='submind_response',
-                               callback=self.handle_submind_response,
+                               callback=self.handle_submind_shout,
                                on_error=self.default_error_handler)
         self.register_consumer(name='save_prompt_data',
                                vhost=self.get_vhost('chatbots'),
@@ -143,15 +143,18 @@ class ChatObserver(MQConnector):
             :returns extracted recipient
         """
         callback = dict(recipient=Recipients.UNRESOLVED, context={})
-        if message.lower().startswith('!prompt:'):
+        message_formatted = message.upper().strip()
+        if message_formatted.startswith('!PROMPT:'):
             callback['recipient'] = Recipients.CHATBOT_CONTROLLER
-            callback['context'] = {'requested_participants': ['proctor']}
-        elif message.lower().startswith('show score:'):
+            callback['context'] = dict(requested_participants=['proctor'])
+        elif message_formatted.startswith('SHOW SCORE:'):
             callback['recipient'] = Recipients.CHATBOT_CONTROLLER
-            callback['context'] = {'requested_participants': ['scorekeeper']}
+            callback['context'] = dict(requested_participants=['scorekeeper'])
+        elif any(message_formatted.startswith(command) for command in ('!START_AUTO_PROMPTS', '!STOP_AUTO_PROMPTS',)):
+            callback['recipient'] = Recipients.CHATBOT_CONTROLLER
         else:
             for recipient, recipient_prefixes in cls.recipient_prefixes.items():
-                if any(message.lower().startswith(x.lower()) for x in recipient_prefixes):
+                if any(message_formatted.startswith(x.upper()) for x in recipient_prefixes):
                     callback['recipient'] = recipient
                     break
         return callback
@@ -501,18 +504,20 @@ class ChatObserver(MQConnector):
         LOG.error(f'Error response from Neon API: {body}')
 
     @create_mq_callback()
-    def handle_submind_response(self, body: dict):
+    def handle_submind_shout(self, body: dict):
         """
-            Handles responses from subminds
+            Handles shouts from subminds outside the PyKlatchat
 
             :param body: request body (dict)
 
         """
 
-        response_required_keys = ('userID', 'cid', 'messageText', 'bot', 'timeCreated',)
+        response_required_keys = ('userID', 'cid', 'messageText',)
 
         if all(required_key in list(body) for required_key in response_required_keys):
+            body.setdefault('timeCreated', int(time.time()))
             self.sio.emit('user_message', data=body)
+            self.handle_message(data=body)
         else:
             error_msg = f'Skipping received data {body} as it lacks one of the required keys: ' \
                         f'({",".join(response_required_keys)})'
