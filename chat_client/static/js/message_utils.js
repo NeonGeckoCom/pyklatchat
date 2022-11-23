@@ -1,3 +1,7 @@
+const messageContextMenu = document.getElementById("messageContextMenu")
+const messageContextMenuUpvote = document.getElementById('messageContextMenuUpvote');
+const messageContextMenuDownvote = document.getElementById('messageContextMenuDownvote');
+
 /**
  * Returns DOM container for message elements under specific conversation id
  * @param cid: conversation id to consider
@@ -206,6 +210,78 @@ function initProfileDisplay(conversationData){
     });
 }
 
+/**
+ * Sets user vote to the message
+ * @param messageID: target message id
+ * @param reaction: reaction to emit for desired message
+ */
+function voteMessage(messageID, reaction){
+    let currentMessageReaction = setDefault( currentUser, 'messageReaction', {} );
+    let previousVote = null;
+    if (Object.keys(currentMessageReaction).includes(messageID)){
+        previousVote = currentMessageReaction[messageID];
+        delete currentMessageReaction[messageID];
+    }else{
+        setDefault( currentUser, 'messageReaction', {} )[messageID] = reaction;
+    }
+    const cancel = previousVote && previousVote === reaction;
+    fetchServer(`chat_api/vote_message/${messageID}?reaction=${reaction.toUpperCase()}`, cancel?REQUEST_METHODS.DELETE:REQUEST_METHODS.PUT).then(res=>{
+        if (res.ok){
+            if (previousVote) {
+                let decrementedElement = document.getElementById( previousVote === 'LIKE' ? `${messageID}_likes_count` : `${messageID}_dislikes_count` );
+                decrementedElement.value = parseInt(decrementedElement.value) - 1;
+            }
+            let incrementedElement = document.getElementById(reaction === 'LIKE'?`${messageID}_likes_count`: `${messageID}_dislikes_count`);
+            incrementedElement.value = parseInt(incrementedElement.value) + 1;
+        }
+    })
+}
+
+/**
+ * Initialise
+ * @param conversationData
+ */
+function initReactions(conversationData){
+    getUserMessages(conversationData).forEach(message => {
+        message.addEventListener('contextmenu', (e)=>{
+            initMessageContextMenu(e);
+        });
+        const messageLikes = document.getElementById(`${message['message_id']}_likes`);
+        const messageLikesCount = document.getElementById(`${message['message_id']}_likes_count`);
+        const messageDislikes = document.getElementById(`${message['message_id']}_dislikes`);
+        const messageDislikesCount = document.getElementById(`${message['message_id']}_dislikes_count`);
+        const userMessageReactions = message?.reactions;
+        if(userMessageReactions){
+            let likesCounter = 0;
+            let dislikesCounter = 0;
+            for (const [userID, reaction] of Object.entries(userMessageReactions)) {
+                if (['LIKE', 'DISLIKE'].includes(reaction.toUpperCase())) {
+                    if (reaction === 'LIKE') {
+                        likesCounter++;
+                        messageLikes.hidden = false;
+                    } else if (reaction === 'DISLIKE') {
+                        dislikesCounter++;
+                        messageDislikes.hidden = false;
+                    }
+                    if (userID === currentUser['_id']) {
+                        setDefault( currentUser, 'messageReaction', {} )[message['message_id']] = reaction;
+                        reaction === 'LIKE'? messageLikes.style.background = 'blue':
+                        reaction === 'DISLIKE'? messageDislikes.style.background = 'blue': null;
+                    }
+                }
+            }
+            messageLikesCount.value = likesCounter;
+            messageDislikesCount.value = likesCounter;
+        }
+        messageLikes.addEventListener('click', (e)=>{
+            voteMessage(message['message_id'], 'LIKE');
+        });
+        messageDislikes.addEventListener('click', (e)=>{
+            voteMessage(message['message_id'], 'DISLIKE');
+        });
+    });
+}
+
 
 /**
  * Initializes messages based on provided conversation aata
@@ -231,6 +307,7 @@ function initMessages(conversationData, skin = CONVERSATION_SKINS.BASE){
        attachReplies(conversationData);
        addAttachments(conversationData);
        addCommunicationChannelTransformCallback(conversationData);
+       initReactions(conversationData);
    }
    // common logic
    initLoadOldMessages(conversationData, skin);
@@ -277,3 +354,35 @@ function emitUserMessage(textInputElem, cid, repliedMessageID=null, attachments=
         }
     }
 }
+
+/**
+ * Hides Message Context Menu
+ */
+function hideMessageContextMenu() {
+    messageContextMenu.style.display = "none"
+}
+
+/**
+ * Initializes message context menu based on the fired event
+ * @param e {Event} event fired
+ */
+function initMessageContextMenu(e){
+    messageContextMenu.style.display = 'block';
+    messageContextMenu.style.left = e.pageX + "px";
+    messageContextMenu.style.top = e.pageY + "px";
+    const currentMessageId = e.target.id;
+    messageContextMenuUpvote.addEventListener('click', (e) => {
+        voteMessage(currentMessageId, 'LIKE');
+        hideMessageContextMenu();
+    });
+    messageContextMenuDownvote.addEventListener('click', (e) =>{
+        voteMessage(currentMessageId, 'DISLIKE');
+        hideMessageContextMenu();
+    });
+}
+
+document.addEventListener('DOMContentLoaded', (_)=>{
+   document.addEventListener('click', (e)=>{
+       hideMessageContextMenu();
+   }) ;
+});

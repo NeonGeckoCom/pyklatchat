@@ -182,7 +182,7 @@ async def unvote_cid(request: Request, cid):
         return respond('Something went wrong', 401)
 
 
-@router.get("/vote_message/{message_id}")
+@router.put("/vote_message/{message_id}")
 @login_required
 async def react_to_message(request: Request, message_id: str, reaction: str = UserReactions.LIKE.value):
     """
