@@ -27,9 +27,16 @@
                 </div>
             </div>
             <div class="float-right">
-                <button type="button" class="btn btn-light ml-1" data-toggle="tooltip" title="Display Format" id="prompt-mode-{cid}">
-                    <span aria-hidden="true" class="fa fa-table-cells"></span>
-                </button>
+                <div class="dropdown ml-1" data-toggle="tooltip" title="Display Format" style="display: inline!important;">
+                    <button class="btn btn-secondary dropdown-toggle" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" id="language-selected-{cid}-incoming">
+                        <span class="fa fa-arrows-to-eye"></span>
+                    </button>
+                    <div class="dropdown-menu dropdown-menu-right text-right">
+                        <a class="dropdown-item" id="prompt-mode-{cid}">
+                            Table Mode <span aria-hidden="true" class="fa fa-table-cells"></span>
+                        </a>
+                    </div>
+                </div>
                 <button type="button" id="close-{cid}" data-target-cid="{cid}" class="close-cid ml-1">
                     <span aria-hidden="true">×</span>
                 </button>
