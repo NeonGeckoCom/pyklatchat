@@ -9,7 +9,8 @@ class NanoBuilder {
     propertyHandlers = {
         'SOCKET_IO_SERVER_URL': this.resolveSIO,
         'CHAT_SERVER_URL_BASE': this.addConfig,
-        'CHAT_CLIENT_URL_BASE': this.setClientURL
+        'CHAT_CLIENT_URL_BASE': this.setClientURL,
+        'PREFERENCES': this.resolvePreferences
     }
     /**
      * Constructing NanoBuilder instance
@@ -96,6 +97,17 @@ class NanoBuilder {
 
     setClientURL(key, value){
         configData['currentURLBase'] = value;
+    }
+
+    /**
+     * Resolves preferences from user options
+     * @param options: provided nano builder options
+     * */
+    resolvePreferences(options){
+        setDefault(currentUser, 'preferences', {})
+        for (const [key, val] of Object.entries(options)){
+            currentUser.preferences[key.toLowerCase()] = val.toLowerCase();
+        }
     }
 }
 
