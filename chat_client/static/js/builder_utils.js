@@ -101,9 +101,6 @@ async function buildUserMessageHTML(userData, messageID, messageText, timeCreate
     const messageClass = isAnnouncement === '1'?'announcement':isMine?'in':'out';
     const messageOrientation = isMine?'right': 'left';
     let minificationEnabled = currentUser?.preferences?.minify_messages === '1';
-    if(isAnnouncement === '1'){
-        minificationEnabled = false;
-    }
     let templateSuffix = minificationEnabled? '_minified': '';
     const templateName = isAudio === '1'?`user_message_audio${templateSuffix}`: `user_message${templateSuffix}`;
     if (isAudio === '0') {
