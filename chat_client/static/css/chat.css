@@ -262,9 +262,10 @@ body{
     cursor: pointer;
 }
 
+
 .reply-text{
-    border-left: 4px solid white;
-    padding: 2px;
+    /*border-left: 4px solid white;  uncomment me to have replies */
+    /*padding: 2px;*/
     cursor: pointer;
 }
 

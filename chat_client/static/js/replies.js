@@ -9,9 +9,9 @@ function resolveUserReply(replyID,repliedID){
         if(repliedElem) {
             let repliedText = repliedElem.getElementsByClassName('message-text')[0].innerText;
             repliedText = shrinkToFit(repliedText, 15);
-            const replyHTML = `<a class="reply-text" data-replied-id="${repliedID}">
+            const replyHTML = `<i class="reply-text" data-replied-id="${repliedID}">
                                     ${repliedText}
-                                </a>`;
+                                </i>`;
             const replyPlaceholder = document.getElementById(replyID).getElementsByClassName('reply-placeholder')[0];
             replyPlaceholder.insertAdjacentHTML('afterbegin', replyHTML);
             attachReplyHighlighting(replyPlaceholder.getElementsByClassName('reply-text')[0]);
