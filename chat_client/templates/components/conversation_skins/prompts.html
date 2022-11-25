@@ -3,12 +3,14 @@
 {% block skin_body %}
     <div class="card non-selectable" id="{cid}">
         <div class="card-header">Prompts of "{conversation_name}"
-            <button type="button" class="btn btn-light ml-3" id="base-mode-{cid}">
-                <span aria-hidden="true" class="fa fa-file-text"></span>
-            </button>
-            <button type="button" id="close-prompts-{cid}" data-target-cid="{cid}" class="close-cid">
-                <span aria-hidden="true">×</span>
-            </button>
+            <div class="float-right">
+                <button type="button" class="btn btn-light ml-1" id="base-mode-{cid}">
+                    <span aria-hidden="true" class="fa fa-file-text"></span>
+                </button>
+                <button type="button" id="close-prompts-{cid}" data-target-cid="{cid}" class="close-cid ml-1">
+                    <span aria-hidden="true">×</span>
+                </button>
+            </div>
         </div>
         <div class="card-body height3" style="overflow-y: auto; height: 450px!important;">
             <ul class="chat-list">
