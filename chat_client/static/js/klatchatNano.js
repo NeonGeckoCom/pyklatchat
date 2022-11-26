@@ -1,3 +1,4 @@
+
 let __inputFileList = {};
 
 /**
@@ -147,7 +148,8 @@ attachmentToggle.style.display = "none";
 }
 }
 }
-}/**
+}
+/**
 * Enum of possible Alert Behaviours:
 * - DEFAULT: static alert message appeared with no expiration time
 * - AUTO_EXPIRE: alert message will be expired after some amount of time (defaults to 3 seconds)
@@ -309,7 +311,8 @@ const MIMES = [
 ["tiff","image/tiff"], ["jfif","image/jfif"],["pdf","application/pdf"],
 ["rels","application/vnd.openxmlformats-package.relationships+xml"]];
 
-const IMAGE_EXTENSIONS = MIMES.filter(item => item[1].startsWith('image/')).map(item=>item[0]);/**
+const IMAGE_EXTENSIONS = MIMES.filter(item => item[1].startsWith('image/')).map(item=>item[0]);
+/**
 * Object representing loaded HTML components mapping:
 * - key: component name,
 * - value: HTML template that should be populated with actual data)
@@ -412,9 +415,6 @@ imageComponent = `<p>${shortedNick}</p>`;
 const messageClass = isAnnouncement === '1'?'announcement':isMine?'in':'out';
 const messageOrientation = isMine?'right': 'left';
 let minificationEnabled = currentUser?.preferences?.minify_messages === '1';
-if(isAnnouncement === '1'){
-minificationEnabled = false;
-}
 let templateSuffix = minificationEnabled? '_minified': '';
 const templateName = isAudio === '1'?`user_message_audio${templateSuffix}`: `user_message${templateSuffix}`;
 if (isAudio === '0') {
@@ -605,7 +605,7 @@ chatFlowHTML+=`<div class="blank_chat">No messages in this chat yet...</div>`;
 }
 return await buildHTMLFromTemplate('conversation',
 {'cid': cid, 'conversation_name':conversation_name, 'chat_flow': chatFlowHTML}, `skin=${skin}`);
-};
+}
 
 /**
 * Builds suggestion HTML
@@ -615,7 +615,9 @@ return await buildHTMLFromTemplate('conversation',
 */
 const buildSuggestionHTML = async (cid, name) => {
 return await buildHTMLFromTemplate('suggestion', {'cid': cid, 'conversation_name': name})
-};const importConversationModal = $('#importConversationModal');
+};
+const importConversationModal = $('#importConversationModal');
+const importConversationOpener = document.getElementById('importConversationOpener');
 const conversationSearchInput = document.getElementById('conversationSearchInput');
 const importConversationModalSuggestions = document.getElementById('importConversationModalSuggestions');
 
@@ -708,7 +710,7 @@ throw `Failed to save attachments status=${response.status}, msg=${responseJson}
 }).catch(err=>{
 errorOccurred=err;
 });
-setChatState(cid,'active')
+setChatState(cid, 'active')
 if(errorOccurred){
 console.error(`Error during attachments preparation: ${errorOccurred}, skipping message sending`);
 return -1
@@ -1351,8 +1353,14 @@ newConversationModal.modal('hide');
 }
 });
 });
+importConversationOpener.addEventListener('click', async (e)=>{
+e.preventDefault();
+conversationSearchInput.value = "";
+await renderSuggestions();
+});
 }
-});/**
+});
+/**
 * Collection of supported clients, current client is matched based on client configuration
 * @type {{NANO: string, MAIN: string}}
 */
@@ -1414,6 +1422,7 @@ configData = Object.assign(configData, await extractJsonData(`${configData['curr
 document.dispatchEvent(configFullLoadedEvent);
 }
 });
+
 /**
 * Gets time object from provided UNIX timestamp
 * @param timestampCreated: UNIX timestamp (in seconds)
@@ -1455,7 +1464,8 @@ finalDate += `:${seconds}`
 }
 }
 return finalDate;
-}const DATABASES = {
+}
+const DATABASES = {
 CHATS: 'chats'
 }
 const DB_TABLES = {
@@ -1486,7 +1496,8 @@ __db_instances[db] = _instance;
 _instance = __db_instances[db];
 }
 return _instance[table];
-}/**
+}
+/**
 * Downloads desired content
 * @param content: content to download
 * @param filename: name of the file to download
@@ -1514,7 +1525,8 @@ console.warn('Skipping downloading as content is invalid')
 function handleImgError(image) {
 image.parentElement.insertAdjacentHTML('afterbegin',`<p>${image.getAttribute('alt')}</p>`);
 image.parentElement.removeChild(image);
-}const REQUEST_METHODS = {
+}
+const REQUEST_METHODS = {
 GET: 'GET',
 PUT: 'PUT',
 DELETE: 'DELETE',
@@ -1555,7 +1567,8 @@ location.reload();
 }
 return response;
 });
-};/**
+}
+/**
 * Returns preferred language specified in provided cid
 * @param cid: provided conversation id
 * @param inputType: type of the language preference to fetch:
@@ -1848,7 +1861,8 @@ document.addEventListener('DOMContentLoaded', (_)=>{
 document.addEventListener('configLoaded',async (_)=>{
 await fetchSupportedLanguages().then(_ => document.dispatchEvent(supportedLanguagesLoadedEvent));
 });
-});/**
+});
+/**
 * Adds speaking callback for the message
 * @param cid: id of the conversation
 * @param messageID: id of the message
@@ -1913,7 +1927,8 @@ getUserMessages(conversationData).forEach(message => {
 addMessageTransformCallback(conversationData['_id'], message['message_id'], message?.is_audio);
 });
 }
-}/**
+}
+/**
 * Returns DOM container for message elements under specific conversation id
 * @param cid: conversation id to consider
 * @return {Element} DOM container for message elements of considered conversation
@@ -2191,7 +2206,145 @@ if (isAudio === '0'){
 textInputElem.value = "";
 }
 }
-}/**
+}
+const myAccountLink = document.getElementById('myAccountLink');
+const settingsLink = document.getElementById('settingsLink');
+
+/**
+* Shows modal associated with profile
+* @param nick: nickname to fetch
+* @param edit: to open modal in edit mode
+*
+* @return true if modal shown successfully, false otherwise
+*/
+async function showProfileModal(nick=null, edit='0'){
+let fetchURL = `${configData['currentURLBase']}/components/profile?`
+let modalId;
+let avatarId;
+if(edit === '1'){
+modalId = `${currentUser['nickname']}EditModal`;
+// avatarId = `${currentUser['nickname']}EditAvatar`;
+fetchURL += `edit=1`;
+}else{
+modalId = `${nick}Modal`;
+// avatarId = `${nick}Avatar`;
+fetchURL += `nickname=${nick}`;
+}
+const profileModalHTML = await fetch(fetchURL, {headers: new Headers({'Authorization': getSessionToken()})}).then(async (response) => {
+if (response.ok) {
+return await response.text();
+}
+throw `unreachable (HTTP STATUS:${response.status}: ${response.statusText})`
+}).catch(err=> {
+console.warn(err);
+return null;
+});
+if (profileModalHTML){
+const existingModal = document.getElementById(modalId);
+deleteElement(existingModal);
+const main = document.getElementById('main');
+main.insertAdjacentHTML('afterbegin', profileModalHTML);
+const existingModalJQuery = $(`#${modalId}`);
+existingModalJQuery.modal('show');
+return true
+} return false;
+}
+
+/**
+* Convenience wrapper to show modal in the edit mode
+*/
+async function showProfileEditModal(){
+return await showProfileModal(null, '1');
+}
+
+/**
+* Previews uploaded image
+* @param nickname: target nickname
+*/
+const previewFile = (nickname) => {
+const userNewAvatar = document.getElementById(`${nickname}NewAvatar`);
+const userEditAvatar = document.getElementById(`${nickname}EditAvatar`);
+if (userNewAvatar?.files.length > 0) {
+const objectURL = window.URL.createObjectURL(userNewAvatar.files[0]);
+try{
+URL.revokeObjectURL(userEditAvatar.src);
+} catch (e) {
+console.debug('Its initial URL');
+}
+userEditAvatar.src = objectURL;
+}
+}
+
+async function initProfileEditModal(){
+const nickname = currentUser['nickname'];
+if (currentUser?.is_tmp){
+console.warn('Tmp user is not allowed to change his data');
+return
+}
+const modalShown = await showProfileEditModal().catch(err=>{
+console.warn(`Failed to show edit profile modal - ${err}`);
+return false;
+});
+if (!modalShown) return;
+const editProfileSubmitButton = document.getElementById(`${nickname}EditSubmit`);
+const userNewAvatar = document.getElementById(`${nickname}NewAvatar`);
+const userEditAvatar = document.getElementById(`${nickname}EditAvatar`);
+
+editProfileSubmitButton.addEventListener('click', async (e) => {
+e.preventDefault();
+const nick = currentUser['nickname'];
+const nickname = document.getElementById(`${nick}EditNickname`);
+const firstName = document.getElementById(`${nick}EditFirstName`);
+const lastName = document.getElementById(`${nick}EditLastName`);
+const bio = document.getElementById(`${nick}EditBio`);
+const password = document.getElementById(`${nick}EditPassword`);
+const repeatPassword = document.getElementById(`${nick}RepeatEditPassword`);
+
+const formData = new FormData();
+
+if (userNewAvatar?.files.length > 0) {
+formData.append('avatar', userNewAvatar.files[0]);
+}
+formData.append('user_id', currentUser['_id']);
+formData.append('nickname', nickname.value);
+formData.append('first_name', firstName.value);
+formData.append('last_name', lastName.value);
+formData.append('bio', bio.value);
+formData.append('password', password.value);
+formData.append('repeat_password', repeatPassword.value);
+
+const query_url = `users_api/update`;
+await fetchServer(query_url, REQUEST_METHODS.POST, formData).then(async response => {
+const responseJson = await response.json();
+if (response.ok) {
+location.reload();
+} else {
+password.value = "";
+repeatPassword.value = '';
+displayAlert(document.getElementById(`${nick}EditBody`),
+`${responseJson['msg']}`,
+'danger');
+}
+});
+});
+
+userEditAvatar.addEventListener('click', (e)=>{
+e.preventDefault();
+userNewAvatar.click();
+});
+}
+
+
+document.addEventListener('DOMContentLoaded', (e)=> {
+
+if (configData.client === CLIENTS.MAIN) {
+myAccountLink.addEventListener( 'click', async (e) => {
+e.preventDefault();
+await initProfileEditModal();
+} );
+}
+});
+/**
 * Resolves user reply on message
 * @param replyID: id of user reply
 * @param repliedID id of replied message
@@ -2202,9 +2355,9 @@ const repliedElem = document.getElementById(repliedID);
 if(repliedElem) {
 let repliedText = repliedElem.getElementsByClassName('message-text')[0].innerText;
 repliedText = shrinkToFit(repliedText, 15);
-const replyHTML = `<a class="reply-text" data-replied-id="${repliedID}">
+const replyHTML = `<i class="reply-text" data-replied-id="${repliedID}">
 ${repliedText}
-</a>`;
+</i>`;
 const replyPlaceholder = document.getElementById(replyID).getElementsByClassName('reply-placeholder')[0];
 replyPlaceholder.insertAdjacentHTML('afterbegin', replyHTML);
 attachReplyHighlighting(replyPlaceholder.getElementsByClassName('reply-text')[0]);
@@ -2239,7 +2392,8 @@ Array.from(document.getElementsByClassName('reply-text')).forEach(replyItem=>{
 attachReplyHighlighting(replyItem);
 });
 }
-}const MessageScrollPosition = {
+}
+const MessageScrollPosition = {
 START: 'START',
 END: 'END',
 MIDDLE: 'MIDDLE',
@@ -2278,7 +2432,8 @@ function scrollOnNewMessage(messageList, lastNElements=3){
 if(getMessageScrollPosition(messageList, lastNElements, MessageScrollPosition.END) === MessageScrollPosition.END){
 messageList.lastChild.scrollIntoView();
 }
-}let socket;
+}
+let socket;
 
 const sioTriggeringEvents = ['configLoaded', 'configNanoLoaded'];
 
@@ -2385,7 +2540,8 @@ showSTT(data['message_id'], data['lang'], data['message_text']);
 // });
 
 return socket;
-}/**
+}
+/**
 * Generic function to play base64 audio file (currently only .wav format is supported)
 * @param audio_data: base64 encoded audio data
 */
@@ -2534,7 +2690,8 @@ emitUserMessage(encodedAudio, conversationData['_id'], null, [], '1', '0');
 }
 };
 }
-}/**
+}
+/**
 * Renders suggestions HTML
 */
 async function renderSuggestions() {
@@ -2564,13 +2721,14 @@ item.classList.remove('selected')
 });
 importConversationModalSuggestions.style.setProperty('display', 'inherit', 'important');
 });
-}/**
+}
+/**
 * Returns current UNIX timestamp in seconds
 * @return {number}: current unix timestamp
 */
 const getCurrentTimestamp = () => {
 return Math.floor(Date.now() / 1000);
-}
+};
 
 // Client's timer
 // TODO consider refactoring to "timer per component" if needed
@@ -2582,7 +2740,7 @@ let __timer = 0;
 */
 const startTimer = () => {
 __timer = Date.now();
-}
+};
 
 /**
 * Resets times and returns time elapsed since invocation of startTimer()
@@ -2592,7 +2750,84 @@ const stopTimer = () => {
 const timeDue = Date.now() - __timer;
 __timer = 0;
 return timeDue;
-};const currentUserNavDisplay = document.getElementById('currentUserNavDisplay');
+};
+const userSettingsModal = $('#userSettingsModal');
+const applyUserSettings = document.getElementById('applyUserSettings');
+const minifyMessagesCheck = document.getElementById('minifyMessages');
+
+/**
+* Displays relevant user settings section based on provided name
+* @param name: name of the section to display
+*/
+const displaySection = (name) => {
+Array.from(document.getElementsByClassName('user-settings-section')).forEach(elem=>{
+elem.hidden = true;
+});
+const elem = document.getElementById(`user-settings-${name}-section`);
+elem.hidden = false;
+}
+
+/**
+* Displays user settings based on received preferences
+* @param preferences
+*/
+const displayUserSettings = (preferences) => {
+if (preferences){
+minifyMessagesCheck.checked = preferences?.minify_messages === '1'
+}
+}
+
+/**
+* Initialises section of settings based on provided name
+* @param sectionName: name of the section provided
+*/
+const initSettingsSection = async (sectionName) => {
+await refreshCurrentUser(false)
+.then(userData=>displayUserSettings(userData?.preferences))
+.then(_=>displaySection(sectionName));
+}
+
+/**
+* Initialises User Settings Modal
+*/
+const initSettingsModal = async () => {
+Array.from(document.getElementsByClassName('nav-user-settings')).forEach(navItem=>{
+navItem.addEventListener('click', async (e)=>{
+await initSettingsSection(navItem.getAttribute('data-section-name'));
+});
+});
+applyUserSettings.addEventListener( 'click', async (e) => await applyNewSettings() );
+}
+
+/**
+* Applies new settings to current user
+*/
+const applyNewSettings = async () => {
+const formData = new FormData();
+formData.append('minify_messages', minifyMessagesCheck.checked?'1':'0');
+const query_url = 'users_api/settings/update'
+await fetchServer(query_url, REQUEST_METHODS.POST, formData).then(async response => {
+const responseJson = await response.json();
+if (response.ok) {
+location.reload();
+} else {
+displayAlert(document.getElementById(`userSettingsModalBody`),
+`${responseJson['msg']}`,
+'danger');
+}
+});
+}
+
+document.addEventListener('DOMContentLoaded', (e)=>{
+if (configData.client === CLIENTS.MAIN) {
+settingsLink.addEventListener( 'click', async (e) => {
+e.preventDefault();
+await initSettingsModal();
+userSettingsModal.modal( 'show' );
+} );
+}
+});
+const currentUserNavDisplay = document.getElementById('currentUserNavDisplay');
 
 const logoutModal = $('#logoutModal');
 
@@ -2764,9 +2999,9 @@ refreshChatView(conversationContainer);
 }
 console.log('current user loaded');
 document.dispatchEvent(currentUserLoaded);
+return data;
 });
 }
-
 
 document.addEventListener('DOMContentLoaded', (e)=>{
 if (configData['client'] === CLIENTS.MAIN) {
@@ -2806,110 +3041,121 @@ createUser().catch(err => console.error('Error while creating a user: ', err));
 });
 }
 });
-
 const configNanoLoadedEvent = new CustomEvent("configNanoLoaded", { "detail": "Event that is fired when nano configs are loaded" });
 
 /**
- * Single class that builds embeddable JS widget into the desired website
- */
+* Single class that builds embeddable JS widget into the desired website
+*/
 class NanoBuilder {
 
-    requiredProperties = ['CHAT_DATA', 'CHAT_SERVER_URL_BASE'];
-    propertyHandlers = {
-        'SOCKET_IO_SERVER_URL': this.resolveSIO,
-        'CHAT_SERVER_URL_BASE': this.addConfig,
-        'CHAT_CLIENT_URL_BASE': this.setClientURL
-    }
-    /**
-     * Constructing NanoBuilder instance
-     * @param options: JS Object containing list of properties for built conversation
-     */
-    constructor(options) {
-        /**
-         * Attributes for options:
-         * - CHAT_DATA: array of chat configs of type:
-         *      {
-         *           PARENT_ID: id of parent Node (required)
-         *           CID: id of desired conversation (required)
-         *      }
-         * - SOCKET_IO_SERVER_URL: HTTP Endpoint of Socket IO Server
-         * - CHAT_SERVER_URL_BASE: HTTP Endpoint for Klatchat Server
-         * - CHAT_CLIENT_URL_BASE: HTTP Endpoint for Klatchat Client
-         */
-        this.options = options;
-        this.options.SOCKET_IO_SERVER_URL = options.SOCKET_IO_SERVER_URL || options.CHAT_SERVER_URL_BASE;
-        configData.client = CLIENTS.NANO;
-        this.applyConfigs();
-        fetchSupportedLanguages()
-            .then(async _ => await refreshCurrentUser(false))
-            .then(_=>this.resolveChatData(this.options))
-            .then(async _=> await requestChatsLanguageRefresh());
-    }
+requiredProperties = ['CHAT_DATA', 'CHAT_SERVER_URL_BASE'];
+propertyHandlers = {
+'SOCKET_IO_SERVER_URL': this.resolveSIO,
+'CHAT_SERVER_URL_BASE': this.addConfig,
+'CHAT_CLIENT_URL_BASE': this.setClientURL,
+'PREFERENCES': this.resolvePreferences
+}
+/**
+* Constructing NanoBuilder instance
+* @param options: JS Object containing list of properties for built conversation
+*/
+constructor(options) {
+/**
+* Attributes for options:
+* - CHAT_DATA: array of chat configs of type:
+*      {
+*           PARENT_ID: id of parent Node (required)
+*           CID: id of desired conversation (required)
+*      }
+* - SOCKET_IO_SERVER_URL: HTTP Endpoint of Socket IO Server
+* - CHAT_SERVER_URL_BASE: HTTP Endpoint for Klatchat Server
+* - CHAT_CLIENT_URL_BASE: HTTP Endpoint for Klatchat Client
+*/
+this.options = options;
+this.options.SOCKET_IO_SERVER_URL = options.SOCKET_IO_SERVER_URL || options.CHAT_SERVER_URL_BASE;
+configData.client = CLIENTS.NANO;
+this.applyConfigs();
+fetchSupportedLanguages()
+.then(async _ => await refreshCurrentUser(false))
+.then(_=>this.resolveChatData(this.options))
+.then(async _=> await requestChatsLanguageRefresh());
+}
 
-    /**
-     * Applies configuration params based on declared handlers in "propertyHandlers"
-     */
-    applyConfigs(){
-        this.requiredProperties.forEach(property => {
-           if(!this.options.hasOwnProperty(property)){
-               throw `${property} is required for NanoBuilder`;
-           }
-        });
-        for (const [key, value] of Object.entries(this.options)) {
-            if(this.propertyHandlers.hasOwnProperty(key)){
-                const handler = this.propertyHandlers[key];
-                if ([this.addConfig, this.setClientURL].includes(handler)){
-                    handler(key, value);
-                }
-                else {
-                    this.propertyHandlers[key](this.options);
-                }
-            }
-        }
-    }
+/**
+* Applies configuration params based on declared handlers in "propertyHandlers"
+*/
+applyConfigs(){
+this.requiredProperties.forEach(property => {
+if(!this.options.hasOwnProperty(property)){
+throw `${property} is required for NanoBuilder`;
+}
+});
+for (const [key, value] of Object.entries(this.options)) {
+if(this.propertyHandlers.hasOwnProperty(key)){
+const handler = this.propertyHandlers[key];
+if ([this.addConfig, this.setClientURL].includes(handler)){
+handler(key, value);
+}
+else {
+this.propertyHandlers[key](this.options);
+}
+}
+}
+}
 
-    /**
-     * Resolves nano conversation ID based on options
-     * @param options: provided nano builder options
-     */
-    resolveChatData(options){
-        const chatData = options['CHAT_DATA'];
-        Array.from(chatData).forEach(chat => {
-            getConversationDataByInput(chat['CID']).then(async conversationData=>{
-            if(conversationData) {
-                await buildConversation(conversationData, CONVERSATION_SKINS.BASE, false, chat['PARENT_ID']);
-            }else{
-                console.error(`No conversation found matching provided id: ${chat['CID']}`);
-            }
-        }).catch(err=> console.error(err));
-        })
-    }
+/**
+* Resolves nano conversation ID based on options
+* @param options: provided nano builder options
+*/
+resolveChatData(options){
+const chatData = options['CHAT_DATA'];
+Array.from(chatData).forEach(chat => {
+getConversationDataByInput(chat['CID']).then(async conversationData=>{
+if(conversationData) {
+await buildConversation(conversationData, CONVERSATION_SKINS.BASE, false, chat['PARENT_ID']);
+}else{
+console.error(`No conversation found matching provided id: ${chat['CID']}`);
+}
+}).catch(err=> console.error(err));
+})
+}
 
-    /**
-     * Resolves SIO properties based on provided options
-     * @param options: provided nano builder options
-     */
-    resolveSIO(options){
-        configData['SOCKET_IO_SERVER_URL'] = options.SOCKET_IO_SERVER_URL;
-        document.dispatchEvent(configNanoLoadedEvent);
-    }
+/**
+* Resolves SIO properties based on provided options
+* @param options: provided nano builder options
+*/
+resolveSIO(options){
+configData['SOCKET_IO_SERVER_URL'] = options.SOCKET_IO_SERVER_URL;
+document.dispatchEvent(configNanoLoadedEvent);
+}
 
-    /**
-     * Adds config to configData
-     * @param key: key to add
-     * @param value: value to add under @param key
-     */
-    addConfig(key, value){
-        configData[key] = value;
-    }
+/**
+* Adds config to configData
+* @param key: key to add
+* @param value: value to add under @param key
+*/
+addConfig(key, value){
+configData[key] = value;
+}
 
-    setClientURL(key, value){
-        configData['currentURLBase'] = value;
-    }
+setClientURL(key, value){
+configData['currentURLBase'] = value;
+}
+
+/**
+* Resolves preferences from user options
+* @param options: provided nano builder options
+* */
+resolvePreferences(options){
+setDefault(currentUser, 'preferences', {})
+for (const [key, val] of Object.entries(options)){
+currentUser.preferences[key.toLowerCase()] = val.toLowerCase();
+}
+}
 }
 
 const initKlatChat = (options) => {
-    document.addEventListener('DOMContentLoaded', (e)=>{
-        return new NanoBuilder(options);
-    })
+document.addEventListener('DOMContentLoaded', (e)=>{
+return new NanoBuilder(options);
+})
 };

@@ -28,8 +28,8 @@
                 'CID': '1',
                 'PARENT_ID': 'main',
             }],
-            'CHAT_CLIENT_URL_BASE': 'http://127.0.0.1:8001',
-            'CHAT_SERVER_URL_BASE': 'http://127.0.0.1:8000'
+            'CHAT_CLIENT_URL_BASE': {{ client_url|safe }},
+            'CHAT_SERVER_URL_BASE': {{ server_url|safe }}
         }
         initKlatChat(options);
     </script>

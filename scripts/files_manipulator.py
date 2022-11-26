@@ -59,7 +59,7 @@ class FilesManipulator(ABC):
 
     def is_valid_processing_file(self, file_path) -> bool:
         """ Condition to validate if given file is appropriate for processing """
-        return isfile(join(self.working_dir, file_path)) and file_path not in self.skip_files
+        return isfile(join(self.working_dir, file_path)) and os.path.split(file_path)[-1] not in self.skip_files
 
     def on_valid_file(self, file_path):
         """ Implement to handle valid files """

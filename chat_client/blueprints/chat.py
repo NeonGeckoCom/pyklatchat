@@ -93,9 +93,13 @@ async def nano_demo(request: Request):
     """
         Minimal working Example of Nano
     """
+    client_url = f'"{request.url.scheme}://{request.url.netloc}"'
+    server_url = f'"{app_config["SERVER_URL"]}"'
     return conversation_templates.TemplateResponse("sample_nano.html",
                                                    {"request": request,
                                                     'title': 'Nano Demonstration',
                                                     'description': 'Klatchat Nano is injectable JS module, '
                                                                    'allowing to render Klat conversations on any third-party pages, '
-                                                                   'supporting essential features.'})
+                                                                   'supporting essential features.',
+                                                    'server_url': server_url,
+                                                    'client_url': client_url})
