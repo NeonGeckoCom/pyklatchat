@@ -61,33 +61,6 @@ async def chats(request: Request):
                                                         app_config.get('FORCE_HTTPS', False)})
 
 
-@router.post("/new", response_class=JSONResponse)
-async def create_chat(conversation_name: str = Form(...),
-                      conversation_id: str = Form(None),
-                      is_private: bool = Form(False)):
-    """
-        Forwards new chat creation data to the server API and handles the returned response
-
-        :param conversation_name: posted Form Data conversation name
-        :param conversation_id: posted Form Data conversation id
-        :param is_private: posted Form Data is_private checkbox state
-
-        :returns JSON-formatted response from server
-    """
-
-    new_conversation = dict(_id=conversation_id or uuid4().hex,
-                            conversation_name=conversation_name,
-                            is_private=is_private,
-                            created_on=int(time()))
-
-    post_response = requests.post(f'{app_config["SERVER_URL"]}/chat_api/new', json=new_conversation)
-
-    json_data = post_response.json()
-    LOG.debug(f'Chat data {new_conversation} creation response: {json_data}')
-
-    return JSONResponse(content=json_data, status_code=post_response.status_code)
-
-
 @router.get("/nano_demo")
 async def nano_demo(request: Request):
     """

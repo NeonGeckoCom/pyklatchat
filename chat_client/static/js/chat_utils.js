@@ -682,7 +682,7 @@ async function createNewConversation(conversationName, isPrivate=false, conversa
 
     formData.append('conversation_name', conversationName);
     formData.append('id', conversationID);
-    formData.append('is_private', isPrivate)
+    formData.append('is_private', isPrivate? '1': '0')
 
     await fetchServer(`chat_api/new`,  REQUEST_METHODS.POST, formData).then(async response => {
         const responseJson = await response.json();
