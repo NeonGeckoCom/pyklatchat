@@ -444,8 +444,12 @@ async function removeConversation(cid){
  * @param cid: target conversation id
  * @return true if cid is stored in client db, false otherwise
  */
-async function isDisplayed(cid){
-    return await getStoredConversationData(cid) !== undefined;
+async function isDisplayed(cid) {
+    if (configData.client === CLIENTS.NANO){
+        return document.getElementById(cid) !== null;
+    }else {
+        return await getStoredConversationData( cid ) !== undefined;
+    }
 }
 
 

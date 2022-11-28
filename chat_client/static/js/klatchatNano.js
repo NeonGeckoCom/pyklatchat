@@ -1109,7 +1109,11 @@ async function removeConversation(cid) {
  * @return true if cid is stored in client db, false otherwise
  */
 async function isDisplayed(cid) {
-    return await getStoredConversationData(cid) !== undefined;
+    if (configData.client === CLIENTS.NANO) {
+        return document.getElementById(cid) !== null;
+    } else {
+        return await getStoredConversationData(cid) !== undefined;
+    }
 }
 
 
@@ -3230,14 +3234,8 @@ class NanoBuilder {
      */
     resolveChatData(options) {
         const chatData = options['CHAT_DATA'];
-        Array.from(chatData).forEach(chat => {
-            getConversationDataByInput(chat['CID']).then(async conversationData => {
-                if (conversationData) {
-                    await buildConversation(conversationData, CONVERSATION_SKINS.BASE, false, chat['PARENT_ID']);
-                } else {
-                    console.error(`No conversation found matching provided id: ${chat['CID']}`);
-                }
-            }).catch(err => console.error(err));
+        Array.from(chatData).forEach(async chat => {
+            await displayConversation(chat['CID'], CONVERSATION_SKINS.BASE, chat['PARENT_ID'], chat['PARENT_ID'])
         })
     }
 
