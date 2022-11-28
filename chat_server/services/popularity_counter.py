@@ -75,12 +75,6 @@ class PopularityCounter:
         """
         from chat_server.server_utils.db_utils import DbUtils
         curr_time = int(time())
-        DbUtils.db_controller.exec_query(MongoQuery(command=MongoCommands.UPDATE,
-                                                    document=MongoDocuments.CHATS,
-                                                    filters=MongoFilter(key='is_private',
-                                                                        value='false'),
-                                                    data={'is_private': False},
-                                                    data_action='set'))
         chats = DbUtils.db_controller.exec_query(MongoQuery(command=MongoCommands.FIND_ALL,
                                                             document=MongoDocuments.CHATS,
                                                             filters=MongoFilter(key='is_private',
