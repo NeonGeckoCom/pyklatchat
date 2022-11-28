@@ -603,8 +603,10 @@ addConversationParticipant(cid, message['user_nickname']);
 }else{
 chatFlowHTML+=`<div class="blank_chat">No messages in this chat yet...</div>`;
 }
+const conversationNameShrunk = shrinkToFit(conversation_name, 6)
 return await buildHTMLFromTemplate('conversation',
-{'cid': cid, 'conversation_name':conversation_name, 'chat_flow': chatFlowHTML}, `skin=${skin}`);
+{'cid': cid, 'conversation_name':conversation_name, 'conversation_name_shrunk': conversationNameShrunk,
+'chat_flow': chatFlowHTML}, `skin=${skin}`);
 }
 
 /**
@@ -1300,7 +1302,7 @@ let formData = new FormData();
 
 formData.append('conversation_name', conversationName);
 formData.append('id', conversationID);
-formData.append('is_private', isPrivate)
+formData.append('is_private', isPrivate? '1': '0')
 
 await fetchServer(`chat_api/new`,  REQUEST_METHODS.POST, formData).then(async response => {
 const responseJson = await response.json();
