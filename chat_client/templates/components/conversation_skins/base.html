@@ -2,7 +2,7 @@
 
 {% block skin_body %}
     <div class="card non-selectable" id="{cid}">
-        <div class="card-header">{conversation_name}
+        <div class="card-header"><span data-toggle="tooltip" title="{conversation_name}">{conversation_name_shrunk}</span>
             <span class="ml-3" id="participants-list-{cid}" data-toggle="tooltip" title='Contributors of "{conversation_name}"'>
                 <i class="fa-solid fa-user" aria-hidden="true"></i> <span id="participants-count-{cid}">0</span>
             </span>
