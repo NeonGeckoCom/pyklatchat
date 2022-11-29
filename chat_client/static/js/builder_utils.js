@@ -101,9 +101,6 @@ async function buildUserMessageHTML(userData, messageID, messageText, timeCreate
     const messageClass = isAnnouncement === '1'?'announcement':isMine?'in':'out';
     const messageOrientation = isMine?'right': 'left';
     let minificationEnabled = currentUser?.preferences?.minify_messages === '1';
-    if(isAnnouncement === '1'){
-        minificationEnabled = false;
-    }
     let templateSuffix = minificationEnabled? '_minified': '';
     const templateName = isAudio === '1'?`user_message_audio${templateSuffix}`: `user_message${templateSuffix}`;
     if (isAudio === '0') {
@@ -292,8 +289,10 @@ async function buildConversationHTML(conversationData = {}, skin = CONVERSATION_
     }else{
         chatFlowHTML+=`<div class="blank_chat">No messages in this chat yet...</div>`;
     }
+    const conversationNameShrunk = shrinkToFit(conversation_name, 6)
     return await buildHTMLFromTemplate('conversation',
-        {'cid': cid, 'conversation_name':conversation_name, 'chat_flow': chatFlowHTML}, `skin=${skin}`);
+        {'cid': cid, 'conversation_name':conversation_name, 'conversation_name_shrunk': conversationNameShrunk,
+                       'chat_flow': chatFlowHTML}, `skin=${skin}`);
 }
 
 /**

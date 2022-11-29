@@ -444,8 +444,12 @@ async function removeConversation(cid){
  * @param cid: target conversation id
  * @return true if cid is stored in client db, false otherwise
  */
-async function isDisplayed(cid){
-    return await getStoredConversationData(cid) !== undefined;
+async function isDisplayed(cid) {
+    if (configData.client === CLIENTS.NANO){
+        return document.getElementById(cid) !== null;
+    }else {
+        return await getStoredConversationData( cid ) !== undefined;
+    }
 }
 
 
@@ -616,21 +620,23 @@ const CHAT_STATES = {
  */
 function setChatState(cid, state='active', state_msg = ''){
     // TODO: refactor this method to handle when there are multiple messages on a stack
-    console.log(`cid=${cid}, state=${state}, state_msg=${state_msg}`)
+    // console.log(`cid=${cid}, state=${state}, state_msg=${state_msg}`)
     const cidNode = document.getElementById(cid);
-    const spinner = document.getElementById(`${cid}-spinner`);
-    const spinnerUpdateMsg = document.getElementById(`${cid}-update-msg`);
-    if (state === 'updating'){
-        cidNode.classList.add('chat-loading');
-        spinner.style.setProperty('display', 'flex', 'important');
-        spinnerUpdateMsg.innerHTML = state_msg;
-    }else if(state === 'active'){
-        cidNode.classList.remove('chat-loading');
-        spinner.style.setProperty('display', 'none', 'important');
-        spinnerUpdateMsg.innerHTML = '';
+    if (cidNode) {
+        const spinner = document.getElementById( `${cid}-spinner` );
+        const spinnerUpdateMsg = document.getElementById( `${cid}-update-msg` );
+        if (state === 'updating') {
+            cidNode.classList.add( 'chat-loading' );
+            spinner.style.setProperty( 'display', 'flex', 'important' );
+            spinnerUpdateMsg.innerHTML = state_msg;
+        } else if (state === 'active') {
+            cidNode.classList.remove( 'chat-loading' );
+            spinner.style.setProperty( 'display', 'none', 'important' );
+            spinnerUpdateMsg.innerHTML = '';
+        }
+        conversationState[cid]['state'] = state;
+        conversationState[cid]['state_message'] = state_msg;
     }
-    conversationState[cid]['state'] = state;
-    conversationState[cid]['state_message'] = state_msg;
 }
 
 /**
@@ -682,7 +688,7 @@ async function createNewConversation(conversationName, isPrivate=false, conversa
 
     formData.append('conversation_name', conversationName);
     formData.append('id', conversationID);
-    formData.append('is_private', isPrivate)
+    formData.append('is_private', isPrivate? '1': '0')
 
     await fetchServer(`chat_api/new`,  REQUEST_METHODS.POST, formData).then(async response => {
         const responseJson = await response.json();

@@ -3,12 +3,21 @@
 {% block skin_body %}
     <div class="card non-selectable" id="{cid}">
         <div class="card-header">Prompts of "{conversation_name}"
-            <button type="button" class="btn btn-light ml-3" id="base-mode-{cid}">
-                <span aria-hidden="true" class="fa fa-file-text"></span>
-            </button>
-            <button type="button" id="close-prompts-{cid}" data-target-cid="{cid}" class="close-cid">
-                <span aria-hidden="true">×</span>
-            </button>
+            <div class="float-right">
+                <div class="dropdown ml-2" data-toggle="tooltip" title="Display Format" style="display: inline!important;">
+                    <button class="btn btn-secondary dropdown-toggle" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" id="language-selected-{cid}-incoming">
+                        <span class="fa fa-arrows-to-eye"></span>
+                    </button>
+                    <div class="dropdown-menu dropdown-menu-right text-right">
+                        <a class="dropdown-item" id="base-mode-{cid}">
+                            Text Mode <span aria-hidden="true" class="fa fa-file-text"></span>
+                        </a>
+                    </div>
+                </div>
+                <button type="button" id="close-prompts-{cid}" data-target-cid="{cid}" class="close-cid ml-1">
+                    <span aria-hidden="true">×</span>
+                </button>
+            </div>
         </div>
         <div class="card-body height3" style="overflow-y: auto; height: 450px!important;">
             <ul class="chat-list">

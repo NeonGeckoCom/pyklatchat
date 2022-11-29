@@ -9,7 +9,8 @@ class NanoBuilder {
     propertyHandlers = {
         'SOCKET_IO_SERVER_URL': this.resolveSIO,
         'CHAT_SERVER_URL_BASE': this.addConfig,
-        'CHAT_CLIENT_URL_BASE': this.setClientURL
+        'CHAT_CLIENT_URL_BASE': this.setClientURL,
+        'PREFERENCES': this.resolvePreferences
     }
     /**
      * Constructing NanoBuilder instance
@@ -65,14 +66,8 @@ class NanoBuilder {
      */
     resolveChatData(options){
         const chatData = options['CHAT_DATA'];
-        Array.from(chatData).forEach(chat => {
-            getConversationDataByInput(chat['CID']).then(async conversationData=>{
-            if(conversationData) {
-                await buildConversation(conversationData, CONVERSATION_SKINS.BASE, false, chat['PARENT_ID']);
-            }else{
-                console.error(`No conversation found matching provided id: ${chat['CID']}`);
-            }
-        }).catch(err=> console.error(err));
+        Array.from(chatData).forEach(async chat => {
+            await displayConversation(chat['CID'], CONVERSATION_SKINS.BASE, chat['PARENT_ID'], chat['PARENT_ID'])
         })
     }
 
@@ -96,6 +91,17 @@ class NanoBuilder {
 
     setClientURL(key, value){
         configData['currentURLBase'] = value;
+    }
+
+    /**
+     * Resolves preferences from user options
+     * @param options: provided nano builder options
+     * */
+    resolvePreferences(options){
+        setDefault(currentUser, 'preferences', {})
+        for (const [key, val] of Object.entries(options)){
+            currentUser.preferences[key.toLowerCase()] = val.toLowerCase();
+        }
     }
 }
 

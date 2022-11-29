@@ -30,6 +30,7 @@ itsdangerous==2.0.1
 Jinja2==3.0.1
 jmespath==0.10.0
 joblib==1.0.1
+jsbeautifier==1.14.7
 json-database==0.5.5
 kthread==0.2.2
 langdetect==1.0.9

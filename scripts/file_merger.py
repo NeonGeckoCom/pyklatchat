@@ -31,6 +31,7 @@
 """
 import argparse
 import os
+import jsbeautifier
 from os.path import join
 from typing import Dict, Optional, List
 
@@ -106,7 +107,7 @@ class FileMerger(FilesManipulator):
             return lines
 
     def on_valid_file(self, file_path):
-        self.current_content += self.get_content(self.full_path(file_path))
+        self.current_content += '\n' + jsbeautifier.beautify(self.get_content(self.full_path(file_path)))
 
     def run(self):
         """
@@ -120,7 +121,7 @@ class FileMerger(FilesManipulator):
             matching_files = self.weighted_files.get(str(weight), ())
             for file in matching_files:
                 if file not in self.skip_files:
-                    self.current_content += self.get_content(file)
+                    self.current_content += '\n' + jsbeautifier.beautify(self.get_content(file))
             matching_dirs = self.weighted_dirs.get(str(weight), ())
             for folder in matching_dirs:
                 self.walk_tree(folder)

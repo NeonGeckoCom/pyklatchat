@@ -73,13 +73,16 @@ async def new_conversation(request: Request,
         else:
             duplicated_field = 'conversation name'
         return respond(f'Conversation with provided {duplicated_field} already exists', 400)
-    request_data_dict = {'_id': conversation_id or generate_uuid(),
+    cid = conversation_id or generate_uuid()
+    request_data_dict = {'_id': cid,
                          'conversation_name': conversation_name,
-                         'is_private': is_private,
+                         'is_private': True if is_private == '1' else False,
                          'created_on': int(time())}
     db_controller.exec_query(query=MongoQuery(command=MongoCommands.INSERT_ONE,
                                               document=MongoDocuments.CHATS,
                                               data=request_data_dict))
+    PopularityCounter.add_new_chat(cid=cid,
+                                   name=conversation_name)
     return JSONResponse(content=request_data_dict)
 
 
