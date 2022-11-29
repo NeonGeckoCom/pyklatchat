@@ -172,10 +172,11 @@ async def user_message(sid, data):
                 raise ValueError(f'messageID value="{data["messageID"]}" already exists')
         else:
             data['messageID'] = generate_uuid()
+        data['is_bot'] = data.pop('bot', '0')
         if data['userID'] == 'neon':
             neon_data = get_neon_data(db_controller=db_controller)
             data['userID'] = neon_data['_id']
-        elif data.get('bot', False):
+        elif data['is_bot'] == '1':
             bot_data = get_bot_data(db_controller=db_controller, nickname=data['userID'],
                                     context=data.get('context', None))
             data['userID'] = bot_data['_id']
@@ -214,6 +215,7 @@ async def user_message(sid, data):
                           'replied_message': data.get('repliedMessage', ''),
                           'is_audio': is_audio,
                           'is_announcement': is_announcement,
+                          'is_bot': data['is_bot'],
                           'translations': {},
                           'created_on': int(data['timeCreated'])}
 

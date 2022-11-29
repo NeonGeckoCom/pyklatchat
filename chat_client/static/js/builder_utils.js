@@ -106,12 +106,20 @@ async function buildUserMessageHTML(userData, messageID, messageText, timeCreate
     if (isAudio === '0') {
         messageText = messageText.replaceAll( '\n', '<br>' );
     }
+    let statusIconHTML = '';
+    let userTooltip = userData['nickname'];
+    if (userData?.is_bot === '1'){
+        statusIconHTML = ' <span class="fa fa-robot"></span>'
+        userTooltip = `bot ${userTooltip}`
+    }
     return await buildHTMLFromTemplate(templateName,
         {'message_class': messageClass,
             'is_announcement': isAnnouncement,
             'image_component': imageComponent,
             'message_id':messageID,
-            'nickname': userData['nickname'],
+            'user_tooltip': userTooltip,
+            'nickname_shrunk': shrinkToFit(userData['nickname'], 15, '..'),
+            'status_icon': statusIconHTML,
             'message_text':messageText,
             'message_orientation': messageOrientation,
             'audio_url': `${configData["CHAT_SERVER_URL_BASE"]}/files/audio/${messageID}`,
@@ -140,6 +148,10 @@ const shrinkNickname = (nick) => {
  */
 async function buildSubmindHTML(promptID, submindID, submindUserData, submindResponse, submindOpinion, submindVote) {
     const userNickname = shrinkNickname(submindUserData['nickname']);
+    let tooltip = submindUserData['nickname'];
+    if (submindUserData['is_bot']){
+        tooltip = `bot ${tooltip}`;
+    }
     return await buildHTMLFromTemplate("prompt_participant",
         {
             'prompt_id': promptID,
@@ -148,6 +160,7 @@ async function buildSubmindHTML(promptID, submindID, submindUserData, submindRes
             'user_last_name': submindUserData['last_name'],
             'user_nickname': userNickname,
             'user_avatar': `${configData["CHAT_SERVER_URL_BASE"]}/files/avatar/${submindID}`,
+            'tooltip': tooltip,
             'response': submindResponse,
             'opinion': submindOpinion,
             'vote':submindVote});
@@ -199,7 +212,8 @@ async function buildPromptHTML(prompt) {
                 submindUserData = {
                     'nickname': submindID,
                     'first_name': 'Klat',
-                    'last_name': 'User'
+                    'last_name': 'User',
+                    'is_bot': '0'
                 }
                 isLegacy = true
             }
@@ -245,6 +259,7 @@ async function messageHTMLFromData(message, skin=CONVERSATION_SKINS.BASE){
         return buildUserMessageHTML({
                 'avatar': message['user_avatar'],
                 'nickname': message['user_nickname'],
+                'is_bot': message['user_is_bot'],
                 '_id': message['user_id']
             },
             message['message_id'],

@@ -170,6 +170,7 @@ class DbUtils(metaclass=Singleton):
         return cls.list_items(document=MongoDocuments.USERS, source_set=user_ids, value_keys=['first_name',
                                                                                               'last_name',
                                                                                               'nickname',
+                                                                                              'is_bot',
                                                                                               'avatar'])
 
     @classmethod

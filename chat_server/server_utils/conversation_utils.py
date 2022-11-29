@@ -45,6 +45,7 @@ def build_message_json(raw_message: dict, skin: ConversationSkins = Conversation
                    'user_first_name': raw_message['first_name'],
                    'user_last_name': raw_message['last_name'],
                    'user_nickname': raw_message['nickname'],
+                   'user_is_bot': raw_message.get('is_bot', '0'),
                    'user_avatar': raw_message.get('avatar', '')}
     elif skin == ConversationSkins.PROMPTS:
         return raw_message
