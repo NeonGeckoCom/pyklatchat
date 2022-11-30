@@ -331,7 +331,7 @@ async def get_prompt_data(sid, data):
     prompt_id = data.get('prompt_id')
     _prompt_data = DbUtils.fetch_prompt_data(cid=data['cid'],
                                              limit=data.get('limit', 5),
-                                             prompt_id=prompt_id,
+                                             prompt_ids=[prompt_id],
                                              fetch_user_data=True)
     if prompt_id:
         prompt_data = {'_id': _prompt_data[0]['_id'],

@@ -184,14 +184,14 @@ class DbUtils(metaclass=Singleton):
 
     @classmethod
     def fetch_prompt_data(cls, cid: str, limit: int = 100, id_from: str = None,
-                          prompt_id: str = None, fetch_user_data: bool = False) -> List[dict]:
+                          prompt_ids: List[str] = None, fetch_user_data: bool = False) -> List[dict]:
         """
             Fetches prompt data out of conversation data
 
             :param cid: target conversation id
             :param limit: number of prompts to fetch
             :param id_from: prompt id to start from
-            :param prompt_id: prompt id to fetch
+            :param prompt_ids: prompt ids to fetch
             :param fetch_user_data: to fetch user data in the
 
             :returns list of matching prompt data along with matching messages and users
@@ -203,8 +203,10 @@ class DbUtils(metaclass=Singleton):
                                                                         filters=MongoFilter('_id', id_from)))
             if checkpoint_prompt:
                 filters.append(MongoFilter('created_on', checkpoint_prompt['created_on'], MongoLogicalOperators.LT))
-        if prompt_id:
-            filters.append(MongoFilter('_id', prompt_id, MongoLogicalOperators.EQ))
+        if prompt_ids:
+            if isinstance(prompt_ids, str):
+                prompt_ids = [prompt_ids]
+            filters.append(MongoFilter('_id', prompt_ids, MongoLogicalOperators.IN))
         matching_prompts = cls.db_controller.exec_query(query=MongoQuery(document=MongoDocuments.PROMPTS,
                                                                          command=MongoCommands.FIND_ALL,
                                                                          filters=filters,
@@ -235,19 +237,27 @@ class DbUtils(metaclass=Singleton):
                                 limit: int = 100,
                                 fetch_senders: bool = True, start_message_id: str = None):
         """ Fetches message data based on provided conversation skin """
-        if skin == ConversationSkins.BASE:
-            message_data = cls.fetch_shout_data(conversation_data=conversation_data,
-                                                fetch_senders=fetch_senders,
-                                                start_idx=start_idx,
-                                                id_from=start_message_id,
-                                                limit=limit)
-        elif skin == ConversationSkins.PROMPTS:
-            message_data = cls.fetch_prompt_data(cid=conversation_data['_id'],
-                                                 id_from=start_message_id,
-                                                 limit=limit)
-        else:
-            LOG.error(f'Failed to resolve skin={skin}')
-            message_data = []
+        message_data = cls.fetch_shout_data(conversation_data=conversation_data,
+                                            fetch_senders=fetch_senders,
+                                            start_idx=start_idx,
+                                            id_from=start_message_id,
+                                            limit=limit)
+        for message in message_data:
+            message['message_type'] = 'plain'
+        if skin == ConversationSkins.PROMPTS:
+            detected_prompts = set([item.get('prompt_id') for item in message_data if item.get('prompt_id')])
+            prompt_data = cls.fetch_prompt_data(cid=conversation_data['_id'],
+                                                prompt_ids=detected_prompts)
+            if prompt_data:
+                detected_prompt_ids = []
+                for prompt in prompt_data:
+                    prompt['message_type'] = 'prompt'
+                    detected_prompt_ids.append(prompt['_id'])
+                message_data = [message for message in message_data if message.get('prompt_id') not in detected_prompt_ids]
+                message_data.extend(prompt_data)
+        # else:
+        #     LOG.error(f'Failed to resolve skin={skin}')
+        #     message_data = []
         return message_data
 
     @classmethod

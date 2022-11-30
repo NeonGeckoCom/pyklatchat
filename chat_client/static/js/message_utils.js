@@ -13,14 +13,23 @@ const getMessageListContainer = (cid) => {
 /**
  * Gets message node from the message container
  * @param messageContainer: DOM Message Container element to consider
- * @param skin: target conversation skin to consider
+ * @param validateType: type of message to validate
  * @return {HTMLElement} ID of the message
  */
-const getMessageNode = (messageContainer, skin) => {
-    if (skin === CONVERSATION_SKINS.PROMPTS){
-        return messageContainer.getElementsByTagName('table')[0];
-    }else {
-        return messageContainer.getElementsByClassName('chat-body')[0].getElementsByClassName('chat-message')[0];
+const getMessageNode = (messageContainer, validateType=null) => {
+    let detectedType;
+    let node
+    if (messageContainer.getElementsByTagName('table').length > 0) {
+        detectedType = 'prompt';
+        node = messageContainer.getElementsByTagName( 'table' )[0];
+    }else{
+        detectedType = 'plain'
+        node = messageContainer.getElementsByClassName('chat-body')[0].getElementsByClassName('chat-message')[0];
+    }
+    if (validateType && validateType!==detectedType){
+        return null;
+    }else{
+        return node;
     }
 }
 
@@ -119,10 +128,21 @@ async function addPromptMessage(cid, userID, messageText, promptId, promptState)
  */
 function addOldMessages(cid, skin=CONVERSATION_SKINS.BASE, numMessages = 10){
     const messageContainer = getMessageListContainer(cid);
+    let firstId = null;
+    let firstMessageItem = null;
     if(messageContainer.children.length > 0) {
-        const firstMessageItem = messageContainer.children[0];
-        const firstMessageID = getMessageNode(firstMessageItem, skin).id;
-        getConversationDataByInput(cid, skin, firstMessageID).then(async conversationData => {
+        for (let i = 0; i< messageContainer.children.length;i++){
+            firstMessageItem = messageContainer.children[i];
+            const firstMessageNode = getMessageNode(firstMessageItem, 'plain');
+            if(firstMessageNode){
+                firstId = firstMessageNode.id;
+                break;
+            }
+        }
+        if (!firstId){
+            console.warn(`WARNING! Only prompts detected for cid=${cid}`);
+        }
+        getConversationDataByInput(cid, skin, firstId).then(async conversationData => {
             if (messageContainer) {
                 const userMessageList = getUserMessages(conversationData);
                 userMessageList.sort((a, b) => {

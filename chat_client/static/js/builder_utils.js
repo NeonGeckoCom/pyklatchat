@@ -254,7 +254,9 @@ async function buildPromptHTML(prompt) {
  * @return {Promise<string>} HTML by the provided message data
  */
 async function messageHTMLFromData(message, skin=CONVERSATION_SKINS.BASE){
-    if (skin === CONVERSATION_SKINS.BASE) {
+    if (skin === CONVERSATION_SKINS.PROMPTS && message['message_type'] === 'prompt'){
+        return buildPromptHTML(message);
+    }else{
         const isMine = currentUser && message['user_nickname'] === currentUser['nickname'];
         return buildUserMessageHTML({
                 'avatar': message['user_avatar'],
@@ -268,8 +270,6 @@ async function messageHTMLFromData(message, skin=CONVERSATION_SKINS.BASE){
             isMine,
             message?.is_audio,
             message?.is_announcement);
-    } else if (skin === CONVERSATION_SKINS.PROMPTS){
-        return buildPromptHTML(message);
     }
 }
 
@@ -297,9 +297,9 @@ async function buildConversationHTML(conversationData = {}, skin = CONVERSATION_
     if(conversationData.hasOwnProperty('chat_flow')) {
         for (const message of Array.from(conversationData['chat_flow'])) {
             chatFlowHTML += await messageHTMLFromData(message, skin);
-            if (skin === CONVERSATION_SKINS.BASE) {
-                addConversationParticipant(cid, message['user_nickname']);
-            }
+            // if (skin === CONVERSATION_SKINS.BASE) {
+            addConversationParticipant(cid, message['user_nickname']);
+            // }
         }
     }else{
         chatFlowHTML+=`<div class="blank_chat">No messages in this chat yet...</div>`;

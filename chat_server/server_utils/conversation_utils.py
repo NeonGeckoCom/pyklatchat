@@ -33,7 +33,7 @@ from chat_server.constants.conversations import ConversationSkins
 
 def build_message_json(raw_message: dict, skin: ConversationSkins = ConversationSkins.BASE) -> dict:
     """ Builds user message json based on provided conversation skin """
-    if skin == ConversationSkins.BASE:
+    if raw_message['message_type'] == 'plain':
         message = {'user_id': raw_message['user_id'],
                    'created_on': int(raw_message['created_on']),
                    'message_id': raw_message['message_id'],
@@ -47,7 +47,7 @@ def build_message_json(raw_message: dict, skin: ConversationSkins = Conversation
                    'user_nickname': raw_message['nickname'],
                    'user_is_bot': raw_message.get('is_bot', '0'),
                    'user_avatar': raw_message.get('avatar', '')}
-    elif skin == ConversationSkins.PROMPTS:
+    elif raw_message['message_type'] == 'prompt':
         return raw_message
     else:
         LOG.error(f'Undefined skin = {skin}')
