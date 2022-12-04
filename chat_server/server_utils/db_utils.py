@@ -184,7 +184,8 @@ class DbUtils(metaclass=Singleton):
 
     @classmethod
     def fetch_prompt_data(cls, cid: str, limit: int = 100, id_from: str = None,
-                          prompt_ids: List[str] = None, fetch_user_data: bool = False) -> List[dict]:
+                          prompt_ids: List[str] = None, fetch_user_data: bool = False,
+                          created_from: int = None) -> List[dict]:
         """
             Fetches prompt data out of conversation data
 
@@ -193,6 +194,7 @@ class DbUtils(metaclass=Singleton):
             :param id_from: prompt id to start from
             :param prompt_ids: prompt ids to fetch
             :param fetch_user_data: to fetch user data in the
+            :param created_from: timestamp to filter messages from
 
             :returns list of matching prompt data along with matching messages and users
         """
@@ -207,6 +209,8 @@ class DbUtils(metaclass=Singleton):
             if isinstance(prompt_ids, str):
                 prompt_ids = [prompt_ids]
             filters.append(MongoFilter('_id', prompt_ids, MongoLogicalOperators.IN))
+        if created_from:
+            filters.append(MongoFilter('created_on', created_from, MongoLogicalOperators.GT))
         matching_prompts = cls.db_controller.exec_query(query=MongoQuery(document=MongoDocuments.PROMPTS,
                                                                          command=MongoCommands.FIND_ALL,
                                                                          filters=filters,
@@ -245,7 +249,7 @@ class DbUtils(metaclass=Singleton):
         for message in message_data:
             message['message_type'] = 'plain'
         if skin == ConversationSkins.PROMPTS:
-            detected_prompts = set([item.get('prompt_id') for item in message_data if item.get('prompt_id')])
+            detected_prompts = list(set(item.get('prompt_id') for item in message_data if item.get('prompt_id')))
             prompt_data = cls.fetch_prompt_data(cid=conversation_data['_id'],
                                                 prompt_ids=detected_prompts)
             if prompt_data:
@@ -255,9 +259,6 @@ class DbUtils(metaclass=Singleton):
                     detected_prompt_ids.append(prompt['_id'])
                 message_data = [message for message in message_data if message.get('prompt_id') not in detected_prompt_ids]
                 message_data.extend(prompt_data)
-        # else:
-        #     LOG.error(f'Failed to resolve skin={skin}')
-        #     message_data = []
         return message_data
 
     @classmethod

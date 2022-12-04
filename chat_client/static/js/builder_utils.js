@@ -118,6 +118,7 @@ async function buildUserMessageHTML(userData, messageID, messageText, timeCreate
             'image_component': imageComponent,
             'message_id':messageID,
             'user_tooltip': userTooltip,
+            'nickname': userData['nickname'],
             'nickname_shrunk': shrinkToFit(userData['nickname'], 15, '..'),
             'status_icon': statusIconHTML,
             'message_text':messageText,
@@ -141,9 +142,9 @@ const shrinkNickname = (nick) => {
  * @param promptID: target prompt id
  * @param submindID: user id of submind
  * @param submindUserData: user data of submind
- * @param submindResponse: Responding shout of submind to incoming prompt
- * @param submindOpinion: Discussion shout of submind to incoming prompt
- * @param submindVote: Vote of submind in prompt
+ * @param submindResponse: Responding data of submind to incoming prompt
+ * @param submindOpinion: Discussion data of submind to incoming prompt
+ * @param submindVote: Vote data of submind in prompt
  * @return {Promise<string|void>} - Submind Data HTML populated with provided data
  */
 async function buildSubmindHTML(promptID, submindID, submindUserData, submindResponse, submindOpinion, submindVote) {
@@ -152,18 +153,30 @@ async function buildSubmindHTML(promptID, submindID, submindUserData, submindRes
     if (submindUserData['is_bot']){
         tooltip = `bot ${tooltip}`;
     }
-    return await buildHTMLFromTemplate("prompt_participant",
-        {
+    const phaseDataObjectMapping = {
+        'response': submindResponse,
+        'opinion': submindOpinion,
+        'vote': submindVote
+    }
+    let templateData = {
             'prompt_id': promptID,
             'user_id': submindID,
             'user_first_name': submindUserData['first_name'],
             'user_last_name': submindUserData['last_name'],
-            'user_nickname': userNickname,
+            'user_nickname': submindUserData['nickname'],
+            'user_nickname_shrunk': userNickname,
             'user_avatar': `${configData["CHAT_SERVER_URL_BASE"]}/files/avatar/${submindID}`,
-            'tooltip': tooltip,
-            'response': submindResponse,
-            'opinion': submindOpinion,
-            'vote':submindVote});
+            'tooltip': tooltip
+    }
+    const submindPromptData = {}
+    for (const [k,v] of Object.entries(phaseDataObjectMapping)){
+        submindPromptData[k] = v.message_text
+        submindPromptData[`${k}_message_id`] = v?.message_id
+        const dateCreated = getTimeFromTimestamp(v?.created_on);
+        submindPromptData[`${k}_created_on`] = dateCreated;
+        submindPromptData[`${k}_created_on_tooltip`] = dateCreated? `shouted on: ${dateCreated}`: `no ${k} from ${userNickname} in this prompt`;
+    }
+    return await buildHTMLFromTemplate("prompt_participant", Object.assign(templateData, submindPromptData));
 }
 
 
@@ -220,16 +233,18 @@ async function buildPromptHTML(prompt) {
             const data = {}
             searchedKeys.forEach(key=>{
                 try {
-                    let value = promptData[key][submindID];
+                    const messageId = promptData[key][submindID];
+                    let value = null;
                     if (!isLegacy) {
-                        value = prompt['message_mapping'][value][0]['message_text'];
+                        value = prompt['message_mapping'][messageId][0];
+                        value['message_id'] = messageId;
                     }
                     if (!value) {
-                        value = emptyAnswer
+                        value = {'message_text': emptyAnswer}
                     }
                     data[key] = value;
                 }catch (e) {
-                    data[key] = emptyAnswer;
+                    data[key] = {'message_text': emptyAnswer};
                 }
             });
             submindsHTML += await buildSubmindHTML(prompt['_id'], submindID, submindUserData,

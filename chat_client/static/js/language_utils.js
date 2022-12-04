@@ -71,7 +71,7 @@ async function fetchSupportedLanguages(){
 async function requestTranslation(cid=null, shouts=null, lang=null, inputType='incoming', translateToBaseLang=false){
     let requestBody = {chat_mapping: {}};
     // const skin = await getCurrentSkin(cid);
-    if(cid && await isDisplayed(cid)){
+    if(cid && isDisplayed(cid)){
         lang = lang || getPreferredLanguage(cid, inputType);
         if (lang !== 'en' && getMessagesOfCID(cid, MESSAGE_REFER_TYPE.ALL, 'plain').length > 0){
              setChatState(cid, 'updating', 'Applying New Language...');
@@ -203,7 +203,7 @@ async function requestChatsLanguageRefresh(){
     const languageMapping = currentUser?.preferences?.chat_language_mapping || {};
     console.log(`languageMapping=${JSON.stringify(languageMapping)}`)
     for (const [cid, value] of Object.entries(languageMapping)) {
-        if (await isDisplayed(cid)) {
+        if (isDisplayed(cid)) {
             for (const inputType of ['incoming', 'outcoming']) {
                 const lang = value[inputType] || 'en';
                 if (lang !== 'en') {

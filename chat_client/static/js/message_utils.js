@@ -67,7 +67,7 @@ async function addNewMessage(cid, userID=null, messageID=null, messageText, time
         messageList.insertAdjacentHTML('beforeend', messageHTML);
         resolveMessageAttachments(cid, messageID, attachments);
         resolveUserReply(messageID, repliedMessageID);
-        addProfileDisplay(cid, messageID);
+        addProfileDisplay(cid, messageID, 'plain');
         addConversationParticipant(cid, userData['nickname'], true);
         scrollOnNewMessage(messageList);
         return messageID;
@@ -149,8 +149,12 @@ function addOldMessages(cid, skin=CONVERSATION_SKINS.BASE, numMessages = 10){
                     a['created_on'] - b['created_on'];
                 }).reverse();
                 for (const message of userMessageList) {
-                    const messageHTML = await messageHTMLFromData(message, skin);
-                    messageContainer.insertAdjacentHTML('afterbegin', messageHTML);
+                    if (!isDisplayed(getMessageID(message))) {
+                        const messageHTML = await messageHTMLFromData( message, skin );
+                        messageContainer.insertAdjacentHTML( 'afterbegin', messageHTML );
+                    }else{
+                        console.debug(`!!message_id=${message["message_id"]} is already displayed`)
+                    }
                 }
                 initMessages(conversationData, skin);
             }
@@ -160,13 +164,36 @@ function addOldMessages(cid, skin=CONVERSATION_SKINS.BASE, numMessages = 10){
     }
 }
 
+
+/**
+ * Returns message id based on message type
+ * @param message: message object to check
+ * @returns {null|*} message id extracted if valid message type detected
+ */
+const getMessageID = (message) => {
+    switch (message['message_type']){
+        case 'plain':
+            return message['message_id'];
+        case 'prompt':
+            return message['_id'];
+        default:
+            console.warn(`Invalid message structure received - ${message}`);
+            return null;
+    }
+}
+
 /**
  * Array of user messages in given conversation
  * @param conversationData: Conversation Data object to fetch
+ * @param forceType: to force particular type of messages among the chat flow
  */
-const getUserMessages = (conversationData) => {
+const getUserMessages = (conversationData, forceType='plain') => {
     try {
-        return Array.from(conversationData['chat_flow']);
+        let messages = Array.from(conversationData['chat_flow']);
+        if (forceType){
+            messages = messages.filter(message=> message['message_type'] === forceType);
+        }
+        return messages;
     } catch{
         return [];
     }
@@ -201,17 +228,33 @@ function initLoadOldMessages(conversationData, skin) {
 }
 
 /**
+ * Attaches event listener to display element's target user profile
+ * @param elem: target DOM element
+ */
+function attachTargetProfileDisplay(elem){
+    if (elem) {
+        elem.addEventListener( 'click', async (e) => {
+            const userNickname = elem.getAttribute( 'data-target' );
+            if (userNickname) await showProfileModal( userNickname )
+        } );
+    }
+}
+
+/**
  * Adds callback for showing profile information on profile avatar click
  * @param cid: target conversation id
  * @param messageId: target message id
+ * @param messageType: type of message to display
  */
-function addProfileDisplay(cid, messageId){
-    const messageAvatar = document.getElementById(`${messageId}_avatar`);
-    if (messageAvatar){
-        messageAvatar.addEventListener('click', async (e)=>{
-            const userNickname = messageAvatar.getAttribute('data-target');
-            if(userNickname && configData.client === CLIENTS.MAIN) await showProfileModal(userNickname)
-        });
+function addProfileDisplay(cid, messageId, messageType='plain'){
+    if (messageType === 'plain') {
+        attachTargetProfileDisplay(document.getElementById( `${messageId}_avatar` ))
+    }else if (messageType === 'prompt'){
+        const promptTBody = document.getElementById(`${messageId}_tbody`);
+        const rows = promptTBody.getElementsByTagName('tr');
+        Array.from(rows).forEach(row=>{
+            attachTargetProfileDisplay(Array.from(row.getElementsByTagName('td'))[0].getElementsByClassName('chat-img')[0]);
+        })
     }
 }
 
@@ -221,8 +264,8 @@ function addProfileDisplay(cid, messageId){
  * @param conversationData: target conversation data
  */
 function initProfileDisplay(conversationData){
-    getUserMessages(conversationData).forEach(message => {
-        addProfileDisplay(conversationData['_id'], message['message_id']);
+    getUserMessages(conversationData, null).forEach(message => {
+        addProfileDisplay( conversationData['_id'], getMessageID(message), message['message_type']);
     });
 }
 
@@ -246,14 +289,11 @@ function initProfileDisplay(conversationData){
  * @param skin: target conversation skin to consider
  */
 function initMessages(conversationData, skin = CONVERSATION_SKINS.BASE){
-   if (skin === CONVERSATION_SKINS.BASE) {
-       initProfileDisplay(conversationData);
-       attachReplies(conversationData);
-       addAttachments(conversationData);
-       addCommunicationChannelTransformCallback(conversationData);
-   }
-   // common logic
-   initLoadOldMessages(conversationData, skin);
+    initProfileDisplay(conversationData);
+    attachReplies(conversationData);
+    addAttachments(conversationData);
+    addCommunicationChannelTransformCallback(conversationData);
+    initLoadOldMessages(conversationData, skin);
 }
 
 /**

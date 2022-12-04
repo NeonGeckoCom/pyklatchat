@@ -38,6 +38,7 @@ def build_message_json(raw_message: dict, skin: ConversationSkins = Conversation
                    'created_on': int(raw_message['created_on']),
                    'message_id': raw_message['message_id'],
                    'message_text': raw_message['message_text'],
+                   'message_type': raw_message['message_type'],
                    'is_audio': raw_message.get('is_audio', '0'),
                    'is_announcement': raw_message.get('is_announcement', '0'),
                    'replied_message': raw_message.get('replied_message', ''),

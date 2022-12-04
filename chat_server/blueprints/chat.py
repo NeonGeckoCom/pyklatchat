@@ -30,8 +30,6 @@ from typing import Optional
 from time import time
 from fastapi import APIRouter, Request, Form
 from fastapi.responses import JSONResponse
-from fastapi.encoders import jsonable_encoder
-from pydantic import BaseModel
 from neon_utils import LOG
 
 from chat_server.constants.conversations import ConversationSkins

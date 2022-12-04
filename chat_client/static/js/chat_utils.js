@@ -384,7 +384,7 @@ async function getConversationDataByInput(input="", skin=CONVERSATION_SKINS.BASE
                 }
             })
             .then(data => {
-                if (getUserMessages(data).length < maxResults){
+                if (getUserMessages(data, null).length === 0){
                     console.log('All of the messages are already displayed');
                     setDefault(setDefault(conversationState, data['_id'], {}), 'all_messages_displayed', true);
                 }
@@ -441,12 +441,8 @@ async function removeConversation(cid){
  * @param cid: target conversation id
  * @return true if cid is stored in client db, false otherwise
  */
-async function isDisplayed(cid) {
-    if (configData.client === CLIENTS.NANO){
-        return document.getElementById(cid) !== null;
-    }else {
-        return await getStoredConversationData( cid ) !== undefined;
-    }
+function isDisplayed(cid) {
+    return document.getElementById(cid) !== null;
 }
 
 
@@ -659,7 +655,7 @@ async function displayConversation(searchStr, skin=CONVERSATION_SKINS.BASE, aler
                     {'type': alertBehaviors.AUTO_EXPIRE}
                     );
             }
-            else if (await isDisplayed(conversationData['_id'])) {
+            else if (isDisplayed(conversationData['_id'])) {
                 displayAlert(alertParent, 'Chat is already displayed', 'danger');
             } else {
                 await buildConversation(conversationData, skin, true, conversationParentID);

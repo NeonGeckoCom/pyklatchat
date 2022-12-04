@@ -4,6 +4,9 @@
  * @returns {string} string time (hours:minutes)
  */
 function getTimeFromTimestamp(timestampCreated=0){
+    if (!timestampCreated){
+        return ''
+    }
     let date = new Date(timestampCreated * 1000);
     let year = date.getFullYear().toString();
     let month = date.getMonth()+1;
