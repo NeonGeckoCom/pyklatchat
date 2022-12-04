@@ -259,7 +259,7 @@ class DbUtils(metaclass=Singleton):
                     detected_prompt_ids.append(prompt['_id'])
                 message_data = [message for message in message_data if message.get('prompt_id') not in detected_prompt_ids]
                 message_data.extend(prompt_data)
-        return message_data
+        return sorted(message_data, key=lambda shout: int(shout['created_on']))
 
     @classmethod
     def fetch_shouts(cls, shout_ids: List[str] = None, fetch_senders: bool = True) -> List[dict]:

@@ -368,7 +368,7 @@ async function buildConversation(conversationData={}, skin = CONVERSATION_SKINS.
  * @param alertParent: parent of error alert (optional)
  * @returns {Promise<{}>} promise resolving conversation data returned
  */
-async function getConversationDataByInput(input="", skin=CONVERSATION_SKINS.BASE, firstMessageID=null, maxResults=10, alertParent=null){
+async function getConversationDataByInput(input="", skin=CONVERSATION_SKINS.BASE, firstMessageID=null, maxResults=20, alertParent=null){
     let conversationData = {};
     if(input && typeof input === "string"){
         let query_url = `chat_api/search/${input}?limit_chat_history=${maxResults}&skin=${skin}`;
@@ -644,7 +644,7 @@ function setChatState(cid, state='active', state_msg = ''){
 async function displayConversation(searchStr, skin=CONVERSATION_SKINS.BASE, alertParentID = null, conversationParentID='conversationsBody'){
     if (searchStr !== "") {
         const alertParent = document.getElementById(alertParentID);
-        await getConversationDataByInput(searchStr, skin, null, 10, alertParent).then(async conversationData => {
+        await getConversationDataByInput(searchStr, skin, null, 20, alertParent).then(async conversationData => {
             let responseOk = false;
             if (!conversationData || Object.keys(conversationData).length === 0){
                 displayAlert(

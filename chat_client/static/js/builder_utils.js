@@ -80,6 +80,7 @@ async function buildLangOptionHTML(cid, key, name, icon, inputType){
 /**
  * Builds user message HTML
  * @param userData: data of message sender
+ * @param cid: conversation id of target message
  * @param messageID: id of user message
  * @param messageText: text of user message
  * @param timeCreated: date of creation
@@ -88,7 +89,7 @@ async function buildLangOptionHTML(cid, key, name, icon, inputType){
  * @param isAnnouncement: is message if announcement (defaults to '0')
  * @returns {string}: constructed HTML out of input params
  */
-async function buildUserMessageHTML(userData, messageID, messageText, timeCreated, isMine, isAudio = '0', isAnnouncement = '0'){
+async function buildUserMessageHTML(userData, cid, messageID, messageText, timeCreated, isMine, isAudio = '0', isAnnouncement = '0'){
     const messageTime = getTimeFromTimestamp(timeCreated);
     let imageComponent;
     let shortedNick = `${userData['nickname'][0]}${userData['nickname'][userData['nickname'].length - 1]}`;
@@ -100,7 +101,7 @@ async function buildUserMessageHTML(userData, messageID, messageText, timeCreate
     }
     const messageClass = isAnnouncement === '1'?'announcement':isMine?'in':'out';
     const messageOrientation = isMine?'right': 'left';
-    let minificationEnabled = currentUser?.preferences?.minify_messages === '1';
+    let minificationEnabled = currentUser?.preferences?.minify_messages === '1' || await getCurrentSkin(cid) === CONVERSATION_SKINS.PROMPTS;
     let templateSuffix = minificationEnabled? '_minified': '';
     const templateName = isAudio === '1'?`user_message_audio${templateSuffix}`: `user_message${templateSuffix}`;
     if (isAudio === '0') {
@@ -173,7 +174,7 @@ async function buildSubmindHTML(promptID, submindID, submindUserData, submindRes
         submindPromptData[k] = v.message_text
         submindPromptData[`${k}_message_id`] = v?.message_id
         const dateCreated = getTimeFromTimestamp(v?.created_on);
-        submindPromptData[`${k}_created_on`] = dateCreated;
+        submindPromptData[`${k}_created_on`] = v?.created_on;
         submindPromptData[`${k}_created_on_tooltip`] = dateCreated? `shouted on: ${dateCreated}`: `no ${k} from ${userNickname} in this prompt`;
     }
     return await buildHTMLFromTemplate("prompt_participant", Object.assign(templateData, submindPromptData));
@@ -279,6 +280,7 @@ async function messageHTMLFromData(message, skin=CONVERSATION_SKINS.BASE){
                 'is_bot': message['user_is_bot'],
                 '_id': message['user_id']
             },
+            message['cid'],
             message['message_id'],
             message['message_text'],
             message['created_on'],
@@ -311,6 +313,7 @@ async function buildConversationHTML(conversationData = {}, skin = CONVERSATION_
     let chatFlowHTML = "";
     if(conversationData.hasOwnProperty('chat_flow')) {
         for (const message of Array.from(conversationData['chat_flow'])) {
+            message['cid'] = cid;
             chatFlowHTML += await messageHTMLFromData(message, skin);
             // if (skin === CONVERSATION_SKINS.BASE) {
             addConversationParticipant(cid, message['user_nickname']);

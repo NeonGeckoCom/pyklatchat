@@ -59,7 +59,7 @@ async function addNewMessage(cid, userID=null, messageID=null, messageText, time
         if(!messageID) {
             messageID = generateUUID();
         }
-        let messageHTML = await buildUserMessageHTML(userData, messageID, messageText, timeCreated, isMine, isAudio, isAnnouncement);
+        let messageHTML = await buildUserMessageHTML(userData, cid, messageID, messageText, timeCreated, isMine, isAudio, isAnnouncement);
         const blankChat = messageList.getElementsByClassName('blank_chat');
         if(blankChat.length>0){
             messageList.removeChild(blankChat[0]);
@@ -120,47 +120,76 @@ async function addPromptMessage(cid, userID, messageText, promptId, promptState)
     }
 }
 
+
+/**
+ * Returns first message id based on given element
+ * @param firstChild: DOM element of first message child
+ */
+function getFirstMessageFromCID(firstChild){
+    if (firstChild.classList.contains('prompt-item')){
+        const promptTable = firstChild.getElementsByTagName('table')[0];
+        const promptID = promptTable.id;
+        const promptTBody = promptTable.getElementsByTagName('tbody')[0];
+        let currentRecentMessage = null;
+        let currentOldestTS = null;
+        Array.from(promptTBody.getElementsByTagName('tr')).forEach(tr=>{
+            const submindID = tr.getAttribute('data-submind-id');
+            ['resp', 'opinion', 'vote'].forEach(phase=>{
+               const phaseElem = document.getElementById(`${promptID}_${submindID}_${phase}`);
+               if (phaseElem){
+                   let createdOn = phaseElem.getAttribute(`data-created-on`);
+                   const messageID = phaseElem.getAttribute(`data-message-id`)
+                   if (createdOn && messageID){
+                       createdOn = parseInt(createdOn);
+                       if (!currentOldestTS || createdOn < currentOldestTS){
+                           currentOldestTS = createdOn;
+                           currentRecentMessage = messageID;
+                       }
+                   }
+               }
+            });
+        });
+        return currentRecentMessage;
+    }else{
+        return getMessageNode(firstChild, 'plain')?.id;
+    }
+}
+
 /**
  * Gets list of the next n-older messages
  * @param cid: target conversation id
  * @param skin: target conversation skin
  * @param numMessages: number of messages to add
  */
-function addOldMessages(cid, skin=CONVERSATION_SKINS.BASE, numMessages = 10){
+function addOldMessages(cid, skin=CONVERSATION_SKINS.BASE, numMessages = 20){
     const messageContainer = getMessageListContainer(cid);
-    let firstId = null;
-    let firstMessageItem = null;
     if(messageContainer.children.length > 0) {
-        for (let i = 0; i< messageContainer.children.length;i++){
-            firstMessageItem = messageContainer.children[i];
-            const firstMessageNode = getMessageNode(firstMessageItem, 'plain');
-            if(firstMessageNode){
-                firstId = firstMessageNode.id;
-                break;
-            }
-        }
-        if (!firstId){
-            console.warn(`WARNING! Only prompts detected for cid=${cid}`);
-        }
-        getConversationDataByInput(cid, skin, firstId).then(async conversationData => {
-            if (messageContainer) {
-                const userMessageList = getUserMessages(conversationData);
-                userMessageList.sort((a, b) => {
-                    a['created_on'] - b['created_on'];
-                }).reverse();
-                for (const message of userMessageList) {
-                    if (!isDisplayed(getMessageID(message))) {
-                        const messageHTML = await messageHTMLFromData( message, skin );
-                        messageContainer.insertAdjacentHTML( 'afterbegin', messageHTML );
-                    }else{
-                        console.debug(`!!message_id=${message["message_id"]} is already displayed`)
+        const firstMessageItem = messageContainer.children[0];
+        const firstMessageID = getFirstMessageFromCID(firstMessageItem);
+        if (firstMessageID) {
+            getConversationDataByInput( cid, skin, firstMessageID, numMessages, null ).then( async conversationData => {
+                if (messageContainer) {
+                    const userMessageList = getUserMessages( conversationData, null);
+                    userMessageList.sort( (a, b) => {
+                        a['created_on'] - b['created_on'];
+                    } ).reverse();
+                    for (const message of userMessageList) {
+                        message['cid'] = cid;
+                        if (!isDisplayed( getMessageID( message ) )) {
+                            const messageHTML = await messageHTMLFromData( message, skin );
+                            messageContainer.insertAdjacentHTML( 'afterbegin', messageHTML );
+                        } else {
+                            console.debug( `!!message_id=${message["message_id"]} is already displayed` )
+                        }
                     }
+                    initMessages( conversationData, skin );
                 }
-                initMessages(conversationData, skin);
-            }
-        }).then(_=>{
-            firstMessageItem.scrollIntoView({behavior: "smooth"});
-        });
+            } ).then( _ => {
+                firstMessageItem.scrollIntoView( {behavior: "smooth"} );
+            } );
+        }else{
+            console.warn(`NONE first message id detected for cid=${cid}`)
+        }
     }
 }
 
@@ -233,7 +262,7 @@ function initLoadOldMessages(conversationData, skin) {
  */
 function attachTargetProfileDisplay(elem){
     if (elem) {
-        elem.addEventListener( 'click', async (e) => {
+        elem.addEventListener( 'click', async (_) => {
             const userNickname = elem.getAttribute( 'data-target' );
             if (userNickname) await showProfileModal( userNickname )
         } );
