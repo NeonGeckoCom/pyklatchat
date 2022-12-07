@@ -19,6 +19,10 @@
     <header id="klatchatHeader">
         {% block header %}
             {% include 'base_header.html' %}
+            {% include 'components/modals/logout.html' %}
+            {% include 'components/modals/login.html' %}
+            {% include 'components/modals/signup.html' %}
+            {% include 'components/modals/user_settings.html' %}
             {% include 'components/modals/license.html' %}
         {% endblock %}
     </header>

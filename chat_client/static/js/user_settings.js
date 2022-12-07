@@ -87,14 +87,30 @@ const initSettingsLinks = () => {
 }
 
 document.addEventListener('DOMContentLoaded', (_)=>{
-    document.addEventListener('modalsLoaded', (e)=>{
+    if (configData.client === CLIENTS.MAIN) {
         userSettingsModal = $('#userSettingsModal');
         applyUserSettings = document.getElementById('applyUserSettings');
         minifyMessagesCheck = document.getElementById('minifyMessages');
         applyUserSettings.addEventListener( 'click', async (e) => await applyNewSettings() );
-    });
+        settingsLink = document.getElementById('settingsLink');
+        settingsLink.addEventListener( 'click', async (e) => {
+            e.preventDefault();
+            await initSettingsModal();
+            userSettingsModal.modal( 'show' );
+        } );
+    }else {
+        document.addEventListener( 'modalsLoaded', (e) => {
+            userSettingsModal = $( '#userSettingsModal' );
+            applyUserSettings = document.getElementById( 'applyUserSettings' );
+            minifyMessagesCheck = document.getElementById( 'minifyMessages' );
+            applyUserSettings.addEventListener( 'click', async (e) => await applyNewSettings() );
+            if (configData.client === CLIENTS.MAIN) {
+                initSettingsLinks();
+            }
+        } );
 
-    document.addEventListener('nanoChatsLoaded', (e)=>{
-        setTimeout(() => initSettingsLinks(), 1000);
-    })
+        document.addEventListener( 'nanoChatsLoaded', (e) => {
+            setTimeout( () => initSettingsLinks(), 1000 );
+        } )
+    }
 });

@@ -3131,6 +3131,9 @@ document.addEventListener('DOMContentLoaded', (_) => {
         applyUserSettings = document.getElementById('applyUserSettings');
         minifyMessagesCheck = document.getElementById('minifyMessages');
         applyUserSettings.addEventListener('click', async (e) => await applyNewSettings());
+        if (configData.client === CLIENTS.MAIN) {
+            initSettingsLinks();
+        }
     });
 
     document.addEventListener('nanoChatsLoaded', (e) => {
@@ -3424,7 +3427,7 @@ async function refreshCurrentUser(refreshChats = false, conversationContainer = 
 
 document.addEventListener('DOMContentLoaded', async (e) => {
     if (configData['client'] === CLIENTS.MAIN) {
-        await initModals(null, 'klatchatHeader');
+        await initModals();
         currentUserNavDisplay.addEventListener('click', (e) => {
             e.preventDefault();
             currentUser['is_tmp'] ? loginModal.modal('show') : logoutModal.modal('show');

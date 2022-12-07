@@ -274,7 +274,7 @@ async function refreshCurrentUser(refreshChats=false, conversationContainer=null
 
 document.addEventListener('DOMContentLoaded', async (e)=>{
     if (configData['client'] === CLIENTS.MAIN) {
-        await initModals(null, 'klatchatHeader');
+        await initModals();
         currentUserNavDisplay.addEventListener('click', (e) => {
             e.preventDefault();
             currentUser['is_tmp']?loginModal.modal('show'):logoutModal.modal('show');
