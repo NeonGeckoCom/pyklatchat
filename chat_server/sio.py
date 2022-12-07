@@ -38,7 +38,7 @@ from neon_utils import LOG
 from neon_utils.cache_utils import LRUCache
 
 from utils.common import generate_uuid, deep_merge, buffer_to_base64
-from chat_server.server_utils.auth import validate_session, AUTHORIZATION_HEADER
+from chat_server.server_utils.auth import validate_session
 from chat_server.server_utils.cache_utils import CacheFactory
 from chat_server.server_utils.db_utils import DbUtils, MongoCommands, MongoDocuments, MongoQuery, MongoFilter
 from chat_server.server_utils.prompt_utils import handle_prompt_message
@@ -203,12 +203,12 @@ async def user_message(sid, data):
             is_announcement = '0'
 
         lang = data.get('lang', 'en')
-        prompt_id = data.get('promptID', '')
+        data['prompt_id'] = data.pop('promptID', '')
 
         new_shout_data = {'_id': data['messageID'],
                           'cid': data['cid'],
                           'user_id': data['userID'],
-                          'prompt_id': prompt_id,
+                          'prompt_id': data['prompt_id'],
                           'message_text': data['messageText'],
                           'message_lang': lang,
                           'attachments': data.get('attachments', []),
@@ -217,7 +217,7 @@ async def user_message(sid, data):
                           'is_announcement': is_announcement,
                           'is_bot': data['is_bot'],
                           'translations': {},
-                          'created_on': int(data['timeCreated'])}
+                          'created_on': int(data.get('timeCreated', time()))}
 
         # in case message is received in some foreign language -
         # message text is kept in that language unless English translation received
@@ -232,13 +232,13 @@ async def user_message(sid, data):
                                                   filters=filter_expression,
                                                   data={'chat_flow': new_shout_data['_id']},
                                                   data_action='push'))
-        if is_announcement == '0' and prompt_id:
+        if is_announcement == '0' and data['prompt_id']:
             is_ok = handle_prompt_message(data)
             if is_ok:
                 await sio.emit('new_prompt_message', data={'cid': data['cid'],
                                                            'userID': data['userID'],
                                                            'messageText': data['messageText'],
-                                                           'promptID': prompt_id,
+                                                           'promptID': data['prompt_id'],
                                                            'promptState': data['promptState']})
 
         message_tts = data.get('messageTTS', {})

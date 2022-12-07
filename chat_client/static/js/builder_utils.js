@@ -322,10 +322,17 @@ async function buildConversationHTML(conversationData = {}, skin = CONVERSATION_
     }else{
         chatFlowHTML+=`<div class="blank_chat">No messages in this chat yet...</div>`;
     }
-    const conversationNameShrunk = shrinkToFit(conversation_name, 6)
+    const conversationNameShrunk = shrinkToFit(conversation_name, 6);
+    let nanoHeaderHTML = '';
+    if (configData.client === CLIENTS.NANO){
+        nanoHeaderHTML = await buildHTMLFromTemplate('nano_header', {'cid': cid})
+    }
     return await buildHTMLFromTemplate('conversation',
-        {'cid': cid, 'conversation_name':conversation_name, 'conversation_name_shrunk': conversationNameShrunk,
-                       'chat_flow': chatFlowHTML}, `skin=${skin}`);
+        {'cid': cid,
+         'nano_header': nanoHeaderHTML,
+         'conversation_name':conversation_name,
+         'conversation_name_shrunk': conversationNameShrunk,
+         'chat_flow': chatFlowHTML}, `skin=${skin}`);
 }
 
 /**

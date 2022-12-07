@@ -1,5 +1,4 @@
 const myAccountLink = document.getElementById('myAccountLink');
-const settingsLink = document.getElementById('settingsLink');
 
 /**
  * Shows modal associated with profile
@@ -69,7 +68,7 @@ const previewFile = (nickname) => {
 async function initProfileEditModal(){
     const nickname = currentUser['nickname'];
     if (currentUser?.is_tmp){
-        console.warn('Tmp user is not allowed to change his data');
+        loginModal.modal('show');
         return
     }
     const modalShown = await showProfileEditModal().catch(err=>{
@@ -80,6 +79,7 @@ async function initProfileEditModal(){
     const editProfileSubmitButton = document.getElementById(`${nickname}EditSubmit`);
     const userNewAvatar = document.getElementById(`${nickname}NewAvatar`);
     const userEditAvatar = document.getElementById(`${nickname}EditAvatar`);
+    const logoutButton = document.getElementById('logoutButton');
 
     editProfileSubmitButton.addEventListener('click', async (e) => {
         e.preventDefault();
@@ -123,15 +123,35 @@ async function initProfileEditModal(){
         e.preventDefault();
         userNewAvatar.click();
     });
+
+    logoutButton.addEventListener('click', (e) => {
+        $(`#${currentUser['nickname']}EditModal`).modal('hide');
+        logoutModal.modal('show');
+    });
 }
 
 
-document.addEventListener('DOMContentLoaded', (e)=> {
+/**
+ * Attaches invoker for current profile edit modal
+ * @param elem: target DOM element
+ */
+function attachEditModalInvoker(elem){
+    elem.addEventListener( 'click', async (e) => {
+        e.preventDefault();
+        await initProfileEditModal();
+    });
+}
+
+
+document.addEventListener('DOMContentLoaded', (e) => {
 
     if (configData.client === CLIENTS.MAIN) {
-        myAccountLink.addEventListener( 'click', async (e) => {
-            e.preventDefault();
-            await initProfileEditModal();
-        } );
+        attachEditModalInvoker(myAccountLink);
+    }else{
+        document.addEventListener('modalsLoaded', (e)=>{
+            setTimeout( () => {Array.from(document.getElementsByClassName( 'account-link' )).forEach(elem => {
+                attachEditModalInvoker(elem);
+            })}, 1000);
+        });
     }
 });

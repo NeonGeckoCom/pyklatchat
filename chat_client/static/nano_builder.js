@@ -32,10 +32,12 @@ class NanoBuilder {
         this.options.SOCKET_IO_SERVER_URL = options.SOCKET_IO_SERVER_URL || options.CHAT_SERVER_URL_BASE;
         configData.client = CLIENTS.NANO;
         this.applyConfigs();
-        fetchSupportedLanguages()
-            .then(async _ => await refreshCurrentUser(false))
-            .then(_=>this.resolveChatData(this.options))
-            .then(async _=> await requestChatsLanguageRefresh());
+        // by default modals will be initialised under first nano chat
+        const modalParentID = options?.MODALS_PARENT || options['CHAT_DATA'][0]['PARENT_ID'];
+        fetchSupportedLanguages().then(async _ => await refreshCurrentUser(false))
+                                 .then(_=>this.resolveChatData(this.options))
+                                 .then(async _=> await requestChatsLanguageRefresh())
+                                 .then(async _ =>await initModals(modalParentID));
     }
 
     /**
@@ -66,9 +68,12 @@ class NanoBuilder {
      */
     resolveChatData(options){
         const chatData = options['CHAT_DATA'];
+        const nanoChatsLoaded = new CustomEvent('nanoChatsLoaded')
         Array.from(chatData).forEach(async chat => {
             await displayConversation(chat['CID'], CONVERSATION_SKINS.BASE, chat['PARENT_ID'], chat['PARENT_ID'])
-        })
+        });
+        console.log('all chats loaded')
+        document.dispatchEvent(nanoChatsLoaded);
     }
 
     /**

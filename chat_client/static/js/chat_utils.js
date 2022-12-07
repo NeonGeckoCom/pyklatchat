@@ -665,6 +665,11 @@ async function displayConversation(searchStr, skin=CONVERSATION_SKINS.BASE, aler
                     }
                 }
                 responseOk = true;
+                if (configData.client === CLIENTS.NANO) {
+                    attachEditModalInvoker(document.getElementById(`${conversationData['_id']}-account-link`));
+                    updateNavbar();
+                    initSettings(document.getElementById(`${conversationData['_id']}-settings-link`));
+                }
             }
             return responseOk;
         });

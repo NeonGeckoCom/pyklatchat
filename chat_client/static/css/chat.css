@@ -423,3 +423,16 @@ body{
   -webkit-transform: scale(1.5); /* Safari and Chrome */
   -o-transform: scale(1.5); /* Opera */
 }
+
+
+.nano-navbar {
+    padding: 0!important;
+}
+
+.bg-nano {
+    background-color: darkblue;
+}
+
+.modal, .modal-backdrop {
+    position: absolute !important;
+}

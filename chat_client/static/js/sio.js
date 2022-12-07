@@ -49,6 +49,10 @@ function initSIO(){
     });
 
     socket.on('new_message', async (data) => {
+        if (getCurrentSkin(data.cid) === CONVERSATION_SKINS.PROMPTS && data?.prompt_id){
+            console.debug('Skipping prompt-related message')
+            return
+        }
         console.debug('received new_message -> ', data)
         const msgData = JSON.parse(data);
         // const skin = await getCurrentSkin(msgData['cid']);
