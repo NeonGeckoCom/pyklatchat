@@ -36,7 +36,8 @@ async function setPreferredLanguage(cid, lang, inputType='incoming', updateDB=tr
             });
     } if ((isOk || !updateDB) && !updateDBOnly) {
         updateChatLanguageMapping(cid, inputType, lang);
-        await requestTranslation(cid, null, null, inputType);
+        const shoutIds = getMessagesOfCID(cid, MESSAGE_REFER_TYPE.ALL, 'plain', true);
+        await requestTranslation(cid, shoutIds, lang, inputType);
     }
 }
 
