@@ -1724,7 +1724,8 @@ async function setPreferredLanguage(cid, lang, inputType = 'incoming', updateDB 
     }
     if ((isOk || !updateDB) && !updateDBOnly) {
         updateChatLanguageMapping(cid, inputType, lang);
-        await requestTranslation(cid, null, null, inputType);
+        const shoutIds = getMessagesOfCID(cid, MESSAGE_REFER_TYPE.ALL, 'plain', true);
+        await requestTranslation(cid, shoutIds, lang, inputType);
     }
 }
 
@@ -2223,38 +2224,41 @@ function getFirstMessageFromCID(firstChild) {
  * Gets list of the next n-older messages
  * @param cid: target conversation id
  * @param skin: target conversation skin
- * @param numMessages: number of messages to add
  */
-function addOldMessages(cid, skin = CONVERSATION_SKINS.BASE, numMessages = 20) {
+async function addOldMessages(cid, skin = CONVERSATION_SKINS.BASE) {
     const messageContainer = getMessageListContainer(cid);
     if (messageContainer.children.length > 0) {
-        const firstMessageItem = messageContainer.children[0];
-        const firstMessageID = getFirstMessageFromCID(firstMessageItem);
-        if (firstMessageID) {
-            getConversationDataByInput(cid, skin, firstMessageID, numMessages, null).then(async conversationData => {
-                if (messageContainer) {
-                    const userMessageList = getUserMessages(conversationData, null);
-                    userMessageList.sort((a, b) => {
-                        a['created_on'] - b['created_on'];
-                    }).reverse();
-                    for (const message of userMessageList) {
-                        message['cid'] = cid;
-                        if (!isDisplayed(getMessageID(message))) {
-                            const messageHTML = await messageHTMLFromData(message, skin);
-                            messageContainer.insertAdjacentHTML('afterbegin', messageHTML);
-                        } else {
-                            console.debug(`!!message_id=${message["message_id"]} is already displayed`)
+        for (let i = 0; i < messageContainer.children.length; i++) {
+            const firstMessageItem = messageContainer.children[i];
+            const firstMessageID = getFirstMessageFromCID(firstMessageItem);
+            if (firstMessageID) {
+                const numMessages = await getCurrentSkin(cid) === CONVERSATION_SKINS.PROMPTS ? 50 : 20;
+                await getConversationDataByInput(cid, skin, firstMessageID, numMessages, null).then(async conversationData => {
+                    if (messageContainer) {
+                        const userMessageList = getUserMessages(conversationData, null);
+                        userMessageList.sort((a, b) => {
+                            a['created_on'] - b['created_on'];
+                        }).reverse();
+                        for (const message of userMessageList) {
+                            message['cid'] = cid;
+                            if (!isDisplayed(getMessageID(message))) {
+                                const messageHTML = await messageHTMLFromData(message, skin);
+                                messageContainer.insertAdjacentHTML('afterbegin', messageHTML);
+                            } else {
+                                console.debug(`!!message_id=${message["message_id"]} is already displayed`)
+                            }
                         }
+                        initMessages(conversationData, skin);
                     }
-                    initMessages(conversationData, skin);
-                }
-            }).then(_ => {
-                firstMessageItem.scrollIntoView({
-                    behavior: "smooth"
+                }).then(_ => {
+                    firstMessageItem.scrollIntoView({
+                        behavior: "smooth"
+                    });
                 });
-            });
-        } else {
-            console.warn(`NONE first message id detected for cid=${cid}`)
+                break;
+            } else {
+                console.warn(`NONE first message id detected for cid=${cid}`)
+            }
         }
     }
 }
@@ -2311,7 +2315,7 @@ function initLoadOldMessages(conversationData, skin) {
             !conversationState[cid]['all_messages_displayed'] &&
             conversationState[cid]['scrollY'] === 0) {
             setChatState(cid, 'updating', 'Loading messages...')
-            addOldMessages(cid, skin);
+            await addOldMessages(cid, skin);
             for (const inputType of ['incoming', 'outcoming']) {
                 await requestTranslation(cid, null, null, inputType);
             }
@@ -2749,22 +2753,18 @@ function initSIO() {
     });
 
     socket.on('new_message', async (data) => {
-        if (getCurrentSkin(data.cid) === CONVERSATION_SKINS.PROMPTS && data?.prompt_id) {
+        if (await getCurrentSkin(data.cid) === CONVERSATION_SKINS.PROMPTS && data?.prompt_id) {
             console.debug('Skipping prompt-related message')
             return
         }
         console.debug('received new_message -> ', data)
-        const msgData = JSON.parse(data);
-        // const skin = await getCurrentSkin(msgData['cid']);
-        // if (skin === CONVERSATION_SKINS.BASE) {
-        const preferredLang = getPreferredLanguage(msgData['cid']);
+        const preferredLang = getPreferredLanguage(data['cid']);
         if (data?.lang !== preferredLang) {
-            await requestTranslation(msgData['cid'], msgData['messageID']);
+            await requestTranslation(data['cid'], data['messageID']);
         }
-        await addNewMessage(msgData['cid'], msgData['userID'], msgData['messageID'], msgData['messageText'], msgData['timeCreated'], msgData['repliedMessage'], msgData['attachments'], msgData?.isAudio, msgData?.isAnnouncement)
+        await addNewMessage(data['cid'], data['userID'], data['messageID'], data['messageText'], data['timeCreated'], data['repliedMessage'], data['attachments'], data?.isAudio, data?.isAnnouncement)
             .catch(err => console.error('Error occurred while adding new message: ', err));
-        addMessageTransformCallback(msgData['cid'], msgData['messageID'], msgData?.isAudio);
-        // }
+        addMessageTransformCallback(data['cid'], data['messageID'], data?.isAudio);
     });
 
     socket.on('new_prompt_message', async (message) => {
