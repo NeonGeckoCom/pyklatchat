@@ -49,18 +49,18 @@ function initSIO(){
     });
 
     socket.on('new_message', async (data) => {
-        console.debug('received new_message -> ', data)
-        const msgData = JSON.parse(data);
-        const skin = await getCurrentSkin(msgData['cid']);
-        if (skin === CONVERSATION_SKINS.BASE) {
-            const preferredLang = getPreferredLanguage(msgData['cid']);
-            if (data?.lang !== preferredLang) {
-                await requestTranslation(msgData['cid'], msgData['messageID']);
-            }
-            await addNewMessage(msgData['cid'], msgData['userID'], msgData['messageID'], msgData['messageText'], msgData['timeCreated'], msgData['repliedMessage'], msgData['attachments'], msgData?.isAudio, msgData?.isAnnouncement)
-                .catch(err => console.error('Error occurred while adding new message: ', err));
-            addMessageTransformCallback(msgData['cid'], msgData['messageID'], msgData?.isAudio);
+        if (await getCurrentSkin(data.cid) === CONVERSATION_SKINS.PROMPTS && data?.prompt_id){
+            console.debug('Skipping prompt-related message')
+            return
         }
+        console.debug('received new_message -> ', data)
+        const preferredLang = getPreferredLanguage(data['cid']);
+        if (data?.lang !== preferredLang) {
+            await requestTranslation(data['cid'], data['messageID']);
+        }
+        await addNewMessage(data['cid'], data['userID'], data['messageID'], data['messageText'], data['timeCreated'], data['repliedMessage'], data['attachments'], data?.isAudio, data?.isAnnouncement)
+            .catch(err => console.error('Error occurred while adding new message: ', err));
+        addMessageTransformCallback(data['cid'], data['messageID'], data?.isAudio);
     });
 
     socket.on('new_prompt_message', async (message) => {

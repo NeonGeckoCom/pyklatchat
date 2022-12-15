@@ -31,6 +31,7 @@ from time import time
 from chat_server.constants.users import UserPatterns
 from utils.common import get_hash, generate_uuid
 from utils.database_utils import DatabaseController
+from utils.database_utils.mongo_utils import MongoQuery, MongoCommands, MongoDocuments, MongoFilter
 
 
 def create_from_pattern(source: UserPatterns, override_defaults: dict = None) -> dict:
@@ -84,8 +85,9 @@ def get_bot_data(db_controller: DatabaseController, nickname: str, context: dict
         context = {}
     full_nickname = nickname
     nickname = nickname.split('-')[0]
-    bot_data = db_controller.exec_query({'command': 'find_one', 'document': 'users',
-                                        'data': {'nickname': nickname}})
+    bot_data = db_controller.exec_query(MongoQuery(command=MongoCommands.FIND_ONE,
+                                                   document=MongoDocuments.USERS,
+                                                   filters=MongoFilter(key='nickname', value=nickname)))
     if not bot_data:
         bot_data = dict(_id=generate_uuid(length=20),
                         first_name=context.get('first_name', nickname.capitalize()),
@@ -93,8 +95,16 @@ def get_bot_data(db_controller: DatabaseController, nickname: str, context: dict
                         avatar=context.get('avatar', ''),
                         password=get_hash(generate_uuid()),
                         nickname=nickname,
+                        is_bot='1',
                         full_nickname=full_nickname,
                         date_created=int(time()),
                         is_tmp=False)
-        db_controller.exec_query({'command': 'insert_one', 'document': 'users', 'data': bot_data})
+        db_controller.exec_query(MongoQuery(command=MongoCommands.INSERT_ONE,
+                                            document=MongoDocuments.USERS,
+                                            data=bot_data))
+    elif not bot_data.get('is_bot') == '1':
+        db_controller.exec_query(MongoQuery(command=MongoCommands.UPDATE,
+                                            document=MongoDocuments.USERS,
+                                            filters=MongoFilter('_id', bot_data['_id']),
+                                            data={'is_bot': '1'}))
     return bot_data

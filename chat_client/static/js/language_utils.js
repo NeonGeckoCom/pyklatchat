@@ -36,7 +36,8 @@ async function setPreferredLanguage(cid, lang, inputType='incoming', updateDB=tr
             });
     } if ((isOk || !updateDB) && !updateDBOnly) {
         updateChatLanguageMapping(cid, inputType, lang);
-        await requestTranslation(cid, null, null, inputType);
+        const shoutIds = getMessagesOfCID(cid, MESSAGE_REFER_TYPE.ALL, 'plain', true);
+        await requestTranslation(cid, shoutIds, lang, inputType);
     }
 }
 
@@ -70,17 +71,17 @@ async function fetchSupportedLanguages(){
  */
 async function requestTranslation(cid=null, shouts=null, lang=null, inputType='incoming', translateToBaseLang=false){
     let requestBody = {chat_mapping: {}};
-    const skin = await getCurrentSkin(cid);
-    if(cid && await isDisplayed(cid) && skin === CONVERSATION_SKINS.BASE){
+    // const skin = await getCurrentSkin(cid);
+    if(cid && isDisplayed(cid)){
         lang = lang || getPreferredLanguage(cid, inputType);
-        if (lang !== 'en' && getMessagesOfCID(cid).length > 0){
+        if (lang !== 'en' && getMessagesOfCID(cid, MESSAGE_REFER_TYPE.ALL, 'plain').length > 0){
              setChatState(cid, 'updating', 'Applying New Language...');
         }
         if(shouts && !Array.isArray(shouts)){
             shouts = [shouts];
         }
         if (!shouts && inputType){
-            shouts = getMessagesOfCID(cid, getMessageReferType(inputType), skin, true);
+            shouts = getMessagesOfCID(cid, getMessageReferType(inputType), 'plain', true);
             if (shouts.length === 0){
                 console.log(`${cid} yet has no shouts matching type=${inputType}`);
                 setChatState(cid, 'active');
@@ -203,7 +204,7 @@ async function requestChatsLanguageRefresh(){
     const languageMapping = currentUser?.preferences?.chat_language_mapping || {};
     console.log(`languageMapping=${JSON.stringify(languageMapping)}`)
     for (const [cid, value] of Object.entries(languageMapping)) {
-        if (await isDisplayed(cid)) {
+        if (isDisplayed(cid)) {
             for (const inputType of ['incoming', 'outcoming']) {
                 const lang = value[inputType] || 'en';
                 if (lang !== 'en') {
@@ -241,7 +242,7 @@ async function applyTranslations(data){
         const messageTranslationsShouts = messageTranslations['shouts'];
         if (messageTranslationsShouts) {
             const messageReferType = getMessageReferType(inputType);
-            const messages = getMessagesOfCID(cid, messageReferType);
+            const messages = getMessagesOfCID(cid, messageReferType, 'plain');
             Array.from(messages).forEach(message => {
                 const messageID = message.id;
                 let repliedMessage = null;

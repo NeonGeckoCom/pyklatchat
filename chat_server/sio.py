@@ -38,7 +38,7 @@ from neon_utils import LOG
 from neon_utils.cache_utils import LRUCache
 
 from utils.common import generate_uuid, deep_merge, buffer_to_base64
-from chat_server.server_utils.auth import validate_session, AUTHORIZATION_HEADER
+from chat_server.server_utils.auth import validate_session
 from chat_server.server_utils.cache_utils import CacheFactory
 from chat_server.server_utils.db_utils import DbUtils, MongoCommands, MongoDocuments, MongoQuery, MongoFilter
 from chat_server.server_utils.prompt_utils import handle_prompt_message
@@ -172,10 +172,11 @@ async def user_message(sid, data):
                 raise ValueError(f'messageID value="{data["messageID"]}" already exists')
         else:
             data['messageID'] = generate_uuid()
+        data['is_bot'] = data.pop('bot', '0')
         if data['userID'] == 'neon':
             neon_data = get_neon_data(db_controller=db_controller)
             data['userID'] = neon_data['_id']
-        elif data.get('bot', False):
+        elif data['is_bot'] == '1':
             bot_data = get_bot_data(db_controller=db_controller, nickname=data['userID'],
                                     context=data.get('context', None))
             data['userID'] = bot_data['_id']
@@ -202,20 +203,21 @@ async def user_message(sid, data):
             is_announcement = '0'
 
         lang = data.get('lang', 'en')
-        prompt_id = data.get('promptID', '')
+        data['prompt_id'] = data.pop('promptID', '')
 
         new_shout_data = {'_id': data['messageID'],
                           'cid': data['cid'],
                           'user_id': data['userID'],
-                          'prompt_id': prompt_id,
+                          'prompt_id': data['prompt_id'],
                           'message_text': data['messageText'],
                           'message_lang': lang,
                           'attachments': data.get('attachments', []),
                           'replied_message': data.get('repliedMessage', ''),
                           'is_audio': is_audio,
                           'is_announcement': is_announcement,
+                          'is_bot': data['is_bot'],
                           'translations': {},
-                          'created_on': int(data['timeCreated'])}
+                          'created_on': int(data.get('timeCreated', time()))}
 
         # in case message is received in some foreign language -
         # message text is kept in that language unless English translation received
@@ -230,13 +232,13 @@ async def user_message(sid, data):
                                                   filters=filter_expression,
                                                   data={'chat_flow': new_shout_data['_id']},
                                                   data_action='push'))
-        if is_announcement == '0' and prompt_id:
+        if is_announcement == '0' and data['prompt_id']:
             is_ok = handle_prompt_message(data)
             if is_ok:
                 await sio.emit('new_prompt_message', data={'cid': data['cid'],
                                                            'userID': data['userID'],
                                                            'messageText': data['messageText'],
-                                                           'promptID': prompt_id,
+                                                           'promptID': data['prompt_id'],
                                                            'promptState': data['promptState']})
 
         message_tts = data.get('messageTTS', {})
@@ -248,7 +250,7 @@ async def user_message(sid, data):
 
         PopularityCounter.increment_cid_popularity(new_shout_data['cid'])
 
-        await sio.emit('new_message', data=json.dumps(data), skip_sid=[sid])
+        await sio.emit('new_message', data=data, skip_sid=[sid])
     except Exception as ex:
         LOG.error(f'Exception on sio processing: {ex}')
         await emit_error(sids=[sid], message=f'Unable to process request "user_message" with data: {data}')
@@ -306,7 +308,7 @@ async def prompt_completed(sid, data):
                                             filters=MongoFilter(key='_id', value=prompt_id),
                                             data=prompt_summary_agg,
                                             data_action='set'))
-        formatted_data = {'winner': data['context']['winner'], 'prompt_id': prompt_id}
+        formatted_data = {'winner': data['context'].get('winner', ''), 'prompt_id': prompt_id}
         await sio.emit('set_prompt_completed', data=formatted_data)
     except Exception as ex:
         LOG.error(f'Prompt "{prompt_id}" was not updated due to exception - {ex}')
@@ -329,7 +331,7 @@ async def get_prompt_data(sid, data):
     prompt_id = data.get('prompt_id')
     _prompt_data = DbUtils.fetch_prompt_data(cid=data['cid'],
                                              limit=data.get('limit', 5),
-                                             prompt_id=prompt_id,
+                                             prompt_ids=[prompt_id],
                                              fetch_user_data=True)
     if prompt_id:
         prompt_data = {'_id': _prompt_data[0]['_id'],

@@ -1,28 +1,112 @@
-const currentUserNavDisplay = document.getElementById('currentUserNavDisplay');
-
-const logoutModal = $('#logoutModal');
-
-const logoutConfirm = document.getElementById('logoutConfirm');
-
-const loginModal = $('#loginModal');
-
-const loginButton = document.getElementById('loginButton');
-const loginUsername = document.getElementById('loginUsername');
-const loginPassword = document.getElementById('loginPassword');
-const toggleSignup = document.getElementById('toggleSignup');
-
-
-const signupModal = $('#signupModal');
-
-const signupButton = document.getElementById('signupButton');
-const signupUsername = document.getElementById('signupUsername');
-const signupFirstName = document.getElementById('signupFirstName');
-const signupLastName = document.getElementById('signupLastName');
-const signupPassword = document.getElementById('signupPassword');
-const repeatSignupPassword = document.getElementById('repeatSignupPassword');
-const toggleLogin = document.getElementById('toggleLogin');
+let currentUserNavDisplay = document.getElementById('currentUserNavDisplay');
+/* Login items */
+let loginModal;
+let loginButton;
+let loginUsername;
+let loginPassword;
+let toggleSignup;
+/* Logout Items */
+let logoutModal;
+let logoutConfirm;
+/* Signup items */
+let signupModal;
+let signupButton;
+let signupUsername;
+let signupFirstName;
+let signupLastName;
+let signupPassword;
+let repeatSignupPassword;
+let toggleLogin;
 
 let currentUser = null;
+
+
+function initModalElements(){
+    currentUserNavDisplay = document.getElementById('currentUserNavDisplay');
+    logoutModal = $('#logoutModal');
+    logoutConfirm = document.getElementById('logoutConfirm');
+    loginModal = $('#loginModal');
+    loginButton = document.getElementById('loginButton');
+    loginUsername = document.getElementById('loginUsername');
+    loginPassword = document.getElementById('loginPassword');
+    toggleSignup = document.getElementById('toggleSignup');
+    signupModal = $('#signupModal');
+    signupButton = document.getElementById('signupButton');
+    signupUsername = document.getElementById('signupUsername');
+    signupFirstName = document.getElementById('signupFirstName');
+    signupLastName = document.getElementById('signupLastName');
+    signupPassword = document.getElementById('signupPassword');
+    repeatSignupPassword = document.getElementById('repeatSignupPassword');
+    toggleLogin = document.getElementById('toggleLogin');
+}
+
+
+const MODAL_NAMES = {
+    LOGIN: 'login',
+    LOGOUT: 'logout',
+    SIGN_UP: 'signup',
+    USER_SETTINGS: 'user_settings'
+}
+
+
+/**
+ * Adds new modal under specific conversation id
+ * @param name: name of the modal from MODAL_NAMES to add
+ */
+async function addModal(name){
+    if (Object.values(MODAL_NAMES).includes(name)){
+        return await buildHTMLFromTemplate(`modals.${name}`)
+    }else{
+        console.warn(`Unresolved modal name - ${name}`)
+    }
+}
+
+/**
+ * Initializes modals per target conversation id (if not provided - for main client)
+ * @param parentID: id of the parent to attach element to
+ */
+async function initModals(parentID=null){
+    if (parentID) {
+        const parentElem = document.getElementById( parentID );
+        if (!parentElem) {
+            console.warn( 'No element detected with provided parentID=', parentID )
+            return -1;
+        }
+        for (const modalName of [
+            MODAL_NAMES.LOGIN,
+            MODAL_NAMES.LOGOUT,
+            MODAL_NAMES.SIGN_UP,
+            MODAL_NAMES.USER_SETTINGS]) {
+               const modalHTML = await addModal(modalName);
+               parentElem.insertAdjacentHTML('beforeend', modalHTML);
+           }
+    }
+    initModalElements();
+    logoutConfirm.addEventListener('click', (e) => {
+        e.preventDefault();
+        logoutUser().catch(err => console.error('Error while logging out user: ', err));
+    });
+    toggleLogin.addEventListener('click', (e) => {
+        e.preventDefault();
+        signupModal.modal('hide');
+        loginModal.modal('show');
+    });
+    loginButton.addEventListener('click', (e) => {
+        e.preventDefault();
+        loginUser().catch(err => console.error('Error while logging in user: ', err));
+    });
+    toggleSignup.addEventListener('click', (e) => {
+        e.preventDefault();
+        loginModal.modal('hide');
+        signupModal.modal('show');
+    });
+    signupButton.addEventListener('click', (e) => {
+        e.preventDefault();
+        createUser().catch(err => console.error('Error while creating a user: ', err));
+    });
+    const modalsLoaded = new CustomEvent('modalsLoaded');
+    document.dispatchEvent(modalsLoaded);
+}
 
 /**
  * Gets user data from chat client URL
@@ -135,16 +219,28 @@ async function createUser(){
  */
 function updateNavbar(forceUpdate=false){
     if(currentUser || forceUpdate){
-        if(currentUserNavDisplay) {
-            let innerText = currentUser['nickname'];
+        let innerText = currentUser['nickname'];
+        let targetElems = [currentUserNavDisplay];
+        if (configData.client === CLIENTS.MAIN){
             if(currentUser['is_tmp']){
                 innerText+=', Login';
             }else{
                 innerText+=', Logout';
             }
-            currentUserNavDisplay.innerHTML = `<a class="nav-link" href="#" style="color: #fff">
-                                                    ${innerText}
-                                               </a>`;
+        }else if (configData.client === CLIENTS.NANO){
+            if(currentUser['is_tmp']){
+                innerText+=' <i class="fa-solid fa-right-to-bracket"></i>';
+            }else{
+                innerText+=' <i class="fa-solid fa-right-from-bracket"></i>';
+            }
+            targetElems = Array.from(document.getElementsByClassName('account-link'))
+        }
+        if(targetElems.length > 0 && targetElems[0]) {
+            targetElems.forEach(elem=>{
+                elem.innerHTML = `<a class="nav-link" href="#" style="color: #fff">
+                                        ${innerText}
+                                   </a>`;
+            });
         }
     }
 }
@@ -164,7 +260,7 @@ async function refreshCurrentUser(refreshChats=false, conversationContainer=null
     await getUserData().then(data=>{
         currentUser = data;
         console.log(`Loaded current user = ${JSON.stringify(currentUser)}`);
-        updateNavbar();
+        setTimeout( () => updateNavbar(), 500);
         if(refreshChats) {
             refreshChatView(conversationContainer);
         }
@@ -174,41 +270,14 @@ async function refreshCurrentUser(refreshChats=false, conversationContainer=null
     });
 }
 
-document.addEventListener('DOMContentLoaded', (e)=>{
+
+
+document.addEventListener('DOMContentLoaded', async (e)=>{
     if (configData['client'] === CLIENTS.MAIN) {
-        // document.addEventListener('configLoaded', (e)=>{
-        //     refreshCurrentUser(true, false);
-        // });
+        await initModals();
         currentUserNavDisplay.addEventListener('click', (e) => {
             e.preventDefault();
             currentUser['is_tmp']?loginModal.modal('show'):logoutModal.modal('show');
-        });
-
-        logoutConfirm.addEventListener('click', (e) => {
-            e.preventDefault();
-            logoutUser().catch(err => console.error('Error while logging out user: ', err));
-        });
-
-        toggleLogin.addEventListener('click', (e) => {
-            e.preventDefault();
-            signupModal.modal('hide');
-            loginModal.modal('show');
-        });
-
-        loginButton.addEventListener('click', (e) => {
-            e.preventDefault();
-            loginUser().catch(err => console.error('Error while logging in user: ', err));
-        });
-
-        toggleSignup.addEventListener('click', (e) => {
-            e.preventDefault();
-            loginModal.modal('hide');
-            signupModal.modal('show');
-        });
-
-        signupButton.addEventListener('click', (e) => {
-            e.preventDefault();
-            createUser().catch(err => console.error('Error while creating a user: ', err));
         });
     }
 });

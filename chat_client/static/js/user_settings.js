@@ -1,6 +1,7 @@
-const userSettingsModal = $('#userSettingsModal');
-const applyUserSettings = document.getElementById('applyUserSettings');
-const minifyMessagesCheck = document.getElementById('minifyMessages');
+let userSettingsModal;
+let applyUserSettings;
+let minifyMessagesCheck;
+let settingsLink;
 
 /**
  * Displays relevant user settings section based on provided name
@@ -43,7 +44,6 @@ const initSettingsModal = async () => {
            await initSettingsSection(navItem.getAttribute('data-section-name'));
        });
     });
-    applyUserSettings.addEventListener( 'click', async (e) => await applyNewSettings() );
 }
 
 /**
@@ -65,12 +65,52 @@ const applyNewSettings = async () => {
     });
 }
 
-document.addEventListener('DOMContentLoaded', (e)=>{
+function initSettings(elem){
+    elem.addEventListener( 'click', async (e) => {
+        await initSettingsModal();
+        userSettingsModal.modal('show');
+    });
+}
+
+/**
+ * Initialise user settings links based on the current client
+ */
+const initSettingsLinks = () => {
+    if (configData.client === CLIENTS.NANO) {
+        console.log('initialising settings link for ', Array.from( document.getElementsByClassName( 'settings-link' ) ).length, ' elements')
+        Array.from( document.getElementsByClassName( 'settings-link' ) ).forEach(elem => {
+            initSettings(elem);
+        } );
+    }else{
+        initSettings(document.getElementById('settingsLink'));
+    }
+}
+
+document.addEventListener('DOMContentLoaded', (_)=>{
     if (configData.client === CLIENTS.MAIN) {
+        userSettingsModal = $('#userSettingsModal');
+        applyUserSettings = document.getElementById('applyUserSettings');
+        minifyMessagesCheck = document.getElementById('minifyMessages');
+        applyUserSettings.addEventListener( 'click', async (e) => await applyNewSettings() );
+        settingsLink = document.getElementById('settingsLink');
         settingsLink.addEventListener( 'click', async (e) => {
             e.preventDefault();
             await initSettingsModal();
             userSettingsModal.modal( 'show' );
         } );
+    }else {
+        document.addEventListener( 'modalsLoaded', (e) => {
+            userSettingsModal = $( '#userSettingsModal' );
+            applyUserSettings = document.getElementById( 'applyUserSettings' );
+            minifyMessagesCheck = document.getElementById( 'minifyMessages' );
+            applyUserSettings.addEventListener( 'click', async (e) => await applyNewSettings() );
+            if (configData.client === CLIENTS.MAIN) {
+                initSettingsLinks();
+            }
+        } );
+
+        document.addEventListener( 'nanoChatsLoaded', (e) => {
+            setTimeout( () => initSettingsLinks(), 1000 );
+        } )
     }
 });

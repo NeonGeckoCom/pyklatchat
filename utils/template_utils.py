@@ -46,5 +46,5 @@ def callback_template(request: Request, template_name: str, context: dict = None
         context = {}
     context['request'] = request
     # Preventing exiting to the source code files
-    template_name = template_name.replace('../', '')
+    template_name = template_name.replace('../', '').replace('.', '/')
     return component_templates.TemplateResponse(f"components/{template_name}.html", context)

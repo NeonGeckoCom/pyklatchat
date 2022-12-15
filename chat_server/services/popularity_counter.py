@@ -78,7 +78,7 @@ class PopularityCounter:
         chats = DbUtils.db_controller.exec_query(MongoQuery(command=MongoCommands.FIND_ALL,
                                                             document=MongoDocuments.CHATS,
                                                             filters=MongoFilter(key='is_private',
-                                                                                value=[False, 'false'])),
+                                                                                value=False)),
                                                  as_cursor=False)
         relevant_shouts = DbUtils.db_controller.exec_query(MongoQuery(command=MongoCommands.FIND_ALL,
                                                                       document=MongoDocuments.SHOUTS,

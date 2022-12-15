@@ -112,7 +112,7 @@ class TestSIO(unittest.TestCase):
         message_data = {'userID': 'neon',
                         'messageID': message_id,
                         'messageText': 'Neon Test 123',
-                        'bot': False,
+                        'bot': '0',
                         'cid': '-1',
                         'test': True,
                         'timeCreated': int(time.time())}
@@ -139,7 +139,7 @@ class TestSIO(unittest.TestCase):
         message_data = {'userID': user_id,
                         'messageID': message_id,
                         'messageText': 'Bot Test 123',
-                        'bot': True,
+                        'bot': '1',
                         'cid': '-1',
                         'context': dict(first_name='The', last_name='Bot'),
                         'test': True,

@@ -13,14 +13,23 @@ const getMessageListContainer = (cid) => {
 /**
  * Gets message node from the message container
  * @param messageContainer: DOM Message Container element to consider
- * @param skin: target conversation skin to consider
+ * @param validateType: type of message to validate
  * @return {HTMLElement} ID of the message
  */
-const getMessageNode = (messageContainer, skin) => {
-    if (skin === CONVERSATION_SKINS.PROMPTS){
-        return messageContainer.getElementsByTagName('table')[0];
-    }else {
-        return messageContainer.getElementsByClassName('chat-body')[0].getElementsByClassName('chat-message')[0];
+const getMessageNode = (messageContainer, validateType=null) => {
+    let detectedType;
+    let node
+    if (messageContainer.getElementsByTagName('table').length > 0) {
+        detectedType = 'prompt';
+        node = messageContainer.getElementsByTagName( 'table' )[0];
+    }else{
+        detectedType = 'plain'
+        node = messageContainer.getElementsByClassName('chat-body')[0].getElementsByClassName('chat-message')[0];
+    }
+    if (validateType && validateType!==detectedType){
+        return null;
+    }else{
+        return node;
     }
 }
 
@@ -50,7 +59,7 @@ async function addNewMessage(cid, userID=null, messageID=null, messageText, time
         if(!messageID) {
             messageID = generateUUID();
         }
-        let messageHTML = await buildUserMessageHTML(userData, messageID, messageText, timeCreated, isMine, isAudio, isAnnouncement);
+        let messageHTML = await buildUserMessageHTML(userData, cid, messageID, messageText, timeCreated, isMine, isAudio, isAnnouncement);
         const blankChat = messageList.getElementsByClassName('blank_chat');
         if(blankChat.length>0){
             messageList.removeChild(blankChat[0]);
@@ -58,7 +67,7 @@ async function addNewMessage(cid, userID=null, messageID=null, messageText, time
         messageList.insertAdjacentHTML('beforeend', messageHTML);
         resolveMessageAttachments(cid, messageID, attachments);
         resolveUserReply(messageID, repliedMessageID);
-        addProfileDisplay(cid, messageID);
+        addProfileDisplay(cid, messageID, 'plain');
         addConversationParticipant(cid, userData['nickname'], true);
         scrollOnNewMessage(messageList);
         return messageID;
@@ -111,42 +120,112 @@ async function addPromptMessage(cid, userID, messageText, promptId, promptState)
     }
 }
 
+
+/**
+ * Returns first message id based on given element
+ * @param firstChild: DOM element of first message child
+ */
+function getFirstMessageFromCID(firstChild){
+    if (firstChild.classList.contains('prompt-item')){
+        const promptTable = firstChild.getElementsByTagName('table')[0];
+        const promptID = promptTable.id;
+        const promptTBody = promptTable.getElementsByTagName('tbody')[0];
+        let currentRecentMessage = null;
+        let currentOldestTS = null;
+        Array.from(promptTBody.getElementsByTagName('tr')).forEach(tr=>{
+            const submindID = tr.getAttribute('data-submind-id');
+            ['resp', 'opinion', 'vote'].forEach(phase=>{
+               const phaseElem = document.getElementById(`${promptID}_${submindID}_${phase}`);
+               if (phaseElem){
+                   let createdOn = phaseElem.getAttribute(`data-created-on`);
+                   const messageID = phaseElem.getAttribute(`data-message-id`)
+                   if (createdOn && messageID){
+                       createdOn = parseInt(createdOn);
+                       if (!currentOldestTS || createdOn < currentOldestTS){
+                           currentOldestTS = createdOn;
+                           currentRecentMessage = messageID;
+                       }
+                   }
+               }
+            });
+        });
+        return currentRecentMessage;
+    }else{
+        return getMessageNode(firstChild, 'plain')?.id;
+    }
+}
+
 /**
  * Gets list of the next n-older messages
  * @param cid: target conversation id
  * @param skin: target conversation skin
- * @param numMessages: number of messages to add
  */
-function addOldMessages(cid, skin=CONVERSATION_SKINS.BASE, numMessages = 10){
-    const messageContainer = getMessageListContainer(cid);
-    if(messageContainer.children.length > 0) {
-        const firstMessageItem = messageContainer.children[0];
-        const firstMessageID = getMessageNode(firstMessageItem, skin).id;
-        getConversationDataByInput(cid, skin, firstMessageID).then(async conversationData => {
-            if (messageContainer) {
-                const userMessageList = getUserMessages(conversationData);
-                userMessageList.sort((a, b) => {
-                    a['created_on'] - b['created_on'];
-                }).reverse();
-                for (const message of userMessageList) {
-                    const messageHTML = await messageHTMLFromData(message, skin);
-                    messageContainer.insertAdjacentHTML('afterbegin', messageHTML);
-                }
-                initMessages(conversationData, skin);
+async function addOldMessages(cid, skin=CONVERSATION_SKINS.BASE) {
+    const messageContainer = getMessageListContainer( cid );
+    if (messageContainer.children.length > 0) {
+        for (let i = 0; i < messageContainer.children.length; i++) {
+            const firstMessageItem = messageContainer.children[i];
+            const firstMessageID = getFirstMessageFromCID( firstMessageItem );
+            if (firstMessageID) {
+                const numMessages = await getCurrentSkin(cid) === CONVERSATION_SKINS.PROMPTS? 50: 20;
+                await getConversationDataByInput( cid, skin, firstMessageID, numMessages, null ).then( async conversationData => {
+                    if (messageContainer) {
+                        const userMessageList = getUserMessages( conversationData, null );
+                        userMessageList.sort( (a, b) => {
+                            a['created_on'] - b['created_on'];
+                        } ).reverse();
+                        for (const message of userMessageList) {
+                            message['cid'] = cid;
+                            if (!isDisplayed( getMessageID( message ) )) {
+                                const messageHTML = await messageHTMLFromData( message, skin );
+                                messageContainer.insertAdjacentHTML( 'afterbegin', messageHTML );
+                            } else {
+                                console.debug( `!!message_id=${message["message_id"]} is already displayed` )
+                            }
+                        }
+                        initMessages( conversationData, skin );
+                    }
+                } ).then( _ => {
+                    firstMessageItem.scrollIntoView( {behavior: "smooth"} );
+                } );
+                break;
+            } else {
+                console.warn( `NONE first message id detected for cid=${cid}` )
             }
-        }).then(_=>{
-            firstMessageItem.scrollIntoView({behavior: "smooth"});
-        });
+        }
+    }
+}
+
+
+/**
+ * Returns message id based on message type
+ * @param message: message object to check
+ * @returns {null|*} message id extracted if valid message type detected
+ */
+const getMessageID = (message) => {
+    switch (message['message_type']){
+        case 'plain':
+            return message['message_id'];
+        case 'prompt':
+            return message['_id'];
+        default:
+            console.warn(`Invalid message structure received - ${message}`);
+            return null;
     }
 }
 
 /**
  * Array of user messages in given conversation
  * @param conversationData: Conversation Data object to fetch
+ * @param forceType: to force particular type of messages among the chat flow
  */
-const getUserMessages = (conversationData) => {
+const getUserMessages = (conversationData, forceType='plain') => {
     try {
-        return Array.from(conversationData['chat_flow']);
+        let messages = Array.from(conversationData['chat_flow']);
+        if (forceType){
+            messages = messages.filter(message=> message['message_type'] === forceType);
+        }
+        return messages;
     } catch{
         return [];
     }
@@ -169,7 +248,7 @@ function initLoadOldMessages(conversationData, skin) {
             !conversationState[cid]['all_messages_displayed'] &&
             conversationState[cid]['scrollY'] === 0) {
             setChatState(cid, 'updating', 'Loading messages...')
-            addOldMessages(cid, skin);
+            await addOldMessages(cid, skin);
             for(const inputType of ['incoming', 'outcoming']){
                 await requestTranslation(cid, null, null, inputType);
             }
@@ -181,17 +260,33 @@ function initLoadOldMessages(conversationData, skin) {
 }
 
 /**
+ * Attaches event listener to display element's target user profile
+ * @param elem: target DOM element
+ */
+function attachTargetProfileDisplay(elem){
+    if (elem) {
+        elem.addEventListener( 'click', async (_) => {
+            const userNickname = elem.getAttribute( 'data-target' );
+            if (userNickname) await showProfileModal( userNickname )
+        } );
+    }
+}
+
+/**
  * Adds callback for showing profile information on profile avatar click
  * @param cid: target conversation id
  * @param messageId: target message id
+ * @param messageType: type of message to display
  */
-function addProfileDisplay(cid, messageId){
-    const messageAvatar = document.getElementById(`${messageId}_avatar`);
-    if (messageAvatar){
-        messageAvatar.addEventListener('click', async (e)=>{
-            const userNickname = messageAvatar.getAttribute('data-target');
-            if(userNickname && configData.client === CLIENTS.MAIN) await showProfileModal(userNickname)
-        });
+function addProfileDisplay(cid, messageId, messageType='plain'){
+    if (messageType === 'plain') {
+        attachTargetProfileDisplay(document.getElementById( `${messageId}_avatar` ))
+    }else if (messageType === 'prompt'){
+        const promptTBody = document.getElementById(`${messageId}_tbody`);
+        const rows = promptTBody.getElementsByTagName('tr');
+        Array.from(rows).forEach(row=>{
+            attachTargetProfileDisplay(Array.from(row.getElementsByTagName('td'))[0].getElementsByClassName('chat-img')[0]);
+        })
     }
 }
 
@@ -201,8 +296,8 @@ function addProfileDisplay(cid, messageId){
  * @param conversationData: target conversation data
  */
 function initProfileDisplay(conversationData){
-    getUserMessages(conversationData).forEach(message => {
-        addProfileDisplay(conversationData['_id'], message['message_id']);
+    getUserMessages(conversationData, null).forEach(message => {
+        addProfileDisplay( conversationData['_id'], getMessageID(message), message['message_type']);
     });
 }
 
@@ -226,14 +321,11 @@ function initProfileDisplay(conversationData){
  * @param skin: target conversation skin to consider
  */
 function initMessages(conversationData, skin = CONVERSATION_SKINS.BASE){
-   if (skin === CONVERSATION_SKINS.BASE) {
-       initProfileDisplay(conversationData);
-       attachReplies(conversationData);
-       addAttachments(conversationData);
-       addCommunicationChannelTransformCallback(conversationData);
-   }
-   // common logic
-   initLoadOldMessages(conversationData, skin);
+    initProfileDisplay(conversationData);
+    attachReplies(conversationData);
+    addAttachments(conversationData);
+    addCommunicationChannelTransformCallback(conversationData);
+    initLoadOldMessages(conversationData, skin);
 }
 
 /**

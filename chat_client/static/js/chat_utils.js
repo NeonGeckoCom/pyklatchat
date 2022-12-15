@@ -269,46 +269,43 @@ async function buildConversation(conversationData={}, skin = CONVERSATION_SKINS.
     const conversationHolder = conversationParent.parentElement;
 
     let chatCloseButton = document.getElementById(`close-${cid}`);
-
-    if (skin === CONVERSATION_SKINS.BASE) {
-
-       const chatInputButton = document.getElementById(conversationData['_id'] + '-send');
-       const filenamesContainer = document.getElementById(`filename-container-${conversationData['_id']}`)
-       const attachmentsButton = document.getElementById('file-input-' + conversationData['_id']);
-       const promptModeButton = document.getElementById(`prompt-mode-${conversationData['_id']}`);
-       const textInputElem = document.getElementById(conversationData['_id'] + '-input');
-
-       if (chatInputButton.hasAttribute('data-target-cid')) {
-           textInputElem.addEventListener('keyup', async (e)=>{
-               if (e.shiftKey && e.key === 'Enter'){
-                  await sendMessage(textInputElem, conversationData['_id']);
-               }
-           });
-           chatInputButton.addEventListener('click', async (e) => {
-               await sendMessage(textInputElem, conversationData['_id']);
-           });
-       }
-
-       attachmentsButton.addEventListener('change', (e) => {
-           e.preventDefault();
-           const fileName = getFilenameFromPath(e.currentTarget.value);
-           const lastFile = attachmentsButton.files[attachmentsButton.files.length - 1]
-           if (lastFile.size > configData['maxUploadSize']) {
-               console.warn(`Uploaded file is too big`);
-           } else {
-               addUpload(attachmentsButton.parentNode.parentNode.id, lastFile);
-               filenamesContainer.insertAdjacentHTML('afterbegin',
-                   `<span class='filename'>${fileName}</span>`);
-               filenamesContainer.style.display = "";
-               if (filenamesContainer.children.length === configData['maxNumAttachments']) {
-                   attachmentsButton.disabled = true;
-               }
+    const chatInputButton = document.getElementById(conversationData['_id'] + '-send');
+    const filenamesContainer = document.getElementById(`filename-container-${conversationData['_id']}`)
+    const attachmentsButton = document.getElementById('file-input-' + conversationData['_id']);
+    const textInputElem = document.getElementById(conversationData['_id'] + '-input');
+    if (chatInputButton.hasAttribute('data-target-cid')) {
+       textInputElem.addEventListener('keyup', async (e)=>{
+           if (e.shiftKey && e.key === 'Enter'){
+              await sendMessage(textInputElem, conversationData['_id']);
            }
        });
-       displayParticipantsCount(conversationData['_id']);
-       await initLanguageSelectors(conversationData['_id']);
-       await addRecorder(conversationData);
+       chatInputButton.addEventListener('click', async (e) => {
+           await sendMessage(textInputElem, conversationData['_id']);
+       });
+   }
 
+    attachmentsButton.addEventListener('change', (e) => {
+       e.preventDefault();
+       const fileName = getFilenameFromPath(e.currentTarget.value);
+       const lastFile = attachmentsButton.files[attachmentsButton.files.length - 1]
+       if (lastFile.size > configData['maxUploadSize']) {
+           console.warn(`Uploaded file is too big`);
+       } else {
+           addUpload(attachmentsButton.parentNode.parentNode.id, lastFile);
+           filenamesContainer.insertAdjacentHTML('afterbegin',
+               `<span class='filename'>${fileName}</span>`);
+           filenamesContainer.style.display = "";
+           if (filenamesContainer.children.length === configData['maxNumAttachments']) {
+               attachmentsButton.disabled = true;
+           }
+       }
+    });
+    await addRecorder(conversationData);
+    displayParticipantsCount(conversationData['_id']);
+    await initLanguageSelectors(conversationData['_id']);
+
+    if (skin === CONVERSATION_SKINS.BASE) {
+       const promptModeButton = document.getElementById(`prompt-mode-${conversationData['_id']}`);
 
        promptModeButton.addEventListener('click', async (e) => {
            e.preventDefault();
@@ -329,7 +326,7 @@ async function buildConversation(conversationData={}, skin = CONVERSATION_SKINS.
        });
 
        // TODO: make an array of prompt tables only in dedicated conversation
-       Array.from(getMessagesOfCID(cid, MESSAGE_REFER_TYPE.ALL, skin, false)).forEach(table => {
+       Array.from(getMessagesOfCID(cid, MESSAGE_REFER_TYPE.ALL, 'prompt', false)).forEach(table => {
 
            table.addEventListener('mousedown', (_) => startSelection(table, exportToExcelBtn));
            table.addEventListener('touchstart', (_) => startSelection(table, exportToExcelBtn));
@@ -371,7 +368,7 @@ async function buildConversation(conversationData={}, skin = CONVERSATION_SKINS.
  * @param alertParent: parent of error alert (optional)
  * @returns {Promise<{}>} promise resolving conversation data returned
  */
-async function getConversationDataByInput(input="", skin=CONVERSATION_SKINS.BASE, firstMessageID=null, maxResults=10, alertParent=null){
+async function getConversationDataByInput(input="", skin=CONVERSATION_SKINS.BASE, firstMessageID=null, maxResults=20, alertParent=null){
     let conversationData = {};
     if(input && typeof input === "string"){
         let query_url = `chat_api/search/${input}?limit_chat_history=${maxResults}&skin=${skin}`;
@@ -387,7 +384,7 @@ async function getConversationDataByInput(input="", skin=CONVERSATION_SKINS.BASE
                 }
             })
             .then(data => {
-                if (getUserMessages(data).length < maxResults){
+                if (getUserMessages(data, null).length === 0){
                     console.log('All of the messages are already displayed');
                     setDefault(setDefault(conversationState, data['_id'], {}), 'all_messages_displayed', true);
                 }
@@ -444,12 +441,8 @@ async function removeConversation(cid){
  * @param cid: target conversation id
  * @return true if cid is stored in client db, false otherwise
  */
-async function isDisplayed(cid) {
-    if (configData.client === CLIENTS.NANO){
-        return document.getElementById(cid) !== null;
-    }else {
-        return await getStoredConversationData( cid ) !== undefined;
-    }
+function isDisplayed(cid) {
+    return document.getElementById(cid) !== null;
 }
 
 
@@ -537,25 +530,27 @@ const MESSAGE_REFER_TYPE = {
  * @param cid: target conversation id
  * @param messageReferType: message refer type to consider from MESSAGE_REFER_TYPE
  * @param idOnly: to return id only (defaults to false)
- * @param skin: conversation skin to apply
+ * @param forceType: to get only certain type of messages (optional)
  * @return array of message DOM objects under given conversation
  */
-function getMessagesOfCID(cid, messageReferType=MESSAGE_REFER_TYPE.ALL, skin=CONVERSATION_SKINS.BASE, idOnly=false){
+function getMessagesOfCID(cid, messageReferType=MESSAGE_REFER_TYPE.ALL, forceType=null, idOnly=false){
     let messages = []
     const messageContainer = getMessageListContainer(cid);
     if(messageContainer){
         const listItems = messageContainer.getElementsByTagName('li');
         Array.from(listItems).forEach(li=>{
            try {
-               const messageNode = getMessageNode(li, skin);
+               const messageNode = getMessageNode(li, forceType);
                // console.debug(`pushing shout_id=${messageNode.id}`);
-               if (messageReferType === MESSAGE_REFER_TYPE.ALL ||
-                   (messageReferType === MESSAGE_REFER_TYPE.MINE && messageNode.getAttribute('data-sender') === currentUser['nickname']) ||
-                   (messageReferType === MESSAGE_REFER_TYPE.OTHERS && messageNode.getAttribute('data-sender') !== currentUser['nickname'])){
-                   if (idOnly){
-                       messages.push(messageNode.id);
-                   }else {
-                       messages.push(messageNode);
+               if (messageNode) {
+                   if (messageReferType === MESSAGE_REFER_TYPE.ALL ||
+                       (messageReferType === MESSAGE_REFER_TYPE.MINE && messageNode.getAttribute( 'data-sender' ) === currentUser['nickname']) ||
+                       (messageReferType === MESSAGE_REFER_TYPE.OTHERS && messageNode.getAttribute( 'data-sender' ) !== currentUser['nickname'])) {
+                       if (idOnly) {
+                           messages.push( messageNode.id );
+                       } else {
+                           messages.push( messageNode );
+                       }
                    }
                }
            } catch (e) {
@@ -577,7 +572,7 @@ function refreshChatView(conversationContainer=null){
         const cid = conversation.getElementsByClassName('card')[0].id;
         const skin = await getCurrentSkin(cid);
         if (skin === CONVERSATION_SKINS.BASE) {
-            const messages = getMessagesOfCID(cid);
+            const messages = getMessagesOfCID(cid, MESSAGE_REFER_TYPE.ALL, 'plain');
             Array.from(messages).forEach(message => {
                 if (message.hasAttribute('data-sender')) {
                     const messageSenderNickname = message.getAttribute('data-sender');
@@ -649,7 +644,7 @@ function setChatState(cid, state='active', state_msg = ''){
 async function displayConversation(searchStr, skin=CONVERSATION_SKINS.BASE, alertParentID = null, conversationParentID='conversationsBody'){
     if (searchStr !== "") {
         const alertParent = document.getElementById(alertParentID);
-        await getConversationDataByInput(searchStr, skin, null, 10, alertParent).then(async conversationData => {
+        await getConversationDataByInput(searchStr, skin, null, 20, alertParent).then(async conversationData => {
             let responseOk = false;
             if (!conversationData || Object.keys(conversationData).length === 0){
                 displayAlert(
@@ -660,7 +655,7 @@ async function displayConversation(searchStr, skin=CONVERSATION_SKINS.BASE, aler
                     {'type': alertBehaviors.AUTO_EXPIRE}
                     );
             }
-            else if (await isDisplayed(conversationData['_id'])) {
+            else if (isDisplayed(conversationData['_id'])) {
                 displayAlert(alertParent, 'Chat is already displayed', 'danger');
             } else {
                 await buildConversation(conversationData, skin, true, conversationParentID);
@@ -670,6 +665,11 @@ async function displayConversation(searchStr, skin=CONVERSATION_SKINS.BASE, aler
                     }
                 }
                 responseOk = true;
+                if (configData.client === CLIENTS.NANO) {
+                    attachEditModalInvoker(document.getElementById(`${conversationData['_id']}-account-link`));
+                    updateNavbar();
+                    initSettings(document.getElementById(`${conversationData['_id']}-settings-link`));
+                }
             }
             return responseOk;
         });

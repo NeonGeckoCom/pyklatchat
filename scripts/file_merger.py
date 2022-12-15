@@ -61,12 +61,14 @@ class FileMerger(FilesManipulator):
                  weighted_dirs: Dict[str, tuple],
                  weighted_files: Optional[Dict[str, tuple]] = None,
                  skip_files: Optional[List[str]] = None,
-                 save_to: str = None):
+                 save_to: str = None,
+                 beautify: bool = False):
         super().__init__(working_dir=working_dir, skip_files=skip_files)
         self.weighted_dirs = weighted_dirs or {}
         self.weighted_files = weighted_files or {}
         self.save_to = save_to or f'output{self.DEFAULT_FILE_EXTENSION}'
         self.current_content = ""
+        self.beautify = beautify
 
     @staticmethod
     def build_from_args():
@@ -85,6 +87,7 @@ class FileMerger(FilesManipulator):
                             metavar='key1=["val1","val2"] ...')
         parser.add_argument('-skip', '--skip_files', nargs='+', help='list of filenames to skip')
         parser.add_argument('-dest', '--save_to', type=str, help='name of destination file')
+        parser.add_argument('-b', '--beautify', type=str, help='"1" to beautify the output file (does not work for css)')
 
         script_args = parser.parse_args()
 
@@ -92,7 +95,8 @@ class FileMerger(FilesManipulator):
                           weighted_dirs=script_args.weighted_dirs,
                           weighted_files=script_args.weighted_files,
                           skip_files=script_args.skip_files,
-                          save_to=script_args.save_to)
+                          save_to=script_args.save_to,
+                          beautify=script_args.beautify == '1')
 
     def get_content(self, from_file) -> str:
         """
@@ -107,7 +111,10 @@ class FileMerger(FilesManipulator):
             return lines
 
     def on_valid_file(self, file_path):
-        self.current_content += '\n' + jsbeautifier.beautify(self.get_content(self.full_path(file_path)))
+        content = self.get_content(self.full_path(file_path))
+        if self.beautify:
+            content = jsbeautifier.beautify(content)
+        self.current_content += '\n' + content
 
     def run(self):
         """
@@ -121,7 +128,10 @@ class FileMerger(FilesManipulator):
             matching_files = self.weighted_files.get(str(weight), ())
             for file in matching_files:
                 if file not in self.skip_files:
-                    self.current_content += '\n' + jsbeautifier.beautify(self.get_content(file))
+                    content = self.get_content(file)
+                    if self.beautify:
+                        content = jsbeautifier.beautify(content)
+                    self.current_content += '\n' + content
             matching_dirs = self.weighted_dirs.get(str(weight), ())
             for folder in matching_dirs:
                 self.walk_tree(folder)

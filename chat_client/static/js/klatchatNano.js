@@ -404,6 +404,7 @@ async function buildLangOptionHTML(cid, key, name, icon, inputType) {
 /**
  * Builds user message HTML
  * @param userData: data of message sender
+ * @param cid: conversation id of target message
  * @param messageID: id of user message
  * @param messageText: text of user message
  * @param timeCreated: date of creation
@@ -412,7 +413,7 @@ async function buildLangOptionHTML(cid, key, name, icon, inputType) {
  * @param isAnnouncement: is message if announcement (defaults to '0')
  * @returns {string}: constructed HTML out of input params
  */
-async function buildUserMessageHTML(userData, messageID, messageText, timeCreated, isMine, isAudio = '0', isAnnouncement = '0') {
+async function buildUserMessageHTML(userData, cid, messageID, messageText, timeCreated, isMine, isAudio = '0', isAnnouncement = '0') {
     const messageTime = getTimeFromTimestamp(timeCreated);
     let imageComponent;
     let shortedNick = `${userData['nickname'][0]}${userData['nickname'][userData['nickname'].length - 1]}`;
@@ -423,18 +424,27 @@ async function buildUserMessageHTML(userData, messageID, messageText, timeCreate
     }
     const messageClass = isAnnouncement === '1' ? 'announcement' : isMine ? 'in' : 'out';
     const messageOrientation = isMine ? 'right' : 'left';
-    let minificationEnabled = currentUser?.preferences?.minify_messages === '1';
+    let minificationEnabled = currentUser?.preferences?.minify_messages === '1' || await getCurrentSkin(cid) === CONVERSATION_SKINS.PROMPTS;
     let templateSuffix = minificationEnabled ? '_minified' : '';
     const templateName = isAudio === '1' ? `user_message_audio${templateSuffix}` : `user_message${templateSuffix}`;
     if (isAudio === '0') {
         messageText = messageText.replaceAll('\n', '<br>');
+    }
+    let statusIconHTML = '';
+    let userTooltip = userData['nickname'];
+    if (userData?.is_bot === '1') {
+        statusIconHTML = ' <span class="fa fa-robot"></span>'
+        userTooltip = `bot ${userTooltip}`
     }
     return await buildHTMLFromTemplate(templateName, {
         'message_class': messageClass,
         'is_announcement': isAnnouncement,
         'image_component': imageComponent,
         'message_id': messageID,
+        'user_tooltip': userTooltip,
         'nickname': userData['nickname'],
+        'nickname_shrunk': shrinkToFit(userData['nickname'], 15, '..'),
+        'status_icon': statusIconHTML,
         'message_text': messageText,
         'message_orientation': messageOrientation,
         'audio_url': `${configData["CHAT_SERVER_URL_BASE"]}/files/audio/${messageID}`,
@@ -457,24 +467,41 @@ const shrinkNickname = (nick) => {
  * @param promptID: target prompt id
  * @param submindID: user id of submind
  * @param submindUserData: user data of submind
- * @param submindResponse: Responding shout of submind to incoming prompt
- * @param submindOpinion: Discussion shout of submind to incoming prompt
- * @param submindVote: Vote of submind in prompt
+ * @param submindResponse: Responding data of submind to incoming prompt
+ * @param submindOpinion: Discussion data of submind to incoming prompt
+ * @param submindVote: Vote data of submind in prompt
  * @return {Promise<string|void>} - Submind Data HTML populated with provided data
  */
 async function buildSubmindHTML(promptID, submindID, submindUserData, submindResponse, submindOpinion, submindVote) {
     const userNickname = shrinkNickname(submindUserData['nickname']);
-    return await buildHTMLFromTemplate("prompt_participant", {
+    let tooltip = submindUserData['nickname'];
+    if (submindUserData['is_bot']) {
+        tooltip = `bot ${tooltip}`;
+    }
+    const phaseDataObjectMapping = {
+        'response': submindResponse,
+        'opinion': submindOpinion,
+        'vote': submindVote
+    }
+    let templateData = {
         'prompt_id': promptID,
         'user_id': submindID,
         'user_first_name': submindUserData['first_name'],
         'user_last_name': submindUserData['last_name'],
-        'user_nickname': userNickname,
+        'user_nickname': submindUserData['nickname'],
+        'user_nickname_shrunk': userNickname,
         'user_avatar': `${configData["CHAT_SERVER_URL_BASE"]}/files/avatar/${submindID}`,
-        'response': submindResponse,
-        'opinion': submindOpinion,
-        'vote': submindVote
-    });
+        'tooltip': tooltip
+    }
+    const submindPromptData = {}
+    for (const [k, v] of Object.entries(phaseDataObjectMapping)) {
+        submindPromptData[k] = v.message_text
+        submindPromptData[`${k}_message_id`] = v?.message_id
+        const dateCreated = getTimeFromTimestamp(v?.created_on);
+        submindPromptData[`${k}_created_on`] = v?.created_on;
+        submindPromptData[`${k}_created_on_tooltip`] = dateCreated ? `shouted on: ${dateCreated}` : `no ${k} from ${userNickname} in this prompt`;
+    }
+    return await buildHTMLFromTemplate("prompt_participant", Object.assign(templateData, submindPromptData));
 }
 
 
@@ -523,23 +550,30 @@ async function buildPromptHTML(prompt) {
                 submindUserData = {
                     'nickname': submindID,
                     'first_name': 'Klat',
-                    'last_name': 'User'
+                    'last_name': 'User',
+                    'is_bot': '0'
                 }
                 isLegacy = true
             }
             const data = {}
             searchedKeys.forEach(key => {
                 try {
-                    let value = promptData[key][submindID];
+                    const messageId = promptData[key][submindID];
+                    let value = null;
                     if (!isLegacy) {
-                        value = prompt['message_mapping'][value][0]['message_text'];
+                        value = prompt['message_mapping'][messageId][0];
+                        value['message_id'] = messageId;
                     }
                     if (!value) {
-                        value = emptyAnswer
+                        value = {
+                            'message_text': emptyAnswer
+                        }
                     }
                     data[key] = value;
                 } catch (e) {
-                    data[key] = emptyAnswer;
+                    data[key] = {
+                        'message_text': emptyAnswer
+                    };
                 }
             });
             submindsHTML += await buildSubmindHTML(prompt['_id'], submindID, submindUserData,
@@ -565,21 +599,23 @@ async function buildPromptHTML(prompt) {
  * @return {Promise<string>} HTML by the provided message data
  */
 async function messageHTMLFromData(message, skin = CONVERSATION_SKINS.BASE) {
-    if (skin === CONVERSATION_SKINS.BASE) {
+    if (skin === CONVERSATION_SKINS.PROMPTS && message['message_type'] === 'prompt') {
+        return buildPromptHTML(message);
+    } else {
         const isMine = currentUser && message['user_nickname'] === currentUser['nickname'];
         return buildUserMessageHTML({
                 'avatar': message['user_avatar'],
                 'nickname': message['user_nickname'],
+                'is_bot': message['user_is_bot'],
                 '_id': message['user_id']
             },
+            message['cid'],
             message['message_id'],
             message['message_text'],
             message['created_on'],
             isMine,
             message?.is_audio,
             message?.is_announcement);
-    } else if (skin === CONVERSATION_SKINS.PROMPTS) {
-        return buildPromptHTML(message);
     }
 }
 
@@ -606,17 +642,25 @@ async function buildConversationHTML(conversationData = {}, skin = CONVERSATION_
     let chatFlowHTML = "";
     if (conversationData.hasOwnProperty('chat_flow')) {
         for (const message of Array.from(conversationData['chat_flow'])) {
+            message['cid'] = cid;
             chatFlowHTML += await messageHTMLFromData(message, skin);
-            if (skin === CONVERSATION_SKINS.BASE) {
-                addConversationParticipant(cid, message['user_nickname']);
-            }
+            // if (skin === CONVERSATION_SKINS.BASE) {
+            addConversationParticipant(cid, message['user_nickname']);
+            // }
         }
     } else {
         chatFlowHTML += `<div class="blank_chat">No messages in this chat yet...</div>`;
     }
-    const conversationNameShrunk = shrinkToFit(conversation_name, 6)
+    const conversationNameShrunk = shrinkToFit(conversation_name, 6);
+    let nanoHeaderHTML = '';
+    if (configData.client === CLIENTS.NANO) {
+        nanoHeaderHTML = await buildHTMLFromTemplate('nano_header', {
+            'cid': cid
+        })
+    }
     return await buildHTMLFromTemplate('conversation', {
         'cid': cid,
+        'nano_header': nanoHeaderHTML,
         'conversation_name': conversation_name,
         'conversation_name_shrunk': conversationNameShrunk,
         'chat_flow': chatFlowHTML
@@ -928,46 +972,43 @@ async function buildConversation(conversationData = {}, skin = CONVERSATION_SKIN
     const conversationHolder = conversationParent.parentElement;
 
     let chatCloseButton = document.getElementById(`close-${cid}`);
-
-    if (skin === CONVERSATION_SKINS.BASE) {
-
-        const chatInputButton = document.getElementById(conversationData['_id'] + '-send');
-        const filenamesContainer = document.getElementById(`filename-container-${conversationData['_id']}`)
-        const attachmentsButton = document.getElementById('file-input-' + conversationData['_id']);
-        const promptModeButton = document.getElementById(`prompt-mode-${conversationData['_id']}`);
-        const textInputElem = document.getElementById(conversationData['_id'] + '-input');
-
-        if (chatInputButton.hasAttribute('data-target-cid')) {
-            textInputElem.addEventListener('keyup', async (e) => {
-                if (e.shiftKey && e.key === 'Enter') {
-                    await sendMessage(textInputElem, conversationData['_id']);
-                }
-            });
-            chatInputButton.addEventListener('click', async (e) => {
+    const chatInputButton = document.getElementById(conversationData['_id'] + '-send');
+    const filenamesContainer = document.getElementById(`filename-container-${conversationData['_id']}`)
+    const attachmentsButton = document.getElementById('file-input-' + conversationData['_id']);
+    const textInputElem = document.getElementById(conversationData['_id'] + '-input');
+    if (chatInputButton.hasAttribute('data-target-cid')) {
+        textInputElem.addEventListener('keyup', async (e) => {
+            if (e.shiftKey && e.key === 'Enter') {
                 await sendMessage(textInputElem, conversationData['_id']);
-            });
-        }
-
-        attachmentsButton.addEventListener('change', (e) => {
-            e.preventDefault();
-            const fileName = getFilenameFromPath(e.currentTarget.value);
-            const lastFile = attachmentsButton.files[attachmentsButton.files.length - 1]
-            if (lastFile.size > configData['maxUploadSize']) {
-                console.warn(`Uploaded file is too big`);
-            } else {
-                addUpload(attachmentsButton.parentNode.parentNode.id, lastFile);
-                filenamesContainer.insertAdjacentHTML('afterbegin',
-                    `<span class='filename'>${fileName}</span>`);
-                filenamesContainer.style.display = "";
-                if (filenamesContainer.children.length === configData['maxNumAttachments']) {
-                    attachmentsButton.disabled = true;
-                }
             }
         });
-        displayParticipantsCount(conversationData['_id']);
-        await initLanguageSelectors(conversationData['_id']);
-        await addRecorder(conversationData);
+        chatInputButton.addEventListener('click', async (e) => {
+            await sendMessage(textInputElem, conversationData['_id']);
+        });
+    }
 
+    attachmentsButton.addEventListener('change', (e) => {
+        e.preventDefault();
+        const fileName = getFilenameFromPath(e.currentTarget.value);
+        const lastFile = attachmentsButton.files[attachmentsButton.files.length - 1]
+        if (lastFile.size > configData['maxUploadSize']) {
+            console.warn(`Uploaded file is too big`);
+        } else {
+            addUpload(attachmentsButton.parentNode.parentNode.id, lastFile);
+            filenamesContainer.insertAdjacentHTML('afterbegin',
+                `<span class='filename'>${fileName}</span>`);
+            filenamesContainer.style.display = "";
+            if (filenamesContainer.children.length === configData['maxNumAttachments']) {
+                attachmentsButton.disabled = true;
+            }
+        }
+    });
+    await addRecorder(conversationData);
+    displayParticipantsCount(conversationData['_id']);
+    await initLanguageSelectors(conversationData['_id']);
+
+    if (skin === CONVERSATION_SKINS.BASE) {
+        const promptModeButton = document.getElementById(`prompt-mode-${conversationData['_id']}`);
 
         promptModeButton.addEventListener('click', async (e) => {
             e.preventDefault();
@@ -987,7 +1028,7 @@ async function buildConversation(conversationData = {}, skin = CONVERSATION_SKIN
         });
 
         // TODO: make an array of prompt tables only in dedicated conversation
-        Array.from(getMessagesOfCID(cid, MESSAGE_REFER_TYPE.ALL, skin, false)).forEach(table => {
+        Array.from(getMessagesOfCID(cid, MESSAGE_REFER_TYPE.ALL, 'prompt', false)).forEach(table => {
 
             table.addEventListener('mousedown', (_) => startSelection(table, exportToExcelBtn));
             table.addEventListener('touchstart', (_) => startSelection(table, exportToExcelBtn));
@@ -1029,7 +1070,7 @@ async function buildConversation(conversationData = {}, skin = CONVERSATION_SKIN
  * @param alertParent: parent of error alert (optional)
  * @returns {Promise<{}>} promise resolving conversation data returned
  */
-async function getConversationDataByInput(input = "", skin = CONVERSATION_SKINS.BASE, firstMessageID = null, maxResults = 10, alertParent = null) {
+async function getConversationDataByInput(input = "", skin = CONVERSATION_SKINS.BASE, firstMessageID = null, maxResults = 20, alertParent = null) {
     let conversationData = {};
     if (input && typeof input === "string") {
         let query_url = `chat_api/search/${input}?limit_chat_history=${maxResults}&skin=${skin}`;
@@ -1045,7 +1086,7 @@ async function getConversationDataByInput(input = "", skin = CONVERSATION_SKINS.
                 }
             })
             .then(data => {
-                if (getUserMessages(data).length < maxResults) {
+                if (getUserMessages(data, null).length === 0) {
                     console.log('All of the messages are already displayed');
                     setDefault(setDefault(conversationState, data['_id'], {}), 'all_messages_displayed', true);
                 }
@@ -1108,12 +1149,8 @@ async function removeConversation(cid) {
  * @param cid: target conversation id
  * @return true if cid is stored in client db, false otherwise
  */
-async function isDisplayed(cid) {
-    if (configData.client === CLIENTS.NANO) {
-        return document.getElementById(cid) !== null;
-    } else {
-        return await getStoredConversationData(cid) !== undefined;
-    }
+function isDisplayed(cid) {
+    return document.getElementById(cid) !== null;
 }
 
 
@@ -1212,25 +1249,27 @@ const MESSAGE_REFER_TYPE = {
  * @param cid: target conversation id
  * @param messageReferType: message refer type to consider from MESSAGE_REFER_TYPE
  * @param idOnly: to return id only (defaults to false)
- * @param skin: conversation skin to apply
+ * @param forceType: to get only certain type of messages (optional)
  * @return array of message DOM objects under given conversation
  */
-function getMessagesOfCID(cid, messageReferType = MESSAGE_REFER_TYPE.ALL, skin = CONVERSATION_SKINS.BASE, idOnly = false) {
+function getMessagesOfCID(cid, messageReferType = MESSAGE_REFER_TYPE.ALL, forceType = null, idOnly = false) {
     let messages = []
     const messageContainer = getMessageListContainer(cid);
     if (messageContainer) {
         const listItems = messageContainer.getElementsByTagName('li');
         Array.from(listItems).forEach(li => {
             try {
-                const messageNode = getMessageNode(li, skin);
+                const messageNode = getMessageNode(li, forceType);
                 // console.debug(`pushing shout_id=${messageNode.id}`);
-                if (messageReferType === MESSAGE_REFER_TYPE.ALL ||
-                    (messageReferType === MESSAGE_REFER_TYPE.MINE && messageNode.getAttribute('data-sender') === currentUser['nickname']) ||
-                    (messageReferType === MESSAGE_REFER_TYPE.OTHERS && messageNode.getAttribute('data-sender') !== currentUser['nickname'])) {
-                    if (idOnly) {
-                        messages.push(messageNode.id);
-                    } else {
-                        messages.push(messageNode);
+                if (messageNode) {
+                    if (messageReferType === MESSAGE_REFER_TYPE.ALL ||
+                        (messageReferType === MESSAGE_REFER_TYPE.MINE && messageNode.getAttribute('data-sender') === currentUser['nickname']) ||
+                        (messageReferType === MESSAGE_REFER_TYPE.OTHERS && messageNode.getAttribute('data-sender') !== currentUser['nickname'])) {
+                        if (idOnly) {
+                            messages.push(messageNode.id);
+                        } else {
+                            messages.push(messageNode);
+                        }
                     }
                 }
             } catch (e) {
@@ -1252,7 +1291,7 @@ function refreshChatView(conversationContainer = null) {
         const cid = conversation.getElementsByClassName('card')[0].id;
         const skin = await getCurrentSkin(cid);
         if (skin === CONVERSATION_SKINS.BASE) {
-            const messages = getMessagesOfCID(cid);
+            const messages = getMessagesOfCID(cid, MESSAGE_REFER_TYPE.ALL, 'plain');
             Array.from(messages).forEach(message => {
                 if (message.hasAttribute('data-sender')) {
                     const messageSenderNickname = message.getAttribute('data-sender');
@@ -1324,7 +1363,7 @@ function setChatState(cid, state = 'active', state_msg = '') {
 async function displayConversation(searchStr, skin = CONVERSATION_SKINS.BASE, alertParentID = null, conversationParentID = 'conversationsBody') {
     if (searchStr !== "") {
         const alertParent = document.getElementById(alertParentID);
-        await getConversationDataByInput(searchStr, skin, null, 10, alertParent).then(async conversationData => {
+        await getConversationDataByInput(searchStr, skin, null, 20, alertParent).then(async conversationData => {
             let responseOk = false;
             if (!conversationData || Object.keys(conversationData).length === 0) {
                 displayAlert(
@@ -1335,7 +1374,7 @@ async function displayConversation(searchStr, skin = CONVERSATION_SKINS.BASE, al
                         'type': alertBehaviors.AUTO_EXPIRE
                     }
                 );
-            } else if (await isDisplayed(conversationData['_id'])) {
+            } else if (isDisplayed(conversationData['_id'])) {
                 displayAlert(alertParent, 'Chat is already displayed', 'danger');
             } else {
                 await buildConversation(conversationData, skin, true, conversationParentID);
@@ -1345,6 +1384,11 @@ async function displayConversation(searchStr, skin = CONVERSATION_SKINS.BASE, al
                     }
                 }
                 responseOk = true;
+                if (configData.client === CLIENTS.NANO) {
+                    attachEditModalInvoker(document.getElementById(`${conversationData['_id']}-account-link`));
+                    updateNavbar();
+                    initSettings(document.getElementById(`${conversationData['_id']}-settings-link`));
+                }
             }
             return responseOk;
         });
@@ -1496,6 +1540,9 @@ document.addEventListener('DOMContentLoaded', async (e) => {
  * @returns {string} string time (hours:minutes)
  */
 function getTimeFromTimestamp(timestampCreated = 0) {
+    if (!timestampCreated) {
+        return ''
+    }
     let date = new Date(timestampCreated * 1000);
     let year = date.getFullYear().toString();
     let month = date.getMonth() + 1;
@@ -1677,7 +1724,8 @@ async function setPreferredLanguage(cid, lang, inputType = 'incoming', updateDB 
     }
     if ((isOk || !updateDB) && !updateDBOnly) {
         updateChatLanguageMapping(cid, inputType, lang);
-        await requestTranslation(cid, null, null, inputType);
+        const shoutIds = getMessagesOfCID(cid, MESSAGE_REFER_TYPE.ALL, 'plain', true);
+        await requestTranslation(cid, shoutIds, lang, inputType);
     }
 }
 
@@ -1713,17 +1761,17 @@ async function requestTranslation(cid = null, shouts = null, lang = null, inputT
     let requestBody = {
         chat_mapping: {}
     };
-    const skin = await getCurrentSkin(cid);
-    if (cid && await isDisplayed(cid) && skin === CONVERSATION_SKINS.BASE) {
+    // const skin = await getCurrentSkin(cid);
+    if (cid && isDisplayed(cid)) {
         lang = lang || getPreferredLanguage(cid, inputType);
-        if (lang !== 'en' && getMessagesOfCID(cid).length > 0) {
+        if (lang !== 'en' && getMessagesOfCID(cid, MESSAGE_REFER_TYPE.ALL, 'plain').length > 0) {
             setChatState(cid, 'updating', 'Applying New Language...');
         }
         if (shouts && !Array.isArray(shouts)) {
             shouts = [shouts];
         }
         if (!shouts && inputType) {
-            shouts = getMessagesOfCID(cid, getMessageReferType(inputType), skin, true);
+            shouts = getMessagesOfCID(cid, getMessageReferType(inputType), 'plain', true);
             if (shouts.length === 0) {
                 console.log(`${cid} yet has no shouts matching type=${inputType}`);
                 setChatState(cid, 'active');
@@ -1857,7 +1905,7 @@ async function requestChatsLanguageRefresh() {
     const languageMapping = currentUser?.preferences?.chat_language_mapping || {};
     console.log(`languageMapping=${JSON.stringify(languageMapping)}`)
     for (const [cid, value] of Object.entries(languageMapping)) {
-        if (await isDisplayed(cid)) {
+        if (isDisplayed(cid)) {
             for (const inputType of ['incoming', 'outcoming']) {
                 const lang = value[inputType] || 'en';
                 if (lang !== 'en') {
@@ -1895,7 +1943,7 @@ async function applyTranslations(data) {
         const messageTranslationsShouts = messageTranslations['shouts'];
         if (messageTranslationsShouts) {
             const messageReferType = getMessageReferType(inputType);
-            const messages = getMessagesOfCID(cid, messageReferType);
+            const messages = getMessagesOfCID(cid, messageReferType, 'plain');
             Array.from(messages).forEach(message => {
                 const messageID = message.id;
                 let repliedMessage = null;
@@ -2030,14 +2078,23 @@ const getMessageListContainer = (cid) => {
 /**
  * Gets message node from the message container
  * @param messageContainer: DOM Message Container element to consider
- * @param skin: target conversation skin to consider
+ * @param validateType: type of message to validate
  * @return {HTMLElement} ID of the message
  */
-const getMessageNode = (messageContainer, skin) => {
-    if (skin === CONVERSATION_SKINS.PROMPTS) {
-        return messageContainer.getElementsByTagName('table')[0];
+const getMessageNode = (messageContainer, validateType = null) => {
+    let detectedType;
+    let node
+    if (messageContainer.getElementsByTagName('table').length > 0) {
+        detectedType = 'prompt';
+        node = messageContainer.getElementsByTagName('table')[0];
     } else {
-        return messageContainer.getElementsByClassName('chat-body')[0].getElementsByClassName('chat-message')[0];
+        detectedType = 'plain'
+        node = messageContainer.getElementsByClassName('chat-body')[0].getElementsByClassName('chat-message')[0];
+    }
+    if (validateType && validateType !== detectedType) {
+        return null;
+    } else {
+        return node;
     }
 }
 
@@ -2067,7 +2124,7 @@ async function addNewMessage(cid, userID = null, messageID = null, messageText, 
         if (!messageID) {
             messageID = generateUUID();
         }
-        let messageHTML = await buildUserMessageHTML(userData, messageID, messageText, timeCreated, isMine, isAudio, isAnnouncement);
+        let messageHTML = await buildUserMessageHTML(userData, cid, messageID, messageText, timeCreated, isMine, isAudio, isAnnouncement);
         const blankChat = messageList.getElementsByClassName('blank_chat');
         if (blankChat.length > 0) {
             messageList.removeChild(blankChat[0]);
@@ -2075,7 +2132,7 @@ async function addNewMessage(cid, userID = null, messageID = null, messageText, 
         messageList.insertAdjacentHTML('beforeend', messageHTML);
         resolveMessageAttachments(cid, messageID, attachments);
         resolveUserReply(messageID, repliedMessageID);
-        addProfileDisplay(cid, messageID);
+        addProfileDisplay(cid, messageID, 'plain');
         addConversationParticipant(cid, userData['nickname'], true);
         scrollOnNewMessage(messageList);
         return messageID;
@@ -2128,44 +2185,114 @@ async function addPromptMessage(cid, userID, messageText, promptId, promptState)
     }
 }
 
+
+/**
+ * Returns first message id based on given element
+ * @param firstChild: DOM element of first message child
+ */
+function getFirstMessageFromCID(firstChild) {
+    if (firstChild.classList.contains('prompt-item')) {
+        const promptTable = firstChild.getElementsByTagName('table')[0];
+        const promptID = promptTable.id;
+        const promptTBody = promptTable.getElementsByTagName('tbody')[0];
+        let currentRecentMessage = null;
+        let currentOldestTS = null;
+        Array.from(promptTBody.getElementsByTagName('tr')).forEach(tr => {
+            const submindID = tr.getAttribute('data-submind-id');
+            ['resp', 'opinion', 'vote'].forEach(phase => {
+                const phaseElem = document.getElementById(`${promptID}_${submindID}_${phase}`);
+                if (phaseElem) {
+                    let createdOn = phaseElem.getAttribute(`data-created-on`);
+                    const messageID = phaseElem.getAttribute(`data-message-id`)
+                    if (createdOn && messageID) {
+                        createdOn = parseInt(createdOn);
+                        if (!currentOldestTS || createdOn < currentOldestTS) {
+                            currentOldestTS = createdOn;
+                            currentRecentMessage = messageID;
+                        }
+                    }
+                }
+            });
+        });
+        return currentRecentMessage;
+    } else {
+        return getMessageNode(firstChild, 'plain')?.id;
+    }
+}
+
 /**
  * Gets list of the next n-older messages
  * @param cid: target conversation id
  * @param skin: target conversation skin
- * @param numMessages: number of messages to add
  */
-function addOldMessages(cid, skin = CONVERSATION_SKINS.BASE, numMessages = 10) {
+async function addOldMessages(cid, skin = CONVERSATION_SKINS.BASE) {
     const messageContainer = getMessageListContainer(cid);
     if (messageContainer.children.length > 0) {
-        const firstMessageItem = messageContainer.children[0];
-        const firstMessageID = getMessageNode(firstMessageItem, skin).id;
-        getConversationDataByInput(cid, skin, firstMessageID).then(async conversationData => {
-            if (messageContainer) {
-                const userMessageList = getUserMessages(conversationData);
-                userMessageList.sort((a, b) => {
-                    a['created_on'] - b['created_on'];
-                }).reverse();
-                for (const message of userMessageList) {
-                    const messageHTML = await messageHTMLFromData(message, skin);
-                    messageContainer.insertAdjacentHTML('afterbegin', messageHTML);
-                }
-                initMessages(conversationData, skin);
+        for (let i = 0; i < messageContainer.children.length; i++) {
+            const firstMessageItem = messageContainer.children[i];
+            const firstMessageID = getFirstMessageFromCID(firstMessageItem);
+            if (firstMessageID) {
+                const numMessages = await getCurrentSkin(cid) === CONVERSATION_SKINS.PROMPTS ? 50 : 20;
+                await getConversationDataByInput(cid, skin, firstMessageID, numMessages, null).then(async conversationData => {
+                    if (messageContainer) {
+                        const userMessageList = getUserMessages(conversationData, null);
+                        userMessageList.sort((a, b) => {
+                            a['created_on'] - b['created_on'];
+                        }).reverse();
+                        for (const message of userMessageList) {
+                            message['cid'] = cid;
+                            if (!isDisplayed(getMessageID(message))) {
+                                const messageHTML = await messageHTMLFromData(message, skin);
+                                messageContainer.insertAdjacentHTML('afterbegin', messageHTML);
+                            } else {
+                                console.debug(`!!message_id=${message["message_id"]} is already displayed`)
+                            }
+                        }
+                        initMessages(conversationData, skin);
+                    }
+                }).then(_ => {
+                    firstMessageItem.scrollIntoView({
+                        behavior: "smooth"
+                    });
+                });
+                break;
+            } else {
+                console.warn(`NONE first message id detected for cid=${cid}`)
             }
-        }).then(_ => {
-            firstMessageItem.scrollIntoView({
-                behavior: "smooth"
-            });
-        });
+        }
+    }
+}
+
+
+/**
+ * Returns message id based on message type
+ * @param message: message object to check
+ * @returns {null|*} message id extracted if valid message type detected
+ */
+const getMessageID = (message) => {
+    switch (message['message_type']) {
+        case 'plain':
+            return message['message_id'];
+        case 'prompt':
+            return message['_id'];
+        default:
+            console.warn(`Invalid message structure received - ${message}`);
+            return null;
     }
 }
 
 /**
  * Array of user messages in given conversation
  * @param conversationData: Conversation Data object to fetch
+ * @param forceType: to force particular type of messages among the chat flow
  */
-const getUserMessages = (conversationData) => {
+const getUserMessages = (conversationData, forceType = 'plain') => {
     try {
-        return Array.from(conversationData['chat_flow']);
+        let messages = Array.from(conversationData['chat_flow']);
+        if (forceType) {
+            messages = messages.filter(message => message['message_type'] === forceType);
+        }
+        return messages;
     } catch {
         return [];
     }
@@ -2188,7 +2315,7 @@ function initLoadOldMessages(conversationData, skin) {
             !conversationState[cid]['all_messages_displayed'] &&
             conversationState[cid]['scrollY'] === 0) {
             setChatState(cid, 'updating', 'Loading messages...')
-            addOldMessages(cid, skin);
+            await addOldMessages(cid, skin);
             for (const inputType of ['incoming', 'outcoming']) {
                 await requestTranslation(cid, null, null, inputType);
             }
@@ -2200,17 +2327,33 @@ function initLoadOldMessages(conversationData, skin) {
 }
 
 /**
+ * Attaches event listener to display element's target user profile
+ * @param elem: target DOM element
+ */
+function attachTargetProfileDisplay(elem) {
+    if (elem) {
+        elem.addEventListener('click', async (_) => {
+            const userNickname = elem.getAttribute('data-target');
+            if (userNickname) await showProfileModal(userNickname)
+        });
+    }
+}
+
+/**
  * Adds callback for showing profile information on profile avatar click
  * @param cid: target conversation id
  * @param messageId: target message id
+ * @param messageType: type of message to display
  */
-function addProfileDisplay(cid, messageId) {
-    const messageAvatar = document.getElementById(`${messageId}_avatar`);
-    if (messageAvatar) {
-        messageAvatar.addEventListener('click', async (e) => {
-            const userNickname = messageAvatar.getAttribute('data-target');
-            if (userNickname && configData.client === CLIENTS.MAIN) await showProfileModal(userNickname)
-        });
+function addProfileDisplay(cid, messageId, messageType = 'plain') {
+    if (messageType === 'plain') {
+        attachTargetProfileDisplay(document.getElementById(`${messageId}_avatar`))
+    } else if (messageType === 'prompt') {
+        const promptTBody = document.getElementById(`${messageId}_tbody`);
+        const rows = promptTBody.getElementsByTagName('tr');
+        Array.from(rows).forEach(row => {
+            attachTargetProfileDisplay(Array.from(row.getElementsByTagName('td'))[0].getElementsByClassName('chat-img')[0]);
+        })
     }
 }
 
@@ -2220,8 +2363,8 @@ function addProfileDisplay(cid, messageId) {
  * @param conversationData: target conversation data
  */
 function initProfileDisplay(conversationData) {
-    getUserMessages(conversationData).forEach(message => {
-        addProfileDisplay(conversationData['_id'], message['message_id']);
+    getUserMessages(conversationData, null).forEach(message => {
+        addProfileDisplay(conversationData['_id'], getMessageID(message), message['message_type']);
     });
 }
 
@@ -2245,13 +2388,10 @@ function initProfileDisplay(conversationData) {
  * @param skin: target conversation skin to consider
  */
 function initMessages(conversationData, skin = CONVERSATION_SKINS.BASE) {
-    if (skin === CONVERSATION_SKINS.BASE) {
-        initProfileDisplay(conversationData);
-        attachReplies(conversationData);
-        addAttachments(conversationData);
-        addCommunicationChannelTransformCallback(conversationData);
-    }
-    // common logic
+    initProfileDisplay(conversationData);
+    attachReplies(conversationData);
+    addAttachments(conversationData);
+    addCommunicationChannelTransformCallback(conversationData);
     initLoadOldMessages(conversationData, skin);
 }
 
@@ -2296,8 +2436,17 @@ function emitUserMessage(textInputElem, cid, repliedMessageID = null, attachment
         }
     }
 }
+/**
+ * Displays modal bounded to the provided conversation id
+ * @param modalElem: modal to display
+ * @param cid: conversation id to consider
+ */
+function displayModalInCID(modalElem, cid) {
+    modalElem.modal('hide');
+    $('.modal-backdrop').appendTo(`#${cid}`);
+    modalElem.modal('show');
+}
 const myAccountLink = document.getElementById('myAccountLink');
-const settingsLink = document.getElementById('settingsLink');
 
 /**
  * Shows modal associated with profile
@@ -2372,7 +2521,7 @@ const previewFile = (nickname) => {
 async function initProfileEditModal() {
     const nickname = currentUser['nickname'];
     if (currentUser?.is_tmp) {
-        console.warn('Tmp user is not allowed to change his data');
+        loginModal.modal('show');
         return
     }
     const modalShown = await showProfileEditModal().catch(err => {
@@ -2383,6 +2532,7 @@ async function initProfileEditModal() {
     const editProfileSubmitButton = document.getElementById(`${nickname}EditSubmit`);
     const userNewAvatar = document.getElementById(`${nickname}NewAvatar`);
     const userEditAvatar = document.getElementById(`${nickname}EditAvatar`);
+    const logoutButton = document.getElementById('logoutButton');
 
     editProfileSubmitButton.addEventListener('click', async (e) => {
         e.preventDefault();
@@ -2426,15 +2576,37 @@ async function initProfileEditModal() {
         e.preventDefault();
         userNewAvatar.click();
     });
+
+    logoutButton.addEventListener('click', (e) => {
+        $(`#${currentUser['nickname']}EditModal`).modal('hide');
+        logoutModal.modal('show');
+    });
+}
+
+
+/**
+ * Attaches invoker for current profile edit modal
+ * @param elem: target DOM element
+ */
+function attachEditModalInvoker(elem) {
+    elem.addEventListener('click', async (e) => {
+        e.preventDefault();
+        await initProfileEditModal();
+    });
 }
 
 
 document.addEventListener('DOMContentLoaded', (e) => {
 
     if (configData.client === CLIENTS.MAIN) {
-        myAccountLink.addEventListener('click', async (e) => {
-            e.preventDefault();
-            await initProfileEditModal();
+        attachEditModalInvoker(myAccountLink);
+    } else {
+        document.addEventListener('modalsLoaded', (e) => {
+            setTimeout(() => {
+                Array.from(document.getElementsByClassName('account-link')).forEach(elem => {
+                    attachEditModalInvoker(elem);
+                })
+            }, 1000);
         });
     }
 });
@@ -2581,18 +2753,18 @@ function initSIO() {
     });
 
     socket.on('new_message', async (data) => {
-        console.debug('received new_message -> ', data)
-        const msgData = JSON.parse(data);
-        const skin = await getCurrentSkin(msgData['cid']);
-        if (skin === CONVERSATION_SKINS.BASE) {
-            const preferredLang = getPreferredLanguage(msgData['cid']);
-            if (data?.lang !== preferredLang) {
-                await requestTranslation(msgData['cid'], msgData['messageID']);
-            }
-            await addNewMessage(msgData['cid'], msgData['userID'], msgData['messageID'], msgData['messageText'], msgData['timeCreated'], msgData['repliedMessage'], msgData['attachments'], msgData?.isAudio, msgData?.isAnnouncement)
-                .catch(err => console.error('Error occurred while adding new message: ', err));
-            addMessageTransformCallback(msgData['cid'], msgData['messageID'], msgData?.isAudio);
+        if (await getCurrentSkin(data.cid) === CONVERSATION_SKINS.PROMPTS && data?.prompt_id) {
+            console.debug('Skipping prompt-related message')
+            return
         }
+        console.debug('received new_message -> ', data)
+        const preferredLang = getPreferredLanguage(data['cid']);
+        if (data?.lang !== preferredLang) {
+            await requestTranslation(data['cid'], data['messageID']);
+        }
+        await addNewMessage(data['cid'], data['userID'], data['messageID'], data['messageText'], data['timeCreated'], data['repliedMessage'], data['attachments'], data?.isAudio, data?.isAnnouncement)
+            .catch(err => console.error('Error occurred while adding new message: ', err));
+        addMessageTransformCallback(data['cid'], data['messageID'], data?.isAudio);
     });
 
     socket.on('new_prompt_message', async (message) => {
@@ -2865,9 +3037,10 @@ const stopTimer = () => {
     __timer = 0;
     return timeDue;
 };
-const userSettingsModal = $('#userSettingsModal');
-const applyUserSettings = document.getElementById('applyUserSettings');
-const minifyMessagesCheck = document.getElementById('minifyMessages');
+let userSettingsModal;
+let applyUserSettings;
+let minifyMessagesCheck;
+let settingsLink;
 
 /**
  * Displays relevant user settings section based on provided name
@@ -2910,7 +3083,6 @@ const initSettingsModal = async () => {
             await initSettingsSection(navItem.getAttribute('data-section-name'));
         });
     });
-    applyUserSettings.addEventListener('click', async (e) => await applyNewSettings());
 }
 
 /**
@@ -2932,40 +3104,165 @@ const applyNewSettings = async () => {
     });
 }
 
-document.addEventListener('DOMContentLoaded', (e) => {
+function initSettings(elem) {
+    elem.addEventListener('click', async (e) => {
+        await initSettingsModal();
+        userSettingsModal.modal('show');
+    });
+}
+
+/**
+ * Initialise user settings links based on the current client
+ */
+const initSettingsLinks = () => {
+    if (configData.client === CLIENTS.NANO) {
+        console.log('initialising settings link for ', Array.from(document.getElementsByClassName('settings-link')).length, ' elements')
+        Array.from(document.getElementsByClassName('settings-link')).forEach(elem => {
+            initSettings(elem);
+        });
+    } else {
+        initSettings(document.getElementById('settingsLink'));
+    }
+}
+
+document.addEventListener('DOMContentLoaded', (_) => {
     if (configData.client === CLIENTS.MAIN) {
+        userSettingsModal = $('#userSettingsModal');
+        applyUserSettings = document.getElementById('applyUserSettings');
+        minifyMessagesCheck = document.getElementById('minifyMessages');
+        applyUserSettings.addEventListener('click', async (e) => await applyNewSettings());
+        settingsLink = document.getElementById('settingsLink');
         settingsLink.addEventListener('click', async (e) => {
             e.preventDefault();
             await initSettingsModal();
             userSettingsModal.modal('show');
         });
+    } else {
+        document.addEventListener('modalsLoaded', (e) => {
+            userSettingsModal = $('#userSettingsModal');
+            applyUserSettings = document.getElementById('applyUserSettings');
+            minifyMessagesCheck = document.getElementById('minifyMessages');
+            applyUserSettings.addEventListener('click', async (e) => await applyNewSettings());
+            if (configData.client === CLIENTS.MAIN) {
+                initSettingsLinks();
+            }
+        });
+
+        document.addEventListener('nanoChatsLoaded', (e) => {
+            setTimeout(() => initSettingsLinks(), 1000);
+        })
     }
 });
-const currentUserNavDisplay = document.getElementById('currentUserNavDisplay');
-
-const logoutModal = $('#logoutModal');
-
-const logoutConfirm = document.getElementById('logoutConfirm');
-
-const loginModal = $('#loginModal');
-
-const loginButton = document.getElementById('loginButton');
-const loginUsername = document.getElementById('loginUsername');
-const loginPassword = document.getElementById('loginPassword');
-const toggleSignup = document.getElementById('toggleSignup');
-
-
-const signupModal = $('#signupModal');
-
-const signupButton = document.getElementById('signupButton');
-const signupUsername = document.getElementById('signupUsername');
-const signupFirstName = document.getElementById('signupFirstName');
-const signupLastName = document.getElementById('signupLastName');
-const signupPassword = document.getElementById('signupPassword');
-const repeatSignupPassword = document.getElementById('repeatSignupPassword');
-const toggleLogin = document.getElementById('toggleLogin');
+let currentUserNavDisplay = document.getElementById('currentUserNavDisplay');
+/* Login items */
+let loginModal;
+let loginButton;
+let loginUsername;
+let loginPassword;
+let toggleSignup;
+/* Logout Items */
+let logoutModal;
+let logoutConfirm;
+/* Signup items */
+let signupModal;
+let signupButton;
+let signupUsername;
+let signupFirstName;
+let signupLastName;
+let signupPassword;
+let repeatSignupPassword;
+let toggleLogin;
 
 let currentUser = null;
+
+
+function initModalElements() {
+    currentUserNavDisplay = document.getElementById('currentUserNavDisplay');
+    logoutModal = $('#logoutModal');
+    logoutConfirm = document.getElementById('logoutConfirm');
+    loginModal = $('#loginModal');
+    loginButton = document.getElementById('loginButton');
+    loginUsername = document.getElementById('loginUsername');
+    loginPassword = document.getElementById('loginPassword');
+    toggleSignup = document.getElementById('toggleSignup');
+    signupModal = $('#signupModal');
+    signupButton = document.getElementById('signupButton');
+    signupUsername = document.getElementById('signupUsername');
+    signupFirstName = document.getElementById('signupFirstName');
+    signupLastName = document.getElementById('signupLastName');
+    signupPassword = document.getElementById('signupPassword');
+    repeatSignupPassword = document.getElementById('repeatSignupPassword');
+    toggleLogin = document.getElementById('toggleLogin');
+}
+
+
+const MODAL_NAMES = {
+    LOGIN: 'login',
+    LOGOUT: 'logout',
+    SIGN_UP: 'signup',
+    USER_SETTINGS: 'user_settings'
+}
+
+
+/**
+ * Adds new modal under specific conversation id
+ * @param name: name of the modal from MODAL_NAMES to add
+ */
+async function addModal(name) {
+    if (Object.values(MODAL_NAMES).includes(name)) {
+        return await buildHTMLFromTemplate(`modals.${name}`)
+    } else {
+        console.warn(`Unresolved modal name - ${name}`)
+    }
+}
+
+/**
+ * Initializes modals per target conversation id (if not provided - for main client)
+ * @param parentID: id of the parent to attach element to
+ */
+async function initModals(parentID = null) {
+    if (parentID) {
+        const parentElem = document.getElementById(parentID);
+        if (!parentElem) {
+            console.warn('No element detected with provided parentID=', parentID)
+            return -1;
+        }
+        for (const modalName of [
+                MODAL_NAMES.LOGIN,
+                MODAL_NAMES.LOGOUT,
+                MODAL_NAMES.SIGN_UP,
+                MODAL_NAMES.USER_SETTINGS
+            ]) {
+            const modalHTML = await addModal(modalName);
+            parentElem.insertAdjacentHTML('beforeend', modalHTML);
+        }
+    }
+    initModalElements();
+    logoutConfirm.addEventListener('click', (e) => {
+        e.preventDefault();
+        logoutUser().catch(err => console.error('Error while logging out user: ', err));
+    });
+    toggleLogin.addEventListener('click', (e) => {
+        e.preventDefault();
+        signupModal.modal('hide');
+        loginModal.modal('show');
+    });
+    loginButton.addEventListener('click', (e) => {
+        e.preventDefault();
+        loginUser().catch(err => console.error('Error while logging in user: ', err));
+    });
+    toggleSignup.addEventListener('click', (e) => {
+        e.preventDefault();
+        loginModal.modal('hide');
+        signupModal.modal('show');
+    });
+    signupButton.addEventListener('click', (e) => {
+        e.preventDefault();
+        createUser().catch(err => console.error('Error while creating a user: ', err));
+    });
+    const modalsLoaded = new CustomEvent('modalsLoaded');
+    document.dispatchEvent(modalsLoaded);
+}
 
 /**
  * Gets user data from chat client URL
@@ -3086,16 +3383,28 @@ async function createUser() {
  */
 function updateNavbar(forceUpdate = false) {
     if (currentUser || forceUpdate) {
-        if (currentUserNavDisplay) {
-            let innerText = currentUser['nickname'];
+        let innerText = currentUser['nickname'];
+        let targetElems = [currentUserNavDisplay];
+        if (configData.client === CLIENTS.MAIN) {
             if (currentUser['is_tmp']) {
                 innerText += ', Login';
             } else {
                 innerText += ', Logout';
             }
-            currentUserNavDisplay.innerHTML = `<a class="nav-link" href="#" style="color: #fff">
+        } else if (configData.client === CLIENTS.NANO) {
+            if (currentUser['is_tmp']) {
+                innerText += ' <i class="fa-solid fa-right-to-bracket"></i>';
+            } else {
+                innerText += ' <i class="fa-solid fa-right-from-bracket"></i>';
+            }
+            targetElems = Array.from(document.getElementsByClassName('account-link'))
+        }
+        if (targetElems.length > 0 && targetElems[0]) {
+            targetElems.forEach(elem => {
+                elem.innerHTML = `<a class="nav-link" href="#" style="color: #fff">
 ${innerText}
 </a>`;
+            });
         }
     }
 }
@@ -3117,7 +3426,7 @@ async function refreshCurrentUser(refreshChats = false, conversationContainer = 
     await getUserData().then(data => {
         currentUser = data;
         console.log(`Loaded current user = ${JSON.stringify(currentUser)}`);
-        updateNavbar();
+        setTimeout(() => updateNavbar(), 500);
         if (refreshChats) {
             refreshChatView(conversationContainer);
         }
@@ -3127,41 +3436,14 @@ async function refreshCurrentUser(refreshChats = false, conversationContainer = 
     });
 }
 
-document.addEventListener('DOMContentLoaded', (e) => {
+
+
+document.addEventListener('DOMContentLoaded', async (e) => {
     if (configData['client'] === CLIENTS.MAIN) {
-        // document.addEventListener('configLoaded', (e)=>{
-        //     refreshCurrentUser(true, false);
-        // });
+        await initModals();
         currentUserNavDisplay.addEventListener('click', (e) => {
             e.preventDefault();
             currentUser['is_tmp'] ? loginModal.modal('show') : logoutModal.modal('show');
-        });
-
-        logoutConfirm.addEventListener('click', (e) => {
-            e.preventDefault();
-            logoutUser().catch(err => console.error('Error while logging out user: ', err));
-        });
-
-        toggleLogin.addEventListener('click', (e) => {
-            e.preventDefault();
-            signupModal.modal('hide');
-            loginModal.modal('show');
-        });
-
-        loginButton.addEventListener('click', (e) => {
-            e.preventDefault();
-            loginUser().catch(err => console.error('Error while logging in user: ', err));
-        });
-
-        toggleSignup.addEventListener('click', (e) => {
-            e.preventDefault();
-            loginModal.modal('hide');
-            signupModal.modal('show');
-        });
-
-        signupButton.addEventListener('click', (e) => {
-            e.preventDefault();
-            createUser().catch(err => console.error('Error while creating a user: ', err));
         });
     }
 });
@@ -3201,10 +3483,12 @@ class NanoBuilder {
         this.options.SOCKET_IO_SERVER_URL = options.SOCKET_IO_SERVER_URL || options.CHAT_SERVER_URL_BASE;
         configData.client = CLIENTS.NANO;
         this.applyConfigs();
-        fetchSupportedLanguages()
-            .then(async _ => await refreshCurrentUser(false))
+        // by default modals will be initialised under first nano chat
+        const modalParentID = options?.MODALS_PARENT || options['CHAT_DATA'][0]['PARENT_ID'];
+        fetchSupportedLanguages().then(async _ => await refreshCurrentUser(false))
             .then(_ => this.resolveChatData(this.options))
-            .then(async _ => await requestChatsLanguageRefresh());
+            .then(async _ => await requestChatsLanguageRefresh())
+            .then(async _ => await initModals(modalParentID));
     }
 
     /**
@@ -3234,9 +3518,12 @@ class NanoBuilder {
      */
     resolveChatData(options) {
         const chatData = options['CHAT_DATA'];
+        const nanoChatsLoaded = new CustomEvent('nanoChatsLoaded')
         Array.from(chatData).forEach(async chat => {
             await displayConversation(chat['CID'], CONVERSATION_SKINS.BASE, chat['PARENT_ID'], chat['PARENT_ID'])
-        })
+        });
+        console.log('all chats loaded')
+        document.dispatchEvent(nanoChatsLoaded);
     }
 
     /**
