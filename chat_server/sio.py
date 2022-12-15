@@ -250,7 +250,7 @@ async def user_message(sid, data):
 
         PopularityCounter.increment_cid_popularity(new_shout_data['cid'])
 
-        await sio.emit('new_message', data=json.dumps(data), skip_sid=[sid])
+        await sio.emit('new_message', data=data, skip_sid=[sid])
     except Exception as ex:
         LOG.error(f'Exception on sio processing: {ex}')
         await emit_error(sids=[sid], message=f'Unable to process request "user_message" with data: {data}')

@@ -354,16 +354,12 @@ class ChatObserver(MQConnector):
         data['request_skills'] = 'tts'
         self.handle_message(data=data)
 
-    def handle_message(self, data):
+    def handle_message(self, data: dict):
         """
             Handles input requests from MQ to Neon API
 
             :param data: Received user data
         """
-        try:
-            data = eval(data)
-        except Exception as ex:
-            LOG.warning(f'Failed to deserialize received data: {data}: {ex}')
         if data and isinstance(data, dict):
             recipient_data = {}
             if not data.get('skip_recipient_detection'):
