@@ -308,7 +308,7 @@ async def prompt_completed(sid, data):
                                             filters=MongoFilter(key='_id', value=prompt_id),
                                             data=prompt_summary_agg,
                                             data_action='set'))
-        formatted_data = {'winner': data['context']['winner'], 'prompt_id': prompt_id}
+        formatted_data = {'winner': data['context'].get('winner', ''), 'prompt_id': prompt_id}
         await sio.emit('set_prompt_completed', data=formatted_data)
     except Exception as ex:
         LOG.error(f'Prompt "{prompt_id}" was not updated due to exception - {ex}')
