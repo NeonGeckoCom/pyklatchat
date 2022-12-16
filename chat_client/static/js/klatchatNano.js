@@ -2600,14 +2600,6 @@ document.addEventListener('DOMContentLoaded', (e) => {
 
     if (configData.client === CLIENTS.MAIN) {
         attachEditModalInvoker(myAccountLink);
-    } else {
-        document.addEventListener('modalsLoaded', (e) => {
-            setTimeout(() => {
-                Array.from(document.getElementsByClassName('account-link')).forEach(elem => {
-                    attachEditModalInvoker(elem);
-                })
-            }, 1000);
-        });
     }
 });
 /**
@@ -3383,16 +3375,20 @@ async function createUser() {
  */
 function updateNavbar(forceUpdate = false) {
     if (currentUser || forceUpdate) {
-        let innerText = currentUser['nickname'];
+        let innerText = shrinkToFit(currentUser['nickname'], 10);
         let targetElems = [currentUserNavDisplay];
         if (configData.client === CLIENTS.MAIN) {
             if (currentUser['is_tmp']) {
+                // Leaving only "guest" without suffix
+                innerText = innerText.split('_')[0]
                 innerText += ', Login';
             } else {
                 innerText += ', Logout';
             }
         } else if (configData.client === CLIENTS.NANO) {
             if (currentUser['is_tmp']) {
+                // Leaving only "guest" without suffix
+                innerText = innerText.split('_')[0]
                 innerText += ' <i class="fa-solid fa-right-to-bracket"></i>';
             } else {
                 innerText += ' <i class="fa-solid fa-right-from-bracket"></i>';
@@ -3401,7 +3397,7 @@ function updateNavbar(forceUpdate = false) {
         }
         if (targetElems.length > 0 && targetElems[0]) {
             targetElems.forEach(elem => {
-                elem.innerHTML = `<a class="nav-link" href="#" style="color: #fff">
+                elem.innerHTML = `<a class="nav-link" href="#" style="color: #fff" data-toggle="tooltip" title="Authorized as ${currentUser['nickname']}">
 ${innerText}
 </a>`;
             });
