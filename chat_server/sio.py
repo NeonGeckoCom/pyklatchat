@@ -142,6 +142,7 @@ async def user_message(sid, data):
                     'userID': 'emitted user id',
                     'messageID': 'id of emitted message',
                     'promptID': 'id of related prompt (optional)',
+                    'source': 'declared name of the source that shouted given user message'
                     'messageText': 'content of the user message',
                     'repliedMessage': 'id of replied message (optional)',
                     'bot': 'if the message is from bot (defaults to False)',
@@ -248,9 +249,9 @@ async def user_message(sid, data):
                 DbUtils.save_tts_response(shout_id=data['messageID'], audio_file_name=audio_path,
                                           lang=language, gender=gender)
 
-        PopularityCounter.increment_cid_popularity(new_shout_data['cid'])
-
+        data['bound_service'] = cid_data.get('bound_service', '')
         await sio.emit('new_message', data=data, skip_sid=[sid])
+        PopularityCounter.increment_cid_popularity(new_shout_data['cid'])
     except Exception as ex:
         LOG.error(f'Exception on sio processing: {ex}')
         await emit_error(sids=[sid], message=f'Unable to process request "user_message" with data: {data}')

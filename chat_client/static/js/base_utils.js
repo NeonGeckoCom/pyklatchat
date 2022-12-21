@@ -22,6 +22,9 @@ function displayAlert(parentElem,text='Error Occurred',alertType='danger',alertI
         console.warn('Alert is not displayed as parentElem is not defined');
         return
     }
+    if (typeof parentElem === 'string'){
+        parentElem = document.getElementById(parentElem);
+    }
     if(!['info','success','warning','danger','primary','secondary','dark'].includes(alertType)){
         alertType = 'danger'; //default
     }

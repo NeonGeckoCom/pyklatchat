@@ -180,6 +180,20 @@ class ChatObserver(MQConnector):
             recipient = Recipients.UNRESOLVED
         return {'recipient': recipient, 'context': {'requested_participants': bots}}
 
+    @staticmethod
+    def get_recipient_from_bound_service(bound_service) -> dict:
+        """ Gets recipient in case bounded service is received in data """
+        response = {}
+        if bound_service.startswith('chatbots'):
+            response = {'recipient': Recipients.CHATBOT_CONTROLLER, 'context': {'requested_participants': bound_service.split('.')[1].split(',')}}
+        elif bound_service.startswith('neon'):
+            service = bound_service.split('.')[1]
+            if service == 'assistant':
+                response = {'recipient': Recipients.NEON, 'context': {}}
+            else:
+                response = {'recipient': Recipients.NEON, 'context': {'service': service}}
+        return response
+
     def get_recipient_from_message(self, message: str) -> dict:
         """
             Gets recipient based on message
@@ -275,20 +289,10 @@ class ChatObserver(MQConnector):
             return self.apply_testing_prefix(vhost=self.vhosts.get(name))
 
     @staticmethod
-    def get_structure_based_on_type(msg_data: dict):
-        """ Gets message structure based on received request skill type """
+    def get_neon_request_structure(msg_data: dict):
+        """ Gets Neon API message structure based on received request skill type """
         request_skills = msg_data.get('request_skills', 'default').lower()
-        request_dict = {}
-        if request_skills == 'default':
-            request_dict = {
-                'data': {
-                    'utterances': [msg_data['message_body']],
-                },
-                'context': {
-                    'sender_context': msg_data
-                }
-            }
-        elif request_skills == 'tts':
+        if request_skills == 'tts':
             utterance = msg_data.pop('utterance', '') or msg_data.pop('text', '')
             request_dict = {
                 'data': {
@@ -305,24 +309,33 @@ class ChatObserver(MQConnector):
                     'audio_data': msg_data.pop('audio_data', msg_data['message_body']),
                 }
             }
+        else:
+            request_dict = {
+                'data': {
+                    'utterances': [msg_data['message_body']],
+                },
+                'context': {
+                    'sender_context': msg_data
+                }
+            }
+        # TODO: any specific structure per wolfram/duckduckgo, etc...
         return request_dict
 
     def __handle_neon_recipient(self, recipient_data: dict, msg_data: dict):
         msg_data.setdefault('message_body', msg_data.pop('messageText', ''))
         msg_data.setdefault('message_id', msg_data.pop('messageID', ''))
+        recipient_data.setdefault('context', {})
         pattern = re.compile("Neon", re.IGNORECASE)
         msg_data['message_body'] = pattern.sub("", msg_data['message_body'], 1).strip('<>@,.:|- ').capitalize()
-        msg_data.setdefault('agent', f'pyklatchat v{__version__}')
-        request_dict = self.get_structure_based_on_type(msg_data)
-        request_dict.setdefault('data', {})
+        msg_data['request_skills'] = recipient_data['context'].pop('service', 'default')
+        request_dict = self.get_neon_request_structure(msg_data)
         request_dict['data']['lang'] = msg_data.get('lang', 'en-us')
-        request_dict['data']['utterances'] = [msg_data['message_body']]
-        request_dict.setdefault('context', {})
         request_dict['context'] = {**recipient_data.get('context', {}),
                                    **{'source': 'mq_api',
                                       'message_id': msg_data.get('message_id'),
                                       'sid': msg_data.get('sid'),
                                       'cid': msg_data.get('cid'),
+                                      'agent': msg_data.get('agent', f'pyklatchat v{__version__}'),
                                       'request_skills': [msg_data.get('request_skills', 'recognizer').lower()],
                                       'username': msg_data.pop('nick', 'guest')}}
         input_queue = 'neon_chat_api_request'
@@ -363,8 +376,9 @@ class ChatObserver(MQConnector):
         if data and isinstance(data, dict):
             recipient_data = {}
             if not data.get('skip_recipient_detection'):
-                recipient_data = self.get_recipient_from_message(
-                    message=data.get('messageText') or data.get('message_body'))
+                recipient_data = self.get_recipient_from_bound_service(data.get('bound_service', '')) or \
+                                 self.get_recipient_from_message(message=data.get('messageText',
+                                                                                  data.get('message_body')))
             recipient = recipient_data.get('recipient') or data.get('recipient') or Recipients.UNRESOLVED
             handler_method = self.recipient_to_handler_method.get(recipient)
             if not handler_method:
@@ -475,6 +489,7 @@ class ChatObserver(MQConnector):
                 'repliedMessage': context.get('message_id', ''),
                 'messageText': data['responses'][response_languages[0]]['sentence'],
                 'messageTTS': {},
+                'source': 'klat_observer',
                 'timeCreated': int(time.time())
             }
             response_audio_genders = data.get('genders', [])
@@ -512,6 +527,7 @@ class ChatObserver(MQConnector):
 
         if all(required_key in list(body) for required_key in response_required_keys):
             body.setdefault('timeCreated', int(time.time()))
+            body.setdefault('source', 'klat_observer')
             self.sio.emit('user_message', data=body)
             self.handle_message(data=body)
         else:

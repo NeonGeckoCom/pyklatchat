@@ -52,7 +52,8 @@ router = APIRouter(
 async def new_conversation(request: Request,
                            conversation_id: str = Form(None),
                            conversation_name: str = Form(...),
-                           is_private: str = Form(False),):
+                           is_private: str = Form(False),
+                           bound_service: str = Form('')):
     """
         Creates new conversation from provided conversation data
 
@@ -60,6 +61,7 @@ async def new_conversation(request: Request,
         :param conversation_id: new conversation id (optional)
         :param conversation_name: new conversation name (optional)
         :param is_private: if new conversation should be private (defaults to False)
+        :param bound_service: name of the bound service (ignored if empty value)
 
         :returns JSON response with new conversation data if added, 401 error message otherwise
     """
@@ -71,12 +73,12 @@ async def new_conversation(request: Request,
     request_data_dict = {'_id': cid,
                          'conversation_name': conversation_name,
                          'is_private': True if is_private == '1' else False,
+                         'bound_service': bound_service,
                          'created_on': int(time())}
     db_controller.exec_query(query=MongoQuery(command=MongoCommands.INSERT_ONE,
                                               document=MongoDocuments.CHATS,
                                               data=request_data_dict))
-    PopularityCounter.add_new_chat(cid=cid,
-                                   name=conversation_name)
+    PopularityCounter.add_new_chat(cid=cid, name=conversation_name)
     return JSONResponse(content=request_data_dict)
 
 
