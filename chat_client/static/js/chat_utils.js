@@ -6,6 +6,7 @@ const importConversationModalSuggestions = document.getElementById('importConver
 const addBySearch = document.getElementById('addBySearch');
 
 const newConversationModal = $('#newConversationModal');
+const bindServiceSelect = document.getElementById('bind-service-select')
 const addNewConversation = document.getElementById('addNewConversation');
 
 const conversationBody = document.getElementById('conversationsBody');
@@ -745,6 +746,14 @@ document.addEventListener('DOMContentLoaded', (e)=>{
             e.preventDefault();
             conversationSearchInput.value = "";
             await renderSuggestions();
+        });
+        bindServiceSelect.addEventListener("change", function() {
+            Array.from(document.getElementsByClassName('create-conversation-bind-group')).forEach(x=>{
+                x.hidden = true;
+            });
+            if(bindServiceSelect.value) {
+                document.getElementById(bindServiceSelect.value).hidden = false;
+            }
         });
     }
 });

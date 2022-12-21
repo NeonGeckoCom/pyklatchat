@@ -66,11 +66,7 @@ async def new_conversation(request: Request,
 
     conversation_data = DbUtils.get_conversation_data(search_str=[conversation_id, conversation_name])
     if conversation_data:
-        if conversation_data['_id'] == conversation_id:
-            duplicated_field = 'id'
-        else:
-            duplicated_field = 'conversation name'
-        return respond(f'Conversation with provided {duplicated_field} already exists', 400)
+        return respond(f'Conversation "{conversation_name}" already exists', 400)
     cid = conversation_id or generate_uuid()
     request_data_dict = {'_id': cid,
                          'conversation_name': conversation_name,
