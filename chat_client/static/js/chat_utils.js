@@ -435,7 +435,7 @@ const getMinifySettingsTable = () => {
  * @param skin: conversation skin to add
  */
 async function addNewCID(cid, skin){
-    return await getChatAlignmentTable.put({'cid': cid, 'skin': skin, 'added_on': getCurrentTimestamp()}, [cid]);
+    return await getChatAlignmentTable().put({'cid': cid, 'skin': skin, 'added_on': getCurrentTimestamp()}, [cid]);
 }
 
 /**
@@ -501,7 +501,7 @@ const chatAlignmentRestoredEvent = new CustomEvent("chatAlignmentRestored", { "d
  * @param keyName: name of the local storage key
 **/
 async function restoreChatAlignment(keyName=conversationAlignmentKey){
-    let cachedItems = retrieveItemsLayout();
+    let cachedItems = await retrieveItemsLayout();
     if (cachedItems.length === 0){
         cachedItems = [{'cid': '1', 'added_on': getCurrentTimestamp(), 'skin': CONVERSATION_SKINS.BASE}]
         await addNewCID('1', CONVERSATION_SKINS.BASE);

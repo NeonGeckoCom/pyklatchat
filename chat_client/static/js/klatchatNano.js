@@ -298,6 +298,27 @@ function setDefault(obj, key, val) {
 }
 
 /**
+ * Aggregates provided array by the key of its elements
+ * @param arr: array to aggregate
+ * @param key: aggregation key
+ */
+function aggregateByKey(arr, key) {
+    const result = {}
+    arr.forEach(item => {
+        try {
+            const keyValue = item[key];
+            delete item[key];
+            if (keyValue && !result[keyValue]) {
+                result[keyValue] = item;
+            }
+        } catch (e) {
+            console.warn(`item=${item} has no key ${key}`)
+        }
+    });
+    return result;
+}
+
+/**
  * Deletes provided element from DOM
  * @param elem: DOM Object to delete
  */
@@ -1110,7 +1131,7 @@ async function getConversationDataByInput(input = "", skin = CONVERSATION_SKINS.
  * Returns table representing chat alignment
  * @return {Table}
  */
-const getChatAlignmentDb = () => {
+const getChatAlignmentTable = () => {
     return getDb(DATABASES.CHATS, DB_TABLES.CHAT_ALIGNMENT);
 }
 /**
@@ -1118,7 +1139,7 @@ const getChatAlignmentDb = () => {
  * @returns {Array} collection of database-stored elements
  */
 async function retrieveItemsLayout(idOnly = false) {
-    let layout = await getChatAlignmentDb().orderBy("added_on").toArray();
+    let layout = await getChatAlignmentTable().orderBy("added_on").toArray();
     if (idOnly) {
         layout = layout.map(a => a.cid);
     }
@@ -1126,12 +1147,21 @@ async function retrieveItemsLayout(idOnly = false) {
 }
 
 /**
+ * Returns table representing minify settings
+ * @return {Table}
+ */
+const getMinifySettingsTable = () => {
+    return getDb(DATABASES.CHATS, DB_TABLES.MINIFY_SETTINGS);
+}
+
+
+/**
  * Adds new conversation id to local storage
  * @param cid: conversation id to add
  * @param skin: conversation skin to add
  */
 async function addNewCID(cid, skin) {
-    return await getChatAlignmentDb().put({
+    return await getChatAlignmentTable.put({
         'cid': cid,
         'skin': skin,
         'added_on': getCurrentTimestamp()
@@ -1143,7 +1173,7 @@ async function addNewCID(cid, skin) {
  * @param cid: conversation id to remove
  */
 async function removeConversation(cid) {
-    return await getChatAlignmentDb().where({
+    return await getChatAlignmentTable().where({
         cid: cid
     }).delete();
 }
@@ -1164,7 +1194,7 @@ function isDisplayed(cid) {
  * @return true if cid is displayed, false otherwise
  */
 async function getStoredConversationData(cid) {
-    return await getChatAlignmentDb().where({
+    return await getChatAlignmentTable().where({
         cid: cid
     }).first();
 }
@@ -1191,7 +1221,7 @@ async function getCurrentSkin(cid) {
 function updateCIDStoreProperty(cid, property, value) {
     const updateObj = {}
     updateObj[property] = value;
-    return getChatAlignmentDb().update(cid, updateObj);
+    return getChatAlignmentTable().update(cid, updateObj);
 }
 
 /**
@@ -1208,7 +1238,7 @@ const chatAlignmentRestoredEvent = new CustomEvent("chatAlignmentRestored", {
  * @param keyName: name of the local storage key
  **/
 async function restoreChatAlignment(keyName = conversationAlignmentKey) {
-    let cachedItems = await retrieveItemsLayout();
+    let cachedItems = retrieveItemsLayout();
     if (cachedItems.length === 0) {
         cachedItems = [{
             'cid': '1',
@@ -1610,7 +1640,8 @@ const DATABASES = {
     CHATS: 'chats'
 }
 const DB_TABLES = {
-    CHAT_ALIGNMENT: 'chat_alignment'
+    CHAT_ALIGNMENT: 'chat_alignment',
+    MINIFY_SETTINGS: 'minify_settings'
 }
 const __db_instances = {}
 const __db_definitions = {
@@ -1788,7 +1819,6 @@ async function requestTranslation(cid = null, shouts = null, lang = null, inputT
     let requestBody = {
         chat_mapping: {}
     };
-    // const skin = await getCurrentSkin(cid);
     if (cid && isDisplayed(cid)) {
         lang = lang || getPreferredLanguage(cid, inputType);
         if (lang !== 'en' && getMessagesOfCID(cid, MESSAGE_REFER_TYPE.ALL, 'plain').length > 0) {
@@ -1957,7 +1987,7 @@ async function applyTranslations(data) {
     const inputType = setDefault(data, 'input_type', 'incoming');
     for (const [cid, messageTranslations] of Object.entries(data['translations'])) {
 
-        if (await getCurrentSkin(cid) !== CONVERSATION_SKINS.BASE) {
+        if (!isDisplayed(cid)) {
             console.log(`cid=${cid} is not displayed, skipping translations population`)
             continue;
         }
