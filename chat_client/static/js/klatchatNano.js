@@ -175,6 +175,9 @@ function displayAlert(parentElem, text = 'Error Occurred', alertType = 'danger',
         console.warn('Alert is not displayed as parentElem is not defined');
         return
     }
+    if (typeof parentElem === 'string') {
+        parentElem = document.getElementById(parentElem);
+    }
     if (!['info', 'success', 'warning', 'danger', 'primary', 'secondary', 'dark'].includes(alertType)) {
         alertType = 'danger'; //default
     }
@@ -687,6 +690,7 @@ const importConversationModalSuggestions = document.getElementById('importConver
 const addBySearch = document.getElementById('addBySearch');
 
 const newConversationModal = $('#newConversationModal');
+const bindServiceSelect = document.getElementById('bind-service-select')
 const addNewConversation = document.getElementById('addNewConversation');
 
 const conversationBody = document.getElementById('conversationsBody');
@@ -1400,25 +1404,25 @@ async function displayConversation(searchStr, skin = CONVERSATION_SKINS.BASE, al
  * @param conversationName: New Conversation Name
  * @param isPrivate: if conversation should be private (defaults to false)
  * @param conversationID: New Conversation ID (optional)
+ * @param boundServiceID: id of the service to bind to conversation (optional)
  */
-async function createNewConversation(conversationName, isPrivate = false, conversationID = null) {
+async function createNewConversation(conversationName, isPrivate = false, conversationID = null, boundServiceID = null) {
 
     let formData = new FormData();
 
     formData.append('conversation_name', conversationName);
     formData.append('id', conversationID);
     formData.append('is_private', isPrivate ? '1' : '0')
+    formData.append('bound_service', boundServiceID ? boundServiceID : '');
 
     await fetchServer(`chat_api/new`, REQUEST_METHODS.POST, formData).then(async response => {
         const responseJson = await response.json();
         let responseOk = false;
         if (response.ok) {
-            await buildConversation(responseJson).then(async cid => {
-                console.log(`inited language selectors for ${cid}`);
-            });
-            responseOk = true
+            await buildConversation(responseJson);
+            responseOk = true;
         } else {
-            displayAlert(document.getElementById('newConversationModalBody'),
+            displayAlert('newConversationModalBody',
                 `${responseJson['msg']}`,
                 'danger');
         }
@@ -1453,7 +1457,21 @@ document.addEventListener('DOMContentLoaded', (e) => {
             const newConversationID = document.getElementById('conversationID');
             const newConversationName = document.getElementById('conversationName');
             const isPrivate = document.getElementById('isPrivate');
-            createNewConversation(newConversationName.value, isPrivate.checked, newConversationID ? newConversationID.value : null).then(responseOk => {
+            let boundServiceID = bindServiceSelect.value;
+            if (boundServiceID) {
+                const targetItem = document.getElementById(boundServiceID);
+                if (targetItem.value) {
+                    if (targetItem.nodeName === 'SELECT') {
+                        boundServiceID = targetItem.value;
+                    } else {
+                        boundServiceID = targetItem.getAttribute('data-value') + '.' + targetItem.value
+                    }
+                } else {
+                    displayAlert('newConversationModalBody', 'Missing bound service name');
+                    return -1;
+                }
+            }
+            createNewConversation(newConversationName.value, isPrivate.checked, newConversationID ? newConversationID.value : null, boundServiceID).then(responseOk => {
                 newConversationName.value = "";
                 newConversationID.value = "";
                 isPrivate.checked = false;
@@ -1466,6 +1484,15 @@ document.addEventListener('DOMContentLoaded', (e) => {
             e.preventDefault();
             conversationSearchInput.value = "";
             await renderSuggestions();
+        });
+        bindServiceSelect.addEventListener("change", function() {
+            Array.from(document.getElementsByClassName('create-conversation-bind-group')).forEach(x => {
+                x.hidden = true;
+            });
+            if (bindServiceSelect.value) {
+                const targetItem = document.getElementById(bindServiceSelect.value);
+                targetItem.hidden = false;
+            }
         });
     }
 });
