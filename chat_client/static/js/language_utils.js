@@ -71,7 +71,6 @@ async function fetchSupportedLanguages(){
  */
 async function requestTranslation(cid=null, shouts=null, lang=null, inputType='incoming', translateToBaseLang=false){
     let requestBody = {chat_mapping: {}};
-    // const skin = await getCurrentSkin(cid);
     if(cid && isDisplayed(cid)){
         lang = lang || getPreferredLanguage(cid, inputType);
         if (lang !== 'en' && getMessagesOfCID(cid, MESSAGE_REFER_TYPE.ALL, 'plain').length > 0){
@@ -229,7 +228,7 @@ async function applyTranslations(data){
     const inputType = setDefault(data, 'input_type', 'incoming');
     for (const [cid, messageTranslations] of Object.entries(data['translations'])) {
 
-        if(await getCurrentSkin(cid) !== CONVERSATION_SKINS.BASE){
+        if(!isDisplayed(cid)){
             console.log(`cid=${cid} is not displayed, skipping translations population`)
             continue;
         }

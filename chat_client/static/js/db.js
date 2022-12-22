@@ -2,7 +2,8 @@ const DATABASES = {
     CHATS: 'chats'
 }
 const DB_TABLES = {
-    CHAT_ALIGNMENT: 'chat_alignment'
+    CHAT_ALIGNMENT: 'chat_alignment',
+    MINIFY_SETTINGS: 'minify_settings'
 }
 const __db_instances = {}
 const __db_definitions = {

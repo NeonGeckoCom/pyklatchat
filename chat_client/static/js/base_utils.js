@@ -144,6 +144,27 @@ function setDefault(obj, key, val){
 }
 
 /**
+ * Aggregates provided array by the key of its elements
+ * @param arr: array to aggregate
+ * @param key: aggregation key
+ */
+function aggregateByKey(arr, key){
+    const result = {}
+    arr.forEach(item=>{
+        try {
+            const keyValue = item[key];
+            delete item[key];
+            if (keyValue && !result[keyValue]) {
+                result[keyValue] = item;
+            }
+        }catch (e) {
+            console.warn(`item=${item} has no key ${key}`)
+        }
+    });
+    return result;
+}
+
+/**
  * Deletes provided element from DOM
  * @param elem: DOM Object to delete
  */

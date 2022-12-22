@@ -405,7 +405,7 @@ async function getConversationDataByInput(input="", skin=CONVERSATION_SKINS.BASE
  * Returns table representing chat alignment
  * @return {Table}
  */
-const getChatAlignmentDb = () => {
+const getChatAlignmentTable = () => {
     return getDb(DATABASES.CHATS, DB_TABLES.CHAT_ALIGNMENT);
 }
 /**
@@ -413,7 +413,7 @@ const getChatAlignmentDb = () => {
  * @returns {Array} collection of database-stored elements
  */
 async function retrieveItemsLayout(idOnly=false){
-    let layout = await getChatAlignmentDb().orderBy("added_on").toArray();
+    let layout = await getChatAlignmentTable().orderBy("added_on").toArray();
     if (idOnly){
         layout = layout.map(a => a.cid);
     }
@@ -421,12 +421,21 @@ async function retrieveItemsLayout(idOnly=false){
 }
 
 /**
+ * Returns table representing minify settings
+ * @return {Table}
+ */
+const getMinifySettingsTable = () => {
+    return getDb(DATABASES.CHATS, DB_TABLES.MINIFY_SETTINGS);
+}
+
+
+/**
  * Adds new conversation id to local storage
  * @param cid: conversation id to add
  * @param skin: conversation skin to add
  */
 async function addNewCID(cid, skin){
-    return await getChatAlignmentDb().put({'cid': cid, 'skin': skin, 'added_on': getCurrentTimestamp()}, [cid]);
+    return await getChatAlignmentTable.put({'cid': cid, 'skin': skin, 'added_on': getCurrentTimestamp()}, [cid]);
 }
 
 /**
@@ -434,7 +443,7 @@ async function addNewCID(cid, skin){
  * @param cid: conversation id to remove
  */
 async function removeConversation(cid){
-    return await getChatAlignmentDb().where({cid: cid}).delete();
+    return await getChatAlignmentTable().where({cid: cid}).delete();
 }
 
 /**
@@ -453,7 +462,7 @@ function isDisplayed(cid) {
  * @return true if cid is displayed, false otherwise
  */
 async function getStoredConversationData(cid){
-    return await getChatAlignmentDb().where( {cid: cid} ).first();
+    return await getChatAlignmentTable().where( {cid: cid} ).first();
 }
 
 /**
@@ -477,7 +486,7 @@ async function getCurrentSkin(cid){
 function updateCIDStoreProperty(cid, property, value){
     const updateObj = {}
     updateObj[property] = value;
-    return getChatAlignmentDb().update(cid, updateObj);
+    return getChatAlignmentTable().update(cid, updateObj);
 }
 
 /**
@@ -492,7 +501,7 @@ const chatAlignmentRestoredEvent = new CustomEvent("chatAlignmentRestored", { "d
  * @param keyName: name of the local storage key
 **/
 async function restoreChatAlignment(keyName=conversationAlignmentKey){
-    let cachedItems = await retrieveItemsLayout();
+    let cachedItems = retrieveItemsLayout();
     if (cachedItems.length === 0){
         cachedItems = [{'cid': '1', 'added_on': getCurrentTimestamp(), 'skin': CONVERSATION_SKINS.BASE}]
         await addNewCID('1', CONVERSATION_SKINS.BASE);
