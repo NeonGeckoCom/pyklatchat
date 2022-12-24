@@ -55,19 +55,25 @@ def create_from_pattern(source: UserPatterns, override_defaults: dict = None) ->
     return matching_data
 
 
-def get_neon_data(db_controller: DatabaseController) -> dict:
+def get_neon_data(db_controller: DatabaseController, skill_name: str = 'neon') -> dict:
     """
         Gets a user profile for the user 'Neon' and adds it to the users db if not already present
 
         :param db_controller: db controller instance
+        :param skill_name: Neon Skill to consider (defaults to neon - Neon Assistant)
 
         :return Neon AI data
     """
     neon_data = db_controller.exec_query({'command': 'find_one', 'document': 'users',
-                                         'data': {'nickname': 'neon'}})
+                                         'data': {'nickname': skill_name}})
     if not neon_data:
-        neon_data = create_from_pattern(source=UserPatterns.NEON)
-        db_controller.exec_query({'command': 'insert_one', 'document': 'users', 'data': neon_data})
+        last_name = 'AI' if skill_name == 'neon' else skill_name.capitalize()
+        nickname = skill_name
+        neon_data = create_from_pattern(source=UserPatterns.NEON, override_defaults={'last_name': last_name,
+                                                                                     'nickname': nickname})
+        db_controller.exec_query(MongoQuery(command=MongoCommands.INSERT_ONE,
+                                            document=MongoDocuments.USERS,
+                                            data=neon_data))
     return neon_data
 
 

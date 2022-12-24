@@ -187,11 +187,11 @@ class ChatObserver(MQConnector):
         if bound_service.startswith('chatbots'):
             response = {'recipient': Recipients.CHATBOT_CONTROLLER, 'context': {'requested_participants': bound_service.split('.')[1].split(',')}}
         elif bound_service.startswith('neon'):
-            service = bound_service.split('.')[1]
+            service = '.'.join(bound_service.split('.')[1])
             if service == 'assistant':
                 response = {'recipient': Recipients.NEON, 'context': {}}
             else:
-                response = {'recipient': Recipients.NEON, 'context': {'service': service}}
+                response = {'recipient': Recipients.NEON, 'context': {'requested_service_name': service}}
         return response
 
     def get_recipient_from_message(self, message: str) -> dict:
@@ -336,6 +336,7 @@ class ChatObserver(MQConnector):
                                       'sid': msg_data.get('sid'),
                                       'cid': msg_data.get('cid'),
                                       'agent': msg_data.get('agent', f'pyklatchat v{__version__}'),
+                                      'requested_service_name': recipient_data['context'].get('requested_service_name', ''),
                                       'request_skills': [msg_data.get('request_skills', 'recognizer').lower()],
                                       'username': msg_data.pop('nick', 'guest')}}
         input_queue = 'neon_chat_api_request'
@@ -473,21 +474,29 @@ class ChatObserver(MQConnector):
     def handle_neon_response(self, body: dict):
         """
             Handles responses from Neon API
-
             :param body: request body (dict)
-
         """
         try:
             LOG.info(f'Received Neon Response: {body}')
+            msg_type = body['msg_type']
             data = body['data']
             context = body['context']
-            response_languages = list(data['responses'])
+            neon_chat_skill_pattern = re.compile(r'chat.[a-z]([a-z]|[0-9]|_)*([a-z]|[0-9]).response', re.IGNORECASE)
+            response_languages = []
+            if neon_chat_skill_pattern.match(msg_type):
+                response = data.get('response', 'No idea.')
+                service_name = msg_type.split('chat.')[1].split('.response')[0]
+                user_id = f'neon.{service_name}'
+            else:
+                response_languages = list(data['responses'])
+                response = data['responses'][response_languages[0]]['sentence']
+                user_id = 'neon'
             # TODO: multilingual support
             send_data = {
                 'cid': context['cid'],
-                'userID': 'neon',
+                'userID': user_id,
                 'repliedMessage': context.get('message_id', ''),
-                'messageText': data['responses'][response_languages[0]]['sentence'],
+                'messageText': response,
                 'messageTTS': {},
                 'source': 'klat_observer',
                 'timeCreated': int(time.time())

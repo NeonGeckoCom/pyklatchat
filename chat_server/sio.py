@@ -174,7 +174,7 @@ async def user_message(sid, data):
         else:
             data['messageID'] = generate_uuid()
         data['is_bot'] = data.pop('bot', '0')
-        if data['userID'] == 'neon':
+        if data['userID'].startwith('neon'):
             neon_data = get_neon_data(db_controller=db_controller)
             data['userID'] = neon_data['_id']
         elif data['is_bot'] == '1':
