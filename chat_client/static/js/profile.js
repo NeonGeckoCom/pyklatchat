@@ -147,11 +147,5 @@ document.addEventListener('DOMContentLoaded', (e) => {
 
     if (configData.client === CLIENTS.MAIN) {
         attachEditModalInvoker(myAccountLink);
-    }else{
-        document.addEventListener('modalsLoaded', (e)=>{
-            setTimeout( () => {Array.from(document.getElementsByClassName( 'account-link' )).forEach(elem => {
-                attachEditModalInvoker(elem);
-            })}, 1000);
-        });
     }
 });

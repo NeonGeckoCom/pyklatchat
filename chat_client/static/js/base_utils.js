@@ -22,6 +22,9 @@ function displayAlert(parentElem,text='Error Occurred',alertType='danger',alertI
         console.warn('Alert is not displayed as parentElem is not defined');
         return
     }
+    if (typeof parentElem === 'string'){
+        parentElem = document.getElementById(parentElem);
+    }
     if(!['info','success','warning','danger','primary','secondary','dark'].includes(alertType)){
         alertType = 'danger'; //default
     }
@@ -138,6 +141,27 @@ function setDefault(obj, key, val){
         obj[key] ??= val;
     }
     return obj[key];
+}
+
+/**
+ * Aggregates provided array by the key of its elements
+ * @param arr: array to aggregate
+ * @param key: aggregation key
+ */
+function aggregateByKey(arr, key){
+    const result = {}
+    arr.forEach(item=>{
+        try {
+            const keyValue = item[key];
+            delete item[key];
+            if (keyValue && !result[keyValue]) {
+                result[keyValue] = item;
+            }
+        }catch (e) {
+            console.warn(`item=${item} has no key ${key}`)
+        }
+    });
+    return result;
 }
 
 /**

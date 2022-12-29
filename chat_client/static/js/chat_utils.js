@@ -6,6 +6,7 @@ const importConversationModalSuggestions = document.getElementById('importConver
 const addBySearch = document.getElementById('addBySearch');
 
 const newConversationModal = $('#newConversationModal');
+const bindServiceSelect = document.getElementById('bind-service-select')
 const addNewConversation = document.getElementById('addNewConversation');
 
 const conversationBody = document.getElementById('conversationsBody');
@@ -404,7 +405,7 @@ async function getConversationDataByInput(input="", skin=CONVERSATION_SKINS.BASE
  * Returns table representing chat alignment
  * @return {Table}
  */
-const getChatAlignmentDb = () => {
+const getChatAlignmentTable = () => {
     return getDb(DATABASES.CHATS, DB_TABLES.CHAT_ALIGNMENT);
 }
 /**
@@ -412,7 +413,7 @@ const getChatAlignmentDb = () => {
  * @returns {Array} collection of database-stored elements
  */
 async function retrieveItemsLayout(idOnly=false){
-    let layout = await getChatAlignmentDb().orderBy("added_on").toArray();
+    let layout = await getChatAlignmentTable().orderBy("added_on").toArray();
     if (idOnly){
         layout = layout.map(a => a.cid);
     }
@@ -420,12 +421,21 @@ async function retrieveItemsLayout(idOnly=false){
 }
 
 /**
+ * Returns table representing minify settings
+ * @return {Table}
+ */
+const getMinifySettingsTable = () => {
+    return getDb(DATABASES.CHATS, DB_TABLES.MINIFY_SETTINGS);
+}
+
+
+/**
  * Adds new conversation id to local storage
  * @param cid: conversation id to add
  * @param skin: conversation skin to add
  */
 async function addNewCID(cid, skin){
-    return await getChatAlignmentDb().put({'cid': cid, 'skin': skin, 'added_on': getCurrentTimestamp()}, [cid]);
+    return await getChatAlignmentTable().put({'cid': cid, 'skin': skin, 'added_on': getCurrentTimestamp()}, [cid]);
 }
 
 /**
@@ -433,7 +443,7 @@ async function addNewCID(cid, skin){
  * @param cid: conversation id to remove
  */
 async function removeConversation(cid){
-    return await getChatAlignmentDb().where({cid: cid}).delete();
+    return await getChatAlignmentTable().where({cid: cid}).delete();
 }
 
 /**
@@ -452,7 +462,7 @@ function isDisplayed(cid) {
  * @return true if cid is displayed, false otherwise
  */
 async function getStoredConversationData(cid){
-    return await getChatAlignmentDb().where( {cid: cid} ).first();
+    return await getChatAlignmentTable().where( {cid: cid} ).first();
 }
 
 /**
@@ -476,7 +486,7 @@ async function getCurrentSkin(cid){
 function updateCIDStoreProperty(cid, property, value){
     const updateObj = {}
     updateObj[property] = value;
-    return getChatAlignmentDb().update(cid, updateObj);
+    return getChatAlignmentTable().update(cid, updateObj);
 }
 
 /**
@@ -681,25 +691,25 @@ async function displayConversation(searchStr, skin=CONVERSATION_SKINS.BASE, aler
  * @param conversationName: New Conversation Name
  * @param isPrivate: if conversation should be private (defaults to false)
  * @param conversationID: New Conversation ID (optional)
+ * @param boundServiceID: id of the service to bind to conversation (optional)
  */
-async function createNewConversation(conversationName, isPrivate=false, conversationID=null) {
+async function createNewConversation(conversationName, isPrivate=false, conversationID=null, boundServiceID=null) {
 
     let formData = new FormData();
 
     formData.append('conversation_name', conversationName);
     formData.append('id', conversationID);
     formData.append('is_private', isPrivate? '1': '0')
+    formData.append('bound_service', boundServiceID?boundServiceID: '');
 
     await fetchServer(`chat_api/new`,  REQUEST_METHODS.POST, formData).then(async response => {
         const responseJson = await response.json();
         let responseOk = false;
         if (response.ok) {
-            await buildConversation(responseJson).then(async cid=>{
-                console.log(`inited language selectors for ${cid}`);
-            });
-            responseOk = true
+            await buildConversation(responseJson);
+            responseOk = true;
         } else {
-            displayAlert(document.getElementById('newConversationModalBody'),
+            displayAlert('newConversationModalBody',
                 `${responseJson['msg']}`,
                 'danger');
         }
@@ -732,7 +742,21 @@ document.addEventListener('DOMContentLoaded', (e)=>{
             const newConversationID = document.getElementById('conversationID');
             const newConversationName = document.getElementById('conversationName');
             const isPrivate = document.getElementById('isPrivate');
-            createNewConversation(newConversationName.value, isPrivate.checked, newConversationID ? newConversationID.value : null).then(responseOk=>{
+            let boundServiceID = bindServiceSelect.value;
+            if (boundServiceID){
+                const targetItem = document.getElementById(boundServiceID);
+                if (targetItem.value) {
+                    if (targetItem.nodeName === 'SELECT') {
+                        boundServiceID = targetItem.value;
+                    } else {
+                        boundServiceID = targetItem.getAttribute( 'data-value' ) + '.' + targetItem.value
+                    }
+                }else{
+                    displayAlert('newConversationModalBody', 'Missing bound service name');
+                    return -1;
+                }
+            }
+            createNewConversation(newConversationName.value, isPrivate.checked, newConversationID ? newConversationID.value : null, boundServiceID).then(responseOk=>{
                 newConversationName.value = "";
                 newConversationID.value = "";
                 isPrivate.checked = false;
@@ -745,6 +769,15 @@ document.addEventListener('DOMContentLoaded', (e)=>{
             e.preventDefault();
             conversationSearchInput.value = "";
             await renderSuggestions();
+        });
+        bindServiceSelect.addEventListener("change", function() {
+            Array.from(document.getElementsByClassName('create-conversation-bind-group')).forEach(x=>{
+                x.hidden = true;
+            });
+            if(bindServiceSelect.value) {
+                const targetItem = document.getElementById(bindServiceSelect.value);
+                targetItem.hidden = false;
+            }
         });
     }
 });
