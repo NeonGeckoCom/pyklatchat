@@ -134,8 +134,8 @@ class TestSIO(unittest.TestCase):
 
     @pytest.mark.usefixtures('create_server')
     def test_bot_message(self):
-        message_id = f'test_bot_{generate_uuid()}'
-        user_id = f'neon_test_bot_{generate_uuid()}'
+        message_id = f'test_bot_message_{generate_uuid()}'
+        user_id = f'test_bot_{generate_uuid()}'
         message_data = {'userID': user_id,
                         'messageID': message_id,
                         'messageText': 'Bot Test 123',
