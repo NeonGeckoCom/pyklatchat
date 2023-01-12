@@ -71,6 +71,7 @@ async def nano_demo(request: Request):
     if app_config.get('FORCE_HTTPS', False):
         client_url = client_url.replace('http://', 'https://')
         server_url = server_url.replace('http://', 'https://')
+    client_url_unquoted = client_url.replace('"', '')
     return conversation_templates.TemplateResponse("sample_nano.html",
                                                    {"request": request,
                                                     'title': 'Nano Demonstration',
@@ -78,4 +79,5 @@ async def nano_demo(request: Request):
                                                                    'allowing to render Klat conversations on any third-party pages, '
                                                                    'supporting essential features.',
                                                     'server_url': server_url,
-                                                    'client_url': client_url})
+                                                    'client_url': client_url,
+                                                    'client_url_unquoted': client_url_unquoted})
