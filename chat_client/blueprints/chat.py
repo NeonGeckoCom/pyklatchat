@@ -68,6 +68,9 @@ async def nano_demo(request: Request):
     """
     client_url = f'"{request.url.scheme}://{request.url.netloc}"'
     server_url = f'"{app_config["SERVER_URL"]}"'
+    if app_config.get('FORCE_HTTPS', False):
+        client_url = client_url.replace('http://', 'https://')
+        server_url = server_url.replace('http://', 'https://')
     return conversation_templates.TemplateResponse("sample_nano.html",
                                                    {"request": request,
                                                     'title': 'Nano Demonstration',
