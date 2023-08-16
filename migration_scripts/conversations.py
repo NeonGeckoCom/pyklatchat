@@ -27,10 +27,10 @@
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 from typing import List, Dict, Tuple
 
-from neon_utils import LOG
 from pymongo import ReplaceOne
 
 from migration_scripts.utils.conversation_utils import clean_conversation_name, index_nicks
+from utils.logging_utils import LOG
 
 
 def migrate_conversations(old_db_controller, new_db_controller,

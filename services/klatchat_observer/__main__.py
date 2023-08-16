@@ -29,8 +29,9 @@ import os
 import sys
 
 from typing import Optional
-from neon_utils import LOG
 from config import Configuration
+from utils.logging_utils import LOG
+
 from .controller import ChatObserver
 
 

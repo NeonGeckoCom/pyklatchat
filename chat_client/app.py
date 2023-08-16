@@ -34,7 +34,7 @@ import time
 
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
-from neon_utils import LOG
+
 from starlette import status
 from starlette.middleware.cors import CORSMiddleware
 from starlette.requests import Request
@@ -42,14 +42,13 @@ from starlette.responses import RedirectResponse, Response
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from utils.common import get_version
+from utils.logging_utils import LOG
 
 sys.path.append(os.path.pardir)
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from .blueprints import base as base_blueprint, \
                         chat as chat_blueprint, \
-                        users as users_blueprint, \
-                        auth as auth_blueprint, \
                         components as components_blueprint
 
 

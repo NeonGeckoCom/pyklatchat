@@ -27,10 +27,10 @@
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 from enum import IntEnum
-from neon_utils import LOG
 
 from chat_server.server_config import db_controller
 from utils.database_utils.mongo_utils import *
+from utils.logging_utils import LOG
 
 
 class PromptStates(IntEnum):

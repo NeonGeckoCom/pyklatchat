@@ -30,13 +30,13 @@ import os
 import sys
 import unittest
 
-from neon_utils import LOG
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))))
 
 from config import Configuration
 from utils.connection_utils import create_ssh_tunnel
 from utils.database_utils.mongo_utils import *
+from utils.logging_utils import LOG
 
 
 class TestDBController(unittest.TestCase):

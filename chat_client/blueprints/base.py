@@ -27,7 +27,7 @@
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
-from neon_utils import LOG
+from utils.logging_utils import LOG
 
 from chat_client.client_config import app_config
 

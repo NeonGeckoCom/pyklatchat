@@ -30,7 +30,6 @@ from typing import Optional
 from time import time
 from fastapi import APIRouter, Request, Form
 from fastapi.responses import JSONResponse
-from neon_utils import LOG
 
 from chat_server.constants.conversations import ConversationSkins
 from chat_server.server_config import db_controller
@@ -40,6 +39,7 @@ from chat_server.server_utils.db_utils import DbUtils, MongoQuery, MongoCommands
 from chat_server.services.popularity_counter import PopularityCounter
 from utils.common import generate_uuid
 from utils.http_utils import respond
+from utils.logging_utils import LOG
 
 router = APIRouter(
     prefix="/chat_api",

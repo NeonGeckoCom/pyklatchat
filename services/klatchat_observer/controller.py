@@ -35,8 +35,8 @@ import socketio
 from enum import Enum
 
 from neon_mq_connector.utils.rabbit_utils import create_mq_callback
-from neon_utils import LOG
 from neon_mq_connector.connector import MQConnector
+from utils.logging_utils import LOG
 
 from version import __version__
 
@@ -64,7 +64,7 @@ class ChatObserver(MQConnector):
 
     def __init__(self, config: dict, service_name: str = 'chat_observer', vhosts: dict = None,
                  scan_neon_service: bool = False):
-        super().__init__(config, service_name)
+        super().__init__(config['MQ'], service_name)
         if not vhosts:
             vhosts = {}
         self.vhosts = {**vhosts, **self.vhosts}

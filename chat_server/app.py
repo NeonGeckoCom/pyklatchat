@@ -31,18 +31,16 @@ import random
 import string
 import sys
 import time
-from typing import Union
-
-import requests
 import socketio
 
+from typing import Union
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.testclient import TestClient
-from neon_utils import LOG
 from starlette.requests import Request
 
 from utils.common import get_version
+from utils.logging_utils import LOG
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 

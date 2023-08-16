@@ -27,9 +27,10 @@
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import os
-from neon_utils import LOG
+
 from config import Configuration
 from chat_server.server_utils.sftp_utils import init_sftp_connector
+from utils.logging_utils import LOG
 
 server_config_path = os.environ.get('CHATSERVER_CONFIG', '~/.local/share/neon/credentials.json')
 database_config_path = os.environ.get('DATABASE_CONFIG', '~/.local/share/neon/credentials.json')
