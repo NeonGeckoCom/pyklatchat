@@ -8,6 +8,8 @@ jsbeautifier==1.14.7
 mysql-connector==2.2.9
 neon-mq-connector~=0.7
 neon-sftp~=0.1
+ovos_config==0.0.10
+ovos_utils=0.0.35
 pydantic==1.8.2
 PyJWT==2.1.0
 pymongo==3.12.0
