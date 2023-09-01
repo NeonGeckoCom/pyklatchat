@@ -33,7 +33,7 @@ import jwt
 
 from time import time
 from fastapi import Request
-from ovos_utils import LOG
+from utils.logging_utils import LOG
 
 from chat_server.constants.users import UserPatterns
 from chat_server.server_config import db_controller, app_config

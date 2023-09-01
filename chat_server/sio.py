@@ -35,7 +35,7 @@ from time import time
 from typing import List, Optional
 
 from cachetools import LRUCache
-from ovos_utils import LOG
+from utils.logging_utils import LOG
 
 from utils.common import generate_uuid, deep_merge, buffer_to_base64
 from chat_server.server_utils.auth import validate_session

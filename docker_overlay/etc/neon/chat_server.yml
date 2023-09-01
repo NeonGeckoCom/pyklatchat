@@ -30,11 +30,11 @@ CHAT_SERVER:
     FILE_STORING_TYPE: "sftp"
     FILE_STORING_LOCATION: "/app/static"
     LIBRE_TRANSLATE_URL: "https://libretranslate.2022.us"
-    "SFTP":
-      HOST": "127.0.0.1",
-      USERNAME": "klat_server",
-      PASSWORD": "123",
-      PORT": 22,
+    SFTP:
+      HOST: "127.0.0.1",
+      USERNAME: "klat_server",
+      PASSWORD: "123",
+      PORT: 22,
       ROOT_PATH: "/files/{env}/pyklatchat/"
   CI_FLOW:
     DEBUG: true
@@ -48,10 +48,10 @@ CHAT_SERVER:
     FILE_STORING_TYPE: "sftp"
     FILE_STORING_LOCATION: "/app/static"
     LIBRE_TRANSLATE_URL: "https://libretranslate.2022.us"
-    "SFTP":
-      HOST": "127.0.0.1",
-      USERNAME": "klat_server",
-      PASSWORD": "123",
+    SFTP:
+      HOST: "127.0.0.1",
+      USERNAME: "klat_server",
+      PASSWORD: "123",
       PORT": 22,
       ROOT_PATH: "/files/{env}/pyklatchat/"
   PROD:
@@ -66,9 +66,9 @@ CHAT_SERVER:
     FILE_STORING_TYPE: "sftp"
     FILE_STORING_LOCATION: "/app/static"
     LIBRE_TRANSLATE_URL: "https://libretranslate.2022.us"
-    "SFTP":
-      HOST": "127.0.0.1",
-      USERNAME": "klat_server",
-      PASSWORD": "123",
-      PORT": 22,
+    SFTP:
+      HOST: "127.0.0.1",
+      USERNAME: "klat_server",
+      PASSWORD: "123",
+      PORT: 22,
       ROOT_PATH: "/files/{env}/pyklatchat/"
