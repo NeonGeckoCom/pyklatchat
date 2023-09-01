@@ -29,10 +29,9 @@ import os
 import sys
 
 from typing import Optional
-from config import Configuration
+from config import Configuration, load_config
 from utils.logging_utils import LOG
 
-from .config import load_config
 from .controller import ChatObserver
 
 
