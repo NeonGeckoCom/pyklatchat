@@ -61,12 +61,12 @@ jobs:
     - name: Apply Pull Request Environments
       if: github.event_name == 'pull_request'
       run: |
-        echo "VERSION=${{ github.event.pull_request.base.ref }}" >> $GITHUB_ENV
+        echo "VERSION=${{ github.event.pull_request.base.ref }//['/']/-}" >> $GITHUB_ENV
 #        echo klatchat_observer chat_client chat_server >> $IMAGES
     - name: Apply Push Environments
       if: github.event_name == 'push'
       run: |
-        echo "VERSION=$(echo ${GITHUB_HEAD_REF} | tr / -)" >> $GITHUB_ENV
+        echo "VERSION=$(echo ${GITHUB_HEAD_REF//['/']/-} | tr / -)" >> $GITHUB_ENV
 #        echo klatchat_observer chat_client chat_server >> $IMAGES
     - name: Push Images
       run: |
