@@ -50,7 +50,7 @@ def handle_prompt_message(message: dict) -> bool:
         :returns True if prompt message was handled, false otherwise
     """
     try:
-        prompt_id = message.get('promptID')
+        prompt_id = message.get('prompt_id')
         prompt_state = PromptStates(int(message.get('promptState', PromptStates.IDLE.value)))
         user_id = message['userID']
         message_id = message['messageID']
