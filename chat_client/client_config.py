@@ -30,7 +30,7 @@
 import os
 
 from config import Configuration
-from neon_utils import LOG
+from utils.logging_utils import LOG
 
 config_file_path = os.environ.get('CHATCLIENT_CONFIG', '~/.local/share/neon/credentials_client.json')
 

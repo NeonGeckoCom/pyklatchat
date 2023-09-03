@@ -28,10 +28,10 @@
 import copy
 from decimal import Decimal
 
-from neon_utils import LOG
 from pymongo import ReplaceOne
 
 from utils.database_utils.mongo_utils.user_utils import get_existing_nicks_to_id
+from utils.logging_utils import LOG
 
 
 def migrate_users(old_db_controller, new_db_controller, nick_to_uuid_mapping, nicks_to_consider):

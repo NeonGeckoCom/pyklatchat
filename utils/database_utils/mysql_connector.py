@@ -29,8 +29,8 @@
 from mysql.connector import (connection)
 
 from typing import Optional
-from neon_utils import LOG
 from utils.database_utils.base_connector import DatabaseConnector, DatabaseTypes
+from utils.logging_utils import LOG
 
 
 class MySQLConnector(DatabaseConnector):

@@ -1,0 +1,74 @@
+DATABASE_CONFIG:
+  DEV:
+    pyklatchat_3333:
+      dialect: "mongo",
+      host: "127.0.0.1",
+      port: 27017,
+      database: "klatchat"
+  CI_FLOW:
+    pyklatchat_3333:
+      dialect: "mongo",
+      host: "127.0.0.1",
+      port: 27017,
+      database: "klatchat"
+  PROD:
+    pyklatchat_3333:
+      dialect: "mongo",
+      host: "127.0.0.1",
+      port: 27017,
+      database: "klatchat"
+CHAT_SERVER:
+  DEV:
+    DEBUG: true
+    MINIFY: false
+    SERVER_IP: "http://127.0.0.1:8000"
+    COOKIES:
+      LIFETIME: 3600
+      REFRESH_RATE: 300
+      SECRET: "123"
+      JWT_ALGO: "HS256"
+    FILE_STORING_TYPE: "sftp"
+    FILE_STORING_LOCATION: "/app/static"
+    LIBRE_TRANSLATE_URL: "https://libretranslate.2022.us"
+    SFTP:
+      HOST: "127.0.0.1",
+      USERNAME: "klat_server",
+      PASSWORD: "123",
+      PORT: 22,
+      ROOT_PATH: "/files/{env}/pyklatchat/"
+  CI_FLOW:
+    DEBUG: true
+    MINIFY: false
+    SERVER_IP: "http://127.0.0.1:8000"
+    COOKIES:
+      LIFETIME: 3600
+      REFRESH_RATE: 300
+      SECRET: "123"
+      JWT_ALGO: "HS256"
+    FILE_STORING_TYPE: "sftp"
+    FILE_STORING_LOCATION: "/app/static"
+    LIBRE_TRANSLATE_URL: "https://libretranslate.2022.us"
+    SFTP:
+      HOST: "127.0.0.1",
+      USERNAME: "klat_server",
+      PASSWORD: "123",
+      PORT": 22,
+      ROOT_PATH: "/files/{env}/pyklatchat/"
+  PROD:
+    DEBUG: true
+    MINIFY: false
+    SERVER_IP: "http://127.0.0.1:8000"
+    COOKIES:
+      LIFETIME: 3600
+      REFRESH_RATE: 300
+      SECRET: "123"
+      JWT_ALGO: "HS256"
+    FILE_STORING_TYPE: "sftp"
+    FILE_STORING_LOCATION: "/app/static"
+    LIBRE_TRANSLATE_URL: "https://libretranslate.2022.us"
+    SFTP:
+      HOST: "127.0.0.1",
+      USERNAME: "klat_server",
+      PASSWORD: "123",
+      PORT: 22,
+      ROOT_PATH: "/files/{env}/pyklatchat/"

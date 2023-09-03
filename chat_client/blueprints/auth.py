@@ -25,22 +25,13 @@
 # LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-import json
-import os
-
-import jwt
 import requests
 
-from time import time
-from uuid import uuid4
-from fastapi import APIRouter, Request, status, Form, Response
-from fastapi.responses import HTMLResponse, JSONResponse
-from fastapi.exceptions import HTTPException
-from fastapi.templating import Jinja2Templates
-from fastapi.encoders import jsonable_encoder
-from neon_utils import LOG
+from fastapi import APIRouter, Form
+from fastapi.responses import JSONResponse
 
 from chat_client.client_config import app_config
+from utils.logging_utils import LOG
 
 router = APIRouter(
     prefix="/auth",

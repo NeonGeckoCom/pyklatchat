@@ -31,13 +31,13 @@ from io import BytesIO
 
 import aiofiles
 from fastapi import UploadFile
-from neon_utils import LOG
 from starlette.responses import FileResponse, StreamingResponse
 
 from chat_server.server_config import app_config, sftp_connector
 from chat_server.server_utils.enums import DataSources
 from utils.common import generate_uuid
 from utils.http_utils import respond
+from utils.logging_utils import LOG
 
 
 def get_file_response(filename, location_prefix: str = "", media_type: str = None,

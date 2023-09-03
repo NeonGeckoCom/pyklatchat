@@ -29,10 +29,10 @@ from dataclasses import dataclass
 from time import time
 from typing import List
 
-from neon_utils import LOG
 
 from utils.database_utils.mongo_utils import MongoQuery, MongoCommands, MongoDocuments, MongoFilter, \
     MongoLogicalOperators
+from utils.logging_utils import LOG
 
 
 @dataclass

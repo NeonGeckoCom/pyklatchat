@@ -25,12 +25,11 @@
 # LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-from neon_utils import LOG
-
 from utils.database_utils.mongodb_connector import MongoDBConnector
 from utils.database_utils.mysql_connector import MySQLConnector
 
 from utils.database_utils.base_connector import DatabaseConnector, DatabaseTypes
+from utils.logging_utils import LOG
 
 
 class DatabaseController:

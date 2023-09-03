@@ -29,8 +29,9 @@ import os
 import sys
 
 from typing import Optional
-from neon_utils import LOG
-from config import Configuration
+from config import Configuration, load_config
+from utils.logging_utils import LOG
+
 from .controller import ChatObserver
 
 
@@ -41,7 +42,10 @@ def main(config: Optional[dict] = None):
 
 if __name__ == '__main__':
     try:
-        config_data = Configuration(from_files=[os.environ.get('KLATCHAT_OBSERVER_CONFIG', 'config.json')]).config_data
+        config_data = load_config()
+        if not config_data.get('MQ'):
+            LOG.warning('Failed to load MQ settings from OVOS config, legacy flow will be applied')
+            config_data = Configuration(from_files=[os.environ.get('KLATCHAT_OBSERVER_CONFIG', 'config.json')]).config_data
     except Exception as e:
         LOG.error(e)
         config_data = dict()

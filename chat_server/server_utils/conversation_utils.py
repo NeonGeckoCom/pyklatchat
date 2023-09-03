@@ -26,9 +26,8 @@
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from neon_utils.logger import LOG
-
 from chat_server.constants.conversations import ConversationSkins
+from utils.logging_utils import LOG
 
 
 def build_message_json(raw_message: dict, skin: ConversationSkins = ConversationSkins.BASE) -> dict:

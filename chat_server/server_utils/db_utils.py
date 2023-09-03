@@ -30,7 +30,6 @@ from typing import List, Tuple, Union, Dict
 
 import pymongo
 from bson import ObjectId
-from neon_utils import LOG
 from pymongo import UpdateOne
 
 from chat_server.constants.conversations import ConversationSkins
@@ -39,6 +38,7 @@ from chat_server.server_utils.factory_utils import Singleton
 from chat_server.server_utils.user_utils import create_from_pattern
 from utils.common import buffer_to_base64
 from utils.database_utils.mongo_utils import *
+from utils.logging_utils import LOG
 
 
 class DbUtils(metaclass=Singleton):

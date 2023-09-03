@@ -30,7 +30,6 @@ from typing import Optional
 from fastapi import APIRouter, Response, status, Request, UploadFile, File, Form
 from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
-from neon_utils import LOG
 
 from chat_server.server_config import db_controller
 from chat_server.server_utils.auth import get_current_user, check_password_strength, get_current_user_data, \
@@ -39,6 +38,7 @@ from chat_server.server_utils.db_utils import DbUtils
 from chat_server.server_utils.http_utils import save_file
 from utils.common import get_hash
 from utils.http_utils import respond
+from utils.logging_utils import LOG
 
 router = APIRouter(
     prefix="/users_api",

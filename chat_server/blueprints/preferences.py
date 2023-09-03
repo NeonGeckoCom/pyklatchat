@@ -27,11 +27,11 @@
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 from fastapi import APIRouter, Request, Form
-from neon_utils import LOG
 from chat_server.server_config import db_controller
 from chat_server.server_utils.auth import get_current_user, login_required
 from chat_server.server_utils.db_utils import DbUtils
 from utils.http_utils import respond
+from utils.logging_utils import LOG
 
 router = APIRouter(
     prefix="/preferences",

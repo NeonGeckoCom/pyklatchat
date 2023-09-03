@@ -32,7 +32,7 @@ import os
 import requests
 from bidict import bidict
 
-from neon_utils import LOG
+from utils.logging_utils import LOG
 
 
 class LanguageSettings:

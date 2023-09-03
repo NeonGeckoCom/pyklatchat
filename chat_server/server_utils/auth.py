@@ -32,8 +32,8 @@ from typing import Optional, Tuple, Union
 import jwt
 
 from time import time
-from fastapi import Response, Request
-from neon_utils import LOG
+from fastapi import Request
+from utils.logging_utils import LOG
 
 from chat_server.constants.users import UserPatterns
 from chat_server.server_config import db_controller, app_config
