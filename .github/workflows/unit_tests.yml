@@ -7,10 +7,12 @@ jobs:
   unit_tests:
     strategy:
       matrix:
-        python-version: [ 3.6, 3.7, 3.8, 3.9 ]
+        python-version: [ '3.8', '3.9' ]
+      max-parallel: 1
     runs-on: ubuntu-latest
     env:
-      GITHUB_CI: true
+      PYKLATCHAT_TESTING_CREDENTIALS: ${{ secrets.PYKLATCHAT_TESTING_CREDENTIALS }}
+      KLAT_ENV: ${{ secrets.SERVER_ENV }}
     steps:
       - uses: actions/checkout@v2
       - name: Set up python ${{ matrix.python-version }}
@@ -25,7 +27,34 @@ jobs:
       - name: Get Credential
         run: |
           mkdir -p ~/.local/share/neon
-          echo $PYKLATCHAT_CONFIG > ~/.local/share/neon/credentials.json
-        shell: bash
-        env:
-          CONNECTOR_CONFIG: ${{secrets.PYKLATCHAT_CONFIG}}
+          echo $PYKLATCHAT_TESTING_CREDENTIALS > ~/.local/share/neon/credentials.json
+      - name: Test DB Utils
+        run: |
+          pytest tests/test_db_utils.py --doctest-modules --junitxml=tests/db-utils-test-results.xml
+      - name: Upload DB Utils test results
+        uses: actions/upload-artifact@v2
+        with:
+          name: db-utils-test-results
+          path: tests/db-utils-test-results.xml
+      - name: Test SIO
+        run: |
+          pytest chat_server/tests/test_sio.py --doctest-modules --junitxml=tests/sio-test-results.xml
+      - name: Upload SIO test results
+        uses: actions/upload-artifact@v2
+        with:
+          name: sio-test-results
+          path: tests/sio-test-results.xml
+  build_tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Setup Python
+        uses: actions/setup-python@v1
+        with:
+          python-version: 3.8
+      - name: Install Build Tools
+        run: |
+          python -m pip install build wheel
+      - name: Build Distribution Packages
+        run: |
+          python setup.py bdist_wheel

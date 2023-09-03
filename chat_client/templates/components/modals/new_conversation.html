@@ -1,0 +1,50 @@
+<div class="modal fade" id="newConversationModal" tabindex="-1" role="dialog" aria-labelledby="newConversationModalTitle" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title w-100 d-flex justify-content-center" id="newConversationModalTitle">New Conversation</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body" id="newConversationModalBody">
+        <div class="form-group">
+            <label for="conversationName">Conversation Name *</label>
+            <input type="text" class="form-control" id="conversationName" placeholder="Enter conversation name">
+        </div>
+        <div class="form-group">
+            <label for="conversationID">Conversation ID</label>
+            <input type="text" class="form-control" id="conversationID" placeholder="Set id for the conversation">
+        </div>
+        <div class="form-group">
+            <label data-toggle="tooltip" title="Conversation will be pointed to particular service"> Bind to service
+                    <select class="custom-select" id="bind-service-select">
+                        <option value="" selected>Not Selected</option>
+                        <option value="chatbots-bind-name">Chatbot</option>
+                        <option value="neon-services-select">Neon Skills</option>
+                    </select>
+            </label>
+        </div>
+        <div class="form-group">
+            <input type="text" class="form-control create-conversation-bind-group" id="chatbots-bind-name" data-value="chatbots" placeholder="Specify the name of the chatbot" hidden>
+            <select id="neon-services-select" class="custom-select create-conversation-bind-group" data-toggle="tooltip" title="Select Neon Skill" hidden>
+                <option value="neon.assistant" selected>Assistant</option>
+                <option value="neon.kiosk">Kiosk</option>
+                <option value="neon.wolfram">Wolfram Alpha</option>
+                <option value="neon.duckduckgo">DuckDuckGo</option>
+            </select>
+        </div>
+        <div class="form-check">
+            <input type="checkbox" class="form-check-input" id="isPrivate">
+            <label class="form-check-label" for="isPrivate">Private</label>
+        </div>
+        <i style="color: darkred">"*" - required fields</i>
+      </div>
+      <div class="modal-footer">
+        <div class="d-flex justify-content-center w-100">
+            <button type="button" class="btn btn-success w-25" id="addNewConversation">Create</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

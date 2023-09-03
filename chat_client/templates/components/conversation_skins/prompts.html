@@ -1,0 +1,67 @@
+{% extends "components/conversation_wrapper.html" %}
+
+{% block skin_body %}
+    <div class="card non-selectable" id="{cid}">
+        <div class="card-header"><span data-toggle="tooltip" title="{conversation_name} (table mode)">{conversation_name_shrunk}</span>
+            <span class="ml-3" id="participants-list-{cid}" data-toggle="tooltip" title='Contributors of "{conversation_name}"'>
+                <i class="fa-solid fa-user" aria-hidden="true"></i> <span id="participants-count-{cid}">0</span>
+            </span>
+            <div class="dropdown language ml-2" data-toggle="tooltip" title="Language you Write" style="display: inline!important;">
+                <button class="btn btn-secondary dropdown-toggle" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" id="language-selected-{cid}-outcoming">
+                    <span class="flag-icon flag-icon-us" data-lang="en"></span>
+                </button>
+                <div class="dropdown-menu dropdown-menu-right text-right language" id="language-list-{cid}-outcoming">
+                    <a class="dropdown-item lang-dropdown-header" disabled>Select Shout Language</a>
+                    <div class="dropdown-divider"></div>
+                    <div class="lang-container"></div>
+                </div>
+            </div>
+            <div class="dropdown language ml-2" data-toggle="tooltip" title="Language you Read" style="display: inline!important;">
+                <button class="btn btn-secondary dropdown-toggle" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" id="language-selected-{cid}-incoming">
+                    <span class="flag-icon flag-icon-us" data-lang="en"></span>
+                </button>
+                <div class="dropdown-menu dropdown-menu-right text-right language" id="language-list-{cid}-incoming">
+                    <a class="dropdown-item lang-dropdown-header" href="#">Select Receiving Language</a>
+                    <div class="dropdown-divider"></div>
+                    <div class="lang-container"></div>
+                </div>
+            </div>
+            <div class="float-right">
+                <div class="dropdown ml-2" data-toggle="tooltip" title="Display Format" style="display: inline!important;">
+                    <button class="btn btn-secondary dropdown-toggle" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" id="language-selected-{cid}-incoming">
+                        <span class="fa fa-comments"></span>
+                    </button>
+                    <div class="dropdown-menu dropdown-menu-right text-right">
+                        <a class="dropdown-item" id="base-mode-{cid}">
+                            Text Mode <span aria-hidden="true" class="fa fa-file-text"></span>
+                        </a>
+                    </div>
+                </div>
+                <button type="button" id="close-prompts-{cid}" data-target-cid="{cid}" class="close-cid ml-1">
+                    <span aria-hidden="true">×</span>
+                </button>
+            </div>
+        </div>
+        <div class="card-body height3" style="overflow-y: auto; height: 450px!important;">
+            <ul class="chat-list">
+                {chat_flow}
+            </ul>
+        </div>
+        <div class="card-footer">
+            <textarea class="user_input form-control mb-2" id="{cid}-input" rows="1" cols="50"
+                      placeholder='Write a Message to {conversation_name}'></textarea>
+            <button class="send_user_input btn btn-success" id="{cid}-send" data-target-cid="{cid}">Send Message</button>
+            <label for="file-input-{cid}" class="attachment-label" data-toggle="tooltip" title="Add attachments to the message">
+              <i class="fa fa-paperclip fa-lg" aria-hidden="true"></i>
+            </label>
+            <input type="file" class="file-input fa fa-paperclip" data-target-cid="{cid}" style="display: none;" name="file-input" id="file-input-{cid}" multiple>
+            <div class="filename-container" id="filename-container-{cid}" style="display: none"></div>
+            <button class="btn btn-outline-primary export-to-excel-button" data-toggle="tooltip" title="Export to Excel" id="{cid}-export-to-excel" disabled>
+                <img class="excel-icon" src="{{ url_for('img', path="icons/excel.svg") }}" alt="Export To Excel" style="width: 20px; height: 20px" />
+            </button>
+            <button class="btn btn-info rounded-circle float-right" id="{cid}-audio-input" data-toggle="tooltip" title="Record audio message">
+                <i class="fa fa-microphone"></i>
+            </button>
+        </div>
+    </div>
+{% endblock %}

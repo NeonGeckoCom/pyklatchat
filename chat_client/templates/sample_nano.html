@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ title }}</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css"
+      integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T"
+      crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flag-icon-css/3.2.1/css/flag-icon.min.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.2.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ client_url_unquoted|safe }}/css/klatchatNano.css">
+</head>
+<body>
+    <blockquote class="blockquote text-center">
+      <p class="mb-0">{{ description }}</p>
+    </blockquote>
+    <span id="main" class="d-flex justify-content-center"></span>
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/gh/afarkas/lazysizes/lazysizes.min.js" async></script>
+    <script type="text/javascript" src="https://code.jquery.com/jquery-3.6.1.min.js" integrity="sha256-o88AwQnZB+VDvE9tvIXrMQaPlFFSUTR+nldQm1LuPXQ=" crossorigin="anonymous"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js" integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1" crossorigin="anonymous"></script>
+    <script type="text/javascript" src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js" integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM" crossorigin="anonymous"></script>
+    <script type="text/javascript" src="https://unpkg.com/dexie/dist/dexie.js"></script>
+    <script src="https://cdn.socket.io/4.1.1/socket.io.min.js"></script>
+    <script type="text/javascript" src="{{ client_url_unquoted|safe }}/js/klatchatNano.js"></script>
+    <script>
+        const options = {
+            'CHAT_DATA': [{
+                'CID': '1',
+                'PARENT_ID': 'main',
+            }],
+            'CHAT_CLIENT_URL_BASE': {{ client_url|safe }},
+            'CHAT_SERVER_URL_BASE': {{ server_url|safe }}
+        }
+        initKlatChat(options);
+    </script>
+</body>
+</html>

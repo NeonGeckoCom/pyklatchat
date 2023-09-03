@@ -1,0 +1,35 @@
+{% extends 'base.html' %}
+
+{% block css_imports %}
+    {{ super() }}
+    <link rel="stylesheet" href="{{ url_for('css', path='chat.css') }}">
+{% endblock %}
+
+{% block header %}
+    {% include 'components/modals/new_conversation.html' %}
+    {% include 'components/modals/import_conversation.html' %}
+    {{ super() }}
+{% endblock %}
+
+{% block main %}
+    {{ super() }}
+    <div class="container content chats-container-alignment" id="conversationsWrapper">
+        <div class="d-flex flex-row" id="conversationsBody">
+        </div>
+    </div>
+{% endblock %}
+
+{% block js_imports %}
+    {{ super() }}
+    {% for js_module in ['suggestions.js',
+                         'replies.js',
+                         'attachments.js',
+                         'scroller_utils.js',
+                         'speak_utils.js',
+                         'message_utils.js',
+                         'message_type_utils.js',
+                         'chat_utils.js',
+                         'profile.js'] %}
+        <script type="text/javascript" src="{{ url_for('js', path=js_module) }}"></script>
+    {% endfor %}
+{% endblock %}

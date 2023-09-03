@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="referrer" content="unsafe-url">
+    {% if redirect_to_https is defined and redirect_to_https %}
+        <meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">
+    {% endif %}
+    <title>{% if title is defined %}{{ title }}{% else %}Klatchat{% endif %}</title>
+    {% block css_imports %}
+        <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css"
+          integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T"
+          crossorigin="anonymous">
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flag-icon-css/3.2.1/css/flag-icon.min.css">
+        <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.2.0/css/all.min.css" rel="stylesheet">
+    {% endblock %}
+</head>
+<body>
+    <header id="klatchatHeader">
+        {% block header %}
+            {% include 'base_header.html' %}
+            {% include 'components/modals/logout.html' %}
+            {% include 'components/modals/login.html' %}
+            {% include 'components/modals/signup.html' %}
+            {% include 'components/modals/user_settings.html' %}
+            {% include 'components/modals/license.html' %}
+        {% endblock %}
+    </header>
+    <div id="main">
+        {% block main %}
+        {% endblock %}
+    </div>
+    <footer>
+        {% block footer %}
+            {% include 'base_footer.html' %}
+        {% endblock %}
+    </footer>
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/gh/afarkas/lazysizes/lazysizes.min.js" async></script>
+    <script type="text/javascript" src="https://code.jquery.com/jquery-3.6.1.min.js" integrity="sha256-o88AwQnZB+VDvE9tvIXrMQaPlFFSUTR+nldQm1LuPXQ=" crossorigin="anonymous"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js" integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1" crossorigin="anonymous"></script>
+    <script type="text/javascript" src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js" integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM" crossorigin="anonymous"></script>
+    <script type="text/javascript" src="https://unpkg.com/dexie/dist/dexie.js"></script>
+    {% block js_imports %}
+        {% for js_module in ['db.js',
+                             'meta.js',
+                             'config.js',
+                             'base_utils.js',
+                             'time_utils.js',
+                             'http_utils.js',
+                             'user_utils.js',
+                             'builder_utils.js',
+                             'date_utils.js',
+                             'file_utils.js',
+                             'language_utils.js',
+                             'user_settings.js'
+                             ] %}
+            <script type="text/javascript" src="{{ url_for('js', path=js_module) }}"></script>
+        {% endfor %}
+        {% if add_sio is defined and add_sio %}
+            <script src="https://cdn.socket.io/4.1.1/socket.io.min.js"></script>
+            <script type="text/javascript" src="{{ url_for('js', path='sio.js') }}"></script>
+        {% endif %}
+    {% endblock %}
+</body>
+</html>

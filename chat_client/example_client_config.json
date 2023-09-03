@@ -1,0 +1,7 @@
+{
+  "CHAT_CLIENT": {
+    "(Runtime environment)": {
+      "SERVER_URL": "HTTP address for chat server"
+    }
+  }
+}

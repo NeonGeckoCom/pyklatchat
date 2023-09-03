@@ -1,0 +1,31 @@
+<tr id="{prompt_id}_{user_id}_prompt_row" data-submind-id="{user_id}">
+    <td class="d-flex justify-content-center">
+        <div class="chat-img" data-toggle="tooltip" title="{tooltip}" data-target="{user_nickname}">
+            <img alt="{user_nickname_shrunk}" onerror="handleImgError(this);"
+                 src="{user_avatar}"
+                 class="img-thumbnail prompt-submind-img" loading="lazy" style="
+                 max-height: 50px!important;
+                 max-width: 50px!important;">
+        </div>
+    </td>
+    <td>
+        <div style="overflow-y:auto; width:100%; max-height: 150px!important;" id="{prompt_id}_{user_id}_resp"
+             data-message-id="{response_message_id}"
+             data-created-on="{response_created_on}"
+             data-toggle="tooltip"
+             title="{response_created_on_tooltip}">{response}
+        </div>
+    </td>
+    <td id="{prompt_id}_{user_id}_disc"
+        data-created-on="{opinion_created_on}"
+        data-message-id="{opinion_message_id}"
+        data-toggle="tooltip"
+        title="{opinion_created_on_tooltip}">{opinion}
+    </td>
+    <td id="{prompt_id}_{user_id}_vote"
+        data-created-on="{vote_created_on}"
+        data-message-id="{vote_message_id}"
+        data-toggle="tooltip"
+        title="{vote_created_on_tooltip}">{vote}
+    </td>
+</tr>
