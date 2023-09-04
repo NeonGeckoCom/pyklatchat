@@ -291,8 +291,8 @@ class ChatObserver(MQConnector):
     @staticmethod
     def get_neon_request_structure(msg_data: dict):
         """ Gets Neon API message structure based on received request skill type """
-        request_skills = msg_data.get('request_skills', 'default').lower()
-        if request_skills == 'tts':
+        requested_skill = msg_data.get('requested_skill', 'recognizer').lower()
+        if requested_skill == 'tts':
             utterance = msg_data.pop('utterance', '') or msg_data.pop('text', '')
             request_dict = {
                 'data': {
@@ -303,7 +303,7 @@ class ChatObserver(MQConnector):
                     'sender_context': msg_data
                 }
             }
-        elif request_skills == 'stt':
+        elif requested_skill == 'stt':
             request_dict = {
                 'data': {
                     'audio_data': msg_data.pop('audio_data', msg_data['message_body']),
@@ -327,7 +327,7 @@ class ChatObserver(MQConnector):
         recipient_data.setdefault('context', {})
         pattern = re.compile("Neon", re.IGNORECASE)
         msg_data['message_body'] = pattern.sub("", msg_data['message_body'], 1).strip('<>@,.:|- ').capitalize()
-        msg_data['request_skills'] = recipient_data['context'].pop('service', 'default')
+        msg_data.setdefault('requested_skill', recipient_data['context'].pop('service', 'recognizer'))
         request_dict = self.get_neon_request_structure(msg_data)
         request_dict['data']['lang'] = msg_data.get('lang', 'en-us')
         request_dict['context'] = {**recipient_data.get('context', {}),
@@ -337,7 +337,7 @@ class ChatObserver(MQConnector):
                                       'cid': msg_data.get('cid'),
                                       'agent': msg_data.get('agent', f'pyklatchat v{__version__}'),
                                       'requested_service_name': recipient_data['context'].get('requested_service_name', ''),
-                                      'request_skills': [msg_data.get('request_skills', 'recognizer').lower()],
+                                      'request_skills': [msg_data['requested_skill'].lower()],
                                       'username': msg_data.pop('nick', 'guest')}}
         input_queue = 'neon_chat_api_request'
         if self.neon_detection_enabled:
@@ -358,14 +358,14 @@ class ChatObserver(MQConnector):
         """ Handler for get STT request from Socket IO channel """
         data['recipient'] = Recipients.NEON
         data['skip_recipient_detection'] = True
-        data['request_skills'] = 'stt'
+        data['requested_skill'] = 'stt'
         self.handle_message(data=data)
 
     def handle_get_tts(self, data):
         """ Handler for get TTS request from Socket IO channel """
         data['recipient'] = Recipients.NEON
         data['skip_recipient_detection'] = True
-        data['request_skills'] = 'tts'
+        data['requested_skill'] = 'tts'
         self.handle_message(data=data)
 
     def handle_message(self, data: dict):
