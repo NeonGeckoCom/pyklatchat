@@ -1441,7 +1441,7 @@ async function createNewConversation(conversationName, isPrivate = false, conver
     let formData = new FormData();
 
     formData.append('conversation_name', conversationName);
-    formData.append('id', conversationID);
+    formData.append('conversation_id', conversationID);
     formData.append('is_private', isPrivate ? '1' : '0')
     formData.append('bound_service', boundServiceID ? boundServiceID : '');
 

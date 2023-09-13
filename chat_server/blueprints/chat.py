@@ -50,7 +50,7 @@ router = APIRouter(
 @router.post("/new")
 @login_required
 async def new_conversation(request: Request,
-                           conversation_id: str = Form(None),
+                           conversation_id: str = Form(''),
                            conversation_name: str = Form(...),
                            is_private: str = Form(False),
                            bound_service: str = Form('')):
