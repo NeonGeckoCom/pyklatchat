@@ -38,69 +38,76 @@ from utils.template_utils import callback_template
 
 router = APIRouter(
     prefix="/components",
-    responses={'404': {"description": "Unknown endpoint"}},
+    responses={"404": {"description": "Unknown endpoint"}},
 )
 
 
-@router.get('/profile')
-async def get_profile_modal(request: Request, nickname: str = '', edit: str = '0'):
-    """ Callbacks template with matching modal populated with user's data """
-    auth_header = 'Authorization'
-    headers = {auth_header: request.headers.get(auth_header, '')}
-    if edit == '1':
+@router.get("/profile")
+async def get_profile_modal(request: Request, nickname: str = "", edit: str = "0"):
+    """Callbacks template with matching modal populated with user's data"""
+    auth_header = "Authorization"
+    headers = {auth_header: request.headers.get(auth_header, "")}
+    if edit == "1":
         resp = requests.get(f'{app_config["SERVER_URL"]}/users_api/', headers=headers)
         if resp.ok:
-            user = resp.json()['data']
+            user = resp.json()["data"]
             # if user.get('is_tmp'):
             #     raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
             #                         detail='Cannot render edit modal for tmp user')
         else:
-            return respond('Server was not able to process the request', 422)
-        template_name = 'edit_profile_modal'
+            return respond("Server was not able to process the request", 422)
+        template_name = "edit_profile_modal"
     else:
         if not nickname:
-            return respond('No nickname provided', 422)
-        resp = requests.get(f'{app_config["SERVER_URL"]}/users_api/get_users?nicknames={nickname}', headers=headers)
+            return respond("No nickname provided", 422)
+        resp = requests.get(
+            f'{app_config["SERVER_URL"]}/users_api/get_users?nicknames={nickname}',
+            headers=headers,
+        )
         if resp.ok:
-            user_data = resp.json().get('users', [])
+            user_data = resp.json().get("users", [])
             if not user_data:
-                return respond(f'User with nickname={nickname} not found', 404)
+                return respond(f"User with nickname={nickname} not found", 404)
             else:
                 user = user_data[0]
         else:
-            return respond('Server was not able to process the request', 422)
-        template_name = 'profile_modal'
-    context = {'server_url': app_config["SERVER_URL"],
-               'user_id': user['_id'],
-               'nickname': user['nickname'],
-               'first_name': user.get('first_name', 'Klat'),
-               'last_name': user.get('last_name', 'User'),
-               'bio': user.get('bio', f'No information about {user["nickname"]}')}
-    return callback_template(request=request, template_name=template_name, context=context)
+            return respond("Server was not able to process the request", 422)
+        template_name = "profile_modal"
+    context = {
+        "server_url": app_config["SERVER_URL"],
+        "user_id": user["_id"],
+        "nickname": user["nickname"],
+        "first_name": user.get("first_name", "Klat"),
+        "last_name": user.get("last_name", "User"),
+        "bio": user.get("bio", f'No information about {user["nickname"]}'),
+    }
+    return callback_template(
+        request=request, template_name=template_name, context=context
+    )
 
 
-@router.get('/conversation')
-async def render_conversation(request: Request, skin: str = 'base'):
+@router.get("/conversation")
+async def render_conversation(request: Request, skin: str = "base"):
     """
-        Base renderer by the provided HTML template name
+    Base renderer by the provided HTML template name
 
-        :param request: FastAPI request object
-        :param skin: conversation skin to render (defaults to 'base')
+    :param request: FastAPI request object
+    :param skin: conversation skin to render (defaults to 'base')
 
-        :returns chats conversation response
+    :returns chats conversation response
     """
-    folder = 'conversation_skins'
-    return callback_template(request=request, template_name=f'{folder}/{skin}')
+    folder = "conversation_skins"
+    return callback_template(request=request, template_name=f"{folder}/{skin}")
 
 
-@router.get('/{template_name}')
+@router.get("/{template_name}")
 async def render_template(request: Request, template_name: str):
     """
-        Base renderer by the provided HTML template name
+    Base renderer by the provided HTML template name
 
-        :param request: FastAPI request object
-        :param template_name: name of template to fetch
+    :param request: FastAPI request object
+    :param template_name: name of template to fetch
 
-        :returns chats conversation response
+    :returns chats conversation response
     """
     return callback_template(request=request, template_name=template_name)

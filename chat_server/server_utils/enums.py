@@ -30,6 +30,7 @@ from enum import Enum, IntEnum
 
 
 class DataSources(Enum):
-    """ Enumeration of supported data sources """
-    SFTP = 'SFTP'
-    LOCAL = 'LOCAL'
+    """Enumeration of supported data sources"""
+
+    SFTP = "SFTP"
+    LOCAL = "LOCAL"

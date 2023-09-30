@@ -37,5 +37,3 @@ from chat_server.app import create_app
 def get_test_app() -> Union[FastAPI, socketio.ASGIApp]:
     """Returns test application instance"""
     return create_app(testing_mode=True)
-
-

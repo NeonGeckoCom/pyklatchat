@@ -33,82 +33,98 @@ from utils.common import deep_merge
 
 
 class MongoCommands(Enum):
-    """Enumeration of possible commands supported by MongoDB API """
+    """Enumeration of possible commands supported by MongoDB API"""
+
     # Selection Operations
-    FIND = 'find'
-    FIND_ALL = 'find'
-    FIND_ONE = 'find_one'
+    FIND = "find"
+    FIND_ALL = "find"
+    FIND_ONE = "find_one"
     # Insertion operations
     ## Basic Insertion
-    INSERT = 'insert_many'
-    INSERT_ONE = 'insert_one'
-    INSERT_MANY = 'insert_many'
+    INSERT = "insert_many"
+    INSERT_ONE = "insert_one"
+    INSERT_MANY = "insert_many"
     ## Bulk Write
-    BULK_WRITE = 'bulk_write'
+    BULK_WRITE = "bulk_write"
     # Deletion Operations
-    DELETE = 'delete_many'
-    DELETE_ONE = 'delete_one'
-    DELETE_MANY = 'delete_many'
+    DELETE = "delete_many"
+    DELETE_ONE = "delete_one"
+    DELETE_MANY = "delete_many"
     # Update operation
-    UPDATE = 'update'
+    UPDATE = "update"
 
 
 class MongoDocuments(Enum):
-    """ Supported Mongo DB documents """
-    USERS = 'users'
-    USER_PREFERENCES = 'user_preferences'
-    CHATS = 'chats'
-    SHOUTS = 'shouts'
-    PROMPTS = 'prompts'
-    TEST = 'test'
+    """Supported Mongo DB documents"""
+
+    USERS = "users"
+    USER_PREFERENCES = "user_preferences"
+    CHATS = "chats"
+    SHOUTS = "shouts"
+    PROMPTS = "prompts"
+    TEST = "test"
 
 
 class MongoLogicalOperators(Enum):
-    """ Enumeration of supported logical operators"""
-    EQ = 'equal'
-    LT = 'lt'
-    LTE = 'lte'
-    GT = 'gt'
-    GTE = 'gte'
-    IN = 'in'
-    ALL = 'all'
-    ANY = 'any'
-    OR = 'or'
-    AND = 'and'
+    """Enumeration of supported logical operators"""
+
+    EQ = "equal"
+    LT = "lt"
+    LTE = "lte"
+    GT = "gt"
+    GTE = "gte"
+    IN = "in"
+    ALL = "all"
+    ANY = "any"
+    OR = "or"
+    AND = "and"
 
 
 @dataclass
 class MongoFilter:
-    """ Class representing logical conditions supported by Mongo"""
-    key: str = ''
+    """Class representing logical conditions supported by Mongo"""
+
+    key: str = ""
     value: Any = None
     logical_operator: MongoLogicalOperators = MongoLogicalOperators.EQ
 
     def to_dict(self):
-        """ Converts object to the dictionary """
+        """Converts object to the dictionary"""
         if self.logical_operator.value == MongoLogicalOperators.EQ.value:
             return {self.key: self.value}
-        elif self.logical_operator.value in (MongoLogicalOperators.OR.value, MongoLogicalOperators.AND.value,):
-            return {f'${self.logical_operator.value}': self.value}
+        elif self.logical_operator.value in (
+            MongoLogicalOperators.OR.value,
+            MongoLogicalOperators.AND.value,
+        ):
+            return {f"${self.logical_operator.value}": self.value}
         else:
-            return {self.key: {f'${self.logical_operator.value}': self.value}}
+            return {self.key: {f"${self.logical_operator.value}": self.value}}
 
 
 @dataclass
 class MongoQuery:
-    """ Object to represent Mongo Query data"""
+    """Object to represent Mongo Query data"""
+
     command: MongoCommands
     document: MongoDocuments
     filters: List[Union[dict, MongoFilter]] = None
     data: dict = None
-    data_action: str = 'set'
-    result_filters: dict = None  # To apply some filters on the resulting data e.g. limit or sort
+    data_action: str = "set"
+    result_filters: dict = (
+        None  # To apply some filters on the resulting data e.g. limit or sort
+    )
 
     def build_filters(self):
-        """ Builds filters for Mongo Query """
+        """Builds filters for Mongo Query"""
         res = {}
         if self.filters:
-            if any(isinstance(self.filters, _type) for _type in (MongoFilter, dict,)):
+            if any(
+                isinstance(self.filters, _type)
+                for _type in (
+                    MongoFilter,
+                    dict,
+                )
+            ):
                 self.filters = [self.filters]
             for condition in self.filters:
                 if isinstance(condition, MongoFilter):
@@ -117,16 +133,19 @@ class MongoQuery:
         return res
 
     def build_setter(self) -> dict:
-        """ Builds setter for Mongo Query """
+        """Builds setter for Mongo Query"""
         res = None
         if self.command.value == MongoCommands.UPDATE.value:
-            res = {f'${self.data_action.lower()}': self.data}
-        elif self.command.value in (MongoCommands.INSERT_ONE.value, MongoCommands.BULK_WRITE.value,):
+            res = {f"${self.data_action.lower()}": self.data}
+        elif self.command.value in (
+            MongoCommands.INSERT_ONE.value,
+            MongoCommands.BULK_WRITE.value,
+        ):
             res = self.data
         return res
 
     def to_dict(self) -> dict:
-        """ Converts object to dictionary """
+        """Converts object to dictionary"""
         data = list()
         filters = self.build_filters()
         if filters:
@@ -135,10 +154,12 @@ class MongoQuery:
         if setter:
             data.append(setter)
         data = tuple(data)
-        res = dict(document=self.document.value,
-                   command=self.command.value,
-                   data=data,
-                   filters=self.result_filters)
+        res = dict(
+            document=self.document.value,
+            command=self.command.value,
+            data=data,
+            filters=self.result_filters,
+        )
         if self.command.value == MongoCommands.INSERT_MANY.value:
-            res['documents'] = res.pop('data')
+            res["documents"] = res.pop("data")
         return res

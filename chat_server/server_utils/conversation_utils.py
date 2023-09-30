@@ -30,26 +30,30 @@ from chat_server.constants.conversations import ConversationSkins
 from utils.logging_utils import LOG
 
 
-def build_message_json(raw_message: dict, skin: ConversationSkins = ConversationSkins.BASE) -> dict:
-    """ Builds user message json based on provided conversation skin """
-    if raw_message['message_type'] == 'plain':
-        message = {'user_id': raw_message['user_id'],
-                   'created_on': int(raw_message['created_on']),
-                   'message_id': raw_message['message_id'],
-                   'message_text': raw_message['message_text'],
-                   'message_type': raw_message['message_type'],
-                   'is_audio': raw_message.get('is_audio', '0'),
-                   'is_announcement': raw_message.get('is_announcement', '0'),
-                   'replied_message': raw_message.get('replied_message', ''),
-                   'attachments': raw_message.get('attachments', []),
-                   'user_first_name': raw_message['first_name'],
-                   'user_last_name': raw_message['last_name'],
-                   'user_nickname': raw_message['nickname'],
-                   'user_is_bot': raw_message.get('is_bot', '0'),
-                   'user_avatar': raw_message.get('avatar', '')}
-    elif raw_message['message_type'] == 'prompt':
+def build_message_json(
+    raw_message: dict, skin: ConversationSkins = ConversationSkins.BASE
+) -> dict:
+    """Builds user message json based on provided conversation skin"""
+    if raw_message["message_type"] == "plain":
+        message = {
+            "user_id": raw_message["user_id"],
+            "created_on": int(raw_message["created_on"]),
+            "message_id": raw_message["message_id"],
+            "message_text": raw_message["message_text"],
+            "message_type": raw_message["message_type"],
+            "is_audio": raw_message.get("is_audio", "0"),
+            "is_announcement": raw_message.get("is_announcement", "0"),
+            "replied_message": raw_message.get("replied_message", ""),
+            "attachments": raw_message.get("attachments", []),
+            "user_first_name": raw_message["first_name"],
+            "user_last_name": raw_message["last_name"],
+            "user_nickname": raw_message["nickname"],
+            "user_is_bot": raw_message.get("is_bot", "0"),
+            "user_avatar": raw_message.get("avatar", ""),
+        }
+    elif raw_message["message_type"] == "prompt":
         return raw_message
     else:
-        LOG.error(f'Undefined skin = {skin}')
+        LOG.error(f"Undefined skin = {skin}")
         message = {}
     return message

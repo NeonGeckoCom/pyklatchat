@@ -33,33 +33,33 @@ from uuid import uuid4
 
 def generate_uuid(length=10) -> str:
     """
-        Generates UUID string of desired length
+    Generates UUID string of desired length
 
-        :param length: length of the output UUID string
+    :param length: length of the output UUID string
 
-        :returns UUID string of the desired length
+    :returns UUID string of the desired length
     """
     return uuid4().hex[:length]
 
 
-def get_hash(input_str: str, encoding='utf-8', algo='sha512') -> str:
+def get_hash(input_str: str, encoding="utf-8", algo="sha512") -> str:
     """
-        Returns hashed version of input string corresponding to specified algorithm
+    Returns hashed version of input string corresponding to specified algorithm
 
-        :param input_str: input string to hash
-        :param encoding: encoding for string to be conformed to (defaults to UTF-8)
-        :param algo: hashing algorithm to use (defaults to SHA-512),
-                     should correspond to hashlib hashing methods,
-                     refer to: https://docs.python.org/3/library/hashlib.html
+    :param input_str: input string to hash
+    :param encoding: encoding for string to be conformed to (defaults to UTF-8)
+    :param algo: hashing algorithm to use (defaults to SHA-512),
+                 should correspond to hashlib hashing methods,
+                 refer to: https://docs.python.org/3/library/hashlib.html
 
-        :returns hashed string from the provided input
+    :returns hashed string from the provided input
     """
     return getattr(hashlib, algo)(input_str.encode(encoding)).hexdigest()
 
 
 def get_version(from_path: str = None):
     """Gets version from provided path
-        :param from_path: path to get version from"""
+    :param from_path: path to get version from"""
     with open(from_path, "r", encoding="utf-8") as v:
         for line in v.readlines():
             if line.startswith("__version__"):
@@ -71,7 +71,7 @@ def get_version(from_path: str = None):
 
 
 def deep_merge(source: dict, destination: dict) -> dict:
-    """ Deeply merges source dict into destination """
+    """Deeply merges source dict into destination"""
     for key, value in source.items():
         if isinstance(value, dict):
             # get node or create one
@@ -83,12 +83,12 @@ def deep_merge(source: dict, destination: dict) -> dict:
     return destination
 
 
-def buffer_to_base64(b: BytesIO, encoding: str = 'utf-8') -> str:
-    """ Encodes buffered value to base64 string based on provided encoding"""
+def buffer_to_base64(b: BytesIO, encoding: str = "utf-8") -> str:
+    """Encodes buffered value to base64 string based on provided encoding"""
     b.seek(0)
     return base64.b64encode(b.read()).decode(encoding)
 
 
 def base64_to_buffer(b64_encoded_string: str) -> BytesIO:
-    """ Decodes buffered value to base64 string based on provided encoding"""
+    """Decodes buffered value to base64 string based on provided encoding"""
     return BytesIO(base64.b64decode(b64_encoded_string))
