@@ -26,10 +26,14 @@
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 from utils.database_utils.mongodb_connector import MongoDBConnector
-from utils.database_utils.mysql_connector import MySQLConnector
-
 from utils.database_utils.base_connector import DatabaseConnector, DatabaseTypes
 from utils.logging_utils import LOG
+
+try:
+    from utils.database_utils.mysql_connector import MySQLConnector
+except ModuleNotFoundError:
+    LOG.info("MySQL dependency was not installed")
+    MySQLConnector = None
 
 
 class DatabaseController:
