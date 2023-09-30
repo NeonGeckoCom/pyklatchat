@@ -39,9 +39,11 @@ logger.setLevel(level=logging.INFO)
 
 
 class FilesManipulator(ABC):
-    """ Base class to manipulate files under specified dir """
+    """Base class to manipulate files under specified dir"""
 
-    def __init__(self, working_dir: str, skip_files: list = None, skip_dirs: list = None):
+    def __init__(
+        self, working_dir: str, skip_files: list = None, skip_dirs: list = None
+    ):
         self.working_dir = working_dir or os.getcwd()
         self.skip_files = skip_files or []
         self.skip_dirs = skip_dirs or []
@@ -50,7 +52,7 @@ class FilesManipulator(ABC):
     @abstractmethod
     def build_from_args():
         """
-            Building instances from CLI arguments
+        Building instances from CLI arguments
         """
         pass
 
@@ -58,27 +60,33 @@ class FilesManipulator(ABC):
         return os.path.join(self.working_dir, file_path)
 
     def is_valid_processing_file(self, file_path) -> bool:
-        """ Condition to validate if given file is appropriate for processing """
-        return isfile(join(self.working_dir, file_path)) and os.path.split(file_path)[-1] not in self.skip_files
+        """Condition to validate if given file is appropriate for processing"""
+        return (
+            isfile(join(self.working_dir, file_path))
+            and os.path.split(file_path)[-1] not in self.skip_files
+        )
 
     def on_valid_file(self, file_path):
-        """ Implement to handle valid files """
+        """Implement to handle valid files"""
         pass
 
     def on_failed_file(self, file_path):
-        """ Implement to handle failed files """
+        """Implement to handle failed files"""
         pass
 
-    def walk_tree(self, folder: str = ''):
-        """ Walks towards specified folder and processes files"""
+    def walk_tree(self, folder: str = ""):
+        """Walks towards specified folder and processes files"""
         if folder:
             target_folder = join(self.working_dir, folder)
         else:
             target_folder = self.working_dir
-        print(f'walking through folder: {target_folder}')
+        print(f"walking through folder: {target_folder}")
         for item in listdir(target_folder):
-            print(f'checking path: {item}')
-            if os.path.isdir(os.path.join(self.working_dir, item)) and item not in self.skip_dirs:
+            print(f"checking path: {item}")
+            if (
+                os.path.isdir(os.path.join(self.working_dir, item))
+                and item not in self.skip_dirs
+            ):
                 self.walk_tree(item)
             else:
                 file_path = os.path.join(folder, item)

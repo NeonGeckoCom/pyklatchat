@@ -33,7 +33,7 @@ from chat_client.client_config import app_config
 
 router = APIRouter(
     prefix="/base",
-    responses={'404': {"description": "Unknown endpoint"}},
+    responses={"404": {"description": "Unknown endpoint"}},
 )
 
 
@@ -41,8 +41,8 @@ router = APIRouter(
 async def fetch_runtime_config():
     """Fetches runtime config from local JSON file in provided location"""
     try:
-        runtime_configs = app_config.get('RUNTIME_CONFIG', {})
+        runtime_configs = app_config.get("RUNTIME_CONFIG", {})
     except Exception as ex:
-        LOG.error(f'Exception while fetching runtime configs: {ex}')
+        LOG.error(f"Exception while fetching runtime configs: {ex}")
         runtime_configs = {}
     return JSONResponse(content=runtime_configs)

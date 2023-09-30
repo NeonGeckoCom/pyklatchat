@@ -32,17 +32,21 @@ from config import Configuration
 from chat_server.server_utils.sftp_utils import init_sftp_connector
 from utils.logging_utils import LOG
 
-server_config_path = os.environ.get('CHATSERVER_CONFIG', '~/.local/share/neon/credentials.json')
-database_config_path = os.environ.get('DATABASE_CONFIG', '~/.local/share/neon/credentials.json')
+server_config_path = os.environ.get(
+    "CHATSERVER_CONFIG", "~/.local/share/neon/credentials.json"
+)
+database_config_path = os.environ.get(
+    "DATABASE_CONFIG", "~/.local/share/neon/credentials.json"
+)
 
-LOG.info(f'KLAT_ENV : {Configuration.KLAT_ENV}')
+LOG.info(f"KLAT_ENV : {Configuration.KLAT_ENV}")
 
 config = Configuration(from_files=[server_config_path, database_config_path])
 
-app_config = config.get('CHAT_SERVER', {}).get(Configuration.KLAT_ENV, {})
+app_config = config.get("CHAT_SERVER", {}).get(Configuration.KLAT_ENV, {})
 
-LOG.info(f'App config: {app_config}')
+LOG.info(f"App config: {app_config}")
 
-db_controller = config.get_db_controller(name='pyklatchat_3333')
+db_controller = config.get_db_controller(name="pyklatchat_3333")
 
-sftp_connector = init_sftp_connector(config=app_config.get('SFTP', {}))
+sftp_connector = init_sftp_connector(config=app_config.get("SFTP", {}))

@@ -33,15 +33,15 @@ from chat_server.server_utils.languages import LanguageSettings
 
 router = APIRouter(
     prefix="/language_api",
-    responses={'404': {"description": "Unknown endpoint"}},
+    responses={"404": {"description": "Unknown endpoint"}},
 )
 
 
 @router.get("/settings")
 async def list_language_settings():
     """
-        Returns language settings
+    Returns language settings
 
-        :returns JSON-formatted response from server
+    :returns JSON-formatted response from server
     """
-    return JSONResponse(content={'supported_languages': LanguageSettings.list()})
+    return JSONResponse(content={"supported_languages": LanguageSettings.list()})

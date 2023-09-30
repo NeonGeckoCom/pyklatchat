@@ -35,19 +35,23 @@ from utils.logging_utils import LOG
 
 router = APIRouter(
     prefix="/preferences",
-    responses={'404': {"description": "Unknown user"}},
+    responses={"404": {"description": "Unknown user"}},
 )
 
 
 @router.post("/update_language/{cid}/{input_type}")
 @login_required
-async def update_language(request: Request, cid: str, input_type: str, lang: str = Form(...)):
-    """ Updates preferred language of user in conversation """
+async def update_language(
+    request: Request, cid: str, input_type: str, lang: str = Form(...)
+):
+    """Updates preferred language of user in conversation"""
     try:
-        current_user_id = get_current_user(request)['_id']
+        current_user_id = get_current_user(request)["_id"]
     except Exception as ex:
         LOG.error(ex)
-        return respond(f'Failed to update language of {cid}/{input_type} to {lang}')
-    DbUtils.set_user_preferences(user_id=current_user_id,
-                                 preferences_mapping={f'chat_language_mapping.{cid}.{input_type}': lang})
-    return respond(f'Updated cid={cid}, input_type={input_type} to language={lang}')
+        return respond(f"Failed to update language of {cid}/{input_type} to {lang}")
+    DbUtils.set_user_preferences(
+        user_id=current_user_id,
+        preferences_mapping={f"chat_language_mapping.{cid}.{input_type}": lang},
+    )
+    return respond(f"Updated cid={cid}, input_type={input_type} to language={lang}")
