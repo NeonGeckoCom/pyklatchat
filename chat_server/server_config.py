@@ -28,9 +28,11 @@
 
 import os
 
+from utils.logging_utils import LOG
+
 from config import Configuration
 from chat_server.server_utils.sftp_utils import init_sftp_connector
-from utils.logging_utils import LOG
+from chat_server.server_utils.rmq_utils import RabbitMQAPI
 
 server_config_path = os.environ.get(
     "CHATSERVER_CONFIG", "~/.local/share/neon/credentials.json"
@@ -50,3 +52,14 @@ LOG.info(f"App config: {app_config}")
 db_controller = config.get_db_controller(name="pyklatchat_3333")
 
 sftp_connector = init_sftp_connector(config=app_config.get("SFTP", {}))
+
+mq_api = None
+mq_management_config = config.get("MQ_MANAGEMENT", {})
+if mq_management_url := mq_management_config.get("MQ_MANAGEMENT_URL"):
+    mq_api = RabbitMQAPI(url=mq_management_url)
+    mq_api.login(
+        username=mq_management_config["MQ_MANAGEMENT_LOGIN"],
+        password=mq_management_config["MQ_MANAGEMENT_PASSWORD"],
+    )
+
+k8s_config = config.get("K8S_CONFIG", {})

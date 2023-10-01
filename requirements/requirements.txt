@@ -6,6 +6,7 @@ fastapi-socketio==0.0.10
 httpx==0.25.0  # required by FastAPI
 Jinja2==3.1.2
 jsbeautifier==1.14.7
+kubernetes==28.1.0
 neon-mq-connector~=0.7
 neon-sftp~=0.1
 ovos_config==0.0.10
