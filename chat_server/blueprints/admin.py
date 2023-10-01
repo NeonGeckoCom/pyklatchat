@@ -30,6 +30,8 @@ async def refresh_state(
     """
     target_items = [x for x in target_items.split(",") if x]
     if service_name == "k8s":
+        if not k8s_config:
+            return respond("K8S Service Unavailable", 503)
         deployments = target_items
         if deployments == "*":
             deployments = k8s_config.get("MANAGED_DEPLOYMENTS", [])
