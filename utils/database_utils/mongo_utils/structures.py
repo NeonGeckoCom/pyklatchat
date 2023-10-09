@@ -52,6 +52,8 @@ class MongoCommands(Enum):
     DELETE_MANY = "delete_many"
     # Update operation
     UPDATE = "update"
+    UPDATE_MANY = "update_many"
+    UPDATE_ONE = "update_one"
 
 
 class MongoDocuments(Enum):
@@ -135,7 +137,10 @@ class MongoQuery:
     def build_setter(self) -> dict:
         """Builds setter for Mongo Query"""
         res = None
-        if self.command.value == MongoCommands.UPDATE.value:
+        if self.command.value in (
+            MongoCommands.UPDATE_MANY.value,
+            MongoCommands.UPDATE_ONE.value,
+        ):
             res = {f"${self.data_action.lower()}": self.data}
         elif self.command.value in (
             MongoCommands.INSERT_ONE.value,

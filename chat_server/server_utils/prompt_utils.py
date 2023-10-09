@@ -81,7 +81,7 @@ def handle_prompt_message(message: dict) -> bool:
                     }
                     db_controller.exec_query(
                         MongoQuery(
-                            command=MongoCommands.UPDATE,
+                            command=MongoCommands.UPDATE_MANY,
                             document=MongoDocuments.PROMPTS,
                             filters=MongoFilter(key="_id", value=prompt_id),
                             **data_kwargs,
@@ -128,7 +128,7 @@ def handle_prompt_message(message: dict) -> bool:
                         }
                         db_controller.exec_query(
                             MongoQuery(
-                                command=MongoCommands.UPDATE,
+                                command=MongoCommands.UPDATE_MANY,
                                 document=MongoDocuments.PROMPTS,
                                 filters=MongoFilter(key="_id", value=prompt_id),
                                 **data_kwargs,

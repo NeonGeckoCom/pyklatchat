@@ -261,7 +261,7 @@ async def user_message(sid, data):
         )
         db_controller.exec_query(
             query=MongoQuery(
-                command=MongoCommands.UPDATE,
+                command=MongoCommands.UPDATE_MANY,
                 document=MongoDocuments.CHATS,
                 filters=filter_expression,
                 data={"chat_flow": new_shout_data["_id"]},
@@ -363,7 +363,7 @@ async def prompt_completed(sid, data):
     try:
         db_controller.exec_query(
             MongoQuery(
-                command=MongoCommands.UPDATE,
+                command=MongoCommands.UPDATE_MANY,
                 document=MongoDocuments.PROMPTS,
                 filters=MongoFilter(key="_id", value=prompt_id),
                 data=prompt_summary_agg,

@@ -43,7 +43,8 @@ class MongoDBConnector(DatabaseConnector):
         "delete_many",
         "find",
         "find_one",
-        "update",
+        "update_one",
+        "update_many",
     )
 
     @property
