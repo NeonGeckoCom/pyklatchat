@@ -149,6 +149,7 @@ def create_unauthorized_user(
         query={"document": "users", "command": "insert_one", "data": new_user}
     )
     token = generate_session_token(user_id=new_user["_id"]) if authorize else ""
+    LOG.debug(f"Created new user with name {new_user['nickname']}")
     return UserData(user=new_user, session=token)
 
 
@@ -168,8 +169,7 @@ def get_current_user_data(
 
     :returns UserData based on received authorization header or sets temporal user credentials if not found
     """
-    user_id = None
-    user_data = {}
+    user_data: UserData = None
     if not force_tmp:
         if nano_token:
             user = db_controller.exec_query(
@@ -219,11 +219,12 @@ def get_current_user_data(
                                 LOG.info("Session was refreshed")
                         user_data = UserData(user=user, session=session)
             except BaseException as ex:
-                LOG.warning(
-                    f"Problem resolving current user: {ex}, setting tmp user credentials"
-                )
-    if not user_id or force_tmp:
+                LOG.exception(f"Problem resolving current user: {ex}\n"
+                              f"setting tmp user credentials")
+    if not user_data:
+        LOG.debug("Creating temp user")
         user_data = create_unauthorized_user()
+    LOG.debug(f"Resolved user: {user_data}")
     user_data.user.pop("password", None)
     user_data.user.pop("date_created", None)
     user_data.user.pop("tokens", None)

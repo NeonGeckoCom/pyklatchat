@@ -25,11 +25,13 @@
 # LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
 from typing import Optional, Union
 from pymongo import MongoClient
 
 from utils.database_utils.base_connector import DatabaseConnector, DatabaseTypes
 from utils.database_utils.mongo_utils.structures import MongoQuery
+from utils.logging_utils import LOG
 
 
 class MongoDBConnector(DatabaseConnector):
@@ -87,7 +89,12 @@ class MongoDBConnector(DatabaseConnector):
         if not isinstance(query.get("data"), tuple):
             # LOG.warning('Received wrong param type for query data, using default conversion to tuple')
             query["data"] = (query.get("data", {}),)
-        query_output = db_command(*query.get("data"), *args, **kwargs)
+        try:
+            query_output = db_command(*query.get("data"), *args, **kwargs)
+        except Exception as e:
+            LOG.error(f"Query failed: {query}")
+            raise e
+
         if received_command == "find":
             filters = query.get("filters", {})
             if filters:
