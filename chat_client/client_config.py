@@ -32,9 +32,9 @@ import os
 from config import Configuration
 from utils.logging_utils import LOG
 
-config_file_path = os.environ.get(
+config_file_path = os.path.expanduser(os.environ.get(
     "CHATCLIENT_CONFIG", "~/.local/share/neon/credentials_client.json"
-)
+))
 if os.path.isfile(config_file_path):
     LOG.warning(f"Using legacy configuration at {config_file_path}")
     config = Configuration(from_files=[config_file_path])

@@ -34,12 +34,12 @@ from chat_server.server_utils.sftp_utils import init_sftp_connector
 from utils.logging_utils import LOG
 from utils.database_utils import DatabaseController
 
-server_config_path = os.environ.get(
+server_config_path = os.path.expanduser(os.environ.get(
     "CHATSERVER_CONFIG", "~/.local/share/neon/credentials.json"
-)
-database_config_path = os.environ.get(
+))
+database_config_path = os.path.expanduser(os.environ.get(
     "DATABASE_CONFIG", "~/.local/share/neon/credentials.json"
-)
+))
 
 
 def _init_db_controller(db_config: dict) -> Optional[DatabaseController]:
