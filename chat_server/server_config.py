@@ -39,14 +39,44 @@ database_config_path = os.environ.get(
     "DATABASE_CONFIG", "~/.local/share/neon/credentials.json"
 )
 
-LOG.info(f"KLAT_ENV : {Configuration.KLAT_ENV}")
 
-config = Configuration(from_files=[server_config_path, database_config_path])
+def _init_db_controller(db_config: dict):
+    from chat_server.server_utils.db_utils import DbUtils
+    from utils.database_utils import DatabaseController
 
-app_config = config.get("CHAT_SERVER", {}).get(Configuration.KLAT_ENV, {})
+    # Determine configured database dialect
+    dialect = db_config.pop("dialect", "mongo")
+
+    # Create a database connection
+    db_controller = DatabaseController(config_data=db_config)
+    db_controller.attach_connector(dialect=dialect)
+    db_controller.connect()
+
+    # Initialize convenience class
+    DbUtils.init(db_controller)
+    return db_controller
+
+
+if os.path.isfile(server_config_path) or os.path.isfile(database_config_path):
+    LOG.warning(f"Using legacy configuration at {server_config_path}")
+    LOG.warning(f"Using legacy configuration at {database_config_path}")
+    LOG.info(f"KLAT_ENV : {Configuration.KLAT_ENV}")
+    config = Configuration(from_files=[server_config_path, database_config_path])
+    app_config = config.get("CHAT_SERVER", {}).get(Configuration.KLAT_ENV, {})
+    db_controller = config.get_db_controller(name="pyklatchat_3333")
+else:
+    # ovos-config has built-in mechanisms for loading configuration files based
+    # on envvars, so the configuration structure is simplified
+    from ovos_config.config import Configuration
+    app_config = Configuration().get("CHAT_SERVER")
+    env_spec = os.environ.get("KLAT_ENV")
+    if env_spec and app_config.get(env_spec):
+        LOG.warning("Legacy configuration handling KLAT_ENV envvar")
+        app_config = app_config.get(env_spec)
+    db_controller = _init_db_controller(app_config.get("connection_properties",
+                                                       Configuration().get(
+                                                           "DATABASE_CONFIG")))
 
 LOG.info(f"App config: {app_config}")
-
-db_controller = config.get_db_controller(name="pyklatchat_3333")
 
 sftp_connector = init_sftp_connector(config=app_config.get("SFTP", {}))
