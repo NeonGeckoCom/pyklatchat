@@ -68,6 +68,8 @@ class TestSIO(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls) -> None:
+        from chat_server.server_config import database_config_path
+        assert os.path.isfile(database_config_path)
         os.environ["DISABLE_AUTH_CHECK"] = "1"
         matching_conversation = db_controller.exec_query(
             query={
