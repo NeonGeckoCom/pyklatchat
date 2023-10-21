@@ -157,6 +157,13 @@ class ChatObserver(MQConnector):
             callback=self.on_neon_translations_response,
             on_error=self.default_error_handler,
         )
+        self.register_subscriber(
+            name="subminds_state_receiver",
+            vhost=self.get_vhost("chatbots"),
+            exchange="subminds_state",
+            callback=self.on_subminds_state,
+            on_error=self.default_error_handler,
+        )
 
     @classmethod
     def get_recipient_from_prefix(cls, message: str) -> dict:
@@ -710,3 +717,9 @@ class ChatObserver(MQConnector):
         """Handles receiving TTS response"""
         LOG.info(f"Received TTS Response: {body}")
         self.sio.emit("tts_response", data=body)
+
+    @create_mq_callback()
+    def on_subminds_state(self, body: dict):
+        """Handles receiving subminds state message"""
+        LOG.info(f"Received submind state: {body}")
+        self.sio.emit("subminds_state", data=body)
