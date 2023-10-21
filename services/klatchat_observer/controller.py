@@ -34,6 +34,7 @@ import socketio
 
 from enum import Enum
 
+from neon_mq_connector.utils import retry
 from neon_mq_connector.utils.rabbit_utils import create_mq_callback
 from neon_mq_connector.connector import MQConnector
 from utils.logging_utils import LOG
@@ -87,13 +88,7 @@ class ChatObserver(MQConnector):
         }
         self._sio = None
         self.sio_url = config["SIO_URL"]
-        try:
-            self.connect_sio()
-        except Exception as ex:
-            err = f"Failed to connect Socket IO at {self.sio_url} due to exception={str(ex)}, observing will not be run"
-            LOG.warning(err)
-            if not self.testing_mode:
-                raise ConnectionError(err)
+        self.connect_sio()
         self.register_consumer(
             name="neon_response",
             vhost=self.get_vhost("neon_api"),
@@ -300,6 +295,7 @@ class ChatObserver(MQConnector):
             "request_neon_translations", handler=self.request_neon_translations
         )
 
+    @retry(use_self=True)
     def connect_sio(self, refresh=False):
         """
         Method for establishing connection with Socket IO server
