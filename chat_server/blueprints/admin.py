@@ -7,6 +7,7 @@ from utils.http_utils import respond
 from chat_server.server_config import mq_api, mq_management_config, k8s_config
 from chat_server.sio import login_required
 from chat_server.server_utils.k8s_utils import restart_deployment
+from chat_server.server_utils.admin_utils import run_mq_validation
 
 router = APIRouter(
     prefix="/admin",
@@ -39,21 +40,7 @@ async def refresh_state(
         for deployment in deployments:
             restart_deployment(deployment_name=deployment)
     elif service_name == "mq":
-        if mq_api:
-            for vhost in mq_management_config.get("VHOSTS", []):
-                mq_api.add_vhost(vhost=vhost)
-            for user_creds in mq_management_config.get("USERS", []):
-                mq_api.add_user(
-                    user=user_creds["user"],
-                    password=user_creds["password"],
-                    tags=user_creds.get("tags", ""),
-                )
-            for user_vhost_permissions in mq_management_config.get(
-                "USER_VHOST_PERMISSIONS", []
-            ):
-                mq_api.configure_vhost_user_permissions(**user_vhost_permissions)
-        else:
-            return respond("MQ Service Unavailable", 503)
+        run_mq_validation()
     else:
         return respond(f"Unknown refresh type: {service_name!r}", 404)
     return respond("OK")

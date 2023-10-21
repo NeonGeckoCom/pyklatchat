@@ -71,7 +71,7 @@ class RabbitMQAPI:
             auth=self.auth,
             verify=self._verify_ssl,
         )
-        return status.ok
+        return status
 
     def add_user(self, user: str, password: str, tags: str = "") -> bool:
         """
