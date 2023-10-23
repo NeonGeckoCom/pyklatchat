@@ -1,5 +1,9 @@
 FROM python:3.10-slim-buster
 
+ENV OVOS_CONFIG_BASE_FOLDER neon
+ENV OVOS_CONFIG_FILENAME klat.yaml
+ENV XDG_CONFIG_HOME /config
+
 COPY . /app/
 
 WORKDIR /app
