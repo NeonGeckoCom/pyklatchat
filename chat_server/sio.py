@@ -458,9 +458,9 @@ async def request_translate(sid, data):
                 "sid": sid,
                 "input_type": input_type,
             }
-            CacheFactory.get("translation_cache", cache_type=LRUCache).put(
-                key=request_id, value=caching_instance
-            )
+            CacheFactory.get("translation_cache", cache_type=LRUCache)[
+                request_id
+            ] = caching_instance
             await sio.emit(
                 "request_neon_translations",
                 data={"request_id": request_id, "data": missing_translations},
