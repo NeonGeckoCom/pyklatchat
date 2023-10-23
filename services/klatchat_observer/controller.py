@@ -296,16 +296,13 @@ class ChatObserver(MQConnector):
         )
 
     @retry(use_self=True)
-    def connect_sio(self, refresh=False):
+    def connect_sio(self):
         """
         Method for establishing connection with Socket IO server
-
-        :param refresh: To refresh an existing instance
         """
-        if not self._sio or refresh:
-            self._sio = socketio.Client()
-            self._sio.connect(url=self.sio_url)
-            self.register_sio_handlers()
+        self._sio = socketio.Client()
+        self._sio.connect(url=self.sio_url)
+        self.register_sio_handlers()
 
     @property
     def sio(self):
