@@ -715,4 +715,5 @@ class ChatObserver(MQConnector):
     def on_subminds_state(self, body: dict):
         """Handles receiving subminds state message"""
         LOG.info(f"Received submind state: {body}")
-        self.sio.emit("subminds_state", data=body)
+        body["msg_type"] = "subminds_state"
+        self.sio.emit("broadcast", data=body)

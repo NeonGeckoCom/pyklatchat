@@ -46,6 +46,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from .sio import sio
 from .blueprints import (
+    admin as admin_blueprint,
     auth as auth_blueprint,
     chat as chat_blueprint,
     users as users_blueprint,
@@ -95,6 +96,7 @@ def create_app(
             LOG.error(f"rid={idem} received an exception {ex}")
         return None
 
+    chat_app.include_router(admin_blueprint.router)
     chat_app.include_router(auth_blueprint.router)
     chat_app.include_router(chat_blueprint.router)
     chat_app.include_router(users_blueprint.router)

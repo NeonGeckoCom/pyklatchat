@@ -10,12 +10,11 @@ from utils.logging_utils import LOG
 k8s_app_api = None
 _k8s_default_namespace = "default"
 
-if k8s_config:
-    _k8s_config_path = k8s_config.get("K8S_CONFIG_PATH")
+if _k8s_config_path := k8s_config.get("K8S_CONFIG_PATH"):
     _k8s_default_namespace = (
         k8s_config.get("K8S_DEFAULT_NAMESPACE") or _k8s_default_namespace
     )
-    config.load_kube_config(k8s_config.get("K8S_CONFIG_PATH"))
+    config.load_kube_config(_k8s_config_path)
 
     k8s_app_api = client.AppsV1Api()
 else:
