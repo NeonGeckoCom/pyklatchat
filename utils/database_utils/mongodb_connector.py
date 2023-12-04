@@ -25,27 +25,19 @@
 # LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
 from typing import Optional, Union
 from pymongo import MongoClient
 
 from utils.database_utils.base_connector import DatabaseConnector, DatabaseTypes
-from utils.database_utils.mongo_utils.structures import MongoQuery
+from utils.database_utils.mongo_utils.structures import MongoQuery, MongoCommands
+from utils.logging_utils import LOG
 
 
 class MongoDBConnector(DatabaseConnector):
     """Connector implementing interface for interaction with Mongo DB API"""
 
-    mongo_recognised_commands = (
-        "insert_one",
-        "insert_many",
-        "delete_one",
-        "bulk_write",
-        "delete_many",
-        "find",
-        "find_one",
-        "update_one",
-        "update_many",
-    )
+    mongo_recognised_commands = set(cmd.value for cmd in MongoCommands)
 
     @property
     def database_type(self) -> DatabaseTypes:
@@ -82,13 +74,17 @@ class MongoDBConnector(DatabaseConnector):
                 f"please use one of the following: "
                 f"{self.mongo_recognised_commands}"
             )
-        db_command = getattr(
-            self.connection[query.get("document")], query.get("command")
-        )
+        db_command = getattr(self.connection[query.get("document")],
+                             received_command)
         if not isinstance(query.get("data"), tuple):
-            # LOG.warning('Received wrong param type for query data, using default conversion to tuple')
+            LOG.debug(f'Casting data from {type(query["data"])} to tuple')
             query["data"] = (query.get("data", {}),)
-        query_output = db_command(*query.get("data"), *args, **kwargs)
+        try:
+            query_output = db_command(*query.get("data"), *args, **kwargs)
+        except Exception as e:
+            LOG.error(f"Query failed: {query}|args={args}|kwargs={kwargs}")
+            raise e
+
         if received_command == "find":
             filters = query.get("filters", {})
             if filters:
