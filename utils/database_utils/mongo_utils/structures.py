@@ -52,6 +52,8 @@ class MongoCommands(Enum):
     DELETE_MANY = "delete_many"
     # Update operation
     UPDATE = "update_many"
+    UPDATE_MANY = "update_many"
+    UPDATE_ONE = "update_one"
 
 
 class MongoDocuments(Enum):
