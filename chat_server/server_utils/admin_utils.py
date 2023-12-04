@@ -1,9 +1,7 @@
-# NEON AI (TM) SOFTWARE, Software Development Kit & Application Framework
+# NEON AI (TM) SOFTWARE, Software Development Kit & Application Development System
 # All trademark and other rights reserved by their respective owners
-# Copyright 2008-2022 Neongecko.com Inc.
-# Contributors: Daniel McKnight, Guy Daniels, Elon Gasper, Richard Leeds,
-# Regina Bloomstine, Casimiro Ferreira, Andrii Pernatii, Kirill Hrymailo
-# BSD-3 License
+# Copyright 2008-2021 Neongecko.com Inc.
+# BSD-3
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
 # 1. Redistributions of source code must retain the above copyright notice,
@@ -26,4 +24,29 @@
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-__version__ = "0.4.4"
+
+from chat_server.server_config import mq_api, mq_management_config, LOG
+
+
+def run_mq_validation():
+    if mq_api:
+        for vhost in mq_management_config.get("VHOSTS", []):
+            status = mq_api.add_vhost(vhost=vhost["name"])
+            if not status.ok:
+                raise ConnectionError(f'Failed to add {vhost["name"]}, {status=}')
+        for user_creds in mq_management_config.get("USERS", []):
+            mq_api.add_user(
+                user=user_creds["name"],
+                password=user_creds["password"],
+                tags=user_creds.get("tags", ""),
+            )
+        for user_vhost_permissions in mq_management_config.get(
+            "USER_VHOST_PERMISSIONS", []
+        ):
+            mq_api.configure_vhost_user_permissions(**user_vhost_permissions)
+    else:
+        LOG.error("MQ API is unavailable")
+
+
+if __name__ == "__main__":
+    run_mq_validation()

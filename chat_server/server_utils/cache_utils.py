@@ -45,6 +45,7 @@ class CacheFactory:
         """
         if not cls.__active_caches.get(name):
             if cache_type:
+                kwargs.setdefault("maxsize", 124)
                 cls.__active_caches[name] = cache_type(**kwargs)
             else:
                 raise KeyError(f"Missing cache instance under {name}")

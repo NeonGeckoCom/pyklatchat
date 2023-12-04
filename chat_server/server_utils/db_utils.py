@@ -493,7 +493,7 @@ class DbUtils(metaclass=Singleton):
                     filter_expression = {"_id": shout_id}
                     cls.db_controller.exec_query(
                         query=MongoQuery(
-                            command=MongoCommands.UPDATE,
+                            command=MongoCommands.UPDATE_MANY,
                             document=MongoDocuments.SHOUTS,
                             filters=filter_expression,
                             data={"translations": {}},
@@ -546,7 +546,7 @@ class DbUtils(metaclass=Singleton):
             if user and not user.get("preferences"):
                 cls.db_controller.exec_query(
                     MongoQuery(
-                        command=MongoCommands.UPDATE,
+                        command=MongoCommands.UPDATE_MANY,
                         document=MongoDocuments.USERS,
                         filters=MongoFilter(key="_id", value=user_id),
                         data={"preferences": prefs},
@@ -570,7 +570,7 @@ class DbUtils(metaclass=Singleton):
                 }
                 cls.db_controller.exec_query(
                     MongoQuery(
-                        command=MongoCommands.UPDATE,
+                        command=MongoCommands.UPDATE_MANY,
                         document=MongoDocuments.USERS,
                         filters=MongoFilter("_id", user_id),
                         data=update_mapping,
@@ -603,7 +603,7 @@ class DbUtils(metaclass=Singleton):
             )
             cls.db_controller.exec_query(
                 query=MongoQuery(
-                    command=MongoCommands.UPDATE,
+                    command=MongoCommands.UPDATE_MANY,
                     document=MongoDocuments.SHOUTS,
                     filters=MongoFilter("_id", shout_id),
                     data={f"audio.{lang}.{gender}": audio_file_name},
@@ -628,7 +628,7 @@ class DbUtils(metaclass=Singleton):
         try:
             cls.db_controller.exec_query(
                 query=MongoQuery(
-                    command=MongoCommands.UPDATE,
+                    command=MongoCommands.UPDATE_MANY,
                     document=MongoDocuments.SHOUTS,
                     filters=MongoFilter("_id", shout_id),
                     data={f"transcripts.{lang}": message_text},

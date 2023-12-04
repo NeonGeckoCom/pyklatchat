@@ -135,7 +135,7 @@ def get_bot_data(
     elif not bot_data.get("is_bot") == "1":
         db_controller.exec_query(
             MongoQuery(
-                command=MongoCommands.UPDATE,
+                command=MongoCommands.UPDATE_MANY,
                 document=MongoDocuments.USERS,
                 filters=MongoFilter("_id", bot_data["_id"]),
                 data={"is_bot": "1"},

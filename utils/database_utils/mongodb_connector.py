@@ -36,6 +36,7 @@ from utils.logging_utils import LOG
 
 class MongoDBConnector(DatabaseConnector):
     """Connector implementing interface for interaction with Mongo DB API"""
+
     mongo_recognised_commands = set(cmd.value for cmd in MongoCommands)
 
     @property

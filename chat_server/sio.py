@@ -261,7 +261,7 @@ async def user_message(sid, data):
         )
         db_controller.exec_query(
             query=MongoQuery(
-                command=MongoCommands.UPDATE,
+                command=MongoCommands.UPDATE_MANY,
                 document=MongoDocuments.CHATS,
                 filters=filter_expression,
                 data={"chat_flow": new_shout_data["_id"]},
@@ -363,7 +363,7 @@ async def prompt_completed(sid, data):
     try:
         db_controller.exec_query(
             MongoQuery(
-                command=MongoCommands.UPDATE,
+                command=MongoCommands.UPDATE_MANY,
                 document=MongoDocuments.PROMPTS,
                 filters=MongoFilter(key="_id", value=prompt_id),
                 data=prompt_summary_agg,
@@ -458,9 +458,9 @@ async def request_translate(sid, data):
                 "sid": sid,
                 "input_type": input_type,
             }
-            CacheFactory.get("translation_cache", cache_type=LRUCache).put(
-                key=request_id, value=caching_instance
-            )
+            CacheFactory.get("translation_cache", cache_type=LRUCache)[
+                request_id
+            ] = caching_instance
             await sio.emit(
                 "request_neon_translations",
                 data={"request_id": request_id, "data": missing_translations},
@@ -729,6 +729,23 @@ async def request_stt(sid, data):
                 "lang": lang,
             }
             await sio.emit("get_stt", data=formatted_data)
+
+
+@sio.event
+# @login_required
+async def broadcast(sid, data):
+    """Forwards received broadcast message from client"""
+    # TODO: introduce certification mechanism to forward messages only from trusted entities
+    msg_type = data.pop("msg_type", None)
+    msg_receivers = data.pop("to", None)
+    if not msg_type:
+        LOG.error(f'data={data} skipped - no "msg_type" provided')
+    if msg_type:
+        await sio.emit(
+            msg_type,
+            data=data,
+            to=msg_receivers,
+        )
 
 
 async def emit_error(

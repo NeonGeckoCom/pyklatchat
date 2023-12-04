@@ -258,7 +258,10 @@ def refresh_session(payload: dict):
 
 
 def validate_session(
-    request: Union[str, Request], check_tmp: bool = False, sio_request: bool = False
+    request: Union[str, Request],
+    check_tmp: bool = False,
+    required_roles: list = None,
+    sio_request: bool = False,
 ) -> Tuple[str, int]:
     """
     Check if session token contained in request is valid
@@ -269,12 +272,20 @@ def validate_session(
         payload = jwt.decode(
             jwt=session, key=secret_key, algorithms=jwt_encryption_algo
         )
-        if check_tmp:
+        should_check_user_data = check_tmp or required_roles
+        is_authorized = True
+        if should_check_user_data:
             from chat_server.server_utils.db_utils import DbUtils
 
             user = DbUtils.get_user(user_id=payload["sub"])
-            if user.get("is_tmp"):
-                return "Permission denied", 403
+            if check_tmp and user.get("is_tmp"):
+                is_authorized = False
+            elif required_roles and not any(
+                user_role in required_roles for user_role in user.get("roles", [])
+            ):
+                is_authorized = False
+        if not is_authorized:
+            return "Permission denied", 403
         if (int(time()) - int(payload.get("creation_time", 0))) <= session_lifetime:
             return "OK", 200
     return "Session Expired", 401
@@ -298,7 +309,9 @@ def login_required(*outer_args, **outer_kwargs):
         @wraps(func)
         async def wrapper(request: Request, *args, **kwargs):
             session_validation_output = validate_session(
-                request, check_tmp=not outer_kwargs.get("tmp_allowed")
+                request,
+                check_tmp=not outer_kwargs.get("tmp_allowed"),
+                required_roles=outer_kwargs.get("required_roles"),
             )
             LOG.debug(
                 f"(url={request.url}) Received session validation output: {session_validation_output}"

@@ -34,6 +34,7 @@ import socketio
 
 from enum import Enum
 
+from neon_mq_connector.utils import retry
 from neon_mq_connector.utils.rabbit_utils import create_mq_callback
 from neon_mq_connector.connector import MQConnector
 from utils.logging_utils import LOG
@@ -87,13 +88,7 @@ class ChatObserver(MQConnector):
         }
         self._sio = None
         self.sio_url = config["SIO_URL"]
-        try:
-            self.connect_sio()
-        except Exception as ex:
-            err = f"Failed to connect Socket IO at {self.sio_url} due to exception={str(ex)}, observing will not be run"
-            LOG.warning(err)
-            if not self.testing_mode:
-                raise ConnectionError(err)
+        self.connect_sio()
         self.register_consumer(
             name="neon_response",
             vhost=self.get_vhost("neon_api"),
@@ -155,6 +150,13 @@ class ChatObserver(MQConnector):
             vhost=self.get_vhost("translation"),
             queue="get_libre_translations",
             callback=self.on_neon_translations_response,
+            on_error=self.default_error_handler,
+        )
+        self.register_subscriber(
+            name="subminds_state_receiver",
+            vhost=self.get_vhost("chatbots"),
+            exchange="subminds_state",
+            callback=self.on_subminds_state,
             on_error=self.default_error_handler,
         )
 
@@ -293,16 +295,14 @@ class ChatObserver(MQConnector):
             "request_neon_translations", handler=self.request_neon_translations
         )
 
-    def connect_sio(self, refresh=False):
+    @retry(use_self=True)
+    def connect_sio(self):
         """
         Method for establishing connection with Socket IO server
-
-        :param refresh: To refresh an existing instance
         """
-        if not self._sio or refresh:
-            self._sio = socketio.Client()
-            self._sio.connect(url=self.sio_url)
-            self.register_sio_handlers()
+        self._sio = socketio.Client()
+        self._sio.connect(url=self.sio_url)
+        self.register_sio_handlers()
 
     @property
     def sio(self):
@@ -710,3 +710,10 @@ class ChatObserver(MQConnector):
         """Handles receiving TTS response"""
         LOG.info(f"Received TTS Response: {body}")
         self.sio.emit("tts_response", data=body)
+
+    @create_mq_callback()
+    def on_subminds_state(self, body: dict):
+        """Handles receiving subminds state message"""
+        LOG.info(f"Received submind state: {body}")
+        body["msg_type"] = "subminds_state"
+        self.sio.emit("broadcast", data=body)
