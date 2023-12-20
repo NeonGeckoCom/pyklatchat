@@ -70,20 +70,22 @@ if os.path.isfile(server_config_path) or os.path.isfile(database_config_path):
     LOG.warning(f"Using legacy configuration at {server_config_path}")
     LOG.warning(f"Using legacy configuration at {database_config_path}")
     LOG.info(f"KLAT_ENV : {Configuration.KLAT_ENV}")
-    config = Configuration(from_files=[server_config_path, database_config_path])
+    config = Configuration(from_files=[server_config_path,
+                                       database_config_path])
     app_config = config.get("CHAT_SERVER", {}).get(Configuration.KLAT_ENV, {})
     db_controller = config.get_db_controller(name="pyklatchat_3333")
 else:
     # ovos-config has built-in mechanisms for loading configuration files based
     # on envvars, so the configuration structure is simplified
     from ovos_config.config import Configuration
-    app_config = Configuration().get("CHAT_SERVER") or dict()
+    config = Configuration()
+    app_config = config.get("CHAT_SERVER") or dict()
     env_spec = os.environ.get("KLAT_ENV")
     if env_spec and app_config.get(env_spec):
         LOG.warning("Legacy configuration handling KLAT_ENV envvar")
         app_config = app_config.get(env_spec)
     db_controller = _init_db_controller(app_config.get("connection_properties",
-                                                       Configuration().get(
+                                                       config.get(
                                                            "DATABASE_CONFIG",
                                                            {})))
 
