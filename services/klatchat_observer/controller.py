@@ -294,6 +294,16 @@ class ChatObserver(MQConnector):
         self._sio.on(
             "request_neon_translations", handler=self.request_neon_translations
         )
+        self._sio.on("ban_submind", handler=self.request_ban_submind)
+        self._sio.on(
+            "ban_submind_from_conversation",
+            handler=self.request_ban_submind_from_conversation,
+        )
+        self._sio.on("revoke_submind_ban", handler=self.request_revoke_submind_ban)
+        self._sio.on(
+            "revoke_submind_ban_from_conversation",
+            handler=self.request_revoke_submind_ban_from_conversation,
+        )
 
     @retry(use_self=True)
     def connect_sio(self):
@@ -717,3 +727,35 @@ class ChatObserver(MQConnector):
         LOG.info(f"Received submind state: {body}")
         body["msg_type"] = "subminds_state"
         self.sio.emit("broadcast", data=body)
+
+    def request_ban_submind(self, data: dict):
+        self.send_message(
+            request_data=data,
+            vhost=self.get_vhost("chatbots"),
+            queue="ban_submind",
+            expiration=3000,
+        )
+
+    def request_ban_submind_from_conversation(self, data: dict):
+        self.send_message(
+            request_data=data,
+            vhost=self.get_vhost("chatbots"),
+            queue="ban_submind_from_conversation",
+            expiration=3000,
+        )
+
+    def request_revoke_submind_ban(self, data: dict):
+        self.send_message(
+            request_data=data,
+            vhost=self.get_vhost("chatbots"),
+            queue="revoke_submind_ban",
+            expiration=3000,
+        )
+
+    def request_revoke_submind_ban_from_conversation(self, data: dict):
+        self.send_message(
+            request_data=data,
+            vhost=self.get_vhost("chatbots"),
+            queue="revoke_submind_ban_from_conversation",
+            expiration=3000,
+        )

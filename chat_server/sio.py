@@ -738,14 +738,14 @@ async def broadcast(sid, data):
     # TODO: introduce certification mechanism to forward messages only from trusted entities
     msg_type = data.pop("msg_type", None)
     msg_receivers = data.pop("to", None)
-    if not msg_type:
-        LOG.error(f'data={data} skipped - no "msg_type" provided')
     if msg_type:
         await sio.emit(
             msg_type,
             data=data,
             to=msg_receivers,
         )
+    else:
+        LOG.error(f'data={data} skipped - no "msg_type" provided')
 
 
 async def emit_error(
