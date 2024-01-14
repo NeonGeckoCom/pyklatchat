@@ -28,11 +28,13 @@
 
 from fastapi import APIRouter
 from starlette.requests import Request
+from starlette.responses import JSONResponse
 
+from chat_server.server_utils.db_utils import DbUtils
 from utils.logging_utils import LOG
 from utils.http_utils import respond
 
-from chat_server.server_config import k8s_config
+from chat_server.server_config import k8s_config, db_controller
 from chat_server.server_utils.auth import login_required
 from chat_server.server_utils.k8s_utils import restart_deployment
 from chat_server.server_utils.admin_utils import run_mq_validation
@@ -72,3 +74,27 @@ async def refresh_state(
     else:
         return respond(f"Unknown refresh type: {service_name!r}", 404)
     return respond("OK")
+
+
+@router.get("/chats/list")
+@login_required(tmp_allowed=False, required_roles=["admin"])
+async def chats_overview(request: Request, search_str: str = ""):
+    conversations_data = DbUtils.get_conversation_data(
+        search_str=search_str,
+        limit=100,
+        allow_regex_search=True,
+    )
+    result_data = []
+
+    for conversation_data in conversations_data:
+
+        result_data.append(
+            {
+                "cid": conversation_data["_id"],
+                "conversation_name": conversation_data["conversation_name"],
+                "bound_service": conversation_data.get("bound_service", ""),
+            }
+        )
+    # TODO: sort it based on PopularityCounter.get_first_n_items
+
+    return JSONResponse(content=dict(data=result_data))

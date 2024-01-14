@@ -25,7 +25,7 @@
 # LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
+import re
 from typing import List, Tuple, Union, Dict
 
 import pymongo
@@ -129,12 +129,18 @@ class DbUtils(metaclass=Singleton):
 
     @classmethod
     def get_conversation_data(
-        cls, search_str: Union[list, str], column_identifiers: List[str] = None
+        cls,
+        search_str: Union[list, str],
+        column_identifiers: List[str] = None,
+        limit: int = 1,
+        allow_regex_search: bool = False,
     ) -> Union[None, dict]:
         """
         Gets matching conversation data
         :param search_str: search string to lookup
-        :param column_identifiers: desired column identifiers to lookup
+        :param column_identifiers: desired column identifiers to look up
+        :param limit: limit found conversations
+        :param allow_regex_search: to allow search for matching entries that CONTAIN :param search_str
         """
         if isinstance(search_str, str):
             search_str = [search_str]
@@ -148,21 +154,31 @@ class DbUtils(metaclass=Singleton):
                         or_expression.append({identifier: ObjectId(_keyword)})
                     except:
                         pass
+                if allow_regex_search:
+                    if not _keyword:
+                        expression = ".*"
+                    else:
+                        expression = f".*{_keyword}.*"
+                    _keyword = re.compile(expression, re.IGNORECASE)
                 or_expression.append({identifier: _keyword})
 
-        conversation_data = cls.db_controller.exec_query(
-            MongoQuery(
-                command=MongoCommands.FIND_ONE,
-                document=MongoDocuments.CHATS,
-                filters=MongoFilter(
-                    value=or_expression, logical_operator=MongoLogicalOperators.OR
+        conversations_data = list(
+            cls.db_controller.exec_query(
+                MongoQuery(
+                    command=MongoCommands.FIND_ALL,
+                    document=MongoDocuments.CHATS,
+                    filters=MongoFilter(
+                        value=or_expression, logical_operator=MongoLogicalOperators.OR
+                    ),
+                    result_filters={"limit": limit},
                 ),
             )
         )
-        if not conversation_data:
-            return
-        conversation_data["_id"] = str(conversation_data["_id"])
-        return conversation_data
+        for conversation_data in conversations_data:
+            conversation_data["_id"] = str(conversation_data["_id"])
+        if conversations_data and limit == 1:
+            conversations_data = conversations_data[0]
+        return conversations_data
 
     @classmethod
     def fetch_shout_data(
