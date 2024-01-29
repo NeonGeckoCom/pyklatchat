@@ -31,13 +31,13 @@ from time import time
 from fastapi import APIRouter, Form, Request
 from fastapi.responses import JSONResponse
 
-from chat_server.server_config import db_controller
 from utils.common import get_hash, generate_uuid
 from chat_server.server_utils.auth import (
     check_password_strength,
     get_current_user_data,
     generate_session_token,
 )
+from utils.database_utils.mongo_utils.queries.wrapper import MongoDocumentsAPI
 from utils.http_utils import respond
 
 router = APIRouter(
@@ -64,13 +64,7 @@ async def signup(
     :returns JSON response with status corresponding to the new user creation status,
              sets session cookies if creation is successful
     """
-    existing_user = db_controller.exec_query(
-        query={
-            "command": "find_one",
-            "document": "users",
-            "data": {"nickname": nickname},
-        }
-    )
+    existing_user = MongoDocumentsAPI.USERS.get_user(nickname=nickname)
     if existing_user:
         return respond("Nickname is already in use", 400)
     password_check = check_password_strength(password)
@@ -85,9 +79,7 @@ async def signup(
         date_created=int(time()),
         is_tmp=False,
     )
-    db_controller.exec_query(
-        query=dict(document="users", command="insert_one", data=new_user_record)
-    )
+    MongoDocumentsAPI.USERS.add_item(data=new_user_record)
 
     token = generate_session_token(user_id=new_user_record["_id"])
 
@@ -104,13 +96,7 @@ async def login(username: str = Form(...), password: str = Form(...)):
 
     :returns JSON response with status corresponding to authorization status, sets session cookie with response
     """
-    user = db_controller.exec_query(
-        query={
-            "command": "find_one",
-            "document": "users",
-            "data": {"nickname": username},
-        }
-    )
+    user = MongoDocumentsAPI.USERS.get_user(nickname=username)
     if not user or user.get("is_tmp", False):
         return respond("Invalid username or password", 400)
     db_password = user["password"]

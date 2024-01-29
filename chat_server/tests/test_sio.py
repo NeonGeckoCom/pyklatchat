@@ -37,9 +37,9 @@ from uvicorn import Config
 
 from chat_server.constants.users import ChatPatterns
 from chat_server.tests.beans.server import ASGITestServer
-from chat_server.server_utils.auth import generate_uuid
 from chat_server.server_config import db_controller
 from utils.logging_utils import LOG
+from utils.common import generate_uuid
 
 SERVER_ADDRESS = "http://127.0.0.1:8888"
 TEST_CID = "-1"
@@ -69,6 +69,7 @@ class TestSIO(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         from chat_server.server_config import database_config_path
+
         assert os.path.isfile(database_config_path)
         os.environ["DISABLE_AUTH_CHECK"] = "1"
         matching_conversation = db_controller.exec_query(

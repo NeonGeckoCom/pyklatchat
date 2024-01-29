@@ -25,36 +25,3 @@
 # LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-import copy
-from time import time
-
-from chat_server.constants.users import UserPatterns
-from utils.common import get_hash, generate_uuid
-from utils.database_utils import DatabaseController
-from utils.database_utils.mongo_utils import (
-    MongoQuery,
-    MongoCommands,
-    MongoDocuments,
-    MongoFilter,
-)
-
-
-def create_from_pattern(source: UserPatterns, override_defaults: dict = None) -> dict:
-    """
-    Creates user record based on provided pattern from UserPatterns
-
-    :param source: source pattern from UserPatterns
-    :param override_defaults: to override default values (optional)
-    :returns user data populated with default values where necessary
-    """
-    if not override_defaults:
-        override_defaults = {}
-
-    matching_data = {**copy.deepcopy(source.value), **override_defaults}
-
-    matching_data.setdefault("_id", generate_uuid(length=20))
-    matching_data.setdefault("password", get_hash(generate_uuid()))
-    matching_data.setdefault("date_created", int(time()))
-    matching_data.setdefault("is_tmp", True)
-
-    return matching_data

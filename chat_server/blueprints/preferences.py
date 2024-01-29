@@ -27,9 +27,8 @@
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 from fastapi import APIRouter, Request, Form
-from chat_server.server_config import db_controller
 from chat_server.server_utils.auth import get_current_user, login_required
-from chat_server.server_utils.db_utils import DbUtils
+from utils.database_utils.mongo_utils.queries.wrapper import MongoDocumentsAPI
 from utils.http_utils import respond
 from utils.logging_utils import LOG
 
@@ -50,7 +49,7 @@ async def update_language(
     except Exception as ex:
         LOG.error(ex)
         return respond(f"Failed to update language of {cid}/{input_type} to {lang}")
-    DbUtils.set_user_preferences(
+    MongoDocumentsAPI.USERS.set_preferences(
         user_id=current_user_id,
         preferences_mapping={f"chat_language_mapping.{cid}.{input_type}": lang},
     )

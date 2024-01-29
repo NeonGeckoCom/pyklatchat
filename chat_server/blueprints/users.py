@@ -38,9 +38,9 @@ from chat_server.server_utils.auth import (
     get_current_user_data,
     login_required,
 )
-from chat_server.server_utils.db_utils import DbUtils
 from chat_server.server_utils.http_utils import save_file
 from utils.common import get_hash
+from utils.database_utils.mongo_utils.queries.wrapper import MongoDocumentsAPI
 from utils.http_utils import respond
 from utils.logging_utils import LOG
 
@@ -69,9 +69,7 @@ async def get_user(
     """
     session_token = ""
     if user_id:
-        user = db_controller.exec_query(
-            query={"document": "users", "command": "find_one", "data": {"_id": user_id}}
-        )
+        user = MongoDocumentsAPI.USERS.get_user(user_id=user_id)
         user.pop("password", None)
         user.pop("date_created", None)
         user.pop("tokens", None)
@@ -109,9 +107,8 @@ async def fetch_received_user_ids(
     if nicknames:
         filter_data["nickname"] = {"$in": nicknames.split(",")}
 
-    users = db_controller.exec_query(
-        query={"document": "users", "command": "find", "data": filter_data},
-        as_cursor=False,
+    users = MongoDocumentsAPI.USERS.list_items(
+        filters=filter_data, result_as_cursor=False
     )
     for user in users:
         user.pop("password", None)
@@ -209,7 +206,7 @@ async def update_settings(
     """
     user = get_current_user(request=request)
     preferences_mapping = {"minify_messages": minify_messages}
-    DbUtils.set_user_preferences(
+    MongoDocumentsAPI.USERS.set_preferences(
         user_id=user["_id"], preferences_mapping=preferences_mapping
     )
     return respond(msg="OK")

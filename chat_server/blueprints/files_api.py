@@ -31,10 +31,9 @@ from fastapi import APIRouter, UploadFile, File
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 
-from chat_server.server_config import db_controller
 from chat_server.server_utils.auth import login_required
-from chat_server.server_utils.db_utils import DbUtils
 from chat_server.server_utils.http_utils import get_file_response, save_file
+from utils.database_utils.mongo_utils.queries.wrapper import MongoDocumentsAPI
 from utils.http_utils import respond
 from utils.logging_utils import LOG
 
@@ -50,11 +49,11 @@ async def get_audio_message(
     message_id: str,
 ):
     """Gets file based on the name"""
-    matching_shouts = DbUtils.fetch_shouts(shout_ids=[message_id], fetch_senders=False)
-    if matching_shouts and matching_shouts[0].get("is_audio", "0") == "1":
+    matching_shout = MongoDocumentsAPI.SHOUTS.get_item(item_id=message_id)
+    if matching_shout and matching_shout.get("is_audio", "0") == "1":
         LOG.info(f"Fetching audio for message_id={message_id}")
         return get_file_response(
-            matching_shouts[0]["message_text"],
+            matching_shout["message_text"],
             location_prefix="audio",
             media_type="audio/wav",
         )
@@ -70,12 +69,7 @@ async def get_avatar(user_id: str):
     :param user_id: target user id
     """
     LOG.debug(f"Getting avatar of user id: {user_id}")
-    user_data = (
-        db_controller.exec_query(
-            query={"document": "users", "command": "find_one", "data": {"_id": user_id}}
-        )
-        or {}
-    )
+    user_data = MongoDocumentsAPI.USERS.get_user(user_id=user_id) or {}
     if user_data.get("avatar", None):
         num_attempts = 0
         try:
@@ -101,13 +95,11 @@ async def get_message_attachment(request: Request, msg_id: str, filename: str):
     :param filename: name of the file to get
     """
     LOG.debug(f"{msg_id} - {filename}")
-    message_files = db_controller.exec_query(
-        query={"document": "shouts", "command": "find_one", "data": {"_id": msg_id}}
-    )
-    if message_files:
+    shout_data = MongoDocumentsAPI.SHOUTS.get_item(item_id=msg_id)
+    if shout_data:
         attachment_data = [
             attachment
-            for attachment in message_files["attachments"]
+            for attachment in shout_data["attachments"]
             if attachment["name"] == filename
         ][0]
         media_type = attachment_data["mime"]
