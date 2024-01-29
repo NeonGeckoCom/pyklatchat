@@ -181,7 +181,7 @@ async def user_message(sid, data):
             data["userID"] = neon_data["_id"]
         elif data["is_bot"] == "1":
             bot_data = MongoDocumentsAPI.USERS.get_bot_data(
-                nickname=data["userID"], context=data.get("context")
+                user_id=data["userID"], context=data.get("context")
             )
             data["userID"] = bot_data["_id"]
 
@@ -233,7 +233,7 @@ async def user_message(sid, data):
             new_shout_data["translations"][lang] = data["messageText"]
 
         mongo_queries.add_shout(data=new_shout_data)
-        if is_announcement == "0" and data["prompt_id"]:
+        if is_announcement == "0" and data.get("prompt_id"):
             is_ok = MongoDocumentsAPI.PROMPTS.add_shout_to_prompt(data)
             if is_ok:
                 await sio.emit(

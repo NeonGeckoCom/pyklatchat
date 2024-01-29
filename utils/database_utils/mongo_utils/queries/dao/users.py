@@ -133,22 +133,21 @@ class UsersDAO(MongoDocumentDAO):
         self.add_item(data=neon_data)
         return neon_data
 
-    def get_bot_data(self, nickname: str, context: dict = None) -> dict:
+    def get_bot_data(self, user_id: str, context: dict = None) -> dict:
         """
         Gets a user profile for the requested bot instance and adds it to the users db if not already present
 
-        :param nickname: nickname of the bot provided
+        :param user_id: user id of the bot provided
         :param context: context with additional bot information (optional)
 
         :return Matching bot data
         """
         if not context:
             context = {}
-        nickname = nickname.split("-")[0]
+        nickname = user_id.split("-")[0]
         bot_data = self.get_user(nickname=nickname)
         if not bot_data:
             bot_data = self._create_bot(nickname=nickname, context=context)
-            self.add_item(data=bot_data)
         elif not bot_data.get("is_bot") == "1":
             self._execute_query(
                 command=MongoCommands.UPDATE_MANY,

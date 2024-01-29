@@ -131,7 +131,6 @@ class TestSIO(unittest.TestCase):
         user_id = "neon"
         message_data = {
             "userID": "neon",
-            "messageID": message_id,
             "messageText": "Neon Test 123",
             "bot": "0",
             "cid": "-1",
@@ -153,27 +152,26 @@ class TestSIO(unittest.TestCase):
             query={
                 "command": "find_one",
                 "document": "shouts",
-                "data": {"_id": message_id},
+                "data": {"user_id": neon["_id"]},
             }
         )
         self.assertIsNotNone(shout)
         self.assertIsInstance(shout, dict)
         db_controller.exec_query(
             query={
-                "command": "delete_one",
+                "command": "delete_many",
                 "document": "shouts",
-                "data": {"_id": message_id},
+                "data": {"_id": neon["_id"]},
             }
         )
 
     @pytest.mark.usefixtures("create_server")
     def test_bot_message(self):
-        message_id = f"test_bot_message_{generate_uuid()}"
         user_id = f"test_bot_{generate_uuid()}"
+        message_text = f"Bot Test {generate_uuid()}"
         message_data = {
             "userID": user_id,
-            "messageID": message_id,
-            "messageText": "Bot Test 123",
+            "messageText": message_text,
             "bot": "1",
             "cid": "-1",
             "context": dict(first_name="The", last_name="Bot"),
@@ -191,14 +189,14 @@ class TestSIO(unittest.TestCase):
         )
         self.assertIsNotNone(bot)
         self.assertIsInstance(bot, dict)
-        self.assertTrue(bot["first_name"] == "The")
+        self.assertTrue(bot["first_name"] == "Bot")
         self.assertTrue(bot["last_name"] == "Bot")
 
         shout = db_controller.exec_query(
             query={
                 "command": "find_one",
                 "document": "shouts",
-                "data": {"_id": message_id},
+                "data": {"user_id": bot["_id"]},
             }
         )
         self.assertIsNotNone(shout)
@@ -206,9 +204,9 @@ class TestSIO(unittest.TestCase):
 
         db_controller.exec_query(
             query={
-                "command": "delete_one",
+                "command": "delete_many",
                 "document": "shouts",
-                "data": {"_id": message_id},
+                "data": {"user_id": bot["_id"]},
             }
         )
         db_controller.exec_query(
