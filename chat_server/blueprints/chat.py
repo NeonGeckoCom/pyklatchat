@@ -25,6 +25,7 @@
 # LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+import warnings
 from typing import Optional
 
 from time import time
@@ -67,9 +68,12 @@ async def new_conversation(
 
     :returns JSON response with new conversation data if added, 401 error message otherwise
     """
-
+    if conversation_id:
+        warnings.warn(
+            "Param conversation id is no longer considered", DeprecationWarning
+        )
     conversation_data = MongoDocumentsAPI.CHATS.get_conversation_data(
-        search_str=[conversation_id, conversation_name],
+        search_str=[conversation_name],
     )
     if conversation_data:
         return respond(f'Conversation "{conversation_name}" already exists', 400)

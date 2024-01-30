@@ -71,7 +71,7 @@ class UsersDAO(MongoDocumentDAO):
             )
         return user
 
-    def fetch_users_from_prompt(self, prompt: dict):
+    def fetch_users_from_prompt(self, prompt: dict) -> dict[str, list]:
         """Fetches user ids detected in provided prompt"""
         prompt_data = prompt["data"]
         user_ids = prompt_data.get("participating_subminds", [])
@@ -174,7 +174,7 @@ class UsersDAO(MongoDocumentDAO):
 
     def set_preferences(self, user_id, preferences_mapping: dict):
         """Sets user preferences for specified user according to preferences mapping"""
-        if user_id:
+        if user_id and preferences_mapping:
             try:
                 update_mapping = {
                     f"preferences.{key}": val
@@ -187,7 +187,6 @@ class UsersDAO(MongoDocumentDAO):
                 )
             except Exception as ex:
                 LOG.error(f"Failed to update preferences for user_id={user_id} - {ex}")
-            return preferences_mapping
 
     def create_guest(self, nano_token: str = None) -> dict:
         """

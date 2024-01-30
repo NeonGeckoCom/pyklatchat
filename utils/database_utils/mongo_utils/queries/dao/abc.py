@@ -60,7 +60,14 @@ class MongoDocumentDAO(ABC):
         aggregate_result: bool = True,
         *args,
         **kwargs
-    ) -> dict:
+    ) -> dict[str, list] | list[str]:
+        """
+        Lists items that are members of :param source_set under the :param key
+        :param key: attribute to query
+        :param source_set: collection of values to lookup
+        :param aggregate_result: to apply aggregation by key on result (defaults to True)
+        :return matching items
+        """
         items = {}
         contains_filter = self._build_contains_filter(key=key, lookup_set=source_set)
         if contains_filter:
@@ -105,7 +112,11 @@ class MongoDocumentDAO(ABC):
             ]
         return items
 
-    def aggregate_items_by_key(self, key, items: list) -> dict:
+    def aggregate_items_by_key(self, key: str, items: list[dict]) -> dict:
+        """
+        Aggregates list of dictionaries according to the provided key
+        :return dictionary mapping id -> list of matching items
+        """
         aggregated_data = {}
         # TODO: consider Mongo DB aggregation API
         for item in items:
@@ -134,7 +145,8 @@ class MongoDocumentDAO(ABC):
             )
         return mongo_filter
 
-    def add_item(self, data: dict):
+    def add_item(self, data: dict) -> bool:
+        """Inserts provided data into the object's document"""
         return self._execute_query(command=MongoCommands.INSERT_ONE, data=data)
 
     def get_item(

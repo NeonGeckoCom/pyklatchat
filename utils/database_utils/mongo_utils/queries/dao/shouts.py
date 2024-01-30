@@ -69,10 +69,11 @@ class ShoutsDAO(MongoDocumentDAO):
             message_ids.extend(list(prompt_data.get(column, {}).values()))
         return self.list_contains(source_set=message_ids)
 
-    def fetch_audio_data(self, message_id: str):
+    def fetch_audio_data(self, message_id: str) -> str | None:
         """
         Fetches audio data from message
         :param message_id: message id to fetch
+        :returns base64 encoded audio data if any
         """
         shout_data = self.get_item(item_id=message_id)
         if not shout_data:
