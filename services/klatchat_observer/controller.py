@@ -30,6 +30,7 @@ import re
 import time
 from threading import Event, Timer
 
+import requests
 import socketio
 
 from enum import Enum
@@ -37,6 +38,8 @@ from enum import Enum
 from neon_mq_connector.utils import retry
 from neon_mq_connector.utils.rabbit_utils import create_mq_callback
 from neon_mq_connector.connector import MQConnector
+from requests import Response
+
 from utils.logging_utils import LOG
 
 from version import __version__
@@ -88,6 +91,10 @@ class ChatObserver(MQConnector):
         }
         self._sio = None
         self.sio_url = config["SIO_URL"]
+        self.server_url = (
+            self.sio_url
+        )  # TODO: temporary solution, consider using better naming convention
+        self.system_token = config.get("SYSTEM_AUTH_TOKEN", "")
         self.connect_sio()
         self.register_consumer(
             name="neon_response",
@@ -157,6 +164,13 @@ class ChatObserver(MQConnector):
             vhost=self.get_vhost("chatbots"),
             exchange="subminds_state",
             callback=self.on_subminds_state,
+            on_error=self.default_error_handler,
+        )
+        self.register_subscriber(
+            name="get_configured_personas",
+            vhost=self.get_vhost("llm"),
+            exchange="subminds_state",
+            callback=self.on_get_configured_personas,
             on_error=self.default_error_handler,
         )
 
@@ -728,6 +742,37 @@ class ChatObserver(MQConnector):
         body["msg_type"] = "subminds_state"
         self.sio.emit("broadcast", data=body)
 
+    @create_mq_callback()
+    def on_get_configured_personas(self, body: dict):
+        response_data = self._fetch_persona_api(body=body)
+        self.send_message(
+            request_data=response_data,
+            vhost=self.get_vhost("llm"),
+            queue="get_configured_personas.response",
+            expiration=3000,
+        )
+
+    def _fetch_persona_api(self, body: dict) -> dict:
+        query_string = self._build_persona_api_query(body=body)
+        url = f"{self.server_url}/personas/list?{query_string}"
+        response = self._fetch_klat_server(url=url)
+        if response.ok:
+            data = response.json()
+        else:
+            LOG.error(
+                f"Failed to fetch personas from url {url}, server responded with status {response.status_code}"
+            )
+            data = {"items": []}
+        return data
+
+    def _build_persona_api_query(self, body: dict) -> str:
+        url_query_params = []
+        if service_name := body.get("service_name"):
+            url_query_params.append(f"llm={service_name}")
+        if user_id := body.get("user_id"):
+            url_query_params.append(f"user_id={user_id}")
+        return "&".join(url_query_params)
+
     def request_ban_submind(self, data: dict):
         self.send_message(
             request_data=data,
@@ -735,6 +780,10 @@ class ChatObserver(MQConnector):
             queue="ban_submind",
             expiration=3000,
         )
+
+    def _fetch_klat_server(self, url: str) -> Response:
+        # only getter method is supported, for POST/PUT/DELETE operations using Socket IO is preferable channel
+        return requests.get(url=url, headers={"Authorization": self.system_token})
 
     def request_ban_submind_from_conversation(self, data: dict):
         self.send_message(

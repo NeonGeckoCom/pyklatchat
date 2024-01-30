@@ -64,6 +64,7 @@ class MongoDocuments(Enum):
     CHATS = "chats"
     SHOUTS = "shouts"
     PROMPTS = "prompts"
+    PERSONAS = "personas"
     TEST = "test"
 
 

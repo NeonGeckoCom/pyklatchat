@@ -38,10 +38,11 @@ from utils.database_utils.mongo_utils import MongoFilter, MongoLogicalOperators
 from utils.database_utils.mongo_utils.queries.wrapper import MongoDocumentsAPI
 from utils.logging_utils import LOG
 
-from chat_server.server_config import app_config
+from chat_server.server_config import config, app_config
 from utils.http_utils import respond
 
 cookies_config = app_config.get("COOKIES", {})
+system_token = config.get("SYSTEM_AUTH_TOKEN")
 
 secret_key = cookies_config.get("SECRET", None)
 session_lifetime = int(cookies_config.get("LIFETIME", 60 * 60))
@@ -174,6 +175,8 @@ def get_current_user_data(
                     request, AUTHORIZATION_HEADER, sio_request
                 )
                 if session:
+                    if _is_system_token(session=session):
+                        return MongoDocumentsAPI.USERS.get_system_user()
                     payload = jwt.decode(
                         jwt=session, key=secret_key, algorithms=jwt_encryption_algo
                     )
@@ -249,6 +252,10 @@ def validate_session(
     """
     session = get_header_from_request(request, AUTHORIZATION_HEADER, sio_request)
     if session:
+        # TODO: this is a straightforward solution to guarantee authorization of the internal services;
+        #  consider more secure approach
+        if _is_system_token(session=session):
+            return "OK", 200
         payload = jwt.decode(
             jwt=session, key=secret_key, algorithms=jwt_encryption_algo
         )
@@ -304,3 +311,7 @@ def login_required(*outer_args, **outer_kwargs):
         return outer(func)
     else:
         return outer
+
+
+def _is_system_token(session: str) -> bool:
+    return system_token and session == system_token

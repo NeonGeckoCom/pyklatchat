@@ -25,31 +25,13 @@
 # LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-from enum import Enum
-
-
-class UserPatterns(Enum):
-    """Collection of user patterns used for commonly in conversations"""
-
-    UNRECOGNIZED_USER = {
-        "first_name": "Deleted",
-        "last_name": "User",
-        "nickname": "deleted_user",
-    }
-    GUEST = {"first_name": "Klat", "last_name": "Guest"}
-    NEON = {
-        "first_name": "Neon",
-        "last_name": "AI",
-        "nickname": "neon",
-        "avatar": "neon.webp",
-    }
-    GUEST_NANO = {"first_name": "Nano", "last_name": "Guest", "tokens": []}
-    SYSTEM = {"nickname": "system", "first_name": "System", "last_name": "User"}
+from utils.database_utils.mongo_utils import (
+    MongoDocuments,
+)
+from utils.database_utils.mongo_utils.queries.dao.abc import MongoDocumentDAO
 
 
-class ConversationSkins:
-    """List of supported conversation skins"""
-
-    BASE = "base"
-    PROMPTS = "prompts"
+class PersonasDAO(MongoDocumentDAO):
+    @property
+    def document(self):
+        return MongoDocuments.PERSONAS
