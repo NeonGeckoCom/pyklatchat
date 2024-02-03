@@ -75,16 +75,7 @@ class UsersDAO(MongoDocumentDAO):
         """Fetches user ids detected in provided prompt"""
         prompt_data = prompt["data"]
         user_ids = prompt_data.get("participating_subminds", [])
-        return self.list_contains(
-            source_set=user_ids,
-            projection_attributes=[
-                "first_name",
-                "last_name",
-                "nickname",
-                "is_bot",
-                "avatar",
-            ],
-        )
+        return self.list_contains(source_set=user_ids)
 
     @staticmethod
     def create_from_pattern(

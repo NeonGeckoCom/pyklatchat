@@ -80,7 +80,6 @@ class MongoDocumentDAO(ABC):
     def list_items(
         self,
         filters: list[MongoFilter] = None,
-        projection_attributes: list = None,
         limit: int = None,
         result_as_cursor: bool = True,
     ) -> dict:
@@ -88,7 +87,6 @@ class MongoDocumentDAO(ABC):
         Lists items under provided document belonging to source set of provided column values
 
         :param filters: filters to consider (optional)
-        :param projection_attributes: list of value keys to return (optional)
         :param limit: limit number of returned attributes (optional)
         :param result_as_cursor: to return result as cursor (defaults to True)
         :returns results of FIND operation over the desired document according to applied filters
@@ -102,14 +100,6 @@ class MongoDocumentDAO(ABC):
             result_filters=result_filters,
             result_as_cursor=result_as_cursor,
         )
-        # TODO: pymongo support projection only as aggregation API which is not yet implemented in project
-        if projection_attributes:
-            items = [
-                {k: v}
-                for item in items
-                for k, v in item.items()
-                if k in projection_attributes
-            ]
         return items
 
     def aggregate_items_by_key(self, key: str, items: list[dict]) -> dict:

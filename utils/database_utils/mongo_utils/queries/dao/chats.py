@@ -52,7 +52,6 @@ class ChatsDAO(MongoDocumentDAO):
         column_identifiers: List[str] = None,
         limit: int = 1,
         allow_regex_search: bool = False,
-        projection_attributes: dict = None,
         include_private: bool = False,
     ) -> Union[None, dict]:
         """
@@ -61,7 +60,6 @@ class ChatsDAO(MongoDocumentDAO):
         :param column_identifiers: desired column identifiers to look up
         :param limit: limit found conversations
         :param allow_regex_search: to allow search for matching entries that CONTAIN :param search_str
-        :param projection_attributes: mapping of attributes to project (optional)
         :param include_private: to include private conversations (defaults to False)
         """
         if isinstance(search_str, str):
@@ -90,7 +88,6 @@ class ChatsDAO(MongoDocumentDAO):
                     value=or_expression, logical_operator=MongoLogicalOperators.OR
                 )
             ],
-            projection_attributes=projection_attributes,
             limit=limit,
             result_as_cursor=False,
             include_private=include_private,
@@ -112,7 +109,6 @@ class ChatsDAO(MongoDocumentDAO):
     def list_items(
         self,
         filters: list[MongoFilter] = None,
-        projection_attributes: list = None,
         limit: int = None,
         result_as_cursor: bool = True,
         include_private: bool = False,
@@ -122,7 +118,6 @@ class ChatsDAO(MongoDocumentDAO):
             filters.append(MongoFilter(key="is_private", value=False))
         return super().list_items(
             filters=filters,
-            projection_attributes=projection_attributes,
             limit=limit,
             result_as_cursor=result_as_cursor,
         )
