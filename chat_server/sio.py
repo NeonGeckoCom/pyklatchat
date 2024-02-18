@@ -478,14 +478,12 @@ async def request_tts(sid, data):
     required_keys = (
         "cid",
         "message_id",
-        "user_id",
     )
     if not all(key in list(data) for key in required_keys):
         LOG.error(f"Missing one of the required keys - {required_keys}")
     else:
         lang = data.get("lang", "en")
         message_id = data["message_id"]
-        user_id = data["user_id"]
         cid = data["cid"]
         matching_message = MongoDocumentsAPI.SHOUTS.get_item(item_id=message_id)
         if not matching_message:
