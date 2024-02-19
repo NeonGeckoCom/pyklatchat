@@ -25,36 +25,30 @@
 # LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-import copy
-from time import time
 
-from chat_server.constants.users import UserPatterns
-from utils.common import get_hash, generate_uuid
-from utils.database_utils import DatabaseController
-from utils.database_utils.mongo_utils import (
-    MongoQuery,
-    MongoCommands,
-    MongoDocuments,
-    MongoFilter,
-)
+from enum import Enum
 
 
-def create_from_pattern(source: UserPatterns, override_defaults: dict = None) -> dict:
-    """
-    Creates user record based on provided pattern from UserPatterns
+class UserPatterns(Enum):
+    """Collection of user patterns used for commonly in conversations"""
 
-    :param source: source pattern from UserPatterns
-    :param override_defaults: to override default values (optional)
-    :returns user data populated with default values where necessary
-    """
-    if not override_defaults:
-        override_defaults = {}
+    UNRECOGNIZED_USER = {
+        "first_name": "Deleted",
+        "last_name": "User",
+        "nickname": "deleted_user",
+    }
+    GUEST = {"first_name": "Klat", "last_name": "Guest"}
+    NEON = {
+        "first_name": "Neon",
+        "last_name": "AI",
+        "nickname": "neon",
+        "avatar": "neon.webp",
+    }
+    GUEST_NANO = {"first_name": "Nano", "last_name": "Guest", "tokens": []}
 
-    matching_data = {**copy.deepcopy(source.value), **override_defaults}
 
-    matching_data.setdefault("_id", generate_uuid(length=20))
-    matching_data.setdefault("password", get_hash(generate_uuid()))
-    matching_data.setdefault("date_created", int(time()))
-    matching_data.setdefault("is_tmp", True)
+class ConversationSkins:
+    """List of supported conversation skins"""
 
-    return matching_data
+    BASE = "base"
+    PROMPTS = "prompts"

@@ -143,8 +143,6 @@ class Configuration:
 
         :returns instance of Database Controller
         """
-        from chat_server.server_utils.db_utils import DbUtils
-
         db_controller = self.db_controllers.get(name, None)
         if not db_controller or override:
             db_config = self.get_db_config_from_key(key=name)
@@ -160,5 +158,4 @@ class Configuration:
                 db_controller = DatabaseController(config_data=db_config)
                 db_controller.attach_connector(dialect=dialect)
                 db_controller.connect()
-                DbUtils.init(db_controller)
         return db_controller

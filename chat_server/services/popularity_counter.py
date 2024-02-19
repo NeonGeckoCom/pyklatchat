@@ -31,12 +31,10 @@ from typing import List
 
 
 from utils.database_utils.mongo_utils import (
-    MongoQuery,
-    MongoCommands,
-    MongoDocuments,
     MongoFilter,
     MongoLogicalOperators,
 )
+from utils.database_utils.mongo_utils.queries.wrapper import MongoDocumentsAPI
 from utils.logging_utils import LOG
 
 
@@ -79,27 +77,16 @@ class PopularityCounter:
 
         :param actuality_days: number of days for message to affect the chat popularity
         """
-        from chat_server.server_utils.db_utils import DbUtils
-
         curr_time = int(time())
-        chats = DbUtils.db_controller.exec_query(
-            MongoQuery(
-                command=MongoCommands.FIND_ALL,
-                document=MongoDocuments.CHATS,
-                filters=MongoFilter(key="is_private", value=False),
-            ),
-            as_cursor=False,
-        )
-        relevant_shouts = DbUtils.db_controller.exec_query(
-            MongoQuery(
-                command=MongoCommands.FIND_ALL,
-                document=MongoDocuments.SHOUTS,
-                filters=MongoFilter(
+        chats = MongoDocumentsAPI.CHATS.list_items(include_private=False)
+        relevant_shouts = MongoDocumentsAPI.SHOUTS.list_items(
+            filters=[
+                MongoFilter(
                     key="created_on",
                     logical_operator=MongoLogicalOperators.GTE,
                     value=curr_time - 3600 * 24 * actuality_days,
-                ),
-            )
+                )
+            ]
         )
         relevant_shouts = set(x["_id"] for x in relevant_shouts)
         formatted_chats = []

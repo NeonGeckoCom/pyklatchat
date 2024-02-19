@@ -33,23 +33,20 @@ import jwt
 
 from time import time
 from fastapi import Request
+
+from utils.database_utils.mongo_utils import MongoFilter, MongoLogicalOperators
+from utils.database_utils.mongo_utils.queries.wrapper import MongoDocumentsAPI
 from utils.logging_utils import LOG
 
-from chat_server.constants.users import UserPatterns
-from chat_server.server_config import db_controller, app_config
-from chat_server.server_utils.db_utils import DbUtils
-from utils.common import generate_uuid
+from chat_server.server_config import app_config
 from utils.http_utils import respond
 
 cookies_config = app_config.get("COOKIES", {})
 
 secret_key = cookies_config.get("SECRET", None)
-
 session_lifetime = int(cookies_config.get("LIFETIME", 60 * 60))
 session_refresh_rate = int(cookies_config.get("REFRESH_RATE", 5 * 60))
-
 jwt_encryption_algo = cookies_config.get("JWT_ALGO", "HS256")
-
 AUTHORIZATION_HEADER = "Authorization"
 
 
@@ -132,24 +129,11 @@ def create_unauthorized_user(
 
     :returns: generated UserData
     """
-    from chat_server.server_utils.user_utils import create_from_pattern
-
-    guest_nickname = f"guest_{generate_uuid(length=8)}"
-
-    if nano_token:
-        new_user = create_from_pattern(
-            source=UserPatterns.GUEST_NANO,
-            override_defaults=dict(nickname=guest_nickname, tokens=[nano_token]),
-        )
-    else:
-        new_user = create_from_pattern(
-            source=UserPatterns.GUEST, override_defaults=dict(nickname=guest_nickname)
-        )
-    db_controller.exec_query(
-        query={"document": "users", "command": "insert_one", "data": new_user}
-    )
-    token = generate_session_token(user_id=new_user["_id"]) if authorize else ""
-    LOG.debug(f"Created new user with name {new_user['nickname']}")
+    new_user = MongoDocumentsAPI.USERS.create_guest(nano_token=nano_token)
+    token = ""
+    if authorize:
+        token = generate_session_token(user_id=new_user["_id"])
+        LOG.debug(f"Created new user with name {new_user['nickname']}")
     return UserData(user=new_user, session=token)
 
 
@@ -172,12 +156,12 @@ def get_current_user_data(
     user_data: UserData = None
     if not force_tmp:
         if nano_token:
-            user = db_controller.exec_query(
-                query={
-                    "command": "find_one",
-                    "document": "users",
-                    "data": {"tokens": {"$all": [nano_token]}},
-                }
+            user = MongoDocumentsAPI.USERS.get_item(
+                filters=MongoFilter(
+                    key="tokens",
+                    value=[nano_token],
+                    logical_operator=MongoLogicalOperators.ALL,
+                )
             )
             if not user:
                 LOG.info("Creating new user for nano agent")
@@ -198,14 +182,8 @@ def get_current_user_data(
                         int(current_timestamp) - int(payload.get("creation_time", 0))
                     ) <= session_lifetime:
                         user_id = payload["sub"]
-                        user = DbUtils.get_user(user_id=user_id)
+                        user = MongoDocumentsAPI.USERS.get_user(user_id=user_id)
                         LOG.info(f"Fetched user data: {user}")
-                        user["preferences"] = DbUtils.get_user_preferences(
-                            user_id=user_id
-                        )
-                        LOG.info(
-                            f'Fetched user preferences data: {user["preferences"]}'
-                        )
                         if not user:
                             LOG.info(
                                 f'{payload["sub"]} is not found among users, setting temporal user credentials'
@@ -219,8 +197,10 @@ def get_current_user_data(
                                 LOG.info("Session was refreshed")
                         user_data = UserData(user=user, session=session)
             except BaseException as ex:
-                LOG.exception(f"Problem resolving current user: {ex}\n"
-                              f"setting tmp user credentials")
+                LOG.exception(
+                    f"Problem resolving current user: {ex}\n"
+                    f"setting tmp user credentials"
+                )
     if not user_data:
         LOG.debug("Creating temp user")
         user_data = create_unauthorized_user()
@@ -275,9 +255,7 @@ def validate_session(
         should_check_user_data = check_tmp or required_roles
         is_authorized = True
         if should_check_user_data:
-            from chat_server.server_utils.db_utils import DbUtils
-
-            user = DbUtils.get_user(user_id=payload["sub"])
+            user = MongoDocumentsAPI.USERS.get_user(user_id=payload["sub"])
             if check_tmp and user.get("is_tmp"):
                 is_authorized = False
             elif required_roles and not any(

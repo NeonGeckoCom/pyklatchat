@@ -30,11 +30,11 @@ from fastapi import APIRouter
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 
-from chat_server.server_utils.db_utils import DbUtils
+from utils.database_utils.mongo_utils.queries.wrapper import MongoDocumentsAPI
 from utils.logging_utils import LOG
 from utils.http_utils import respond
 
-from chat_server.server_config import k8s_config, db_controller
+from chat_server.server_config import k8s_config
 from chat_server.server_utils.auth import login_required
 from chat_server.server_utils.k8s_utils import restart_deployment
 from chat_server.server_utils.admin_utils import run_mq_validation
@@ -79,7 +79,7 @@ async def refresh_state(
 @router.get("/chats/list")
 @login_required(tmp_allowed=False, required_roles=["admin"])
 async def chats_overview(request: Request, search_str: str = ""):
-    conversations_data = DbUtils.get_conversation_data(
+    conversations_data = MongoDocumentsAPI.CHATS.get_conversation_data(
         search_str=search_str,
         limit=100,
         allow_regex_search=True,

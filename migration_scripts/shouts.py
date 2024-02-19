@@ -30,13 +30,13 @@ import copy
 from pymongo import ReplaceOne, UpdateOne
 
 from chat_server.server_utils.db_utils import (
-    DbUtils,
     MongoQuery,
     MongoCommands,
     MongoDocuments,
 )
 from migration_scripts.utils.shout_utils import prepare_nicks_for_sql
 from migration_scripts.utils.sql_utils import iterable_to_sql_array, sql_arr_is_null
+from utils.database_utils.mongo_utils.queries.wrapper import MongoDocumentsAPI
 from utils.logging_utils import LOG
 
 
@@ -137,7 +137,9 @@ def remap_creation_timestamp(db_controller):
     filter_stage = {"$match": {"created_on": {"$gte": 10**12}}}
     bulk_update = []
     res = list(
-        DbUtils.db_controller.connector.connection["shouts"].aggregate([filter_stage])
+        MongoDocumentsAPI.db_controller.connector.connection["shouts"].aggregate(
+            [filter_stage]
+        )
     )
     for item in res:
         bulk_update.append(
@@ -171,7 +173,7 @@ def set_cid_to_shouts(db_controller):
             bulk_update.append(
                 UpdateOne({"_id": shout}, {"$set": {"cid": item["_id"]}})
             )
-    DbUtils.db_controller.exec_query(
+    MongoDocumentsAPI.db_controller.exec_query(
         query=MongoQuery(
             command=MongoCommands.BULK_WRITE,
             document=MongoDocuments.SHOUTS,

@@ -26,7 +26,6 @@
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-import json
 import os
 import socketio
 
@@ -35,22 +34,16 @@ from time import time
 from typing import List, Optional
 
 from cachetools import LRUCache
+
+from utils.database_utils.mongo_utils.queries import mongo_queries
+from utils.database_utils.mongo_utils.queries.wrapper import MongoDocumentsAPI
 from utils.logging_utils import LOG
 
 from utils.common import generate_uuid, deep_merge, buffer_to_base64
 from chat_server.server_utils.auth import validate_session
 from chat_server.server_utils.cache_utils import CacheFactory
-from chat_server.server_utils.db_utils import (
-    DbUtils,
-    MongoCommands,
-    MongoDocuments,
-    MongoQuery,
-    MongoFilter,
-)
-from chat_server.server_utils.prompt_utils import handle_prompt_message
-from chat_server.server_utils.user_utils import get_neon_data, get_bot_data
 from chat_server.server_utils.languages import LanguageSettings
-from chat_server.server_config import db_controller, sftp_connector
+from chat_server.server_config import sftp_connector
 from chat_server.services.popularity_counter import PopularityCounter
 
 sio = socketio.AsyncServer(cors_allowed_origins="*", async_mode="asgi")
@@ -154,7 +147,6 @@ async def user_message(sid, data):
     ```
         data = {'cid':'conversation id',
                 'userID': 'emitted user id',
-                'messageID': 'id of emitted message',
                 'promptID': 'id of related prompt (optional)',
                 'source': 'declared name of the source that shouted given user message'
                 'messageText': 'content of the user message',
@@ -172,9 +164,9 @@ async def user_message(sid, data):
     """
     LOG.debug(f"Got new user message from {sid}: {data}")
     try:
-        filter_expression = dict(_id=data["cid"])
-        cid_data = DbUtils.get_conversation_data(
-            data["cid"], column_identifiers=["_id"]
+        cid_data = MongoDocumentsAPI.CHATS.get_conversation_data(
+            search_str=data["cid"],
+            column_identifiers=["_id"],
         )
         if not cid_data:
             msg = "Shouting to non-existent conversation, skipping further processing"
@@ -182,26 +174,14 @@ async def user_message(sid, data):
             return
 
         LOG.info(f"Received user message data: {data}")
-        data["messageID"] = data.get("messageID")
-        if data["messageID"]:
-            existing_shout = DbUtils.fetch_shouts(
-                shout_ids=[data["messageID"]], fetch_senders=False
-            )
-            if existing_shout:
-                raise ValueError(
-                    f'messageID value="{data["messageID"]}" already exists'
-                )
-        else:
-            data["messageID"] = generate_uuid()
+        data["message_id"] = generate_uuid()
         data["is_bot"] = data.pop("bot", "0")
         if data["userID"].startswith("neon"):
-            neon_data = get_neon_data(db_controller=db_controller)
+            neon_data = MongoDocumentsAPI.USERS.get_neon_data(skill_name="neon")
             data["userID"] = neon_data["_id"]
         elif data["is_bot"] == "1":
-            bot_data = get_bot_data(
-                db_controller=db_controller,
-                nickname=data["userID"],
-                context=data.get("context", None),
+            bot_data = MongoDocumentsAPI.USERS.get_bot_data(
+                user_id=data["userID"], context=data.get("context")
             )
             data["userID"] = bot_data["_id"]
 
@@ -210,7 +190,7 @@ async def user_message(sid, data):
         if is_audio != "1":
             is_audio = "0"
 
-        audio_path = f'{data["messageID"]}_audio.wav'
+        audio_path = f'{data["message_id"]}_audio.wav'
         try:
             if is_audio == "1":
                 message_text = data["messageText"].split(",")[-1]
@@ -232,7 +212,7 @@ async def user_message(sid, data):
         data["prompt_id"] = data.pop("promptID", "")
 
         new_shout_data = {
-            "_id": data["messageID"],
+            "_id": data["message_id"],
             "cid": data["cid"],
             "user_id": data["userID"],
             "prompt_id": data["prompt_id"],
@@ -252,24 +232,9 @@ async def user_message(sid, data):
         if lang != "en":
             new_shout_data["translations"][lang] = data["messageText"]
 
-        db_controller.exec_query(
-            MongoQuery(
-                command=MongoCommands.INSERT_ONE,
-                document=MongoDocuments.SHOUTS,
-                data=new_shout_data,
-            )
-        )
-        db_controller.exec_query(
-            query=MongoQuery(
-                command=MongoCommands.UPDATE_MANY,
-                document=MongoDocuments.CHATS,
-                filters=filter_expression,
-                data={"chat_flow": new_shout_data["_id"]},
-                data_action="push",
-            )
-        )
-        if is_announcement == "0" and data["prompt_id"]:
-            is_ok = handle_prompt_message(data)
+        mongo_queries.add_shout(data=new_shout_data)
+        if is_announcement == "0" and data.get("prompt_id"):
+            is_ok = MongoDocumentsAPI.PROMPTS.add_shout_to_prompt(data)
             if is_ok:
                 await sio.emit(
                     "new_prompt_message",
@@ -285,12 +250,9 @@ async def user_message(sid, data):
         message_tts = data.get("messageTTS", {})
         for language, gender_mapping in message_tts.items():
             for gender, audio_data in gender_mapping.items():
-                sftp_connector.put_file_object(
-                    file_object=audio_data, save_to=f"audio/{audio_path}"
-                )
-                DbUtils.save_tts_response(
-                    shout_id=data["messageID"],
-                    audio_file_name=audio_path,
+                MongoDocumentsAPI.SHOUTS.save_tts_response(
+                    shout_id=data["message_id"],
+                    audio_data=audio_data,
                     lang=language,
                     gender=gender,
                 )
@@ -334,13 +296,7 @@ async def new_prompt(sid, data):
             "data": {"prompt_text": prompt_text},
             "created_on": created_on,
         }
-        db_controller.exec_query(
-            MongoQuery(
-                command=MongoCommands.INSERT_ONE,
-                document=MongoDocuments.PROMPTS,
-                data=formatted_data,
-            )
-        )
+        MongoDocumentsAPI.PROMPTS.add_item(data=formatted_data)
         await sio.emit("new_prompt_created", data=formatted_data)
     except Exception as ex:
         LOG.error(f'Prompt "{prompt_id}" was not created due to exception - {ex}')
@@ -355,28 +311,15 @@ async def prompt_completed(sid, data):
     :param data: user message data
     """
     prompt_id = data["context"]["prompt"]["prompt_id"]
-    prompt_summary_keys = ["winner", "votes_per_submind"]
-    prompt_summary_agg = {
-        f"data.{k}": v for k, v in data["context"].items() if k in prompt_summary_keys
+
+    MongoDocumentsAPI.PROMPTS.set_completed(
+        prompt_id=prompt_id, prompt_context=data["context"]
+    )
+    formatted_data = {
+        "winner": data["context"].get("winner", ""),
+        "prompt_id": prompt_id,
     }
-    prompt_summary_agg["is_completed"] = "1"
-    try:
-        db_controller.exec_query(
-            MongoQuery(
-                command=MongoCommands.UPDATE_MANY,
-                document=MongoDocuments.PROMPTS,
-                filters=MongoFilter(key="_id", value=prompt_id),
-                data=prompt_summary_agg,
-                data_action="set",
-            )
-        )
-        formatted_data = {
-            "winner": data["context"].get("winner", ""),
-            "prompt_id": prompt_id,
-        }
-        await sio.emit("set_prompt_completed", data=formatted_data)
-    except Exception as ex:
-        LOG.error(f'Prompt "{prompt_id}" was not updated due to exception - {ex}')
+    await sio.emit("set_prompt_completed", data=formatted_data)
 
 
 @sio.event
@@ -394,7 +337,7 @@ async def get_prompt_data(sid, data):
     ```
     """
     prompt_id = data.get("prompt_id")
-    _prompt_data = DbUtils.fetch_prompt_data(
+    _prompt_data = mongo_queries.fetch_prompt_data(
         cid=data["cid"],
         limit=data.get("limit", 5),
         prompt_ids=[prompt_id],
@@ -439,7 +382,7 @@ async def request_translate(sid, data):
     else:
         input_type = data.get("inputType", "incoming")
 
-        populated_translations, missing_translations = DbUtils.get_translations(
+        populated_translations, missing_translations = mongo_queries.get_translations(
             translation_mapping=data.get("chat_mapping", {})
         )
         if populated_translations and not missing_translations:
@@ -492,7 +435,9 @@ async def get_neon_translations(sid, data):
                 return
             sid = cached_data.get("sid")
             input_type = cached_data.get("input_type")
-            updated_shouts = DbUtils.save_translations(data.get("translations", {}))
+            updated_shouts = MongoDocumentsAPI.SHOUTS.save_translations(
+                translation_mapping=data.get("translations", {})
+            )
             populated_translations = deep_merge(
                 data.get("translations", {}), cached_data.get("translations", {})
             )
@@ -533,34 +478,30 @@ async def request_tts(sid, data):
     required_keys = (
         "cid",
         "message_id",
-        "user_id",
     )
     if not all(key in list(data) for key in required_keys):
         LOG.error(f"Missing one of the required keys - {required_keys}")
     else:
         lang = data.get("lang", "en")
         message_id = data["message_id"]
-        user_id = data["user_id"]
         cid = data["cid"]
-        matching_messages = DbUtils.fetch_shouts(
-            shout_ids=[message_id], fetch_senders=False
-        )
-        if not matching_messages:
+        matching_message = MongoDocumentsAPI.SHOUTS.get_item(item_id=message_id)
+        if not matching_message:
             LOG.error("Failed to request TTS - matching message not found")
         else:
-            matching_message = matching_messages[0]
-
+            # TODO: support for multiple genders in TTS
             # Trying to get existing audio data
-            preferred_gender = (
-                DbUtils.get_user_preferences(user_id=user_id)
-                .get("tts", {})
-                .get(lang, {})
-                .get("gender", "female")
-            )
-            existing_audio_file = (
+            # preferred_gender = (
+            #     MongoDocumentsAPI.USERS.get_preferences(user_id=user_id)
+            #     .get("tts", {})
+            #     .get(lang, {})
+            #     .get("gender", "female")
+            # )
+            preferred_gender = "female"
+            audio_file = (
                 matching_message.get("audio", {}).get(lang, {}).get(preferred_gender)
             )
-            if not existing_audio_file:
+            if not audio_file:
                 LOG.info(
                     f"File was not detected for cid={cid}, message_id={message_id}, lang={lang}"
                 )
@@ -575,7 +516,7 @@ async def request_tts(sid, data):
                 await sio.emit("get_tts", data=formatted_data)
             else:
                 try:
-                    file_location = f"audio/{existing_audio_file}"
+                    file_location = f"audio/{audio_file}"
                     LOG.info(f"Fetching existing file from: {file_location}")
                     fo = sftp_connector.get_file_object(file_location)
                     if fo.getbuffer().nbytes > 0:
@@ -608,8 +549,8 @@ async def tts_response(sid, data):
     sid = mq_context.get("sid")
     lang = LanguageSettings.to_system_lang(data.get("lang", "en-us"))
     lang_gender = data.get("gender", "undefined")
-    matching_shouts = DbUtils.fetch_shouts(shout_ids=[message_id], fetch_senders=False)
-    if not matching_shouts:
+    matching_shout = MongoDocumentsAPI.SHOUTS.get_item(item_id=message_id)
+    if not matching_shout:
         LOG.warning(
             f"Skipping TTS Response for message_id={message_id} - matching shout does not exist"
         )
@@ -620,7 +561,7 @@ async def tts_response(sid, data):
                 f"Skipping TTS Response for message_id={message_id} - audio data is empty"
             )
         else:
-            is_ok = DbUtils.save_tts_response(
+            is_ok = MongoDocumentsAPI.SHOUTS.save_tts_response(
                 shout_id=message_id,
                 audio_data=audio_data,
                 lang=lang,
@@ -651,8 +592,8 @@ async def stt_response(sid, data):
     """Handle STT Response from Observer"""
     mq_context = data.get("context", {})
     message_id = mq_context.get("message_id")
-    matching_shouts = DbUtils.fetch_shouts(shout_ids=[message_id], fetch_senders=False)
-    if not matching_shouts:
+    matching_shout = MongoDocumentsAPI.SHOUTS.get_item(item_id=message_id)
+    if not matching_shout:
         LOG.warning(
             f"Skipping STT Response for message_id={message_id} - matching shout does not exist"
         )
@@ -660,7 +601,7 @@ async def stt_response(sid, data):
         try:
             message_text = data.get("transcript")
             lang = LanguageSettings.to_system_lang(data["lang"])
-            DbUtils.save_stt_response(
+            MongoDocumentsAPI.SHOUTS.save_stt_response(
                 shout_id=message_id, message_text=message_text, lang=lang
             )
             sid = mq_context.get("sid")
@@ -703,20 +644,23 @@ async def request_stt(sid, data):
         # TODO: process received language
         lang = "en"
         # lang = data.get('lang', 'en')
-        existing_shouts = DbUtils.fetch_shouts(shout_ids=[message_id])
-        if existing_shouts:
-            existing_transcript = existing_shouts[0].get("transcripts", {}).get(lang)
-            if existing_transcript:
+        if shout_data := MongoDocumentsAPI.SHOUTS.get_item(item_id=message_id):
+            message_transcript = shout_data.get("transcripts", {}).get(lang)
+            if message_transcript:
                 response_data = {
                     "cid": cid,
                     "message_id": message_id,
                     "lang": lang,
-                    "message_text": existing_transcript,
+                    "message_text": message_transcript,
                 }
                 return await sio.emit("incoming_stt", data=response_data, to=sid)
-        audio_data = data.get("audio_data") or DbUtils.fetch_audio_data_from_message(
-            message_id
-        )
+            else:
+                err_msg = "Message transcript was missing"
+                LOG.error(err_msg)
+                return await emit_error(message=err_msg, sids=[sid])
+        audio_data = data.get(
+            "audio_data"
+        ) or MongoDocumentsAPI.SHOUTS.fetch_audio_data(message_id=message_id)
         if not audio_data:
             LOG.error("Failed to fetch audio data")
         else:

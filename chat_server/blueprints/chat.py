@@ -25,6 +25,7 @@
 # LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+import warnings
 from typing import Optional
 
 from time import time
@@ -32,17 +33,12 @@ from fastapi import APIRouter, Request, Form
 from fastapi.responses import JSONResponse
 
 from chat_server.constants.conversations import ConversationSkins
-from chat_server.server_config import db_controller
 from chat_server.server_utils.auth import login_required
 from chat_server.server_utils.conversation_utils import build_message_json
-from chat_server.server_utils.db_utils import (
-    DbUtils,
-    MongoQuery,
-    MongoCommands,
-    MongoDocuments,
-)
 from chat_server.services.popularity_counter import PopularityCounter
 from utils.common import generate_uuid
+from utils.database_utils.mongo_utils.queries.mongo_queries import fetch_message_data
+from utils.database_utils.mongo_utils.queries.wrapper import MongoDocumentsAPI
 from utils.http_utils import respond
 from utils.logging_utils import LOG
 
@@ -56,7 +52,7 @@ router = APIRouter(
 @login_required
 async def new_conversation(
     request: Request,
-    conversation_id: str = Form(""),
+    conversation_id: str = Form(""),  # DEPRECATED
     conversation_name: str = Form(...),
     is_private: str = Form(False),
     bound_service: str = Form(""),
@@ -65,20 +61,23 @@ async def new_conversation(
     Creates new conversation from provided conversation data
 
     :param request: Starlette Request object
-    :param conversation_id: new conversation id (optional)
+    :param conversation_id: new conversation id (DEPRECATED)
     :param conversation_name: new conversation name (optional)
     :param is_private: if new conversation should be private (defaults to False)
     :param bound_service: name of the bound service (ignored if empty value)
 
     :returns JSON response with new conversation data if added, 401 error message otherwise
     """
-
-    conversation_data = DbUtils.get_conversation_data(
-        search_str=[conversation_id, conversation_name]
+    if conversation_id:
+        warnings.warn(
+            "Param conversation id is no longer considered", DeprecationWarning
+        )
+    conversation_data = MongoDocumentsAPI.CHATS.get_conversation_data(
+        search_str=[conversation_name],
     )
     if conversation_data:
         return respond(f'Conversation "{conversation_name}" already exists', 400)
-    cid = conversation_id or generate_uuid()
+    cid = generate_uuid()
     request_data_dict = {
         "_id": cid,
         "conversation_name": conversation_name,
@@ -86,13 +85,7 @@ async def new_conversation(
         "bound_service": bound_service,
         "created_on": int(time()),
     }
-    db_controller.exec_query(
-        query=MongoQuery(
-            command=MongoCommands.INSERT_ONE,
-            document=MongoDocuments.CHATS,
-            data=request_data_dict,
-        )
-    )
+    MongoDocumentsAPI.CHATS.add_item(data=request_data_dict)
     PopularityCounter.add_new_chat(cid=cid, name=conversation_name)
     return JSONResponse(content=request_data_dict)
 
@@ -119,13 +112,15 @@ async def get_matching_conversation(
 
     :returns conversation data if found, 401 error code otherwise
     """
-    conversation_data = DbUtils.get_conversation_data(search_str=search_str)
+    conversation_data = MongoDocumentsAPI.CHATS.get_conversation_data(
+        search_str=search_str
+    )
 
     if not conversation_data:
         return respond(f'No conversation matching = "{search_str}"', 404)
 
     message_data = (
-        DbUtils.fetch_skin_message_data(
+        fetch_message_data(
             skin=skin,
             conversation_data=conversation_data,
             start_idx=chat_history_from,

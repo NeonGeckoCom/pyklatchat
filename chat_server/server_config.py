@@ -29,7 +29,6 @@
 import os
 from typing import Optional
 
-from utils.logging_utils import LOG
 
 from config import Configuration
 from chat_server.server_utils.sftp_utils import init_sftp_connector
@@ -37,17 +36,17 @@ from chat_server.server_utils.rmq_utils import RabbitMQAPI
 
 from utils.logging_utils import LOG
 from utils.database_utils import DatabaseController
+from utils.database_utils.mongo_utils.queries.wrapper import MongoDocumentsAPI
 
-server_config_path = os.path.expanduser(os.environ.get(
-    "CHATSERVER_CONFIG", "~/.local/share/neon/credentials.json"
-))
-database_config_path = os.path.expanduser(os.environ.get(
-    "DATABASE_CONFIG", "~/.local/share/neon/credentials.json"
-))
+server_config_path = os.path.expanduser(
+    os.environ.get("CHATSERVER_CONFIG", "~/.local/share/neon/credentials.json")
+)
+database_config_path = os.path.expanduser(
+    os.environ.get("DATABASE_CONFIG", "~/.local/share/neon/credentials.json")
+)
 
 
 def _init_db_controller(db_config: dict) -> Optional[DatabaseController]:
-    from chat_server.server_utils.db_utils import DbUtils
 
     # Determine configured database dialect
     dialect = db_config.pop("dialect", "mongo")
@@ -57,41 +56,39 @@ def _init_db_controller(db_config: dict) -> Optional[DatabaseController]:
         db_controller = DatabaseController(config_data=db_config)
         db_controller.attach_connector(dialect=dialect)
         db_controller.connect()
+        return db_controller
     except Exception as e:
         LOG.exception(f"DatabaseController init failed: {e}")
         return None
-
-    # Initialize convenience class
-    DbUtils.init(db_controller)
-    return db_controller
 
 
 if os.path.isfile(server_config_path) or os.path.isfile(database_config_path):
     LOG.warning(f"Using legacy configuration at {server_config_path}")
     LOG.warning(f"Using legacy configuration at {database_config_path}")
     LOG.info(f"KLAT_ENV : {Configuration.KLAT_ENV}")
-    config = Configuration(from_files=[server_config_path,
-                                       database_config_path])
+    config = Configuration(from_files=[server_config_path, database_config_path])
     app_config = config.get("CHAT_SERVER", {}).get(Configuration.KLAT_ENV, {})
     db_controller = config.get_db_controller(name="pyklatchat_3333")
 else:
     # ovos-config has built-in mechanisms for loading configuration files based
     # on envvars, so the configuration structure is simplified
     from ovos_config.config import Configuration
+
     config = Configuration()
     app_config = config.get("CHAT_SERVER") or dict()
     env_spec = os.environ.get("KLAT_ENV")
     if env_spec and app_config.get(env_spec):
         LOG.warning("Legacy configuration handling KLAT_ENV envvar")
         app_config = app_config.get(env_spec)
-    db_controller = _init_db_controller(app_config.get("connection_properties",
-                                                       config.get(
-                                                           "DATABASE_CONFIG",
-                                                           {})))
+    db_controller = _init_db_controller(
+        app_config.get("connection_properties", config.get("DATABASE_CONFIG", {}))
+    )
 
 LOG.info(f"App config: {app_config}")
 
 sftp_connector = init_sftp_connector(config=app_config.get("SFTP", {}))
+
+MongoDocumentsAPI.init(db_controller=db_controller, sftp_connector=sftp_connector)
 
 mq_api = None
 mq_management_config = config.get("MQ_MANAGEMENT", {})
