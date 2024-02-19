@@ -195,7 +195,7 @@ def get_current_user_data(
                             ) >= session_refresh_rate:
                                 session = refresh_session(payload=payload)
                                 LOG.info("Session was refreshed")
-                        user_data = UserData(user=user, session=session)
+                            user_data = UserData(user=user, session=session)
             except BaseException as ex:
                 LOG.exception(
                     f"Problem resolving current user: {ex}\n"
