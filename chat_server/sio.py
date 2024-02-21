@@ -234,7 +234,12 @@ async def user_message(sid, data):
 
         mongo_queries.add_shout(data=new_shout_data)
         if is_announcement == "0" and data.get("prompt_id"):
-            is_ok = MongoDocumentsAPI.PROMPTS.add_shout_to_prompt(data)
+            is_ok = MongoDocumentsAPI.PROMPTS.add_shout_to_prompt(
+                prompt_id=data["prompt_id"],
+                user_id=data["userID"],
+                message_id=data["message_id"],
+                prompt_state=data["promptState"],
+            )
             if is_ok:
                 await sio.emit(
                     "new_prompt_message",
@@ -311,6 +316,8 @@ async def prompt_completed(sid, data):
     :param data: user message data
     """
     prompt_id = data["context"]["prompt"]["prompt_id"]
+
+    LOG.info(f"setting {prompt_id = } as completed")
 
     MongoDocumentsAPI.PROMPTS.set_completed(
         prompt_id=prompt_id, prompt_context=data["context"]
@@ -704,6 +711,7 @@ async def emit_error(
     """
     if not context:
         context = {}
+    LOG.error(message)
     await sio.emit(
         context.pop("callback_event", "klatchat_sio_error"),
         data={"msg": message},

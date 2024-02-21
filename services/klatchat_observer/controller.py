@@ -712,19 +712,19 @@ class ChatObserver(MQConnector):
     @create_mq_callback()
     def on_stt_response(self, body: dict):
         """Handles receiving STT response"""
-        LOG.info(f"Received STT Response: {body}")
+        LOG.debug(f"Received STT Response: {body}")
         self.sio.emit("stt_response", data=body)
 
     @create_mq_callback()
     def on_tts_response(self, body: dict):
         """Handles receiving TTS response"""
-        LOG.info(f"Received TTS Response: {body}")
+        LOG.debug(f"Received TTS Response: {body}")
         self.sio.emit("tts_response", data=body)
 
     @create_mq_callback()
     def on_subminds_state(self, body: dict):
         """Handles receiving subminds state message"""
-        LOG.info(f"Received submind state: {body}")
+        LOG.debug(f"Received submind state: {body}")
         body["msg_type"] = "subminds_state"
         self.sio.emit("broadcast", data=body)
 
