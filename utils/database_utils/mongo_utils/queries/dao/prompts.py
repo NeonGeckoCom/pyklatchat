@@ -127,7 +127,7 @@ class PromptsDAO(MongoDocumentDAO):
 
     def add_shout_to_prompt(
         self, prompt_id: str, user_id: str, message_id: str, prompt_state: PromptStates
-    ):
+    ) -> bool:
         prompt = self.get_item(item_id=prompt_id)
         if prompt and prompt["is_completed"] == "0":
             if (
@@ -157,6 +157,7 @@ class PromptsDAO(MongoDocumentDAO):
                         data={f"data.{store_key}": store_data},
                         data_action="push" if store_type == list else "set",
                     )
+            return True
 
     def _add_participant(self, prompt_id: str, user_id: str):
         return self._execute_query(
