@@ -53,7 +53,6 @@ router = APIRouter(
 @router.get("/")
 async def get_user(
     request: Request,
-    response: Response,
     nano_token: str = None,
     user_id: Optional[str] = None,
 ):
@@ -61,7 +60,6 @@ async def get_user(
     Gets current user data from session cookies
 
     :param request: active client session request
-    :param response: response object to be returned to user
     :param nano_token: token from nano client (optional)
     :param user_id: id of external user (optional, if not provided - current user is returned)
 

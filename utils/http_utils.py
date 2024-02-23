@@ -38,3 +38,6 @@ def respond(msg: str, status_code: int = 200) -> JSONResponse:
     :returns JSON response containing provided message
     """
     return JSONResponse({"msg": msg}, status_code)
+
+
+response_ok = respond("OK")
