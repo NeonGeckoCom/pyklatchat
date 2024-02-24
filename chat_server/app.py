@@ -28,18 +28,13 @@
 import importlib
 import logging
 import os
-import random
-import string
 import sys
-import time
 import socketio
-import traceback
 
 from typing import Union
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.testclient import TestClient
-from starlette.requests import Request
 
 from utils.common import get_version
 from utils.logging_utils import LOG
@@ -98,31 +93,15 @@ def _init_blueprints(app: FastAPI):
 
 
 def _init_middleware(app: FastAPI):
-    @app.middleware("http")
-    async def log_requests(request: Request, call_next):
-        """Logs requests and gracefully handles Internal Server Errors"""
-        request_id = "".join(
-            random.choices(string.ascii_uppercase + string.digits, k=6)
-        )
-        LOG.info(f"{request_id = } start request path={request.url.path}")
-        start_time = time.time()
-        try:
-            response = await call_next(request)
-            process_time = (time.time() - start_time) * 1000
-            formatted_process_time = "{0:.2f}".format(process_time)
-            log_message = (
-                f"{request_id = } "
-                f"completed_in={formatted_process_time}ms "
-                f"status_code={response.status_code}"
-            )
-            LOG.debug(log_message)
-            return response
-        except Exception:
-            LOG.error(f"[{request.method}][{request.url.path}]{traceback.format_exc()}")
-        return None
+    from chat_server.server_utils.middleware import (
+        KlatAPIExceptionMiddleware,
+        LogMiddleware,
+    )
 
+    app.add_middleware(middleware_class=KlatAPIExceptionMiddleware)
+    app.add_middleware(middleware_class=LogMiddleware)
     app.add_middleware(
-        CORSMiddleware,
+        middleware_class=CORSMiddleware,
         allow_origins=["*"],
         allow_credentials=True,
         allow_methods=["*"],

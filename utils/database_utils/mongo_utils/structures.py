@@ -78,7 +78,6 @@ class MongoLogicalOperators(Enum):
     GTE = "gte"
     IN = "in"
     ALL = "all"
-    ANY = "any"
     OR = "or"
     AND = "and"
 

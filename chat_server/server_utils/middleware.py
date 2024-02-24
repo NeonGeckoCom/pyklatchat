@@ -26,11 +26,49 @@
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from pydantic import BaseModel, Field
+import random
+import string
+import time
+import traceback
+
+from starlette.requests import Request
+from starlette.middleware.base import BaseHTTPMiddleware
+
+from chat_server.server_utils.exceptions import KlatAPIException
+from chat_server.server_utils.http_utils import get_request_path_string, KlatAPIResponse
+from utils.logging_utils import LOG
 
 
-class AddPersonaModel(BaseModel):
-    user_id: str | None = Field(default=None, examples=["test_user_id"])
-    persona_name: str = Field(examples=["doctor"])
-    supported_llms: list[str] = Field(examples=[["chatgpt", "llama", "fastchat"]])
-    description: str = Field(examples=["I am the doctor. I am helping people."])
+class KlatAPIExceptionMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        try:
+            response = await call_next(request)
+        except KlatAPIException as exc:
+            path = get_request_path_string(request=request)
+            LOG.error(f"Klat API exception occurred for {path = } msg={exc.MESSAGE}")
+            response = exc.to_http_response()
+        return response
+
+
+class LogMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        path = get_request_path_string(request=request)
+        request_id = "".join(
+            random.choices(string.ascii_uppercase + string.digits, k=6)
+        )
+        LOG.info(f"{request_id = } start at {path = }")
+        start_time = time.time()
+        try:
+            response = await call_next(request)
+            process_time = (time.time() - start_time) * 1000
+            formatted_process_time = "{0:.2f}".format(process_time)
+            log_message = (
+                f"{request_id = } "
+                f"completed_in={formatted_process_time}ms "
+                f"status_code={response.status_code}"
+            )
+            LOG.info(log_message)
+            return response
+        except:
+            LOG.error(f"{path = }| traceback = {traceback.format_exc()}")
+        return KlatAPIResponse.INTERNAL_SERVER_ERROR

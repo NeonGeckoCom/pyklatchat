@@ -142,15 +142,29 @@ class MongoDocumentDAO(ABC):
     def get_item(
         self, item_id: str = None, filters: list[dict | MongoFilter] = None
     ) -> dict | None:
+        filters = self._build_item_selection_filters(item_id=item_id, filters=filters)
+        if not filters:
+            return
+        return self._execute_query(command=MongoCommands.FIND_ONE, filters=filters)
+
+    def delete_item(
+        self, item_id: str = None, filters: list[dict | MongoFilter] = None
+    ) -> None:
+        filters = self._build_item_selection_filters(item_id=item_id, filters=filters)
+        if not filters:
+            raise
+        return self._execute_query(command=MongoCommands.DELETE_ONE, filters=filters)
+
+    def _build_item_selection_filters(
+        self, item_id: str = None, filters: list[dict | MongoFilter] = None
+    ) -> list[dict | MongoFilter] | None:
         if not filters:
             filters = []
         if item_id:
             if not isinstance(filters, list):
                 filters = [filters]
             filters.append(MongoFilter(key="_id", value=item_id))
-        if not filters:
-            return
-        return self._execute_query(command=MongoCommands.FIND_ONE, filters=filters)
+        return filters
 
     def _execute_query(
         self,

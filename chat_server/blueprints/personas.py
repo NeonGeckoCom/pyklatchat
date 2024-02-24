@@ -25,16 +25,19 @@
 # LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+from typing import Annotated
 
-from fastapi import APIRouter
-from starlette.requests import Request
+from fastapi import APIRouter, Query, Depends
 from starlette.responses import JSONResponse
 
-from chat_server.server_utils.auth import login_required
-from chat_server.server_utils.models.endpoints.persona import AddPersonaModel
+from chat_server.server_utils.auth import is_authorized_for_user_id
+from chat_server.server_utils.dependencies import CurrentUserDependency
+from chat_server.server_utils.exceptions import UserUnauthorizedException
+from chat_server.server_utils.http_utils import KlatAPIResponse
+from chat_server.server_utils.models.personas import AddPersonaModel, DeletePersonaModel
 from utils.database_utils.mongo_utils import MongoFilter, MongoLogicalOperators
 from utils.database_utils.mongo_utils.queries.wrapper import MongoDocumentsAPI
-from utils.http_utils import respond, response_ok
+from utils.http_utils import respond
 
 router = APIRouter(
     prefix="/personas",
@@ -43,20 +46,34 @@ router = APIRouter(
 
 
 @router.get("/list")
-@login_required
-async def list_personas(request: Request, llm: str = None, user_id: str = None):
+async def list_personas(
+    current_user: CurrentUserDependency,
+    llms: Annotated[list[str] | None, Query()] = None,
+    user_id: str | None = None,
+):
     """Lists personas config matching query params"""
     filters = []
-    if llm:
+    if llms:
         filters.append(
             MongoFilter(
                 key="supported_llms",
-                value=llm,
-                logical_operator=MongoLogicalOperators.ANY,
+                value=llms,
+                logical_operator=MongoLogicalOperators.ALL,
             )
         )
     if user_id:
-        filters.append(MongoFilter(key="user_id", value=user_id))
+        if user_id == "*":
+            if "admin" not in current_user.roles:
+                raise UserUnauthorizedException
+        elif not is_authorized_for_user_id(current_user, user_id=user_id):
+            raise UserUnauthorizedException
+        else:
+            filters.append(MongoFilter(key="user_id", value=user_id))
+    else:
+        user_filter = [{"user_id": None}, {"user_id": current_user.user_id}]
+        filters.append(
+            MongoFilter(value=user_filter, logical_operator=MongoLogicalOperators.OR)
+        )
     items = MongoDocumentsAPI.PERSONAS.list_items(
         filters=filters, result_as_cursor=False
     )
@@ -64,19 +81,32 @@ async def list_personas(request: Request, llm: str = None, user_id: str = None):
 
 
 @router.put("/add")
-@login_required
-async def add_persona(request: Request, model: AddPersonaModel):
+async def add_persona(current_user: CurrentUserDependency, model: AddPersonaModel):
     """Adds new persona"""
+    if not is_authorized_for_user_id(current_user=current_user, user_id=model.user_id):
+        raise UserUnauthorizedException
+
     filters = [
         MongoFilter(key=key, value=getattr(model, key))
         for key in (
             "user_id",
             "persona_name",
         )
-        if getattr(model, key)
+        if getattr(model, key, None)
     ]
     existing_model = MongoDocumentsAPI.PERSONAS.get_item(filters=filters)
     if existing_model:
         return respond("Requested persona name already exists", status_code=400)
     MongoDocumentsAPI.PERSONAS.add_item(data=model.model_dump())
-    return response_ok
+    return KlatAPIResponse.OK
+
+
+@router.delete("/delete")
+async def delete_persona(
+    current_user: CurrentUserDependency, model: DeletePersonaModel = Depends()
+):
+    """Deletes persona"""
+    if not is_authorized_for_user_id(current_user=current_user, user_id=model.user_id):
+        raise UserUnauthorizedException
+    MongoDocumentsAPI.PERSONAS.delete_item(item_id=model.persona_id)
+    return KlatAPIResponse.OK
