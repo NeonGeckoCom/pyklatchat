@@ -92,9 +92,7 @@ class ChatObserver(MQConnector):
         }
         self._sio = None
         self.sio_url = config["SIO_URL"]
-        self.server_url = (
-            self.sio_url
-        )  # TODO: temporary solution, consider using better naming convention
+        self.server_url = self.sio_url
         self._klat_session_token = None
         self.klat_auth_credentials = config.get("KLAT_AUTH_CREDENTIALS", {})
         self.connect_sio()
