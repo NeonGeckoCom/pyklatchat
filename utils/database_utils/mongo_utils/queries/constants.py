@@ -45,7 +45,6 @@ class UserPatterns(Enum):
         "avatar": "neon.webp",
     }
     GUEST_NANO = {"first_name": "Nano", "last_name": "Guest", "tokens": []}
-    SYSTEM = {"nickname": "system", "first_name": "System", "last_name": "User"}
 
 
 class ConversationSkins:

@@ -204,16 +204,3 @@ class UsersDAO(MongoDocumentDAO):
         #  https://www.mongodb.com/docs/manual/core/index-ttl/
         self.add_item(data=new_user)
         return new_user
-
-    def get_system_user(self) -> dict:
-        system_user = self.get_user(nickname="system")
-        if not system_user:
-            system_user = self._register_system_user()
-        return system_user
-
-    def _register_system_user(self):
-        user_data = self.create_from_pattern(
-            source=UserPatterns.SYSTEM,
-        )
-        self.add_item(data=user_data)
-        return user_data
