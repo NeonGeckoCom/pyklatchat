@@ -28,8 +28,23 @@
 
 import importlib
 import logging
+import os
 
 combo_lock_logger = logging.getLogger("combo_lock")
 combo_lock_logger.disabled = True
 
-LOG = getattr(importlib.import_module("ovos_utils"), "LOG")
+
+def _init_app_logger():
+    logger = getattr(importlib.import_module("ovos_utils"), "LOG")
+    logger.name = os.environ.get("LOG_NAME", "klat_server_log")
+    logger.base_path = os.environ.get("LOG_BASE_PATH", ".")
+    logger.init(
+        config={
+            "level": os.environ.get("LOG_LEVEL", "INFO"),
+            "path": os.environ.get("LOG_PATH", os.getcwd()),
+        }
+    )
+    return logger
+
+
+LOG = _init_app_logger()

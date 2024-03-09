@@ -43,3 +43,8 @@ class KlatAPIException(Exception):
 class UserUnauthorizedException(KlatAPIException):
     HTTP_CODE = http.HTTPStatus.FORBIDDEN
     MESSAGE = "Requested user is not authorized to perform this action"
+
+
+class ItemNotFoundException(KlatAPIException):
+    HTTP_CODE = http.HTTPStatus.NOT_FOUND
+    MESSAGE = "Requested item not found"

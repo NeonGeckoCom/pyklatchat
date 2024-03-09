@@ -40,6 +40,7 @@ from neon_mq_connector.utils.rabbit_utils import create_mq_callback
 from neon_mq_connector.connector import MQConnector
 from requests import Response
 
+from services.klatchat_observer.utils.exceptions import KlatAPIAuthorizationError
 from utils.logging_utils import LOG
 
 from version import __version__
@@ -94,7 +95,8 @@ class ChatObserver(MQConnector):
         self.server_url = (
             self.sio_url
         )  # TODO: temporary solution, consider using better naming convention
-        self.system_token = config.get("SYSTEM_AUTH_TOKEN", "")
+        self._klat_session_token = None
+        self.klat_auth_credentials = config.get("KLAT_AUTH_CREDENTIALS", {})
         self.connect_sio()
         self.register_consumer(
             name="neon_response",
@@ -744,34 +746,31 @@ class ChatObserver(MQConnector):
 
     @create_mq_callback()
     def on_get_configured_personas(self, body: dict):
-        response_data = self._fetch_persona_api(body=body)
-        self.send_message(
-            request_data=response_data,
-            vhost=self.get_vhost("llm"),
-            queue="get_configured_personas.response",
-            expiration=3000,
-        )
+        if service_name := body.get("service_name"):
+            response_data = self._fetch_persona_api(body=body)
+            self.send_message(
+                request_data=response_data,
+                vhost=self.get_vhost("llm"),
+                queue=f"get_configured_personas.{service_name}.response",
+                expiration=3000,
+            )
 
     def _fetch_persona_api(self, body: dict) -> dict:
         query_string = self._build_persona_api_query(body=body)
         url = f"{self.server_url}/personas/list?{query_string}"
-        response = self._fetch_klat_server(url=url)
-        if response.ok:
+        try:
+            response = self._fetch_klat_server(url=url)
             data = response.json()
-        else:
-            LOG.error(
-                f"Failed to fetch personas from url {url}, server responded with status {response.status_code}"
-            )
+        except KlatAPIAuthorizationError:
+            LOG.error(f"Failed to fetch personas from {url = }")
             data = {"items": []}
         return data
 
     def _build_persona_api_query(self, body: dict) -> str:
-        url_query_params = []
-        if service_name := body.get("service_name"):
-            url_query_params.append(f"llm={service_name}")
+        url_query_params = f"llms={body['service_name']}"
         if user_id := body.get("user_id"):
-            url_query_params.append(f"user_id={user_id}")
-        return "&".join(url_query_params)
+            url_query_params += f"&user_id={user_id}"
+        return url_query_params
 
     def request_ban_submind(self, data: dict):
         self.send_message(
@@ -783,7 +782,31 @@ class ChatObserver(MQConnector):
 
     def _fetch_klat_server(self, url: str) -> Response:
         # only getter method is supported, for POST/PUT/DELETE operations using Socket IO is preferable channel
-        return requests.get(url=url, headers={"Authorization": self.system_token})
+        if self._klat_session_token:
+            response = self._send_get_request_to_klat(url=url)
+            if response.ok:
+                return response
+            elif response.status_code != 403:
+                raise KlatAPIAuthorizationError("Klat API unavailable")
+        self._login_to_klat_server()
+        return self._send_get_request_to_klat(url=url)
+
+    def _send_get_request_to_klat(self, url: str) -> Response:
+        return requests.get(
+            url=url, headers={"Authorization": self._klat_session_token}
+        )
+
+    def _login_to_klat_server(self):
+        response = requests.post(
+            f"{self.server_url}/auth/login", data=self.klat_auth_credentials
+        )
+        if response.ok:
+            self._klat_session_token = response.json()["token"]
+        else:
+            LOG.error(
+                f"Klat API authorization error: [{response.status_code}] {response.text}"
+            )
+            raise KlatAPIAuthorizationError
 
     def request_ban_submind_from_conversation(self, data: dict):
         self.send_message(

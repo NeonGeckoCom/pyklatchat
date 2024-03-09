@@ -72,3 +72,9 @@ class LogMiddleware(BaseHTTPMiddleware):
         except:
             LOG.error(f"{path = }| traceback = {traceback.format_exc()}")
         return KlatAPIResponse.INTERNAL_SERVER_ERROR
+
+
+SUPPORTED_MIDDLEWARE = (
+    KlatAPIExceptionMiddleware,
+    LogMiddleware,
+)

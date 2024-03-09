@@ -52,6 +52,11 @@ class AddPersonaModel(Persona):
     description: str = Field(examples=["I am the doctor. I am helping people."])
 
 
+class SetPersonaModel(Persona):
+    supported_llms: list[str] = Field(examples=[["chatgpt", "llama", "fastchat"]])
+    description: str = Field(examples=["I am the doctor. I am helping people."])
+
+
 class DeletePersonaModel(Persona):
     persona_name: str = Field(Query(), examples=["doctor"])
     user_id: str | None = Field(Query(None), examples=["test_user_id"])

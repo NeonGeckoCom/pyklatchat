@@ -28,6 +28,7 @@
 
 # DAO Imports
 from utils.database_utils.mongo_utils.queries.dao.abc import MongoDocumentDAO
+from utils.database_utils.mongo_utils.queries.dao.configs import ConfigsDAO
 from utils.database_utils.mongo_utils.queries.dao.users import UsersDAO
 from utils.database_utils.mongo_utils.queries.dao.chats import ChatsDAO
 from utils.database_utils.mongo_utils.queries.dao.shouts import ShoutsDAO
@@ -62,6 +63,7 @@ class MongoDocumentsAPI(metaclass=MongoDAOGateway):
     SHOUTS = ShoutsDAO
     PROMPTS = PromptsDAO
     PERSONAS = PersonasDAO
+    CONFIGS = ConfigsDAO
 
     @classmethod
     def init(cls, db_controller, sftp_connector=None):

@@ -26,20 +26,19 @@
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 import importlib
-import logging
 import os
 import sys
 import socketio
 
 from typing import Union
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.testclient import TestClient
+
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from utils.common import get_version
 from utils.logging_utils import LOG
-
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+from chat_server.server_utils.middleware import SUPPORTED_MIDDLEWARE
 
 
 def create_app(
@@ -54,7 +53,6 @@ def create_app(
     app_version = get_version("chat_server/version.py")
     chat_app = FastAPI(title="Klatchat Server API", version=app_version)
 
-    _init_app_logger()
     _init_middleware(app=chat_app)
     _init_blueprints(app=chat_app)
 
@@ -69,19 +67,6 @@ def create_app(
     return chat_app
 
 
-def _init_app_logger():
-    LOG.name = os.environ.get("LOG_NAME", "klat_server_log")
-    LOG.base_path = os.environ.get("LOG_BASE_PATH", ".")
-    LOG.init(
-        config={
-            "level": os.environ.get("LOG_LEVEL", "INFO"),
-            "path": os.environ.get("LOG_PATH", os.getcwd()),
-        }
-    )
-    logger = LOG.create_logger("chat_server")
-    logger.addHandler(logging.StreamHandler())
-
-
 def _init_blueprints(app: FastAPI):
     blueprint_module = importlib.import_module("blueprints")
     for blueprint_module_name in dir(blueprint_module):
@@ -93,17 +78,5 @@ def _init_blueprints(app: FastAPI):
 
 
 def _init_middleware(app: FastAPI):
-    from chat_server.server_utils.middleware import (
-        KlatAPIExceptionMiddleware,
-        LogMiddleware,
-    )
-
-    app.add_middleware(middleware_class=KlatAPIExceptionMiddleware)
-    app.add_middleware(middleware_class=LogMiddleware)
-    app.add_middleware(
-        middleware_class=CORSMiddleware,
-        allow_origins=["*"],
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
+    for middleware_class in SUPPORTED_MIDDLEWARE:
+        app.add_middleware(middleware_class=middleware_class)
