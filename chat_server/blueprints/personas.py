@@ -35,16 +35,17 @@ from chat_server.server_utils.dependencies import CurrentUserDependency
 from chat_server.server_utils.exceptions import (
     UserUnauthorizedException,
     ItemNotFoundException,
+    DuplicatedItemException,
 )
 from chat_server.server_utils.http_utils import KlatAPIResponse
 from chat_server.server_utils.models.personas import (
     AddPersonaModel,
     DeletePersonaModel,
     SetPersonaModel,
+    TogglePersonaStatusModel,
 )
 from utils.database_utils.mongo_utils import MongoFilter, MongoLogicalOperators
 from utils.database_utils.mongo_utils.queries.wrapper import MongoDocumentsAPI
-from utils.http_utils import respond
 
 router = APIRouter(
     prefix="/personas",
@@ -84,6 +85,9 @@ async def list_personas(
     items = MongoDocumentsAPI.PERSONAS.list_items(
         filters=filters, result_as_cursor=False
     )
+    for item in items:
+        item["id"] = item.pop("_id")
+        item["enabled"] = item.get("enabled", False)
     return JSONResponse(content={"items": items})
 
 
@@ -98,9 +102,7 @@ async def get_persona(
         persona_user_id = personas_tokens[1]
         if not is_authorized_for_user_id(current_user, user_id=persona_user_id):
             raise ItemNotFoundException
-    item = MongoDocumentsAPI.PERSONAS.get_item(
-        filters=MongoFilter(key="persona_name", value=personas_tokens[0])
-    )
+    item = MongoDocumentsAPI.PERSONAS.get_item(item_id=persona_id)
     if not item:
         raise ItemNotFoundException
     return JSONResponse(content=item)
@@ -111,18 +113,9 @@ async def add_persona(current_user: CurrentUserDependency, model: AddPersonaMode
     """Adds new persona"""
     if not is_authorized_for_user_id(current_user=current_user, user_id=model.user_id):
         raise UserUnauthorizedException
-
-    filters = [
-        MongoFilter(key=key, value=getattr(model, key))
-        for key in (
-            "user_id",
-            "persona_name",
-        )
-        if getattr(model, key, None)
-    ]
-    existing_model = MongoDocumentsAPI.PERSONAS.get_item(filters=filters)
+    existing_model = MongoDocumentsAPI.PERSONAS.get_item(item_id=model.persona_id)
     if existing_model:
-        return respond("Requested persona name already exists", status_code=400)
+        raise DuplicatedItemException
     MongoDocumentsAPI.PERSONAS.add_item(data=model.model_dump())
     return KlatAPIResponse.OK
 
@@ -132,17 +125,9 @@ async def set_persona(current_user: CurrentUserDependency, model: SetPersonaMode
     """Sets persona's data"""
     if not is_authorized_for_user_id(current_user=current_user, user_id=model.user_id):
         raise UserUnauthorizedException
-    filters = [
-        MongoFilter(key=key, value=getattr(model, key))
-        for key in (
-            "user_id",
-            "persona_name",
-        )
-        if getattr(model, key, None)
-    ]
-    existing_model = MongoDocumentsAPI.PERSONAS.get_item(filters=filters)
+    existing_model = MongoDocumentsAPI.PERSONAS.get_item(item_id=model.persona_id)
     if not existing_model:
-        return respond("Requested persona does not exist", status_code=400)
+        raise ItemNotFoundException
     mongo_filter = MongoFilter(key="_id", value=model.persona_id)
     MongoDocumentsAPI.PERSONAS.update_item(
         filters=mongo_filter, data=model.model_dump()
@@ -158,6 +143,21 @@ async def delete_persona(
     if not is_authorized_for_user_id(current_user=current_user, user_id=model.user_id):
         raise UserUnauthorizedException
     MongoDocumentsAPI.PERSONAS.delete_item(item_id=model.persona_id)
+    return KlatAPIResponse.OK
+
+
+@router.post("/toggle")
+async def toggle_persona_state(
+    current_user: CurrentUserDependency, model: TogglePersonaStatusModel
+):
+    if not is_authorized_for_user_id(current_user=current_user, user_id=model.user_id):
+        raise UserUnauthorizedException
+    updated_data = MongoDocumentsAPI.PERSONAS.update_item(
+        filters=MongoFilter(key="_id", value=model.persona_id),
+        data={"enabled": model.enabled},
+    )
+    if updated_data.matched_count == 0:
+        raise ItemNotFoundException
     return KlatAPIResponse.OK
 
 

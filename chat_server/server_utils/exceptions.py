@@ -48,3 +48,8 @@ class UserUnauthorizedException(KlatAPIException):
 class ItemNotFoundException(KlatAPIException):
     HTTP_CODE = http.HTTPStatus.NOT_FOUND
     MESSAGE = "Requested item not found"
+
+
+class DuplicatedItemException(KlatAPIException):
+    HTTP_CODE = http.HTTPStatus.CONFLICT
+    MESSAGE = "Requested item already exists"

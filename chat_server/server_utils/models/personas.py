@@ -50,6 +50,7 @@ class Persona(BaseModel):
 class AddPersonaModel(Persona):
     supported_llms: list[str] = Field(examples=[["chatgpt", "llama", "fastchat"]])
     description: str = Field(examples=["I am the doctor. I am helping people."])
+    enabled: bool = False
 
 
 class SetPersonaModel(Persona):
@@ -60,3 +61,7 @@ class SetPersonaModel(Persona):
 class DeletePersonaModel(Persona):
     persona_name: str = Field(Query(), examples=["doctor"])
     user_id: str | None = Field(Query(None), examples=["test_user_id"])
+
+
+class TogglePersonaStatusModel(Persona):
+    enabled: bool = Field(examples=[True, False], default=True)
