@@ -45,7 +45,7 @@ class KlatAPIExceptionMiddleware(BaseHTTPMiddleware):
             response = await call_next(request)
         except KlatAPIException as exc:
             path = get_request_path_string(request=request)
-            LOG.error(f"Klat API exception occurred for {path = } msg={exc.MESSAGE}")
+            LOG.warning(f"Klat API exception occurred for {path = } msg={exc.MESSAGE}")
             response = exc.to_http_response()
         return response
 
