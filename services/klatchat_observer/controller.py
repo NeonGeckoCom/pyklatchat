@@ -66,6 +66,7 @@ class ChatObserver(MQConnector):
         "neon_api": "/neon_chat_api",
         "chatbots": "/chatbots",
         "translation": "/translation",
+        "llm": "/llm",
     }
 
     def __init__(
@@ -157,20 +158,18 @@ class ChatObserver(MQConnector):
             vhost=self.get_vhost("translation"),
             queue="get_libre_translations",
             callback=self.on_neon_translations_response,
-            on_error=self.default_error_handler,
+        )
+        self.register_consumer(
+            name="get_configured_personas",
+            vhost=self.get_vhost("llm"),
+            queue="get_configured_personas",
+            callback=self.on_get_configured_personas,
         )
         self.register_subscriber(
             name="subminds_state_receiver",
             vhost=self.get_vhost("chatbots"),
             exchange="subminds_state",
             callback=self.on_subminds_state,
-            on_error=self.default_error_handler,
-        )
-        self.register_subscriber(
-            name="get_configured_personas",
-            vhost=self.get_vhost("llm"),
-            exchange="subminds_state",
-            callback=self.on_get_configured_personas,
             on_error=self.default_error_handler,
         )
 
@@ -744,14 +743,16 @@ class ChatObserver(MQConnector):
 
     @create_mq_callback()
     def on_get_configured_personas(self, body: dict):
-        if service_name := body.get("service_name"):
-            response_data = self._fetch_persona_api(body=body)
-            self.send_message(
-                request_data=response_data,
-                vhost=self.get_vhost("llm"),
-                queue=f"get_configured_personas.{service_name}.response",
-                expiration=3000,
-            )
+        response_data = self._fetch_persona_api(body=body)
+        response_data.setdefault("context", {}).setdefault("mq", {}).setdefault(
+            "message_id", body["message_id"]
+        )
+        self.send_message(
+            request_data=response_data,
+            vhost=self.get_vhost("llm"),
+            queue=body["routing_key"],
+            expiration=3000,
+        )
 
     def _fetch_persona_api(self, body: dict) -> dict:
         query_string = self._build_persona_api_query(body=body)

@@ -33,6 +33,7 @@ import socketio
 from typing import Union
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from starlette.middleware.cors import CORSMiddleware
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
@@ -78,5 +79,12 @@ def _init_blueprints(app: FastAPI):
 
 
 def _init_middleware(app: FastAPI):
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
     for middleware_class in SUPPORTED_MIDDLEWARE:
         app.add_middleware(middleware_class=middleware_class)
