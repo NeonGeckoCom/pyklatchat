@@ -59,7 +59,7 @@ async def list_personas(
     llms: Annotated[list[str] | None, Query()] = None,
     user_id: str | None = None,
 ):
-    """Lists personas config matching query params"""
+    """Lists personas matching query params"""
     filters = []
     if llms:
         filters.append(
@@ -96,7 +96,7 @@ async def get_persona(
     current_user: CurrentUserDependency,
     persona_id: str,
 ):
-    """Lists personas config matching query params"""
+    """Gets persona details for a given persona_id"""
     personas_tokens = persona_id.split("_")
     if len(personas_tokens) >= 2:
         persona_user_id = personas_tokens[1]
