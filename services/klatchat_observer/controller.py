@@ -766,7 +766,7 @@ class ChatObserver(MQConnector):
         return data
 
     def _build_persona_api_query(self, body: dict) -> str:
-        url_query_params = f"llms={body['service_name']}"
+        url_query_params = f"llms={body['service_name']}&only_enabled=true"
         if user_id := body.get("user_id"):
             url_query_params += f"&user_id={user_id}"
         return url_query_params

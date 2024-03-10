@@ -65,3 +65,9 @@ class DeletePersonaModel(Persona):
 
 class TogglePersonaStatusModel(Persona):
     enabled: bool = Field(examples=[True, False], default=True)
+
+
+class ListPersonasQueryModel(BaseModel):
+    llms: list[str] | None = Field(Query(default=None), examples=[["doctor"]])
+    user_id: str | None = Field(Query(default=None), examples=["test_user_id"])
+    only_enabled: bool = Field(Query(default=False), examples=[True, False])

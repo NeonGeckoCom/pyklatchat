@@ -27,7 +27,7 @@
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 from typing import Annotated
 
-from fastapi import APIRouter, Query, Depends
+from fastapi import APIRouter, Depends
 from starlette.responses import JSONResponse
 
 from chat_server.server_utils.auth import is_authorized_for_user_id
@@ -43,6 +43,7 @@ from chat_server.server_utils.models.personas import (
     DeletePersonaModel,
     SetPersonaModel,
     TogglePersonaStatusModel,
+    ListPersonasQueryModel,
 )
 from utils.database_utils.mongo_utils import MongoFilter, MongoLogicalOperators
 from utils.database_utils.mongo_utils.queries.wrapper import MongoDocumentsAPI
@@ -55,33 +56,32 @@ router = APIRouter(
 
 @router.get("/list")
 async def list_personas(
-    current_user: CurrentUserDependency,
-    llms: Annotated[list[str] | None, Query()] = None,
-    user_id: str | None = None,
+    current_user: CurrentUserDependency, model: ListPersonasQueryModel = Depends()
 ):
     """Lists personas matching query params"""
     filters = []
-    if llms:
+    if model.llms:
         filters.append(
             MongoFilter(
                 key="supported_llms",
-                value=llms,
+                value=model.llms,
                 logical_operator=MongoLogicalOperators.ALL,
             )
         )
-    if user_id:
-        if user_id == "*":
-            if "admin" not in current_user.roles:
-                raise UserUnauthorizedException
-        elif not is_authorized_for_user_id(current_user, user_id=user_id):
+    if model.user_id:
+        if (
+            model.user_id == "*" and "admin" not in current_user.roles
+        ) or not is_authorized_for_user_id(current_user, user_id=model.user_id):
             raise UserUnauthorizedException
         else:
-            filters.append(MongoFilter(key="user_id", value=user_id))
+            filters.append(MongoFilter(key="user_id", value=model.user_id))
     else:
         user_filter = [{"user_id": None}, {"user_id": current_user.user_id}]
         filters.append(
             MongoFilter(value=user_filter, logical_operator=MongoLogicalOperators.OR)
         )
+    if model.only_enabled:
+        filters.append(MongoFilter(key="enabled", value=True))
     items = MongoDocumentsAPI.PERSONAS.list_items(
         filters=filters, result_as_cursor=False
     )
