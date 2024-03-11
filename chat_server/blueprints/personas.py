@@ -73,7 +73,7 @@ async def list_personas(
             model.user_id == "*" and "admin" not in current_user.roles
         ) or not is_authorized_for_user_id(current_user, user_id=model.user_id):
             raise UserUnauthorizedException
-        else:
+        elif model.user_id != "*":
             filters.append(MongoFilter(key="user_id", value=model.user_id))
     else:
         user_filter = [{"user_id": None}, {"user_id": current_user.user_id}]
@@ -159,10 +159,3 @@ async def toggle_persona_state(
     if updated_data.matched_count == 0:
         raise ItemNotFoundException
     return KlatAPIResponse.OK
-
-
-@router.get("/supported_llms/list")
-async def list_supported_llms():
-    """Lists supported LLMs"""
-    items = MongoDocumentsAPI.CONFIGS.get_by_name(config_name="supported_llms") or []
-    return JSONResponse(content=items)

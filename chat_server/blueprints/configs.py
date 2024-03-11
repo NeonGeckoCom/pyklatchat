@@ -26,15 +26,43 @@
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-# Import blueprint here so it will be included
-from . import (
-    admin as admin_blueprint,
-    auth as auth_blueprint,
-    chat as chat_blueprint,
-    users as users_blueprint,
-    languages as languages_blueprint,
-    files_api as files_api_blueprint,
-    preferences as preferences_blueprint,
-    personas as personas_blueprint,
-    configs as configs_blueprint,
+from fastapi import APIRouter, Depends
+from starlette.responses import JSONResponse
+
+from chat_server.server_utils.dependencies import CurrentUserDependency
+from chat_server.server_utils.exceptions import (
+    ItemNotFoundException,
+    UserUnauthorizedException,
 )
+from chat_server.server_utils.http_utils import KlatAPIResponse
+from chat_server.server_utils.models.configs import SetConfigModel, ConfigModel
+from utils.database_utils.mongo_utils.queries.wrapper import MongoDocumentsAPI
+
+router = APIRouter(
+    prefix="/configs",
+    responses={"404": {"description": "Unknown endpoint"}},
+)
+
+
+@router.get("/{config_property}")
+async def get_config_data(model: ConfigModel = Depends()) -> JSONResponse:
+    """Retrieves configured data by name"""
+    items = MongoDocumentsAPI.CONFIGS.get_by_name(
+        config_name=model.config_property, version=model.version
+    )
+    return JSONResponse(content=items)
+
+
+@router.put("/{config_property}")
+async def update_config(
+    current_user: CurrentUserDependency, model: SetConfigModel = Depends()
+) -> JSONResponse:
+    """Updates provided config by name"""
+    if "admin" not in current_user.roles:
+        raise UserUnauthorizedException
+    updated_data = MongoDocumentsAPI.CONFIGS.update_by_name(
+        config_name=model.config_property, version=model.version, data=model.data
+    )
+    if updated_data.matched_count == 0:
+        raise ItemNotFoundException
+    return KlatAPIResponse.OK
