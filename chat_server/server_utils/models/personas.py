@@ -48,13 +48,19 @@ class Persona(BaseModel):
 
 
 class AddPersonaModel(Persona):
-    supported_llms: list[str] = Field(examples=[["chatgpt", "llama", "fastchat"]])
+    supported_llms: list[str] = Field(
+        examples=[["chat_gpt", "llama", "fastchat"]], default=[]
+    )
+    default_llm: str | None = Field(examples=["chat_gpt"], default=None)
     description: str = Field(examples=["I am the doctor. I am helping people."])
     enabled: bool = False
 
 
 class SetPersonaModel(Persona):
-    supported_llms: list[str] = Field(examples=[["chatgpt", "llama", "fastchat"]])
+    supported_llms: list[str] = Field(
+        examples=[["chat_gpt", "llama", "fastchat"]], default=[]
+    )
+    default_llm: str | None = Field(examples=["chat_gpt"], default=None)
     description: str = Field(examples=["I am the doctor. I am helping people."])
 
 
