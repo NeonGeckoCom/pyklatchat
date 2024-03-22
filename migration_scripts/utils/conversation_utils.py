@@ -37,10 +37,10 @@ from utils.logging_utils import LOG
 
 def index_nicks(mongo_controller, received_nicks: List[str]) -> Tuple[dict, List[str]]:
     """
-        Assigns unique id to each nick that is not present in new db
+    Assigns unique id to each nick that is not present in new db
 
-        :param mongo_controller: controller to active mongo collection
-        :param received_nicks: received nicks from mysql controller
+    :param mongo_controller: controller to active mongo collection
+    :param received_nicks: received nicks from mysql controller
     """
 
     # Excluding existing nicks from loop
@@ -52,16 +52,16 @@ def index_nicks(mongo_controller, received_nicks: List[str]) -> Tuple[dict, List
     for nick in nicks_to_consider:
         nicks_mapping[nick] = uuid.uuid4().hex
 
-    LOG.info(f'Created nicks mapping for {len(list(nicks_mapping))} records')
+    LOG.info(f"Created nicks mapping for {len(list(nicks_mapping))} records")
 
     return nicks_mapping, nicks_to_consider
 
 
 def clean_conversation_name(conversation_title: str):
     """
-        Cleans up conversation names excluding all the legacy special chars
+    Cleans up conversation names excluding all the legacy special chars
 
-        :param conversation_title: Conversation title to clean
+    :param conversation_title: Conversation title to clean
     """
     regex = re.search("-\[(.*?)\](.*)$", conversation_title)
     if regex is not None:

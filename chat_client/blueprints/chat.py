@@ -38,46 +38,53 @@ from chat_client.client_config import app_config
 
 router = APIRouter(
     prefix="/chats",
-    responses={'404': {"description": "Unknown endpoint"}},
+    responses={"404": {"description": "Unknown endpoint"}},
 )
 
 conversation_templates = Jinja2Templates(directory="chat_client/templates")
 
 
-@router.get('/')
+@router.get("/")
 async def chats(request: Request):
     """
-        Renders chats page HTML as a response related to the input request
+    Renders chats page HTML as a response related to the input request
 
-        :param request: input Request object
+    :param request: input Request object
 
-        :returns chats template response
+    :returns chats template response
     """
-    return conversation_templates.TemplateResponse("conversation/base.html",
-                                                   {"request": request,
-                                                    'section': 'Followed Conversations',
-                                                    'add_sio': True,
-                                                    'redirect_to_https':
-                                                        app_config.get('FORCE_HTTPS', False)})
+    return conversation_templates.TemplateResponse(
+        "conversation/base.html",
+        {
+            "request": request,
+            "section": "Followed Conversations",
+            "add_sio": True,
+            "redirect_to_https": app_config.get("FORCE_HTTPS", False),
+        },
+    )
 
 
 @router.get("/nano_demo")
 async def nano_demo(request: Request):
     """
-        Minimal working Example of Nano
+    Minimal working Example of Nano
     """
     client_url = f'"{request.url.scheme}://{request.url.netloc}"'
     server_url = f'"{app_config["SERVER_URL"]}"'
-    if app_config.get('FORCE_HTTPS', False):
-        client_url = client_url.replace('http://', 'https://')
-        server_url = server_url.replace('http://', 'https://')
-    client_url_unquoted = client_url.replace('"', '')
-    return conversation_templates.TemplateResponse("sample_nano.html",
-                                                   {"request": request,
-                                                    'title': 'Nano Demonstration',
-                                                    'description': 'Klatchat Nano is injectable JS module, '
-                                                                   'allowing to render Klat conversations on any third-party pages, '
-                                                                   'supporting essential features.',
-                                                    'server_url': server_url,
-                                                    'client_url': client_url,
-                                                    'client_url_unquoted': client_url_unquoted})
+    if app_config.get("FORCE_HTTPS", False):
+        client_url = client_url.replace("http://", "https://")
+        server_url = server_url.replace("http://", "https://")
+    client_url_unquoted = client_url.replace('"', "")
+    return conversation_templates.TemplateResponse(
+        "sample_nano.html",
+        {
+            "request": request,
+            "title": "Nano Demonstration",
+            "description": "Klatchat Nano is injectable JS module, "
+            "allowing to render Klat conversations on any third-party pages, "
+            "supporting essential features.",
+            "server_url": server_url,
+            "client_url": client_url,
+            "client_url_unquoted": client_url_unquoted,
+        },
+    )

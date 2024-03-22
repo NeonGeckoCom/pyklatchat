@@ -30,11 +30,14 @@ from starlette.responses import JSONResponse
 
 def respond(msg: str, status_code: int = 200) -> JSONResponse:
     """
-        Sending responds with unified pattern
+    Sending responds with unified pattern
 
-        :param msg: message to send
-        :param status_code: HTTP status code
+    :param msg: message to send
+    :param status_code: HTTP status code
 
-        :returns JSON response containing provided message
+    :returns JSON response containing provided message
     """
-    return JSONResponse({'msg': msg}, status_code)
+    return JSONResponse({"msg": msg}, status_code)
+
+
+response_ok = respond("OK")

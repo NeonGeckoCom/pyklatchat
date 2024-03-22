@@ -31,7 +31,10 @@ import uvicorn
 from chat_client.wsgi import app
 
 
-if __name__ == '__main__':
-    uvicorn.run(app=app, host=os.environ.get('HOST', '127.0.0.1'),
-                port=int(os.environ.get('PORT', 8001)),
-                log_level=os.environ.get('LOG_LEVEL', 'INFO').lower())
+if __name__ == "__main__":
+    uvicorn.run(
+        app=app,
+        host=os.environ.get("HOST", "127.0.0.1"),
+        port=int(os.environ.get("PORT", 8001)),
+        log_level=os.environ.get("LOG_LEVEL", "INFO").lower(),
+    )

@@ -31,51 +31,57 @@ from time import time
 from fastapi import APIRouter, Form, Request
 from fastapi.responses import JSONResponse
 
-from chat_server.server_config import db_controller
 from utils.common import get_hash, generate_uuid
-from chat_server.server_utils.auth import check_password_strength, get_current_user_data, generate_session_token
+from chat_server.server_utils.auth import (
+    check_password_strength,
+    get_current_user_data,
+    generate_session_token,
+)
+from utils.database_utils.mongo_utils.queries.wrapper import MongoDocumentsAPI
 from utils.http_utils import respond
 
 router = APIRouter(
     prefix="/auth",
-    responses={'404': {"description": "Unknown authorization endpoint"}},
+    responses={"404": {"description": "Unknown authorization endpoint"}},
 )
 
 
 @router.post("/signup")
-async def signup(first_name: str = Form(...),
-                 last_name: str = Form(...),
-                 nickname: str = Form(...),
-                 password: str = Form(...)):
+async def signup(
+    first_name: str = Form(...),
+    last_name: str = Form(...),
+    nickname: str = Form(...),
+    password: str = Form(...),
+):
     """
-        Creates new user based on received form data
+    Creates new user based on received form data
 
-        :param first_name: new user first name
-        :param last_name: new user last name
-        :param nickname: new user nickname (unique)
-        :param password: new user password
+    :param first_name: new user first name
+    :param last_name: new user last name
+    :param nickname: new user nickname (unique)
+    :param password: new user password
 
-        :returns JSON response with status corresponding to the new user creation status,
-                 sets session cookies if creation is successful
+    :returns JSON response with status corresponding to the new user creation status,
+             sets session cookies if creation is successful
     """
-    existing_user = db_controller.exec_query(query={'command': 'find_one',
-                                                    'document': 'users',
-                                                    'data': {'nickname': nickname}})
+    existing_user = MongoDocumentsAPI.USERS.get_user(nickname=nickname)
     if existing_user:
         return respond("Nickname is already in use", 400)
     password_check = check_password_strength(password)
-    if password_check != 'OK':
+    if password_check != "OK":
         return respond(password_check, 400)
-    new_user_record = dict(_id=generate_uuid(length=20),
-                           first_name=first_name,
-                           last_name=last_name,
-                           password=get_hash(password),
-                           nickname=nickname,
-                           date_created=int(time()),
-                           is_tmp=False)
-    db_controller.exec_query(query=dict(document='users', command='insert_one', data=new_user_record))
+    new_user_record = dict(
+        _id=generate_uuid(length=20),
+        first_name=first_name,
+        last_name=last_name,
+        password=get_hash(password),
+        nickname=nickname,
+        date_created=int(time()),
+        is_tmp=False,
+    )
+    MongoDocumentsAPI.USERS.add_item(data=new_user_record)
 
-    token = generate_session_token(user_id=new_user_record['_id'])
+    token = generate_session_token(user_id=new_user_record["_id"])
 
     return JSONResponse(content=dict(token=token))
 
@@ -83,22 +89,20 @@ async def signup(first_name: str = Form(...),
 @router.post("/login")
 async def login(username: str = Form(...), password: str = Form(...)):
     """
-        Logs In user based on provided credentials
+    Logs In user based on provided credentials
 
-        :param username: provided username (nickname)
-        :param password: provided password matching username
+    :param username: provided username (nickname)
+    :param password: provided password matching username
 
-        :returns JSON response with status corresponding to authorization status, sets session cookie with response
+    :returns JSON response with status corresponding to authorization status, sets session cookie with response
     """
-    user = db_controller.exec_query(query={'command': 'find_one',
-                                           'document': 'users',
-                                           'data': {'nickname': username}})
-    if not user or user.get('is_tmp', False):
+    user = MongoDocumentsAPI.USERS.get_user(nickname=username)
+    if not user or user.get("is_tmp", False):
         return respond("Invalid username or password", 400)
     db_password = user["password"]
     if get_hash(password) != db_password:
         return respond("Invalid username or password", 400)
-    token = generate_session_token(user_id=user['_id'])
+    token = generate_session_token(user_id=user["_id"])
     response = JSONResponse(content=dict(token=token))
 
     return response
@@ -107,11 +111,11 @@ async def login(username: str = Form(...), password: str = Form(...)):
 @router.get("/logout")
 async def logout(request: Request):
     """
-        Erases current user session cookies and returns temporal credentials
+    Erases current user session cookies and returns temporal credentials
 
-        :param request: logout intended request
+    :param request: logout intended request
 
-        :returns response with temporal cookie
+    :returns response with temporal cookie
     """
     user_data = get_current_user_data(request=request, force_tmp=True)
     response = JSONResponse(content=dict(token=user_data.session))

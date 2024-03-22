@@ -32,9 +32,20 @@ import os
 from config import Configuration
 from utils.logging_utils import LOG
 
-config_file_path = os.environ.get('CHATCLIENT_CONFIG', '~/.local/share/neon/credentials_client.json')
-
-config = Configuration(from_files=[config_file_path])
-app_config = config.get('CHAT_CLIENT', {}).get(Configuration.KLAT_ENV)
-
-LOG.info(f'App config: {app_config}')
+config_file_path = os.path.expanduser(os.environ.get(
+    "CHATCLIENT_CONFIG", "~/.local/share/neon/credentials_client.json"
+))
+if os.path.isfile(config_file_path):
+    LOG.warning(f"Using legacy configuration at {config_file_path}")
+    config = Configuration(from_files=[config_file_path])
+    app_config = config.get("CHAT_CLIENT", {}).get(Configuration.KLAT_ENV)
+else:
+    # ovos-config has built-in mechanisms for loading configuration files based
+    # on envvars, so the configuration structure is simplified
+    from ovos_config.config import Configuration
+    app_config = Configuration().get("CHAT_CLIENT")
+    env_spec = os.environ.get("KLAT_ENV")
+    if env_spec and app_config.get(env_spec):
+        LOG.warning("Legacy configuration handling KLAT_ENV envvar")
+        app_config = app_config.get(env_spec)
+LOG.info(f"App config: {app_config}")

@@ -32,17 +32,20 @@ from utils.connection_utils import create_ssh_tunnel
 
 def setup_db_connectors(configuration: Configuration, old_db_key: str, new_db_key: str):
     """
-        Migrating users from old database to new one
-        :param configuration: active configuration
-        :param old_db_key: old database key
-        :param new_db_key: new database key
+    Migrating users from old database to new one
+    :param configuration: active configuration
+    :param old_db_key: old database key
+    :param new_db_key: new database key
     """
-    ssh_configs = configuration.config_data.get('SSH_CONFIG')
-    tunnel_connection = create_ssh_tunnel(server_address=ssh_configs['ADDRESS'],
-                                          username=ssh_configs['USER'],
-                                          password=ssh_configs['PASSWORD'],
-                                          remote_bind_address=('127.0.0.1', 3306))
-    mysql_connector = configuration.get_db_controller(name=old_db_key,
-                                                      override_args={'port': tunnel_connection.local_bind_address[1]})
+    ssh_configs = configuration.config_data.get("SSH_CONFIG")
+    tunnel_connection = create_ssh_tunnel(
+        server_address=ssh_configs["ADDRESS"],
+        username=ssh_configs["USER"],
+        password=ssh_configs["PASSWORD"],
+        remote_bind_address=("127.0.0.1", 3306),
+    )
+    mysql_connector = configuration.get_db_controller(
+        name=old_db_key, override_args={"port": tunnel_connection.local_bind_address[1]}
+    )
     mongo_connector = configuration.get_db_controller(name=new_db_key)
     return mysql_connector, mongo_connector

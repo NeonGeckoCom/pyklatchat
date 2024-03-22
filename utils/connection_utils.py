@@ -29,19 +29,23 @@
 from sshtunnel import SSHTunnelForwarder
 
 
-def create_ssh_tunnel(server_address: str, username: str, password: str = None,
-                      private_key: str = None,
-                      private_key_password: str = None,
-                      remote_bind_address: tuple = ('127.0.0.1', 8080)) -> SSHTunnelForwarder:
+def create_ssh_tunnel(
+    server_address: str,
+    username: str,
+    password: str = None,
+    private_key: str = None,
+    private_key_password: str = None,
+    remote_bind_address: tuple = ("127.0.0.1", 8080),
+) -> SSHTunnelForwarder:
     """
-        Creates tunneled SSH connection to dedicated address
+    Creates tunneled SSH connection to dedicated address
 
-        :param server_address: ssh server address
-        :param username: server username
-        :param password: server password (mutually exclusive with :param private_key)
-        :param private_key: private key to server (mutually exclusive with :param password)
-        :param private_key_password: private key password to server (optional)
-        :param remote_bind_address: remote address to bind to
+    :param server_address: ssh server address
+    :param username: server username
+    :param password: server password (mutually exclusive with :param private_key)
+    :param private_key: private key to server (mutually exclusive with :param password)
+    :param private_key_password: private key password to server (optional)
+    :param remote_bind_address: remote address to bind to
     """
     server = SSHTunnelForwarder(
         server_address,
@@ -49,7 +53,7 @@ def create_ssh_tunnel(server_address: str, username: str, password: str = None,
         ssh_password=password,
         ssh_pkey=private_key,
         ssh_private_key_password=private_key_password,
-        remote_bind_address=remote_bind_address
+        remote_bind_address=remote_bind_address,
     )
     server.start()
     return server

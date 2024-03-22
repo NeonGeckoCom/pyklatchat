@@ -26,7 +26,7 @@
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from mysql.connector import (connection)
+from mysql.connector import connection
 
 from typing import Optional
 from utils.database_utils.base_connector import DatabaseConnector, DatabaseTypes
@@ -46,13 +46,15 @@ class MySQLConnector(DatabaseConnector):
     def abort_connection(self):
         self._cnx.close()
 
-    def exec_raw_query(self, query: str, generator: bool = False, *args, **kwargs) -> Optional[list]:
+    def exec_raw_query(
+        self, query: str, generator: bool = False, *args, **kwargs
+    ) -> Optional[list]:
         """Executes raw string query and returns its results
 
-            :param query: valid SQL query string
-            :param generator: to return cursor as generator object (defaults to False)
+        :param query: valid SQL query string
+        :param generator: to return cursor as generator object (defaults to False)
 
-            :returns query result if any
+        :returns query result if any
         """
         cursor = self.connection.cursor(dictionary=True)
         cursor.execute(query, *args, **kwargs)

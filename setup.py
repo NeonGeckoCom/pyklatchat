@@ -31,15 +31,22 @@ from os import getenv, path
 
 
 def get_requirements(requirements_filename: str):
-    requirements_file = path.join(path.abspath(path.dirname(__file__)), "requirements", requirements_filename)
-    with open(requirements_file, 'r', encoding='utf-8') as r:
+    requirements_file = path.join(
+        path.abspath(path.dirname(__file__)), "requirements", requirements_filename
+    )
+    with open(requirements_file, "r", encoding="utf-8") as r:
         requirements = r.readlines()
-    requirements = [r.strip() for r in requirements if r.strip() and not r.strip().startswith("#")]
+    requirements = [
+        r.strip() for r in requirements if r.strip() and not r.strip().startswith("#")
+    ]
 
     for i in range(0, len(requirements)):
         r = requirements[i]
         if "@" in r:
-            parts = [p.lower() if p.strip().startswith("git+http") else p for p in r.split('@')]
+            parts = [
+                p.lower() if p.strip().startswith("git+http") else p
+                for p in r.split("@")
+            ]
             r = "@".join(parts)
             if getenv("GITHUB_TOKEN"):
                 if "github.com" in r:
@@ -60,25 +67,25 @@ with open("./version.py", "r", encoding="utf-8") as v:
                 version = line.split("'")[1]
 
 setup(
-    name='pyklatchat',
+    name="pyklatchat",
     version=version,
-    description='Klatchat v2.0',
-    url='https://github.com/NeonGeckoCom/pyklatchat',
-    author='NeonGecko',
-    author_email='developers@neon.ai',
-    license='BSD-3',
-    packages=['chat_server', 'chat_client', 'services.klatchat_observer'],
+    description="Klatchat v2.0",
+    url="https://github.com/NeonGeckoCom/pyklatchat",
+    author="NeonGecko",
+    author_email="developers@neon.ai",
+    license="BSD-3",
+    packages=["chat_server", "chat_client", "services.klatchat_observer"],
     install_requires=get_requirements("requirements.txt"),
     zip_safe=True,
     classifiers=[
-        'Intended Audience :: Developers',
-        'Programming Language :: Python :: 3.8',
+        "Intended Audience :: Developers",
+        "Programming Language :: Python :: 3.10",
     ],
     entry_points={
-        'console_scripts': [
-            'chat_server=chat_server.__main__:main',
-            'chat_client=chat_client.__main__:main',
-            'klatchat_observer=services.klatchat_observer.__main__:main'
+        "console_scripts": [
+            "chat_server=chat_server.__main__:main",
+            "chat_client=chat_client.__main__:main",
+            "klatchat_observer=services.klatchat_observer.__main__:main",
         ]
-    }
+    },
 )

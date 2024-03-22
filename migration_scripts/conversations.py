@@ -29,70 +29,85 @@ from typing import List, Dict, Tuple
 
 from pymongo import ReplaceOne
 
-from migration_scripts.utils.conversation_utils import clean_conversation_name, index_nicks
+from migration_scripts.utils.conversation_utils import (
+    clean_conversation_name,
+    index_nicks,
+)
 from utils.logging_utils import LOG
 
 
-def migrate_conversations(old_db_controller, new_db_controller,
-                          time_since: int = 1577829600) -> Tuple[List[str], Dict[str, str], List[str]]:
+def migrate_conversations(
+    old_db_controller, new_db_controller, time_since: int = 1577829600
+) -> Tuple[List[str], Dict[str, str], List[str]]:
     """
-        Migrating conversations from old database to new one
-        :param old_db_controller: old database connector
-        :param new_db_controller: new database connector
-        :param time_since: timestamp for conversation activity
+    Migrating conversations from old database to new one
+    :param old_db_controller: old database connector
+    :param new_db_controller: new database connector
+    :param time_since: timestamp for conversation activity
     """
-    LOG.info(f'Starting chats migration')
+    LOG.info(f"Starting chats migration")
 
-    get_cids_query = f""" 
+    get_cids_query = f"""
                           select * from shoutbox_conversations where updated>{time_since};
                       """
 
     result = old_db_controller.exec_query(get_cids_query)
 
-    result_cids = [str(r['cid']) for r in result]
+    result_cids = [str(r["cid"]) for r in result]
 
-    existing_cids = list(new_db_controller.exec_query(query=dict(document='chats', command='find', data={
-        '_id': {'$in': result_cids}
-    })))
+    existing_cids = list(
+        new_db_controller.exec_query(
+            query=dict(
+                document="chats", command="find", data={"_id": {"$in": result_cids}}
+            )
+        )
+    )
 
-    existing_cids = [r['_id'] for r in existing_cids]
+    existing_cids = [r["_id"] for r in existing_cids]
 
-    all_cids_in_scope = list(set(existing_cids+result_cids))
+    all_cids_in_scope = list(set(existing_cids + result_cids))
 
-    LOG.info(f'Found {len(existing_cids)} existing cids')
+    LOG.info(f"Found {len(existing_cids)} existing cids")
 
     if existing_cids:
-        result = list(filter(lambda x: str(x['cid']) not in existing_cids, result))
+        result = list(filter(lambda x: str(x["cid"]) not in existing_cids, result))
 
-    LOG.info(f'Received {len(result)} new cids')
+    LOG.info(f"Received {len(result)} new cids")
 
-    received_nicks = [record['creator'] for record in result if record['creator'] is not None]
+    received_nicks = [
+        record["creator"] for record in result if record["creator"] is not None
+    ]
 
-    nicknames_mapping, nicks_to_consider = index_nicks(mongo_controller=new_db_controller,
-                                                       received_nicks=received_nicks)
+    nicknames_mapping, nicks_to_consider = index_nicks(
+        mongo_controller=new_db_controller, received_nicks=received_nicks
+    )
 
-    LOG.debug(f'Records to process: {len(result)}')
+    LOG.debug(f"Records to process: {len(result)}")
 
-    formed_result = [ReplaceOne({'_id': str(record['cid'])},
-                                {
-                                    '_id': str(record['cid']),
-                                    'is_private': int(record['private']) == 1,
-                                    'domain': record['domain'],
-                                    'image': record['image_url'],
-                                    'password': record['password'],
-                                    'conversation_name': f"{clean_conversation_name(record['title'])}_{record['cid']}",
-                                    'chat_flow': [],
-                                    'creator': nicknames_mapping.get(record['creator'], record['creator']),
-                                    'created_on': int(record['created'])
-                                }, upsert=True) for record in result
-                     ]
+    formed_result = [
+        ReplaceOne(
+            {"_id": str(record["cid"])},
+            {
+                "_id": str(record["cid"]),
+                "is_private": int(record["private"]) == 1,
+                "domain": record["domain"],
+                "image": record["image_url"],
+                "password": record["password"],
+                "conversation_name": f"{clean_conversation_name(record['title'])}_{record['cid']}",
+                "chat_flow": [],
+                "creator": nicknames_mapping.get(record["creator"], record["creator"]),
+                "created_on": int(record["created"]),
+            },
+            upsert=True,
+        )
+        for record in result
+    ]
 
     if len(formed_result) > 0:
-
-        new_db_controller.exec_query(query=dict(document='chats',
-                                                command='bulk_write',
-                                                data=formed_result))
+        new_db_controller.exec_query(
+            query=dict(document="chats", command="bulk_write", data=formed_result)
+        )
     else:
-        LOG.info('All chats are already in new deb, skipping chat migration')
+        LOG.info("All chats are already in new deb, skipping chat migration")
 
     return all_cids_in_scope, nicknames_mapping, nicks_to_consider

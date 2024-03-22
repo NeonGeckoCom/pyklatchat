@@ -1,0 +1,3 @@
+# These requirements are needed to migrated db data from legacy Klatchat v1
+mysql-connector==2.2.9
+sshtunnel~=0.4

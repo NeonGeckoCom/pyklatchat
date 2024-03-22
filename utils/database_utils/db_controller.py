@@ -26,20 +26,23 @@
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 from utils.database_utils.mongodb_connector import MongoDBConnector
-from utils.database_utils.mysql_connector import MySQLConnector
-
 from utils.database_utils.base_connector import DatabaseConnector, DatabaseTypes
 from utils.logging_utils import LOG
+
+try:
+    from utils.database_utils.mysql_connector import MySQLConnector
+except ModuleNotFoundError:
+    LOG.info("MySQL dependency was not installed")
+    MySQLConnector = None
 
 
 class DatabaseController:
     """
-        Database Controller class acting as a single point of any incoming db connection
-        Allows to encapsulate particular database type / dialect with abstract database API
+    Database Controller class acting as a single point of any incoming db connection
+    Allows to encapsulate particular database type / dialect with abstract database API
     """
 
-    database_class_mapping = {'mongo': MongoDBConnector,
-                              'mysql': MySQLConnector}
+    database_class_mapping = {"mongo": MongoDBConnector, "mysql": MySQLConnector}
 
     def __init__(self, config_data: dict):
         self._connector = None
@@ -47,32 +50,34 @@ class DatabaseController:
 
     @property
     def connector(self) -> DatabaseConnector:
-        """ Database connector instance """
+        """Database connector instance"""
         return self._connector
 
     @connector.setter
     def connector(self, val):
         if self._connector:
-            LOG.error('DB Connection is already established - detach connector first')
+            LOG.error("DB Connection is already established - detach connector first")
         else:
             self._connector = val
 
     def attach_connector(self, dialect: str):
         """
-            Creates database connector instance base on the given class
+        Creates database connector instance base on the given class
 
-            :param dialect: name of the dialect to for connection
+        :param dialect: name of the dialect to for connection
         """
         db_class = self.database_class_mapping.get(dialect)
         if not db_class:
-            raise AssertionError(f'Invalid dialect provided, supported are: {list(self.database_class_mapping)}')
+            raise AssertionError(
+                f"Invalid dialect provided, supported are: {list(self.database_class_mapping)}"
+            )
         self.connector = db_class(config_data=self.config_data)
 
     def detach_connector(self, graceful_termination_func: callable = None):
         """
-            Drops current database connector connection
+        Drops current database connector connection
 
-            :param graceful_termination_func: function causing graceful termination of connector instance (optional)
+        :param graceful_termination_func: function causing graceful termination of connector instance (optional)
         """
         if graceful_termination_func:
             graceful_termination_func(self._connector)
@@ -80,17 +85,17 @@ class DatabaseController:
             self._connector = None
 
     def exec_query(self, query, *args, **kwargs):
-        """ Executes query on connector's database """
+        """Executes query on connector's database"""
         return self.connector.exec_raw_query(query=query, *args, **kwargs)
 
     def connect(self):
-        """ Connects attached connector """
+        """Connects attached connector"""
         self.connector.create_connection()
 
     def disconnect(self):
-        """ Disconnects attached connector """
+        """Disconnects attached connector"""
         self.connector.abort_connection()
 
     def get_type(self) -> DatabaseTypes:
-        """ Gets type of Database connected to given controller """
+        """Gets type of Database connected to given controller"""
         return self.connector.database_type
