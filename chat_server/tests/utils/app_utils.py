@@ -31,9 +31,10 @@ import socketio
 from typing import Union
 from fastapi import FastAPI
 
-from chat_server.app import create_app
+from chat_server.sio import sio
+from chat_server.wsgi import create_app
 
 
 def get_test_app() -> Union[FastAPI, socketio.ASGIApp]:
     """Returns test application instance"""
-    return create_app(testing_mode=True)
+    return create_app(testing_mode=True, sio_server=sio)

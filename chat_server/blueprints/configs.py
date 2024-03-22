@@ -26,47 +26,43 @@
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-# DAO Imports
-from utils.database_utils.mongo_utils.queries.dao.abc import MongoDocumentDAO
-from utils.database_utils.mongo_utils.queries.dao.configs import ConfigsDAO
-from utils.database_utils.mongo_utils.queries.dao.users import UsersDAO
-from utils.database_utils.mongo_utils.queries.dao.chats import ChatsDAO
-from utils.database_utils.mongo_utils.queries.dao.shouts import ShoutsDAO
-from utils.database_utils.mongo_utils.queries.dao.prompts import PromptsDAO
-from utils.database_utils.mongo_utils.queries.dao.personas import PersonasDAO
+from fastapi import APIRouter, Depends
+from starlette.responses import JSONResponse
+
+from chat_server.server_utils.dependencies import CurrentUserDependency
+from chat_server.server_utils.exceptions import (
+    ItemNotFoundException,
+    UserUnauthorizedException,
+)
+from chat_server.server_utils.http_utils import KlatAPIResponse
+from chat_server.server_utils.models.configs import SetConfigModel, ConfigModel
+from utils.database_utils.mongo_utils.queries.wrapper import MongoDocumentsAPI
+
+router = APIRouter(
+    prefix="/configs",
+    responses={"404": {"description": "Unknown endpoint"}},
+)
 
 
-class MongoDAOGateway(type):
-    def __getattribute__(self, name):
-        item = super().__getattribute__(name)
-        try:
-            if issubclass(item, MongoDocumentDAO):
-                item = item(
-                    db_controller=self.db_controller, sftp_connector=self.sftp_connector
-                )
-        except:
-            pass
-        return item
+@router.get("/{config_property}")
+async def get_config_data(model: ConfigModel = Depends()) -> JSONResponse:
+    """Retrieves configured data by name"""
+    items = MongoDocumentsAPI.CONFIGS.get_by_name(
+        config_name=model.config_property, version=model.version
+    )
+    return JSONResponse(content=items)
 
 
-class MongoDocumentsAPI(metaclass=MongoDAOGateway):
-    """
-    Wrapper for DB commands execution
-    If getting attribute is triggered, initialises relevant instance of DAO handler and returns it
-    """
-
-    db_controller = None
-    sftp_connector = None
-
-    USERS = UsersDAO
-    CHATS = ChatsDAO
-    SHOUTS = ShoutsDAO
-    PROMPTS = PromptsDAO
-    PERSONAS = PersonasDAO
-    CONFIGS = ConfigsDAO
-
-    @classmethod
-    def init(cls, db_controller, sftp_connector=None):
-        """Inits Singleton with specified database controller"""
-        cls.db_controller = db_controller
-        cls.sftp_connector = sftp_connector
+@router.put("/{config_property}")
+async def update_config(
+    current_user: CurrentUserDependency, model: SetConfigModel = Depends()
+) -> JSONResponse:
+    """Updates provided config by name"""
+    if "admin" not in current_user.roles:
+        raise UserUnauthorizedException
+    updated_data = MongoDocumentsAPI.CONFIGS.update_by_name(
+        config_name=model.config_property, version=model.version, data=model.data
+    )
+    if updated_data.matched_count == 0:
+        raise ItemNotFoundException
+    return KlatAPIResponse.OK

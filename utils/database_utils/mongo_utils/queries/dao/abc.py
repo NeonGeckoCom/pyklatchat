@@ -139,18 +139,54 @@ class MongoDocumentDAO(ABC):
         """Inserts provided data into the object's document"""
         return self._execute_query(command=MongoCommands.INSERT_ONE, data=data)
 
+    def update_item(
+        self, filters: list[dict | MongoFilter], data: dict, data_action: str = "set"
+    ) -> bool:
+        """Updates provided data into the object's document"""
+        return self._execute_query(
+            command=MongoCommands.UPDATE_ONE,
+            filters=filters,
+            data=data,
+            data_action=data_action,
+        )
+
+    def update_items(
+        self, filters: list[dict | MongoFilter], data: dict, data_action: str = "set"
+    ) -> bool:
+        """Updates provided data into the object's documents"""
+        return self._execute_query(
+            command=MongoCommands.UPDATE_MANY,
+            filters=filters,
+            data=data,
+            data_action=data_action,
+        )
+
     def get_item(
         self, item_id: str = None, filters: list[dict | MongoFilter] = None
     ) -> dict | None:
+        filters = self._build_item_selection_filters(item_id=item_id, filters=filters)
+        if not filters:
+            return
+        return self._execute_query(command=MongoCommands.FIND_ONE, filters=filters)
+
+    def delete_item(
+        self, item_id: str = None, filters: list[dict | MongoFilter] = None
+    ) -> None:
+        filters = self._build_item_selection_filters(item_id=item_id, filters=filters)
+        if not filters:
+            raise
+        return self._execute_query(command=MongoCommands.DELETE_ONE, filters=filters)
+
+    def _build_item_selection_filters(
+        self, item_id: str = None, filters: list[dict | MongoFilter] = None
+    ) -> list[dict | MongoFilter] | None:
         if not filters:
             filters = []
         if item_id:
             if not isinstance(filters, list):
                 filters = [filters]
             filters.append(MongoFilter(key="_id", value=item_id))
-        if not filters:
-            return
-        return self._execute_query(command=MongoCommands.FIND_ONE, filters=filters)
+        return filters
 
     def _execute_query(
         self,

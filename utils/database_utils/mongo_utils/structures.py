@@ -64,6 +64,8 @@ class MongoDocuments(Enum):
     CHATS = "chats"
     SHOUTS = "shouts"
     PROMPTS = "prompts"
+    PERSONAS = "personas"
+    CONFIGS = "configs"
     TEST = "test"
 
 
@@ -77,7 +79,6 @@ class MongoLogicalOperators(Enum):
     GTE = "gte"
     IN = "in"
     ALL = "all"
-    ANY = "any"
     OR = "or"
     AND = "and"
 

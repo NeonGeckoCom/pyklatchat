@@ -26,47 +26,55 @@
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-# DAO Imports
-from utils.database_utils.mongo_utils.queries.dao.abc import MongoDocumentDAO
-from utils.database_utils.mongo_utils.queries.dao.configs import ConfigsDAO
-from utils.database_utils.mongo_utils.queries.dao.users import UsersDAO
-from utils.database_utils.mongo_utils.queries.dao.chats import ChatsDAO
-from utils.database_utils.mongo_utils.queries.dao.shouts import ShoutsDAO
-from utils.database_utils.mongo_utils.queries.dao.prompts import PromptsDAO
-from utils.database_utils.mongo_utils.queries.dao.personas import PersonasDAO
+import random
+import string
+import time
+import traceback
+
+from starlette.requests import Request
+from starlette.middleware.base import BaseHTTPMiddleware
+
+from chat_server.server_utils.exceptions import KlatAPIException
+from chat_server.server_utils.http_utils import get_request_path_string, KlatAPIResponse
+from utils.logging_utils import LOG
 
 
-class MongoDAOGateway(type):
-    def __getattribute__(self, name):
-        item = super().__getattribute__(name)
+class KlatAPIExceptionMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
         try:
-            if issubclass(item, MongoDocumentDAO):
-                item = item(
-                    db_controller=self.db_controller, sftp_connector=self.sftp_connector
-                )
+            response = await call_next(request)
+        except KlatAPIException as exc:
+            path = get_request_path_string(request=request)
+            LOG.warning(f"Klat API exception occurred for {path = } msg={exc.MESSAGE}")
+            response = exc.to_http_response()
+        return response
+
+
+class LogMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        path = get_request_path_string(request=request)
+        request_id = "".join(
+            random.choices(string.ascii_uppercase + string.digits, k=6)
+        )
+        LOG.info(f"{request_id = } start at {path = }")
+        start_time = time.time()
+        try:
+            response = await call_next(request)
+            process_time = (time.time() - start_time) * 1000
+            formatted_process_time = "{0:.2f}".format(process_time)
+            log_message = (
+                f"{request_id = } "
+                f"completed_in={formatted_process_time}ms "
+                f"status_code={response.status_code}"
+            )
+            LOG.info(log_message)
+            return response
         except:
-            pass
-        return item
+            LOG.error(f"{path = }| traceback = {traceback.format_exc()}")
+        return KlatAPIResponse.INTERNAL_SERVER_ERROR
 
 
-class MongoDocumentsAPI(metaclass=MongoDAOGateway):
-    """
-    Wrapper for DB commands execution
-    If getting attribute is triggered, initialises relevant instance of DAO handler and returns it
-    """
-
-    db_controller = None
-    sftp_connector = None
-
-    USERS = UsersDAO
-    CHATS = ChatsDAO
-    SHOUTS = ShoutsDAO
-    PROMPTS = PromptsDAO
-    PERSONAS = PersonasDAO
-    CONFIGS = ConfigsDAO
-
-    @classmethod
-    def init(cls, db_controller, sftp_connector=None):
-        """Inits Singleton with specified database controller"""
-        cls.db_controller = db_controller
-        cls.sftp_connector = sftp_connector
+SUPPORTED_MIDDLEWARE = (
+    KlatAPIExceptionMiddleware,
+    LogMiddleware,
+)

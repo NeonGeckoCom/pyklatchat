@@ -28,8 +28,11 @@
 import json
 import re
 import time
+import cachetools.func
+
 from threading import Event, Timer
 
+import requests
 import socketio
 
 from enum import Enum
@@ -37,6 +40,9 @@ from enum import Enum
 from neon_mq_connector.utils import retry
 from neon_mq_connector.utils.rabbit_utils import create_mq_callback
 from neon_mq_connector.connector import MQConnector
+from requests import Response
+
+from services.klatchat_observer.utils.exceptions import KlatAPIAuthorizationError
 from utils.logging_utils import LOG
 
 from version import __version__
@@ -62,6 +68,7 @@ class ChatObserver(MQConnector):
         "neon_api": "/neon_chat_api",
         "chatbots": "/chatbots",
         "translation": "/translation",
+        "llm": "/llm",
     }
 
     def __init__(
@@ -88,6 +95,10 @@ class ChatObserver(MQConnector):
         }
         self._sio = None
         self.sio_url = config["SIO_URL"]
+        self.server_url = self.sio_url
+        self._klat_session_token = None
+        self.klat_auth_credentials = config.get("KLAT_AUTH_CREDENTIALS", {})
+        self.default_persona_llms = dict()
         self.connect_sio()
         self.register_consumer(
             name="neon_response",
@@ -150,7 +161,12 @@ class ChatObserver(MQConnector):
             vhost=self.get_vhost("translation"),
             queue="get_libre_translations",
             callback=self.on_neon_translations_response,
-            on_error=self.default_error_handler,
+        )
+        self.register_consumer(
+            name="get_configured_personas",
+            vhost=self.get_vhost("llm"),
+            queue="get_configured_personas",
+            callback=self.on_get_configured_personas,
         )
         self.register_subscriber(
             name="subminds_state_receiver",
@@ -193,8 +209,7 @@ class ChatObserver(MQConnector):
                     break
         return callback
 
-    @staticmethod
-    def get_recipient_from_body(message: str) -> dict:
+    def get_recipient_from_body(self, message: str) -> dict:
         """
         Gets recipients from message body
 
@@ -202,7 +217,7 @@ class ChatObserver(MQConnector):
         :returns extracted recipient
 
         Example:
-        >>> assert ChatObserver.get_recipient_from_body('@Proctor hello dsfdsfsfds @Prompter') == {'recipient': Recipients.CHATBOT_CONTROLLER, 'context': {'requested_participants': {'proctor', 'prompter'}}
+        >>> assert self.get_recipient_from_body('@Proctor hello dsfdsfsfds @Prompter') == {'recipient': Recipients.CHATBOT_CONTROLLER, 'context': {'requested_participants': {'proctor', 'prompter'}}
         """
         message = " " + message
         bot_mentioning_regexp = r"[\s]+@[a-zA-Z]+[\w]+"
@@ -212,17 +227,24 @@ class ChatObserver(MQConnector):
             recipient = Recipients.CHATBOT_CONTROLLER
         else:
             recipient = Recipients.UNRESOLVED
-        return {"recipient": recipient, "context": {"requested_participants": bots}}
+        return {
+            "recipient": recipient,
+            "context": {
+                "requested_participants": [
+                    self.default_persona_llms.get(bot, bot) for bot in bots
+                ]
+            },
+        }
 
-    @staticmethod
-    def get_recipient_from_bound_service(bound_service) -> dict:
+    def get_recipient_from_bound_service(self, bound_service) -> dict:
         """Gets recipient in case bounded service is received in data"""
         response = {}
         if bound_service.startswith("chatbots"):
+            bot = bound_service.split(".")[1].split(",")
             response = {
                 "recipient": Recipients.CHATBOT_CONTROLLER,
                 "context": {
-                    "requested_participants": bound_service.split(".")[1].split(",")
+                    "requested_participants": self.default_persona_llms.get(bot, bot)
                 },
             }
         elif bound_service.startswith("neon"):
@@ -728,6 +750,48 @@ class ChatObserver(MQConnector):
         body["msg_type"] = "subminds_state"
         self.sio.emit("broadcast", data=body)
 
+    @create_mq_callback()
+    def on_get_configured_personas(self, body: dict):
+        response_data = self._fetch_persona_api(user_id=body.get("user_id"))
+        response_data["items"] = [
+            item
+            for item in response_data["items"]
+            if body["service_name"] in item["supported_llms"]
+        ]
+        response_data.setdefault("context", {}).setdefault("mq", {}).setdefault(
+            "message_id", body["message_id"]
+        )
+        self.send_message(
+            request_data=response_data,
+            vhost=self.get_vhost("llm"),
+            queue=body["routing_key"],
+            expiration=3000,
+        )
+
+    @cachetools.func.ttl_cache(ttl=2 * 60)
+    def _fetch_persona_api(self, user_id: str) -> dict:
+        query_string = self._build_persona_api_query(user_id=user_id)
+        url = f"{self.server_url}/personas/list?{query_string}"
+        try:
+            response = self._fetch_klat_server(url=url)
+            data = response.json()
+            self._refresh_default_persona_llms(data=data)
+        except KlatAPIAuthorizationError:
+            LOG.error(f"Failed to fetch personas from {url = }")
+            data = {"items": []}
+        return data
+
+    def _refresh_default_persona_llms(self, data):
+        for item in data["items"]:
+            if default_llm := item.get("default_llm"):
+                self.default_persona_llms[item["id"]] = item["id"] + "_" + default_llm
+
+    def _build_persona_api_query(self, user_id: str) -> str:
+        url_query_params = f"only_enabled=true"
+        if user_id:
+            url_query_params += f"&user_id={user_id}"
+        return url_query_params
+
     def request_ban_submind(self, data: dict):
         self.send_message(
             request_data=data,
@@ -735,6 +799,34 @@ class ChatObserver(MQConnector):
             queue="ban_submind",
             expiration=3000,
         )
+
+    def _fetch_klat_server(self, url: str) -> Response:
+        # only getter method is supported, for POST/PUT/DELETE operations using Socket IO is preferable channel
+        if self._klat_session_token:
+            response = self._send_get_request_to_klat(url=url)
+            if response.ok:
+                return response
+            elif response.status_code != 403:
+                raise KlatAPIAuthorizationError("Klat API unavailable")
+        self._login_to_klat_server()
+        return self._send_get_request_to_klat(url=url)
+
+    def _send_get_request_to_klat(self, url: str) -> Response:
+        return requests.get(
+            url=url, headers={"Authorization": self._klat_session_token}
+        )
+
+    def _login_to_klat_server(self):
+        response = requests.post(
+            f"{self.server_url}/auth/login", data=self.klat_auth_credentials
+        )
+        if response.ok:
+            self._klat_session_token = response.json()["token"]
+        else:
+            LOG.error(
+                f"Klat API authorization error: [{response.status_code}] {response.text}"
+            )
+            raise KlatAPIAuthorizationError
 
     def request_ban_submind_from_conversation(self, data: dict):
         self.send_message(

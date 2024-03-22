@@ -26,47 +26,12 @@
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-# DAO Imports
-from utils.database_utils.mongo_utils.queries.dao.abc import MongoDocumentDAO
-from utils.database_utils.mongo_utils.queries.dao.configs import ConfigsDAO
-from utils.database_utils.mongo_utils.queries.dao.users import UsersDAO
-from utils.database_utils.mongo_utils.queries.dao.chats import ChatsDAO
-from utils.database_utils.mongo_utils.queries.dao.shouts import ShoutsDAO
-from utils.database_utils.mongo_utils.queries.dao.prompts import PromptsDAO
-from utils.database_utils.mongo_utils.queries.dao.personas import PersonasDAO
 
+from typing import Annotated
 
-class MongoDAOGateway(type):
-    def __getattribute__(self, name):
-        item = super().__getattribute__(name)
-        try:
-            if issubclass(item, MongoDocumentDAO):
-                item = item(
-                    db_controller=self.db_controller, sftp_connector=self.sftp_connector
-                )
-        except:
-            pass
-        return item
+from fastapi import Depends
 
+from chat_server.server_utils.auth import get_current_user_model
+from chat_server.server_utils.models.users import CurrentUserModel
 
-class MongoDocumentsAPI(metaclass=MongoDAOGateway):
-    """
-    Wrapper for DB commands execution
-    If getting attribute is triggered, initialises relevant instance of DAO handler and returns it
-    """
-
-    db_controller = None
-    sftp_connector = None
-
-    USERS = UsersDAO
-    CHATS = ChatsDAO
-    SHOUTS = ShoutsDAO
-    PROMPTS = PromptsDAO
-    PERSONAS = PersonasDAO
-    CONFIGS = ConfigsDAO
-
-    @classmethod
-    def init(cls, db_controller, sftp_connector=None):
-        """Inits Singleton with specified database controller"""
-        cls.db_controller = db_controller
-        cls.sftp_connector = sftp_connector
+CurrentUserDependency = Annotated[CurrentUserModel, Depends(get_current_user_model)]

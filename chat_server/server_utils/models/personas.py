@@ -26,47 +26,54 @@
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-# DAO Imports
-from utils.database_utils.mongo_utils.queries.dao.abc import MongoDocumentDAO
-from utils.database_utils.mongo_utils.queries.dao.configs import ConfigsDAO
-from utils.database_utils.mongo_utils.queries.dao.users import UsersDAO
-from utils.database_utils.mongo_utils.queries.dao.chats import ChatsDAO
-from utils.database_utils.mongo_utils.queries.dao.shouts import ShoutsDAO
-from utils.database_utils.mongo_utils.queries.dao.prompts import PromptsDAO
-from utils.database_utils.mongo_utils.queries.dao.personas import PersonasDAO
+from fastapi import Query
+from pydantic import BaseModel, Field, computed_field
 
 
-class MongoDAOGateway(type):
-    def __getattribute__(self, name):
-        item = super().__getattribute__(name)
-        try:
-            if issubclass(item, MongoDocumentDAO):
-                item = item(
-                    db_controller=self.db_controller, sftp_connector=self.sftp_connector
-                )
-        except:
-            pass
-        return item
+class Persona(BaseModel):
+    persona_name: str = Field(examples=["doctor"])
+    user_id: str | None = Field(default=None, examples=["test_user_id"])
+
+    @computed_field
+    @property
+    def _id(self) -> str:
+        persona_id = self.persona_name
+        if self.user_id:
+            persona_id += f"_{self.user_id}"
+        return persona_id
+
+    @property
+    def persona_id(self):
+        return self._id
 
 
-class MongoDocumentsAPI(metaclass=MongoDAOGateway):
-    """
-    Wrapper for DB commands execution
-    If getting attribute is triggered, initialises relevant instance of DAO handler and returns it
-    """
+class AddPersonaModel(Persona):
+    supported_llms: list[str] = Field(
+        examples=[["chat_gpt", "llama", "fastchat"]], default=[]
+    )
+    default_llm: str | None = Field(examples=["chat_gpt"], default=None)
+    description: str = Field(examples=["I am the doctor. I am helping people."])
+    enabled: bool = False
 
-    db_controller = None
-    sftp_connector = None
 
-    USERS = UsersDAO
-    CHATS = ChatsDAO
-    SHOUTS = ShoutsDAO
-    PROMPTS = PromptsDAO
-    PERSONAS = PersonasDAO
-    CONFIGS = ConfigsDAO
+class SetPersonaModel(Persona):
+    supported_llms: list[str] = Field(
+        examples=[["chat_gpt", "llama", "fastchat"]], default=[]
+    )
+    default_llm: str | None = Field(examples=["chat_gpt"], default=None)
+    description: str = Field(examples=["I am the doctor. I am helping people."])
 
-    @classmethod
-    def init(cls, db_controller, sftp_connector=None):
-        """Inits Singleton with specified database controller"""
-        cls.db_controller = db_controller
-        cls.sftp_connector = sftp_connector
+
+class DeletePersonaModel(Persona):
+    persona_name: str = Field(Query(), examples=["doctor"])
+    user_id: str | None = Field(Query(None), examples=["test_user_id"])
+
+
+class TogglePersonaStatusModel(Persona):
+    enabled: bool = Field(examples=[True, False], default=True)
+
+
+class ListPersonasQueryModel(BaseModel):
+    llms: list[str] | None = Field(Query(default=None), examples=[["doctor"]])
+    user_id: str | None = Field(Query(default=None), examples=["test_user_id"])
+    only_enabled: bool = Field(Query(default=False), examples=[True, False])

@@ -26,47 +26,15 @@
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-# DAO Imports
-from utils.database_utils.mongo_utils.queries.dao.abc import MongoDocumentDAO
-from utils.database_utils.mongo_utils.queries.dao.configs import ConfigsDAO
-from utils.database_utils.mongo_utils.queries.dao.users import UsersDAO
-from utils.database_utils.mongo_utils.queries.dao.chats import ChatsDAO
-from utils.database_utils.mongo_utils.queries.dao.shouts import ShoutsDAO
-from utils.database_utils.mongo_utils.queries.dao.prompts import PromptsDAO
-from utils.database_utils.mongo_utils.queries.dao.personas import PersonasDAO
-
-
-class MongoDAOGateway(type):
-    def __getattribute__(self, name):
-        item = super().__getattribute__(name)
-        try:
-            if issubclass(item, MongoDocumentDAO):
-                item = item(
-                    db_controller=self.db_controller, sftp_connector=self.sftp_connector
-                )
-        except:
-            pass
-        return item
-
-
-class MongoDocumentsAPI(metaclass=MongoDAOGateway):
-    """
-    Wrapper for DB commands execution
-    If getting attribute is triggered, initialises relevant instance of DAO handler and returns it
-    """
-
-    db_controller = None
-    sftp_connector = None
-
-    USERS = UsersDAO
-    CHATS = ChatsDAO
-    SHOUTS = ShoutsDAO
-    PROMPTS = PromptsDAO
-    PERSONAS = PersonasDAO
-    CONFIGS = ConfigsDAO
-
-    @classmethod
-    def init(cls, db_controller, sftp_connector=None):
-        """Inits Singleton with specified database controller"""
-        cls.db_controller = db_controller
-        cls.sftp_connector = sftp_connector
+# Import blueprint here so it will be included
+from . import (
+    admin as admin_blueprint,
+    auth as auth_blueprint,
+    chat as chat_blueprint,
+    users as users_blueprint,
+    languages as languages_blueprint,
+    files_api as files_api_blueprint,
+    preferences as preferences_blueprint,
+    personas as personas_blueprint,
+    configs as configs_blueprint,
+)

@@ -26,47 +26,30 @@
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-# DAO Imports
-from utils.database_utils.mongo_utils.queries.dao.abc import MongoDocumentDAO
-from utils.database_utils.mongo_utils.queries.dao.configs import ConfigsDAO
-from utils.database_utils.mongo_utils.queries.dao.users import UsersDAO
-from utils.database_utils.mongo_utils.queries.dao.chats import ChatsDAO
-from utils.database_utils.mongo_utils.queries.dao.shouts import ShoutsDAO
-from utils.database_utils.mongo_utils.queries.dao.prompts import PromptsDAO
-from utils.database_utils.mongo_utils.queries.dao.personas import PersonasDAO
+import http
+
+from utils.http_utils import respond
 
 
-class MongoDAOGateway(type):
-    def __getattribute__(self, name):
-        item = super().__getattribute__(name)
-        try:
-            if issubclass(item, MongoDocumentDAO):
-                item = item(
-                    db_controller=self.db_controller, sftp_connector=self.sftp_connector
-                )
-        except:
-            pass
-        return item
+class KlatAPIException(Exception):
+
+    HTTP_CODE = http.HTTPStatus.INTERNAL_SERVER_ERROR
+    MESSAGE = "Internal Server Error"
+
+    def to_http_response(self):
+        return respond(msg=self.MESSAGE, status_code=self.HTTP_CODE.value)
 
 
-class MongoDocumentsAPI(metaclass=MongoDAOGateway):
-    """
-    Wrapper for DB commands execution
-    If getting attribute is triggered, initialises relevant instance of DAO handler and returns it
-    """
+class UserUnauthorizedException(KlatAPIException):
+    HTTP_CODE = http.HTTPStatus.FORBIDDEN
+    MESSAGE = "Requested user is not authorized to perform this action"
 
-    db_controller = None
-    sftp_connector = None
 
-    USERS = UsersDAO
-    CHATS = ChatsDAO
-    SHOUTS = ShoutsDAO
-    PROMPTS = PromptsDAO
-    PERSONAS = PersonasDAO
-    CONFIGS = ConfigsDAO
+class ItemNotFoundException(KlatAPIException):
+    HTTP_CODE = http.HTTPStatus.NOT_FOUND
+    MESSAGE = "Requested item not found"
 
-    @classmethod
-    def init(cls, db_controller, sftp_connector=None):
-        """Inits Singleton with specified database controller"""
-        cls.db_controller = db_controller
-        cls.sftp_connector = sftp_connector
+
+class DuplicatedItemException(KlatAPIException):
+    HTTP_CODE = http.HTTPStatus.CONFLICT
+    MESSAGE = "Requested item already exists"

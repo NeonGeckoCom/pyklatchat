@@ -30,7 +30,7 @@ import os
 from io import BytesIO
 
 import aiofiles
-from fastapi import UploadFile
+from fastapi import UploadFile, Request
 from starlette.responses import FileResponse, StreamingResponse
 
 from chat_server.server_config import app_config, sftp_connector
@@ -38,6 +38,15 @@ from chat_server.server_utils.enums import DataSources
 from utils.common import generate_uuid
 from utils.http_utils import respond
 from utils.logging_utils import LOG
+
+
+class KlatAPIResponse:
+    OK = respond("OK")
+    BAD_REQUEST = respond("Bad Request")
+    UNAUTHORIZED = respond("Unauthorized", status_code=401)
+    FORBIDDEN = respond("Permission Denied", status_code=403)
+    NOT_FOUND = respond("NOT_FOUND", status_code=404)
+    INTERNAL_SERVER_ERROR = respond("INTERNAL_SERVER_ERROR", status_code=500)
 
 
 def get_file_response(
@@ -123,3 +132,7 @@ async def save_file(
         LOG.error(f"Data source does not exists - {data_source}")
         return respond(f"Unable to fetch relevant data source", 403)
     return new_name
+
+
+def get_request_path_string(request: Request) -> str:
+    return f"[{request.method}] {request.url.path} "
