@@ -6,10 +6,10 @@ on:
       - dev
       - main
       - alpha
-  pull_request:
-    branches:
-      - dev
-      - alpha
+#  pull_request:
+#    branches:
+#      - dev
+#      - alpha
   workflow_dispatch:
     inputs:
       version:
