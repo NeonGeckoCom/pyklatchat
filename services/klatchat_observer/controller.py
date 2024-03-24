@@ -42,7 +42,7 @@ from neon_mq_connector.utils.rabbit_utils import create_mq_callback
 from neon_mq_connector.connector import MQConnector
 from requests import Response
 
-from services.klatchat_observer.utils.exceptions import KlatAPIAuthorizationError
+from utils.exceptions import KlatAPIAuthorizationError
 from utils.logging_utils import LOG
 
 from version import __version__
