@@ -6,20 +6,12 @@ on:
       - dev
       - main
       - alpha
-#  pull_request:
-#    branches:
-#      - dev
-#      - alpha
   workflow_dispatch:
     inputs:
       version:
         description: 'Images tag'
         required: true
         default: 'alpha'
-#      images:
-#        description: 'Include Images (klatchat_observer|chat_client|chat_server) space-separated'
-#        required: false
-#        default: klatchat_observer chat_client chat_server
 
 permissions:
   contents: write
@@ -61,17 +53,10 @@ jobs:
       if: github.event_name == 'workflow_dispatch'
       run: |
         echo "VERSION=${{ github.event.inputs.version }}" >> $GITHUB_ENV
-#        echo ${{ github.event.inputs.images }} >> $IMAGES
-    - name: Apply Pull Request Environments
-      if: github.event_name == 'pull_request'
-      run: |
-        echo "VERSION=alpha" >> $GITHUB_ENV
-#        echo klatchat_observer chat_client chat_server >> $IMAGES
     - name: Apply Push Environments
       if: github.event_name == 'push'
       run: |
         echo "VERSION=$(echo ${{ github.ref_name }} | tr / -)" >> $GITHUB_ENV
-#        echo klatchat_observer chat_client chat_server >> $IMAGES
     - name: Clean Up Version
       run: |
         echo "VERSION=${VERSION//['/']/-}" >> $GITHUB_ENV
