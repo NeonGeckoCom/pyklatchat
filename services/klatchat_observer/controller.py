@@ -93,7 +93,7 @@ class ChatObserver(MQConnector):
             Recipients.NEON: self.__handle_neon_recipient,
             Recipients.CHATBOT_CONTROLLER: self.__handle_chatbot_recipient,
         }
-        self._sio = None
+        self._sio: socketio.Client = None
         self.sio_url = config["SIO_URL"]
         self.server_url = self.sio_url
         self._klat_session_token = None
@@ -333,7 +333,7 @@ class ChatObserver(MQConnector):
         Method for establishing connection with Socket IO server
         """
         self._sio = socketio.Client()
-        self._sio.connect(url=self.sio_url)
+        self._sio.connect(url=self.sio_url, namespaces=["/"])
         self.register_sio_handlers()
 
     @property
