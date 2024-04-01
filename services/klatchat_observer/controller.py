@@ -765,10 +765,10 @@ class ChatObserver(MQConnector):
             request_data=response_data,
             vhost=self.get_vhost("llm"),
             queue=body["routing_key"],
-            expiration=3000,
+            expiration=5000,
         )
 
-    @cachetools.func.ttl_cache(ttl=2 * 60)
+    @cachetools.func.ttl_cache(ttl=15)
     def _fetch_persona_api(self, user_id: str) -> dict:
         query_string = self._build_persona_api_query(user_id=user_id)
         url = f"{self.server_url}/personas/list?{query_string}"
