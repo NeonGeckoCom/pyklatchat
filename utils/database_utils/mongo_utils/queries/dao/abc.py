@@ -28,6 +28,7 @@
 
 from abc import ABC, abstractmethod
 
+import pymongo
 from neon_sftp import NeonSFTPConnector
 
 from utils.database_utils import DatabaseController
@@ -81,6 +82,7 @@ class MongoDocumentDAO(ABC):
         self,
         filters: list[MongoFilter] = None,
         limit: int = None,
+        ordering_expression: dict[str, int] | None = None,
         result_as_cursor: bool = True,
     ) -> dict:
         """
@@ -88,12 +90,20 @@ class MongoDocumentDAO(ABC):
 
         :param filters: filters to consider (optional)
         :param limit: limit number of returned attributes (optional)
+        :param ordering_expression: items ordering expression (optional)
         :param result_as_cursor: to return result as cursor (defaults to True)
         :returns results of FIND operation over the desired document according to applied filters
         """
         result_filters = {}
         if limit:
             result_filters["limit"] = limit
+        if ordering_expression:
+            result_filters["sort"] = []
+            for attr, order in ordering_expression.items():
+                if order == -1:
+                    result_filters["sort"].append((attr, pymongo.DESCENDING))
+                else:
+                    result_filters["sort"].append((attr, pymongo.ASCENDING))
         items = self._execute_query(
             command=MongoCommands.FIND_ALL,
             filters=filters,

@@ -25,6 +25,7 @@
 # LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+from collections import Counter
 from dataclasses import dataclass
 from time import time
 from typing import List
@@ -63,8 +64,9 @@ class PopularityCounter:
         return cls.__DATA
 
     @classmethod
-    def add_new_chat(cls, cid, name, popularity: int = 0):
+    def add_new_chat(cls, cid, popularity: int = 0):
         """Adds new chat to the tracked chat popularity records"""
+        name = MongoDocumentsAPI.CHATS.get_item(item_id=cid).get("conversation_name")
         cls.__DATA.append(
             ChatPopularityRecord(cid=cid, name=name, popularity=popularity)
         )
@@ -78,29 +80,47 @@ class PopularityCounter:
         :param actuality_days: number of days for message to affect the chat popularity
         """
         curr_time = int(time())
-        chats = MongoDocumentsAPI.CHATS.list_items(include_private=False)
+        oldest_timestamp = curr_time - 3600 * 24 * actuality_days
+        chats = MongoDocumentsAPI.CHATS.list_items(
+            filters=[
+                MongoFilter(
+                    key="last_shout_ts",
+                    logical_operator=MongoLogicalOperators.GTE,
+                    value=oldest_timestamp,
+                )
+            ],
+            include_private=False,
+            result_as_cursor=False,
+        )
         relevant_shouts = MongoDocumentsAPI.SHOUTS.list_items(
             filters=[
                 MongoFilter(
                     key="created_on",
                     logical_operator=MongoLogicalOperators.GTE,
-                    value=curr_time - 3600 * 24 * actuality_days,
-                )
+                    value=oldest_timestamp,
+                ),
+                MongoFilter(
+                    key="cid",
+                    value=[chat["_id"] for chat in chats],
+                    logical_operator=MongoLogicalOperators.IN,
+                ),
             ]
         )
-        relevant_shouts = set(x["_id"] for x in relevant_shouts)
+        cids_popularity_counter = Counter()
+        for shout in relevant_shouts:
+            cids_popularity_counter[str(shout["cid"])] += 1
         formatted_chats = []
-        for chat in chats:
-            chat_flow = set(chat.get("chat_flow", []))
-            popularity = len(chat_flow.intersection(relevant_shouts))
-            if chat["_id"] is not None:
-                formatted_chats.append(
-                    ChatPopularityRecord(
-                        cid=str(chat["_id"]),
-                        name=chat["conversation_name"],
-                        popularity=popularity,
-                    )
+        for cid in cids_popularity_counter:
+            relevant_chat = [
+                chat for chat in chats if str(chat.get("_id", "")) == str(cid)
+            ][0]
+            formatted_chats.append(
+                ChatPopularityRecord(
+                    cid=cid,
+                    name=relevant_chat["conversation_name"],
+                    popularity=cids_popularity_counter[cid],
                 )
+            )
         cls.last_updated_ts = int(time())
         cls.__DATA = sorted(formatted_chats, key=lambda x: x.popularity, reverse=True)
 
@@ -111,7 +131,8 @@ class PopularityCounter:
             matching_item = [item for item in cls.get_data() if item.cid == cid][0]
             matching_item.popularity += 1
         except IndexError:
-            LOG.error(f"No cid matching = {cid}")
+            LOG.debug(f"No cid matching = {cid}")
+            cls.add_new_chat(cid=cid, popularity=1)
 
     @classmethod
     def get_first_n_items(cls, search_str, exclude_items: list = None, limit: int = 10):
