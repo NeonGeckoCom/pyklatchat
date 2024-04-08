@@ -29,7 +29,7 @@
 import logging
 import os
 
-from ovos_utils.log import LOG as ovos_default_logger
+from neon_utils.logger import LOG as ovos_default_logger
 
 combo_lock_logger = logging.getLogger("combo_lock")
 combo_lock_logger.disabled = True

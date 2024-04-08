@@ -9,8 +9,7 @@ jsbeautifier==1.14.7
 kubernetes==28.1.0
 neon-mq-connector~=0.7
 neon-sftp~=0.1
-ovos_config==0.0.10
-ovos_utils==0.0.35
+neon-utils==1.9.2a3
 pre-commit==3.4.0
 pydantic==2.4.2
 PyJWT==2.8.0
