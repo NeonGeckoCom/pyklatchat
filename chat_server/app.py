@@ -51,7 +51,7 @@ def create_app(
     :param testing_mode: to run application in testing mode (defaults to False)
     :param sio_server: socket io server instance (optional)
     """
-    app_version = get_version("chat_server/version.py")
+    app_version = get_version("version.py")
     chat_app = FastAPI(title="Klatchat Server API", version=app_version)
 
     _init_middleware(app=chat_app)

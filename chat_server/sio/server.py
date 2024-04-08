@@ -26,15 +26,6 @@
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-# Import blueprint here to include it to Web App
-from . import (
-    admin as admin_blueprint,
-    auth as auth_blueprint,
-    chat as chat_blueprint,
-    users as users_blueprint,
-    languages as languages_blueprint,
-    files_api as files_api_blueprint,
-    preferences as preferences_blueprint,
-    personas as personas_blueprint,
-    configs as configs_blueprint,
-)
+import socketio
+
+sio = socketio.AsyncServer(cors_allowed_origins="*", async_mode="asgi")
