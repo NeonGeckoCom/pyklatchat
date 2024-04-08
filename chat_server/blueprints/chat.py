@@ -26,17 +26,18 @@
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 import warnings
-from typing import Optional
 
 from time import time
-from fastapi import APIRouter, Request, Form
+from fastapi import APIRouter, Request, Form, Depends
 from fastapi.responses import JSONResponse
 
-from chat_server.constants.conversations import ConversationSkins
 from chat_server.server_utils.auth import login_required
 from chat_server.server_utils.conversation_utils import build_message_json
+from chat_server.server_utils.dependencies import CurrentUserDependency
+from chat_server.server_utils.models.chats import GetConversationModel
 from chat_server.services.popularity_counter import PopularityCounter
 from utils.common import generate_uuid
+from utils.database_utils.mongo_utils import MongoFilter, MongoLogicalOperators
 from utils.database_utils.mongo_utils.queries.mongo_queries import fetch_message_data
 from utils.database_utils.mongo_utils.queries.wrapper import MongoDocumentsAPI
 from utils.http_utils import respond
@@ -86,53 +87,51 @@ async def new_conversation(
         "created_on": int(time()),
     }
     MongoDocumentsAPI.CHATS.add_item(data=request_data_dict)
-    PopularityCounter.add_new_chat(cid=cid, name=conversation_name)
+    PopularityCounter.add_new_chat(cid=cid)
     return JSONResponse(content=request_data_dict)
 
 
 @router.get("/search/{search_str}")
-# @login_required
 async def get_matching_conversation(
-    request: Request,
-    search_str: str,
-    chat_history_from: int = 0,
-    first_message_id: Optional[str] = None,
-    limit_chat_history: int = 100,
-    skin: str = ConversationSkins.BASE,
+    current_user: CurrentUserDependency, model: GetConversationModel = Depends()
 ):
     """
     Gets conversation data matching search string
 
-    :param request: Starlette Request object
-    :param search_str: provided search string
-    :param chat_history_from: upper time bound for messages
-    :param first_message_id: id of the first message to start from
-    :param limit_chat_history: lower time bound for messages
-    :param skin: conversation skin type from ConversationSkins
+    :param current_user: current user data
+    :param model: request data model described in GetConversationModel
 
     :returns conversation data if found, 401 error code otherwise
     """
     conversation_data = MongoDocumentsAPI.CHATS.get_conversation_data(
-        search_str=search_str
+        search_str=model.search_str, requested_user_id=current_user.user_id
     )
 
     if not conversation_data:
-        return respond(f'No conversation matching = "{search_str}"', 404)
+        return respond(f'No conversation matching = "{model.search_str}"', 404)
+
+    if model.creation_time_from:
+        query_filter = MongoFilter(
+            key="created_on",
+            logical_operator=MongoLogicalOperators.LT,
+            value=int(model.creation_time_from),
+        )
+    else:
+        query_filter = None
 
     message_data = (
         fetch_message_data(
-            skin=skin,
+            skin=model.skin,
             conversation_data=conversation_data,
-            start_idx=chat_history_from,
-            limit=limit_chat_history,
-            start_message_id=first_message_id,
+            limit=model.limit_chat_history,
+            creation_time_filter=query_filter,
         )
         or []
     )
-    conversation_data["chat_flow"] = []
-    for i in range(len(message_data)):
-        message_record = build_message_json(raw_message=message_data[i], skin=skin)
-        conversation_data["chat_flow"].append(message_record)
+    conversation_data["chat_flow"] = [
+        build_message_json(raw_message=message_data[i], skin=model.skin)
+        for i in range(len(message_data))
+    ]
 
     return conversation_data
 

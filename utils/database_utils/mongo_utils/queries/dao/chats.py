@@ -53,6 +53,7 @@ class ChatsDAO(MongoDocumentDAO):
         limit: int = 1,
         allow_regex_search: bool = False,
         include_private: bool = False,
+        requested_user_id: str = None,
     ) -> Union[None, dict]:
         """
         Gets matching conversation data
@@ -61,6 +62,7 @@ class ChatsDAO(MongoDocumentDAO):
         :param limit: limit found conversations
         :param allow_regex_search: to allow search for matching entries that CONTAIN :param search_str
         :param include_private: to include private conversations (defaults to False)
+        :param requested_user_id: id of the requested user (defaults to None) - used to find owned private conversations
         """
         if isinstance(search_str, str):
             search_str = [search_str]
@@ -98,24 +100,23 @@ class ChatsDAO(MongoDocumentDAO):
             chats = chats[0]
         return chats
 
-    def add_shout(self, cid: str, shout_id: str):
-        return self._execute_query(
-            command=MongoCommands.UPDATE_MANY,
-            filters=MongoFilter(key="_id", value=cid),
-            data={"chat_flow": shout_id},
-            data_action="push",
-        )
-
     def list_items(
         self,
         filters: list[MongoFilter] = None,
         limit: int = None,
         result_as_cursor: bool = True,
         include_private: bool = False,
+        requested_user_id: str = None,
     ) -> dict:
         filters = filters or []
         if not include_private:
-            filters.append(MongoFilter(key="is_private", value=False))
+            expression = {"is_private": False}
+            if requested_user_id:
+                expression["user_id"] = requested_user_id
+                expression = MongoFilter(
+                    value=expression, logical_operator=MongoLogicalOperators.OR
+                )
+            filters.append(expression)
         return super().list_items(
             filters=filters,
             limit=limit,
