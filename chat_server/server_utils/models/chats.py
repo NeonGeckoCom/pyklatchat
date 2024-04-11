@@ -26,15 +26,18 @@
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-# Import blueprint here to include it to Web App
-from . import (
-    admin as admin_blueprint,
-    auth as auth_blueprint,
-    chat as chat_blueprint,
-    users as users_blueprint,
-    languages as languages_blueprint,
-    files_api as files_api_blueprint,
-    preferences as preferences_blueprint,
-    personas as personas_blueprint,
-    configs as configs_blueprint,
-)
+from time import time
+
+from fastapi import Query, Path
+from pydantic import BaseModel, Field
+
+from chat_server.constants.conversations import ConversationSkins
+
+
+class GetConversationModel(BaseModel):
+    search_str: str = Field(Path(), examples=["1"])
+    limit_chat_history: int = (Field(Query(default=100), examples=[100]),)
+    creation_time_from: str | None = Field(Query(default=None), examples=[int(time())])
+    skin: str = Field(
+        Query(default=ConversationSkins.BASE), examples=[ConversationSkins.BASE]
+    )

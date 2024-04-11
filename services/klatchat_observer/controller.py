@@ -42,7 +42,7 @@ from neon_mq_connector.utils.rabbit_utils import create_mq_callback
 from neon_mq_connector.connector import MQConnector
 from requests import Response
 
-from services.klatchat_observer.utils.exceptions import KlatAPIAuthorizationError
+from utils.exceptions import KlatAPIAuthorizationError
 from utils.logging_utils import LOG
 
 from version import __version__
@@ -93,7 +93,7 @@ class ChatObserver(MQConnector):
             Recipients.NEON: self.__handle_neon_recipient,
             Recipients.CHATBOT_CONTROLLER: self.__handle_chatbot_recipient,
         }
-        self._sio = None
+        self._sio: socketio.Client = None
         self.sio_url = config["SIO_URL"]
         self.server_url = self.sio_url
         self._klat_session_token = None
@@ -333,7 +333,7 @@ class ChatObserver(MQConnector):
         Method for establishing connection with Socket IO server
         """
         self._sio = socketio.Client()
-        self._sio.connect(url=self.sio_url)
+        self._sio.connect(url=self.sio_url, namespaces=["/"])
         self.register_sio_handlers()
 
     @property
@@ -765,10 +765,10 @@ class ChatObserver(MQConnector):
             request_data=response_data,
             vhost=self.get_vhost("llm"),
             queue=body["routing_key"],
-            expiration=3000,
+            expiration=5000,
         )
 
-    @cachetools.func.ttl_cache(ttl=2 * 60)
+    @cachetools.func.ttl_cache(ttl=15)
     def _fetch_persona_api(self, user_id: str) -> dict:
         query_string = self._build_persona_api_query(user_id=user_id)
         url = f"{self.server_url}/personas/list?{query_string}"

@@ -40,6 +40,7 @@ from chat_server.server_utils.auth import (
 )
 from chat_server.server_utils.http_utils import save_file
 from utils.common import get_hash
+from utils.database_utils.mongo_utils import MongoFilter
 from utils.database_utils.mongo_utils.queries.wrapper import MongoDocumentsAPI
 from utils.http_utils import respond
 from utils.logging_utils import LOG
@@ -169,17 +170,10 @@ async def update_profile(
     if avatar:
         update_dict["avatar"] = await save_file(location_prefix="avatars", file=avatar)
     try:
-        filter_expression = {"_id": user["_id"]}
-        update_expression = {"$set": {k: v for k, v in update_dict.items() if v}}
-        db_controller.exec_query(
-            query={
-                "document": "users",
-                "command": "update",
-                "data": (
-                    filter_expression,
-                    update_expression,
-                ),
-            }
+        filter_expression = MongoFilter(key="_id", value=user_id)
+        update_dict = {k: v for k, v in update_dict.items() if v}
+        MongoDocumentsAPI.USERS.update_item(
+            filters=(filter_expression,), data=update_dict
         )
         return respond(msg="OK")
     except Exception as ex:

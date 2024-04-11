@@ -26,15 +26,37 @@
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-# Import blueprint here to include it to Web App
-from . import (
-    admin as admin_blueprint,
-    auth as auth_blueprint,
-    chat as chat_blueprint,
-    users as users_blueprint,
-    languages as languages_blueprint,
-    files_api as files_api_blueprint,
-    preferences as preferences_blueprint,
-    personas as personas_blueprint,
-    configs as configs_blueprint,
-)
+from utils.logging_utils import LOG
+from ..server import sio
+
+
+@sio.event
+async def connect(sid, environ: dict, auth):
+    """
+    SIO event fired on client connect
+    :param sid: client session id
+    :param environ: connection environment dict
+    :param auth: authorization method (None if was not provided)
+    """
+    LOG.info(f"{sid} connected")
+
+
+@sio.event
+async def ping(sid, data):
+    """
+    SIO event fired on client ping request
+    :param sid: client session id
+    :param data: user message data
+    """
+    LOG.info(f'Received ping request from "{sid}"')
+    await sio.emit("pong", data={"msg": "hello from sio server"})
+
+
+@sio.event
+async def disconnect(sid):
+    """
+    SIO event fired on client disconnect
+
+    :param sid: client session id
+    """
+    LOG.info(f"{sid} disconnected")
