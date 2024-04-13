@@ -63,9 +63,11 @@ class DatabaseConnector(ABC):
         pass
 
     @abstractmethod
-    def exec_raw_query(self, query: Union[str, dict], *args, **kwargs) -> Optional[Union[list, dict]]:
+    def exec_raw_query(
+        self, query: Union[str, dict], *args, **kwargs
+    ) -> Optional[Union[list, dict]]:
         """
-            Executes raw query returns result if needed
-            :param query: query to execute
+        Executes raw query returns result if needed
+        :param query: query to execute
         """
         pass

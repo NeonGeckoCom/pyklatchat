@@ -26,5 +26,6 @@
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 from .app import create_app
+from .sio import sio
 
-app = create_app()
+app = create_app(sio_server=sio)

@@ -7,7 +7,7 @@ jobs:
   unit_tests:
     strategy:
       matrix:
-        python-version: [ '3.8', '3.9' ]
+        python-version: [ '3.10' ]
       max-parallel: 1
     runs-on: ubuntu-latest
     env:
@@ -24,6 +24,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements/requirements.txt
           pip install -r requirements/test_requirements.txt
+          pip install -r requirements/legacy_migration_requirements.txt
       - name: Get Credential
         run: |
           mkdir -p ~/.local/share/neon
@@ -51,7 +52,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v1
         with:
-          python-version: 3.8
+          python-version: '3.10'
       - name: Install Build Tools
         run: |
           python -m pip install build wheel

@@ -39,14 +39,14 @@ from utils.logging_utils import LOG
 
 def load_config() -> dict:
     """
-        Load and return a configuration object,
+    Load and return a configuration object,
     """
     legacy_config_path = "/app/app/config.json"
     if isfile(legacy_config_path):
         LOG.warning(f"Deprecated configuration found at {legacy_config_path}")
         with open(legacy_config_path) as f:
             config = json.load(f)
-        LOG.debug(f'Loaded config - {config}')
+        LOG.debug(f"Loaded config - {config}")
         return config
     config = OVOSConfiguration()
     if not config:
@@ -58,9 +58,9 @@ def load_config() -> dict:
 
 
 class Configuration:
-    """ Generic configuration module"""
+    """Generic configuration module"""
 
-    KLAT_ENV = os.environ.get('KLAT_ENV', 'DEV')
+    KLAT_ENV = os.environ.get("KLAT_ENV", "DEV")
     db_controllers = dict()
 
     def __init__(self, from_files: List[str]):
@@ -71,28 +71,30 @@ class Configuration:
     @staticmethod
     def extract_config_from_path(file_path: str) -> dict:
         """
-            Extracts configuration dictionary from desired file path
+        Extracts configuration dictionary from desired file path
 
-            :param file_path: desired file path
+        :param file_path: desired file path
 
-            :returns dictionary containing configs from target file, empty dict otherwise
+        :returns dictionary containing configs from target file, empty dict otherwise
         """
         try:
             with open(os.path.expanduser(file_path)) as input_file:
                 extraction_result = json.load(input_file)
         except Exception as ex:
-            LOG.error(f'Exception occurred while extracting data from {file_path}: {ex}')
+            LOG.error(
+                f"Exception occurred while extracting data from {file_path}: {ex}"
+            )
             extraction_result = dict()
         # LOG.info(f'Extracted config: {extraction_result}')
         return extraction_result
 
     def add_new_config_properties(self, new_config_dict: dict, at_key: str = None):
         """
-            Adds new configuration properties to existing configuration dict
+        Adds new configuration properties to existing configuration dict
 
-            :param new_config_dict: dictionary containing new configuration
-            :param at_key: the key at which to append new dictionary
-                            (optional but setting that will reduce possible future key conflicts)
+        :param new_config_dict: dictionary containing new configuration
+        :param at_key: the key at which to append new dictionary
+                        (optional but setting that will reduce possible future key conflicts)
         """
         if at_key:
             self.config_data[at_key] = new_config_dict
@@ -118,27 +120,29 @@ class Configuration:
     @config_data.setter
     def config_data(self, value):
         if not isinstance(value, dict):
-            raise TypeError(f'Type: {type(value)} not supported')
+            raise TypeError(f"Type: {type(value)} not supported")
         self._config_data = value
 
     def get_db_config_from_key(self, key: str):
         """Gets DB configuration by key"""
-        return self.config_data.get('DATABASE_CONFIG', {}).get(self.KLAT_ENV, {}).get(key, {})
+        return (
+            self.config_data.get("DATABASE_CONFIG", {})
+            .get(self.KLAT_ENV, {})
+            .get(key, {})
+        )
 
-    def get_db_controller(self, name: str,
-                          override: bool = False,
-                          override_args: dict = None):
+    def get_db_controller(
+        self, name: str, override: bool = False, override_args: dict = None
+    ):
         """
-            Returns an new instance of Database Controller for specified dialect (creates new one if not present)
+        Returns an new instance of Database Controller for specified dialect (creates new one if not present)
 
-            :param name: db connection name from config
-            :param override: to override existing instance under :param dialect (defaults to False)
-            :param override_args: dict with arguments to override (optional)
+        :param name: db connection name from config
+        :param override: to override existing instance under :param dialect (defaults to False)
+        :param override_args: dict with arguments to override (optional)
 
-            :returns instance of Database Controller
+        :returns instance of Database Controller
         """
-        from chat_server.server_utils.db_utils import DbUtils
-
         db_controller = self.db_controllers.get(name, None)
         if not db_controller or override:
             db_config = self.get_db_config_from_key(key=name)
@@ -147,12 +151,11 @@ class Configuration:
                 override_args = {}
             db_config = {**db_config, **override_args}
 
-            dialect = db_config.pop('dialect', None)
+            dialect = db_config.pop("dialect", None)
             if dialect:
                 from utils.database_utils import DatabaseController
 
                 db_controller = DatabaseController(config_data=db_config)
                 db_controller.attach_connector(dialect=dialect)
                 db_controller.connect()
-                DbUtils.init(db_controller)
         return db_controller

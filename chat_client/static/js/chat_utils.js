@@ -262,7 +262,7 @@ async function buildConversation(conversationData={}, skin = CONVERSATION_SKINS.
     const newConversationHTML = await buildConversationHTML(conversationData, skin);
     const conversationsBody = document.getElementById(conversationParentID);
     conversationsBody.insertAdjacentHTML('afterbegin', newConversationHTML);
-    initMessages(conversationData, skin);
+    await initMessages(conversationData, skin);
 
     const messageListContainer = getMessageListContainer(cid);
     const currentConversation = document.getElementById(cid);
@@ -363,18 +363,18 @@ async function buildConversation(conversationData={}, skin = CONVERSATION_SKINS.
 /**
  * Gets conversation data based on input string
  * @param input: input string text
- * @param firstMessageID: id of the the most recent message
+ * @param oldestMessageTS: creation timestamp of the oldest displayed message
  * @param skin: resolves by server for which data to return
  * @param maxResults: max number of messages to fetch
  * @param alertParent: parent of error alert (optional)
  * @returns {Promise<{}>} promise resolving conversation data returned
  */
-async function getConversationDataByInput(input="", skin=CONVERSATION_SKINS.BASE, firstMessageID=null, maxResults=20, alertParent=null){
+async function getConversationDataByInput(input="", skin=CONVERSATION_SKINS.BASE, oldestMessageTS=null, maxResults=20, alertParent=null){
     let conversationData = {};
-    if(input && typeof input === "string"){
-        let query_url = `chat_api/search/${input}?limit_chat_history=${maxResults}&skin=${skin}`;
-        if(firstMessageID){
-            query_url += `&first_message_id=${firstMessageID}`;
+    if(input){
+        let query_url = `chat_api/search/${input.toString()}?limit_chat_history=${maxResults}&skin=${skin}`;
+        if(oldestMessageTS){
+            query_url += `&creation_time_from=${oldestMessageTS}`;
         }
         await fetchServer(query_url)
             .then(response => {
@@ -443,7 +443,8 @@ async function addNewCID(cid, skin){
  * @param cid: conversation id to remove
  */
 async function removeConversation(cid){
-    return await getChatAlignmentTable().where({cid: cid}).delete();
+    return await Promise.all([DBGateway.getInstance(DB_TABLES.CHAT_ALIGNMENT).deleteItem(cid),
+                                     DBGateway.getInstance(DB_TABLES.CHAT_MESSAGES_PAGINATION).deleteItem(cid)]);
 }
 
 /**
@@ -698,7 +699,7 @@ async function createNewConversation(conversationName, isPrivate=false, conversa
     let formData = new FormData();
 
     formData.append('conversation_name', conversationName);
-    formData.append('id', conversationID);
+    formData.append('conversation_id', conversationID);
     formData.append('is_private', isPrivate? '1': '0')
     formData.append('bound_service', boundServiceID?boundServiceID: '');
 
