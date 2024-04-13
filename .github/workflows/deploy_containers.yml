@@ -1,11 +1,11 @@
 name: Deploy Images to GHCR
 
 on:
-  push:
-    branches:
-      - dev
-      - main
-      - alpha
+  workflow_run:
+    workflows: ["unit_tests", "build_tests"]
+    branches: ["alpha", "dev", "master"]
+    types:
+      - completed
   workflow_dispatch:
     inputs:
       version:
@@ -21,7 +21,6 @@ permissions:
 jobs:
   publish-images:
     runs-on: ubuntu-latest
-    needs: [unit_tests]
 
     steps:
     - uses: actions/checkout@v2
