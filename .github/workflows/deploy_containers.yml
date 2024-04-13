@@ -3,12 +3,8 @@ name: Deploy Images to GHCR
 on:
   workflow_run:
     workflows: ["Run Unit Tests"]
-    branches:
-      - alpha
-      - dev
-      - master
-    types:
-      - completed
+    branches: [alpha, dev, master]
+    types: [completed]
   workflow_dispatch:
     inputs:
       version:
