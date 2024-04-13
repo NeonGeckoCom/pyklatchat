@@ -30,13 +30,6 @@ from time import time
 
 from chat_server.constants.users import UserPatterns
 from utils.common import get_hash, generate_uuid
-from utils.database_utils import DatabaseController
-from utils.database_utils.mongo_utils import (
-    MongoQuery,
-    MongoCommands,
-    MongoDocuments,
-    MongoFilter,
-)
 
 
 def create_from_pattern(source: UserPatterns, override_defaults: dict = None) -> dict:

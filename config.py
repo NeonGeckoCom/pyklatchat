@@ -28,65 +28,61 @@
 
 import os
 import json
+from abc import ABC, abstractmethod
 
 from os.path import isfile, join, dirname
-from typing import List
 from ovos_config.config import Configuration as OVOSConfiguration
 
-
+from utils.exceptions import MalformedConfigurationException
 from utils.logging_utils import LOG
 
 
-def load_config() -> dict:
-    """
-    Load and return a configuration object,
-    """
-    legacy_config_path = "/app/app/config.json"
-    if isfile(legacy_config_path):
-        LOG.warning(f"Deprecated configuration found at {legacy_config_path}")
-        with open(legacy_config_path) as f:
-            config = json.load(f)
-        LOG.debug(f"Loaded config - {config}")
-        return config
-    config = OVOSConfiguration()
-    if not config:
-        LOG.warning(f"No configuration found! falling back to defaults")
-        default_config_path = join(dirname(__file__), "default_config.json")
-        with open(default_config_path) as f:
-            config = json.load(f)
-    return config
-
-
-class Configuration:
+class KlatConfigurationBase(ABC):
     """Generic configuration module"""
 
-    KLAT_ENV = os.environ.get("KLAT_ENV", "DEV")
-    db_controllers = dict()
-
-    def __init__(self, from_files: List[str]):
-        self._config_data = dict()
-        for source_file in [file for file in list(set(from_files)) if file]:
-            self.add_new_config_properties(self.extract_config_from_path(source_file))
-
-    @staticmethod
-    def extract_config_from_path(file_path: str) -> dict:
-        """
-        Extracts configuration dictionary from desired file path
-
-        :param file_path: desired file path
-
-        :returns dictionary containing configs from target file, empty dict otherwise
-        """
-        try:
-            with open(os.path.expanduser(file_path)) as input_file:
-                extraction_result = json.load(input_file)
-        except Exception as ex:
-            LOG.error(
-                f"Exception occurred while extracting data from {file_path}: {ex}"
+    def __init__(self):
+        self._config_data: dict = None
+        self._init_ovos_config()
+        if not self._config_data:
+            LOG.warning(
+                f"OVOS Config does not contain required key = {self.config_key}, "
+                f"trying setting up legacy config"
             )
-            extraction_result = dict()
-        # LOG.info(f'Extracted config: {extraction_result}')
-        return extraction_result
+            self._init_legacy_config()
+        self._config_data = self._config_data[self.config_key]
+        self.validate_provided_configuration()
+
+    def _init_ovos_config(self):
+        ovos_config = _load_ovos_config()
+        if self.config_key in ovos_config:
+            self._config_data = ovos_config
+
+    def _init_legacy_config(self):
+        legacy_config_path = os.path.expanduser(
+            os.environ.get(
+                f"{self.config_key}_CONFIG", "~/.local/share/neon/credentials.json"
+            )
+        )
+        self.add_new_config_properties(
+            self.extract_config_from_path(legacy_config_path)
+        )
+
+    def validate_provided_configuration(self):
+        for key in self.required_sub_keys:
+            if key not in self._config_data:
+                return MalformedConfigurationException(
+                    f"Required configuration {key = !r} is missing"
+                )
+
+    @property
+    @abstractmethod
+    def required_sub_keys(self) -> tuple[str]:
+        pass
+
+    @property
+    @abstractmethod
+    def config_key(self) -> str:
+        pass
 
     def add_new_config_properties(self, new_config_dict: dict, at_key: str = None):
         """
@@ -100,7 +96,7 @@ class Configuration:
             self.config_data[at_key] = new_config_dict
         else:
             # merge existing config with new dictionary (python 3.5+ syntax)
-            self.config_data = {**self.config_data, **new_config_dict}
+            self.config_data |= new_config_dict
 
     def get(self, key, default=None):
         return self.config_data.get(key, default)
@@ -123,39 +119,42 @@ class Configuration:
             raise TypeError(f"Type: {type(value)} not supported")
         self._config_data = value
 
-    def get_db_config_from_key(self, key: str):
-        """Gets DB configuration by key"""
-        return (
-            self.config_data.get("DATABASE_CONFIG", {})
-            .get(self.KLAT_ENV, {})
-            .get(key, {})
-        )
-
-    def get_db_controller(
-        self, name: str, override: bool = False, override_args: dict = None
-    ):
+    @staticmethod
+    def extract_config_from_path(file_path: str) -> dict:
         """
-        Returns an new instance of Database Controller for specified dialect (creates new one if not present)
+        Extracts configuration dictionary from desired file path
 
-        :param name: db connection name from config
-        :param override: to override existing instance under :param dialect (defaults to False)
-        :param override_args: dict with arguments to override (optional)
+        :param file_path: desired file path
 
-        :returns instance of Database Controller
+        :returns dictionary containing configs from target file, empty dict otherwise
         """
-        db_controller = self.db_controllers.get(name, None)
-        if not db_controller or override:
-            db_config = self.get_db_config_from_key(key=name)
-            # Overriding with "override args" if needed
-            if not override_args:
-                override_args = {}
-            db_config = {**db_config, **override_args}
+        try:
+            with open(os.path.expanduser(file_path)) as input_file:
+                extraction_result = json.load(input_file)
+        except Exception as ex:
+            LOG.error(
+                f"Exception occurred while extracting data from {file_path}: {ex}"
+            )
+            extraction_result = dict()
+        # LOG.info(f'Extracted config: {extraction_result}')
+        return extraction_result
 
-            dialect = db_config.pop("dialect", None)
-            if dialect:
-                from utils.database_utils import DatabaseController
 
-                db_controller = DatabaseController(config_data=db_config)
-                db_controller.attach_connector(dialect=dialect)
-                db_controller.connect()
-        return db_controller
+def _load_ovos_config() -> dict:
+    """
+    Load and return a configuration object,
+    """
+    legacy_config_path = "/app/app/config.json"
+    if isfile(legacy_config_path):
+        LOG.warning(f"Deprecated configuration found at {legacy_config_path}")
+        with open(legacy_config_path) as f:
+            config = json.load(f)
+        LOG.debug(f"Loaded config - {config}")
+        return config
+    config = OVOSConfiguration()
+    if not config:
+        LOG.warning(f"No configuration found! falling back to defaults")
+        default_config_path = join(dirname(__file__), "default_config.json")
+        with open(default_config_path) as f:
+            config = json.load(f)
+    return dict(config)

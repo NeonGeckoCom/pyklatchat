@@ -27,19 +27,19 @@
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 from neon_sftp import NeonSFTPConnector
-from config import Configuration
+
+from utils.constants import KLAT_ENV
+from utils.exceptions import MalformedConfigurationException
 
 
 def init_sftp_connector(config):
     """Initialise SFTP Connector based on provided configuration"""
     if config is None:
-        raise AssertionError("No SFTP Config Detected")
+        raise MalformedConfigurationException("No SFTP Config Detected")
     return NeonSFTPConnector(
         host=config.get("HOST", "127.0.0.1"),
         username=config.get("USERNAME", "root"),
         passphrase=config.get("PASSWORD", ""),
         port=int(config.get("PORT", 22)),
-        root_path=config.get("ROOT_PATH", "/").format(
-            env=Configuration.KLAT_ENV.lower()
-        ),
+        root_path=config.get("ROOT_PATH", "/").format(env=KLAT_ENV.lower()),
     )

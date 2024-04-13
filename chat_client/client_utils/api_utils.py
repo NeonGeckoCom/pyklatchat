@@ -31,7 +31,7 @@ import requests
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 
-from chat_client.client_config import app_config
+from chat_client.client_config import client_config
 from utils.http_utils import respond
 
 
@@ -43,7 +43,7 @@ def call_server(
     **kwargs,
 ):
     """Convenience wrapper to call application server from client server"""
-    url = f'{app_config["SERVER_URL"]}{url_suffix}'
+    url = f'{client_config["SERVER_URL"]}{url_suffix}'
     if request:
         kwargs["cookies"] = request.cookies
     response = getattr(requests, request_method)(url, **kwargs)

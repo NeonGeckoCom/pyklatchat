@@ -15,3 +15,5 @@ passed_migrations
 
 # Virtualenv
 .env
+/configs/
+kube_config

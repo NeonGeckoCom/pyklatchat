@@ -39,10 +39,10 @@ from utils.database_utils.mongo_utils import MongoFilter, MongoLogicalOperators
 from utils.database_utils.mongo_utils.queries.wrapper import MongoDocumentsAPI
 from utils.logging_utils import LOG
 
-from chat_server.server_config import config, app_config
+from chat_server.server_config import server_config
 from utils.http_utils import respond
 
-cookies_config = app_config.get("COOKIES", {})
+cookies_config = server_config.get("COOKIES", {})
 
 secret_key = cookies_config.get("SECRET", None)
 session_lifetime = int(cookies_config.get("LIFETIME", 60 * 60))

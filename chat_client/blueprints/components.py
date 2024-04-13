@@ -27,12 +27,10 @@
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import requests
-from fastapi import APIRouter, HTTPException
-from starlette import status
+from fastapi import APIRouter
 from starlette.requests import Request
-from starlette.responses import Response
 
-from chat_client.client_config import app_config
+from chat_client.client_config import client_config
 from utils.http_utils import respond
 from utils.template_utils import callback_template
 
@@ -48,7 +46,9 @@ async def get_profile_modal(request: Request, nickname: str = "", edit: str = "0
     auth_header = "Authorization"
     headers = {auth_header: request.headers.get(auth_header, "")}
     if edit == "1":
-        resp = requests.get(f'{app_config["SERVER_URL"]}/users_api/', headers=headers)
+        resp = requests.get(
+            f'{client_config["SERVER_URL"]}/users_api/', headers=headers
+        )
         if resp.ok:
             user = resp.json()["data"]
             # if user.get('is_tmp'):
@@ -61,7 +61,7 @@ async def get_profile_modal(request: Request, nickname: str = "", edit: str = "0
         if not nickname:
             return respond("No nickname provided", 422)
         resp = requests.get(
-            f'{app_config["SERVER_URL"]}/users_api/get_users?nicknames={nickname}',
+            f'{client_config["SERVER_URL"]}/users_api/get_users?nicknames={nickname}',
             headers=headers,
         )
         if resp.ok:
@@ -74,7 +74,7 @@ async def get_profile_modal(request: Request, nickname: str = "", edit: str = "0
             return respond("Server was not able to process the request", 422)
         template_name = "profile_modal"
     context = {
-        "server_url": app_config["SERVER_URL"],
+        "server_url": client_config["SERVER_URL"],
         "user_id": user["_id"],
         "nickname": user["nickname"],
         "first_name": user.get("first_name", "Klat"),

@@ -29,7 +29,7 @@ from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 from utils.logging_utils import LOG
 
-from chat_client.client_config import app_config
+from chat_client.client_config import client_config
 
 router = APIRouter(
     prefix="/base",
@@ -41,7 +41,7 @@ router = APIRouter(
 async def fetch_runtime_config():
     """Fetches runtime config from local JSON file in provided location"""
     try:
-        runtime_configs = app_config.get("RUNTIME_CONFIG", {})
+        runtime_configs = client_config.runtime_configs
     except Exception as ex:
         LOG.error(f"Exception while fetching runtime configs: {ex}")
         runtime_configs = {}

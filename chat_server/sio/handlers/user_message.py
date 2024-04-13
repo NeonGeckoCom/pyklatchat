@@ -34,7 +34,7 @@ from utils.database_utils.mongo_utils.queries.wrapper import MongoDocumentsAPI
 from utils.logging_utils import LOG
 from ..server import sio
 from ..utils import emit_error
-from ...server_config import sftp_connector
+from ...server_config import server_config
 from ...services.popularity_counter import PopularityCounter
 
 
@@ -96,7 +96,7 @@ async def user_message(sid, data):
         try:
             if is_audio == "1":
                 message_text = data["messageText"].split(",")[-1]
-                sftp_connector.put_file_object(
+                server_config.sftp_connector.put_file_object(
                     file_object=message_text, save_to=f"audio/{audio_path}"
                 )
                 # for audio messages "message_text" references the name of the audio stored

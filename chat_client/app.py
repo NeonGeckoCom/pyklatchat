@@ -58,7 +58,7 @@ def create_app() -> FastAPI:
     """
     Application factory for the Klatchat Client
     """
-    app_version = get_version("chat_client/version.py")
+    app_version = get_version("version.py")
     LOG.name = os.environ.get("LOG_NAME", "client_err")
     LOG.base_path = os.environ.get("LOG_BASE_PATH", ".")
     LOG.init(
@@ -88,11 +88,8 @@ def create_app() -> FastAPI:
             return response
         except ConnectionError as ex:
             LOG.error(ex)
-            from .client_config import app_config
 
-            return Response(
-                f'Connection error : {app_config["SERVER_URL"]}', status_code=404
-            )
+            return Response("Error connecting to server", status_code=404)
         except Exception as ex:
             LOG.error(f"rid={idem} received an exception {ex}")
         return Response(f"Chat server error occurred", status_code=500)
@@ -104,8 +101,6 @@ def create_app() -> FastAPI:
             return RedirectResponse("/chats")
 
     __cors_allowed_origins = os.environ.get("CORS_ALLOWED_ORIGINS", "") or "*"
-
-    LOG.info(f"CORS_ALLOWED_ORIGINS={__cors_allowed_origins}")
 
     chat_app.add_middleware(
         CORSMiddleware,

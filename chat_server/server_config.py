@@ -25,78 +25,141 @@
 # LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+from neon_sftp import NeonSFTPConnector
+from kubernetes import client, config
 
-import os
-from typing import Optional
-
-
-from config import Configuration
+from config import KlatConfigurationBase
 from chat_server.server_utils.sftp_utils import init_sftp_connector
 from chat_server.server_utils.rmq_utils import RabbitMQAPI
-
-from utils.logging_utils import LOG
+from utils.exceptions import MalformedConfigurationException
 from utils.database_utils import DatabaseController
 from utils.database_utils.mongo_utils.queries.wrapper import MongoDocumentsAPI
 
-server_config_path = os.path.expanduser(
-    os.environ.get("CHATSERVER_CONFIG", "~/.local/share/neon/credentials.json")
-)
-database_config_path = os.path.expanduser(
-    os.environ.get("DATABASE_CONFIG", "~/.local/share/neon/credentials.json")
-)
 
+class KlatServerConfig(KlatConfigurationBase):
 
-def _init_db_controller(db_config: dict) -> Optional[DatabaseController]:
+    db_controllers = dict()
 
-    # Determine configured database dialect
-    dialect = db_config.pop("dialect", "mongo")
+    def __init__(self):
+        super().__init__()
 
-    try:
-        # Create a database connection
-        db_controller = DatabaseController(config_data=db_config)
-        db_controller.attach_connector(dialect=dialect)
-        db_controller.connect()
+        self._sftp_connector = None
+        self._default_db_controller = None
+        self._k8s_config = None
+        self._k8s_default_namespace = None
+        self._k8s_api = None
+        self._mq_api = None
+        self._mq_management_config = None
+
+        MongoDocumentsAPI.init(
+            db_controller=self.default_db_controller, sftp_connector=self.sftp_connector
+        )
+
+    @property
+    def config_key(self) -> str:
+        return "CHAT_SERVER"
+
+    @property
+    def required_sub_keys(self) -> tuple[str]:
+        return (
+            "COOKIES",
+            "FILE_STORING_TYPE",
+            "SFTP",
+            "FILE_STORING_LOCATION",
+            "LIBRE_TRANSLATE_URL",
+            "MQ_MANAGEMENT",
+            # TODO: add 'K8S_CONFIG' when it will be working on prod environment
+            "DATABASE_CONFIG",
+        )
+
+    @property
+    def sftp_connector(self) -> NeonSFTPConnector:
+        if not self._sftp_connector:
+            self._sftp_connector = init_sftp_connector(
+                config=self.config_data.get("SFTP")
+            )
+        return self._sftp_connector
+
+    @property
+    def k8s_config(self) -> dict:
+        return self.config_data.get("K8S_CONFIG", {})
+
+    @property
+    def k8s_default_namespace(self) -> str:
+        if not self._k8s_default_namespace:
+            self._k8s_default_namespace = self.k8s_config.get(
+                "K8S_DEFAULT_NAMESPACE", "default"
+            )
+        return self._k8s_default_namespace
+
+    @property
+    def k8s_api(self):
+        if not self._k8s_api:
+            if _k8s_config_path := self.k8s_config.get("K8S_CONFIG_PATH"):
+                config.load_kube_config(_k8s_config_path)
+                self._k8s_api = client.AppsV1Api()
+            raise MalformedConfigurationException(
+                message="'K8S_CONFIG_PATH' property is missing in 'K8S_CONFIG'"
+            )
+        return self._k8s_api
+
+    @property
+    def mq_management_config(self) -> dict:
+        return self.config_data.get("MQ_MANAGEMENT", {})
+
+    @property
+    def mq_api(self) -> RabbitMQAPI:
+        if not self._mq_api:
+            if mq_management_url := self.mq_management_config.get("MQ_MANAGEMENT_URL"):
+                self._mq_api = RabbitMQAPI(url=mq_management_url)
+                self._mq_api.login(
+                    username=self.mq_management_config["MQ_MANAGEMENT_LOGIN"],
+                    password=self.mq_management_config["MQ_MANAGEMENT_PASSWORD"],
+                )
+            else:
+                raise MalformedConfigurationException(
+                    message="'MQ_MANAGEMENT_URL' property is missing in 'MQ_MANAGEMENT'"
+                )
+        return self._mq_api
+
+    @property
+    def default_db_controller(self):
+        if not self._default_db_controller:
+            self._default_db_controller = self.get_db_controller()
+        return self._default_db_controller
+
+    def get_db_controller(
+        self, name: str = None, override: bool = False, override_args: dict = None
+    ):
+        """
+        Returns an new instance of Database Controller for specified dialect (creates new one if not present)
+
+        :param name: db connection name from config
+        :param override: to override existing instance under :param dialect (defaults to False)
+        :param override_args: dict with arguments to override (optional)
+
+        :returns instance of Database Controller
+        """
+        db_controller = self.db_controllers.get(name, None)
+        if not db_controller or override:
+            db_config = self._get_db_config_from_key(key=name)
+            # Overriding with "override args" if needed
+            if not override_args:
+                override_args = {}
+            db_config = {**db_config, **override_args}
+
+            dialect = db_config.pop("dialect", None)
+            if dialect:
+                db_controller = DatabaseController(config_data=db_config)
+                db_controller.attach_connector(dialect=dialect)
+                db_controller.connect()
         return db_controller
-    except Exception as e:
-        LOG.exception(f"DatabaseController init failed: {e}")
-        return None
+
+    def _get_db_config_from_key(self, key: str = None):
+        """Gets DB configuration by key"""
+        if key is None:
+            key = self.config_data.get("DATABASE_CONFIG", {})["__default_alias"]
+        return self.config_data.get("DATABASE_CONFIG", {}).get(key, {})
 
 
-if os.path.isfile(server_config_path) or os.path.isfile(database_config_path):
-    LOG.warning(f"Using legacy configuration at {server_config_path}")
-    LOG.warning(f"Using legacy configuration at {database_config_path}")
-    LOG.info(f"KLAT_ENV : {Configuration.KLAT_ENV}")
-    config = Configuration(from_files=[server_config_path, database_config_path])
-    app_config = config.get("CHAT_SERVER", {}).get(Configuration.KLAT_ENV, {})
-    db_controller = config.get_db_controller(name="pyklatchat_3333")
-else:
-    # ovos-config has built-in mechanisms for loading configuration files based
-    # on envvars, so the configuration structure is simplified
-    from ovos_config.config import Configuration
-
-    config = Configuration()
-    app_config = config.get("CHAT_SERVER") or dict()
-    env_spec = os.environ.get("KLAT_ENV")
-    if env_spec and app_config.get(env_spec):
-        LOG.warning("Legacy configuration handling KLAT_ENV envvar")
-        app_config = app_config.get(env_spec)
-    db_controller = _init_db_controller(
-        app_config.get("connection_properties", config.get("DATABASE_CONFIG", {}))
-    )
-
-LOG.info(f"App config: {app_config}")
-
-sftp_connector = init_sftp_connector(config=app_config.get("SFTP", {}))
-
-MongoDocumentsAPI.init(db_controller=db_controller, sftp_connector=sftp_connector)
-
-mq_api = None
-mq_management_config = config.get("MQ_MANAGEMENT", {})
-if mq_management_url := mq_management_config.get("MQ_MANAGEMENT_URL"):
-    mq_api = RabbitMQAPI(url=mq_management_url)
-    mq_api.login(
-        username=mq_management_config["MQ_MANAGEMENT_LOGIN"],
-        password=mq_management_config["MQ_MANAGEMENT_PASSWORD"],
-    )
-
-k8s_config = config.get("K8S_CONFIG", {})
+server_config = KlatServerConfig()

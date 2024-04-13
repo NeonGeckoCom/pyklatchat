@@ -35,7 +35,7 @@ from typing import Optional
 from fastapi import Response, Request, status, APIRouter, Form, UploadFile, File
 from fastapi.exceptions import HTTPException
 
-from chat_client.client_config import app_config
+from chat_client.client_config import client_config
 from chat_client.client_utils.api_utils import call_server
 
 router = APIRouter(
@@ -56,7 +56,7 @@ async def get_user(response: Response, request: Request, user_id: Optional[str] 
     :returns JSON-formatted response from server
     """
     user_id = user_id or ""
-    url = f'{app_config["SERVER_URL"]}/users_api?user_id={user_id}'
+    url = f'{client_config["SERVER_URL"]}/users_api?user_id={user_id}'
     LOG.info(f"Getting user from url = {url}")
     get_user_response = requests.get(url, cookies=request.cookies)
     if not get_user_response or get_user_response.status_code != 200:

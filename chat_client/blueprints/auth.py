@@ -30,7 +30,7 @@ import requests
 from fastapi import APIRouter, Form
 from fastapi.responses import JSONResponse
 
-from chat_client.client_config import app_config
+from chat_client.client_config import client_config
 from utils.logging_utils import LOG
 
 router = APIRouter(
@@ -52,7 +52,9 @@ async def login(username: str = Form(...), password: str = Form(...)):
 
     data = dict(username=username, password=password)
 
-    post_response = requests.post(f'{app_config["SERVER_URL"]}/auth/login', data=data)
+    post_response = requests.post(
+        f'{client_config["SERVER_URL"]}/auth/login', data=data
+    )
 
     json_data = post_response.json()
 
@@ -91,7 +93,9 @@ async def signup(
         nickname=nickname, first_name=first_name, last_name=last_name, password=password
     )
 
-    post_response = requests.post(f'{app_config["SERVER_URL"]}/auth/signup', data=data)
+    post_response = requests.post(
+        f'{client_config["SERVER_URL"]}/auth/signup', data=data
+    )
 
     json_data = post_response.json()
 
@@ -112,7 +116,7 @@ async def signup(
 async def logout():
     """Emits logout request to the server API and sets returned tmp user cookie in response"""
 
-    logout_response = requests.get(f'{app_config["SERVER_URL"]}/auth/logout')
+    logout_response = requests.get(f'{client_config["SERVER_URL"]}/auth/logout')
 
     json_data = logout_response.json()
 

@@ -27,9 +27,17 @@
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-class KlatAPIAuthorizationError(Exception):
-    MESSAGE = "Failed to authenticate in klat with provided credentials"
+class KlatchatException(Exception):
+    msg = "Klatchat Exception Occurred"
 
     def __init__(self, message=None):
-        message = self.MESSAGE if message is None else message
+        message = message or self.msg
         super().__init__(message)
+
+
+class KlatAPIAuthorizationError(KlatchatException):
+    msg = "Failed to authenticate in klat with provided credentials"
+
+
+class MalformedConfigurationException(KlatchatException):
+    msg = "Invalid configuration provided"
