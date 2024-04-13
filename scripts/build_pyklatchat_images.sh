@@ -58,6 +58,7 @@ cp requirements/requirements.txt chat_client
 cp -R utils chat_client
 cp config.py chat_client
 cp uvicorn_logging.yaml chat_client
+cp version.py chat_client
 cd chat_client
 
 # replacing base image version
@@ -70,6 +71,7 @@ cp requirements/requirements.txt chat_server
 cp config.py chat_server
 cp -R utils chat_server
 cp uvicorn_logging.yaml chat_server
+cp version.py chat_client
 cd chat_server
 
 # replacing base image version
