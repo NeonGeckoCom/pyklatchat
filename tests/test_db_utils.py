@@ -36,8 +36,7 @@ sys.path.append(
         os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
     )
 )
-
-from config import Configuration
+from chat_server.server_config import server_config
 from utils.connection_utils import create_ssh_tunnel
 from utils.database_utils.mongo_utils import *
 from utils.logging_utils import LOG
@@ -46,16 +45,7 @@ from utils.logging_utils import LOG
 class TestDBController(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        db_config_file_path = os.environ.get(
-            "DATABASE_CONFIG", "~/.local/share/neon/credentials.json"
-        )
-        ssh_config_file_path = os.environ.get(
-            "SSH_CONFIG", "~/.local/share/neon/credentials.json"
-        )
-
-        cls.configuration = Configuration(
-            from_files=[db_config_file_path, ssh_config_file_path]
-        )
+        cls.configuration = server_config
 
     @unittest.skip("legacy db is not supported")
     def test_simple_interaction_mysql(self):

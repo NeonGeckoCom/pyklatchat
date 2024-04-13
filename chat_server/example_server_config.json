@@ -1,27 +1,24 @@
 {
   "CHAT_SERVER": {
-    "(Runtime environment)": {
-      "CONNECTION_PROPERTIES": {
-        "dialect": "(supported database dialect)",
-        "host": "Database host address",
-        "port": "Database Port (int)",
-        "database": "Database Name"
-      },
-      "SERVER_IP": "Server IP address",
-      "COOKIES": {
-        "LIFETIME": "Session cookie lifetime",
-        "REFRESH_RATE": "Session cookie refresh rate",
-        "SECRET": "any valid string phrase",
-        "JWT_ALGO": "HS256"
-      }
-    }
-  },
-  "DATABASE_CONFIG (it is optional to include it here)": {
-    "(Runtime environment)": {
+    "CONNECTION_PROPERTIES": {
       "dialect": "(supported database dialect)",
       "host": "Database host address",
       "port": "Database Port (int)",
       "database": "Database Name"
+    },
+    "COOKIES": {
+      "LIFETIME": "Session cookie lifetime",
+      "REFRESH_RATE": "Session cookie refresh rate",
+      "SECRET": "any valid string phrase",
+      "JWT_ALGO": "HS256"
+    },
+    "DATABASE_CONFIG (it is optional to include it here)": {
+      "(Database Display Name)": {
+        "dialect": "(supported database dialect)",
+        "host": "Database host address",
+        "port": "Database Port (int)",
+        "database": "Database Name"
+      }
     }
   }
 }

@@ -33,7 +33,7 @@ import aiofiles
 from fastapi import UploadFile, Request
 from starlette.responses import FileResponse, StreamingResponse
 
-from chat_server.server_config import app_config, sftp_connector
+from chat_server.server_config import server_config
 from chat_server.server_utils.enums import DataSources
 from utils.common import generate_uuid
 from utils.http_utils import respond
@@ -68,7 +68,7 @@ def get_file_response(
     # TODO: potentially support different ways to access files (e.g. local, S3, remote server, etc..)
     LOG.debug(f"Getting file based on filename: {filename}, media type: {media_type}")
     if data_source == DataSources.SFTP:
-        sftp_data = sftp_connector.get_file_object(
+        sftp_data = server_config.sftp_connector.get_file_object(
             get_from=f"{location_prefix}/{filename}"
         )
         file_response_args = dict(
@@ -77,7 +77,7 @@ def get_file_response(
         response_class = StreamingResponse
     elif data_source == DataSources.LOCAL:
         path = os.path.join(
-            app_config["FILE_STORING_LOCATION"], location_prefix, filename
+            server_config["FILE_STORING_LOCATION"], location_prefix, filename
         )
         LOG.debug(f"path: {path}")
         if os.path.exists(os.path.expanduser(path)):
@@ -111,7 +111,7 @@ async def save_file(
     new_name = f'{generate_uuid(length=12)}.{file.filename.split(".")[-1]}'
     if data_source == DataSources.LOCAL:
         storing_path = os.path.expanduser(
-            os.path.join(app_config["FILE_STORING_LOCATION"], location_prefix)
+            os.path.join(server_config["FILE_STORING_LOCATION"], location_prefix)
         )
         os.makedirs(storing_path, exist_ok=True)
         async with aiofiles.open(
@@ -122,7 +122,7 @@ async def save_file(
     elif data_source == DataSources.SFTP:
         content = BytesIO(file.file.read())
         try:
-            sftp_connector.put_file_object(
+            server_config.sftp_connector.put_file_object(
                 file_object=content, save_to=f"{location_prefix}/{new_name}"
             )
         except Exception as ex:

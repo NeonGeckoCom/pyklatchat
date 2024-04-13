@@ -37,7 +37,7 @@ from uvicorn import Config
 
 from chat_server.constants.users import ChatPatterns
 from chat_server.tests.beans.server import ASGITestServer
-from chat_server.server_config import db_controller
+from chat_server.server_config import server_config
 from utils.logging_utils import LOG
 from utils.common import generate_uuid
 
@@ -65,14 +65,15 @@ class TestSIO(unittest.TestCase):
 
     pong_received = False
     pong_event = None
+    db_controller = None
 
     @classmethod
     def setUpClass(cls) -> None:
-        from chat_server.server_config import database_config_path
 
-        assert os.path.isfile(database_config_path)
+        cls.db_controller = server_config.get_db_controller(name="pyklatchat_3333")
+
         os.environ["DISABLE_AUTH_CHECK"] = "1"
-        matching_conversation = db_controller.exec_query(
+        matching_conversation = cls.db_controller.exec_query(
             query={
                 "command": "find_one",
                 "document": "chats",
@@ -80,7 +81,7 @@ class TestSIO(unittest.TestCase):
             }
         )
         if not matching_conversation:
-            db_controller.exec_query(
+            cls.db_controller.exec_query(
                 query={
                     "document": "chats",
                     "command": "insert_one",
@@ -90,7 +91,7 @@ class TestSIO(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls) -> None:
-        db_controller.exec_query(
+        cls.db_controller.exec_query(
             query={
                 "document": "chats",
                 "command": "delete_one",
@@ -127,7 +128,6 @@ class TestSIO(unittest.TestCase):
 
     @pytest.mark.usefixtures("create_server")
     def test_neon_message(self):
-        message_id = f"test_neon_{generate_uuid()}"
         user_id = "neon"
         message_data = {
             "userID": "neon",
@@ -139,7 +139,7 @@ class TestSIO(unittest.TestCase):
         }
         self.sio.emit("user_message", data=message_data)
         time.sleep(2)
-        neon = db_controller.exec_query(
+        neon = self.db_controller.exec_query(
             query={
                 "command": "find_one",
                 "document": "users",
@@ -148,7 +148,7 @@ class TestSIO(unittest.TestCase):
         )
         self.assertIsNotNone(neon)
         self.assertIsInstance(neon, dict)
-        shout = db_controller.exec_query(
+        shout = self.db_controller.exec_query(
             query={
                 "command": "find_one",
                 "document": "shouts",
@@ -157,7 +157,7 @@ class TestSIO(unittest.TestCase):
         )
         self.assertIsNotNone(shout)
         self.assertIsInstance(shout, dict)
-        db_controller.exec_query(
+        self.db_controller.exec_query(
             query={
                 "command": "delete_many",
                 "document": "shouts",
@@ -180,7 +180,7 @@ class TestSIO(unittest.TestCase):
         }
         self.sio.emit("user_message", data=message_data)
         time.sleep(2)
-        bot = db_controller.exec_query(
+        bot = self.db_controller.exec_query(
             query={
                 "command": "find_one",
                 "document": "users",
@@ -192,7 +192,7 @@ class TestSIO(unittest.TestCase):
         self.assertTrue(bot["first_name"] == "Bot")
         self.assertTrue(bot["last_name"] == "Bot")
 
-        shout = db_controller.exec_query(
+        shout = self.db_controller.exec_query(
             query={
                 "command": "find_one",
                 "document": "shouts",
@@ -202,14 +202,14 @@ class TestSIO(unittest.TestCase):
         self.assertIsNotNone(shout)
         self.assertIsInstance(shout, dict)
 
-        db_controller.exec_query(
+        self.db_controller.exec_query(
             query={
                 "command": "delete_many",
                 "document": "shouts",
                 "data": {"user_id": bot["_id"]},
             }
         )
-        db_controller.exec_query(
+        self.db_controller.exec_query(
             query={
                 "command": "delete_one",
                 "document": "users",

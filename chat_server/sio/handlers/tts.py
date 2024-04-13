@@ -31,7 +31,7 @@ from utils.database_utils.mongo_utils.queries.wrapper import MongoDocumentsAPI
 from utils.logging_utils import LOG
 from ..server import sio
 from ..utils import emit_error
-from ...server_config import sftp_connector
+from ...server_config import server_config
 from ...server_utils.languages import LanguageSettings
 
 
@@ -95,7 +95,7 @@ async def request_tts(sid, data):
                 try:
                     file_location = f"audio/{audio_file}"
                     LOG.info(f"Fetching existing file from: {file_location}")
-                    fo = sftp_connector.get_file_object(file_location)
+                    fo = server_config.sftp_connector.get_file_object(file_location)
                     if fo.getbuffer().nbytes > 0:
                         LOG.info(
                             f"File detected for cid={cid}, message_id={message_id}, lang={lang}"

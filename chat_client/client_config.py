@@ -26,26 +26,32 @@
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+from config import KlatConfigurationBase
 
-import os
 
-from config import Configuration
-from utils.logging_utils import LOG
+class KlatClientConfig(KlatConfigurationBase):
+    def __init__(self):
+        super().__init__()
+        self._runtime_configs = None
 
-config_file_path = os.path.expanduser(os.environ.get(
-    "CHATCLIENT_CONFIG", "~/.local/share/neon/credentials_client.json"
-))
-if os.path.isfile(config_file_path):
-    LOG.warning(f"Using legacy configuration at {config_file_path}")
-    config = Configuration(from_files=[config_file_path])
-    app_config = config.get("CHAT_CLIENT", {}).get(Configuration.KLAT_ENV)
-else:
-    # ovos-config has built-in mechanisms for loading configuration files based
-    # on envvars, so the configuration structure is simplified
-    from ovos_config.config import Configuration
-    app_config = Configuration().get("CHAT_CLIENT")
-    env_spec = os.environ.get("KLAT_ENV")
-    if env_spec and app_config.get(env_spec):
-        LOG.warning("Legacy configuration handling KLAT_ENV envvar")
-        app_config = app_config.get(env_spec)
-LOG.info(f"App config: {app_config}")
+    @property
+    def config_key(self) -> str:
+        return "CHAT_CLIENT"
+
+    @property
+    def required_sub_keys(self) -> tuple[str]:
+        return (
+            "SERVER_URL",
+            "RUNTIME_CONFIG",
+        )
+
+    @property
+    def runtime_configs(self):
+        if not self._runtime_configs:
+            runtime_configs = self.config_data.get("RUNTIME_CONFIG", {})
+            runtime_configs["CHAT_SERVER_URL_BASE"] = self.config_data["SERVER_URL"]
+            self._runtime_configs = runtime_configs
+        return self._runtime_configs
+
+
+client_config = KlatClientConfig()

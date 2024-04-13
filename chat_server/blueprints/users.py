@@ -27,11 +27,10 @@
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 from typing import Optional
-from fastapi import APIRouter, Response, status, Request, UploadFile, File, Form
+from fastapi import APIRouter, status, Request, UploadFile, File, Form
 from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
 
-from chat_server.server_config import db_controller
 from chat_server.server_utils.auth import (
     get_current_user,
     check_password_strength,

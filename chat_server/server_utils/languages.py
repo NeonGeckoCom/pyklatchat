@@ -33,6 +33,7 @@ import requests
 from bidict import bidict
 
 from utils.logging_utils import LOG
+from chat_server.server_config import server_config
 
 
 class LanguageSettings:
@@ -75,10 +76,9 @@ class LanguageSettings:
     @classmethod
     def init_supported_languages(cls):
         """Inits supported languages from system configuration"""
-        from chat_server.server_config import app_config
 
         for url in {
-            app_config.get("LIBRE_TRANSLATE_URL", cls.__default_libre_url__),
+            server_config.get("LIBRE_TRANSLATE_URL", cls.__default_libre_url__),
             cls.__default_libre_url__,
         }:
             try:
