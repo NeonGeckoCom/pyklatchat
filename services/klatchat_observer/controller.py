@@ -76,7 +76,6 @@ class ChatObserver(MQConnector):
         config: dict,
         service_name: str = "chat_observer",
         vhosts: dict = None,
-        scan_neon_service: bool = False,
     ):
         super().__init__(config["MQ"], service_name)
         if not vhosts:
@@ -84,7 +83,7 @@ class ChatObserver(MQConnector):
         self.vhosts = {**vhosts, **self.vhosts}
         self.__translation_requests = {}
         self.__neon_service_id = ""
-        self.neon_detection_enabled = scan_neon_service
+        self.neon_detection_enabled = config.get("SCAN_NEON_SERVICE", False)
         self.neon_service_event = None
         self.last_neon_request: int = 0
         self.neon_service_refresh_interval = 60  # seconds

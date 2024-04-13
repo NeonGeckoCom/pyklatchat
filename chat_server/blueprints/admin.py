@@ -34,7 +34,7 @@ from utils.database_utils.mongo_utils.queries.wrapper import MongoDocumentsAPI
 from utils.logging_utils import LOG
 from utils.http_utils import respond
 
-from chat_server.server_config import k8s_config
+from chat_server.server_config import server_config
 from chat_server.server_utils.auth import login_required
 from chat_server.server_utils.k8s_utils import restart_deployment
 from chat_server.server_utils.admin_utils import run_mq_validation
@@ -61,11 +61,11 @@ async def refresh_state(
     """
     target_items = [x for x in target_items.split(",") if x]
     if service_name == "k8s":
-        if not k8s_config:
+        if not server_config.k8s_config:
             return respond("K8S Service Unavailable", 503)
         deployments = target_items
         if deployments == "*":
-            deployments = k8s_config.get("MANAGED_DEPLOYMENTS", [])
+            deployments = server_config.k8s_config.get("MANAGED_DEPLOYMENTS", [])
         LOG.info(f"Restarting {deployments=!r}")
         for deployment in deployments:
             restart_deployment(deployment_name=deployment)
