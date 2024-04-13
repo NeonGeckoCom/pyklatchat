@@ -1,0 +1,23 @@
+<div class="modal fade" id="{{nickname}}Modal" tabindex="-1" role="dialog" aria-labelledby="{{user_id}}Title" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="{{user_id}}Title">Profile Of "{{nickname}}"</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body" id="{{user_id}}Body">
+        <div class="text-center">
+            <img src="{{server_url}}/files/avatar/{{user_id}}" id="{{ nickname }}Avatar" class="img-thumbnail" loading="lazy" alt="" style="max-height: 200px!important;max-width: 200px!important;">
+        </div>
+          <p>Nickname: <b>{{nickname}}</b></p>
+          <p>First Name: <b>{{first_name}}</b></p>
+          <p>Last Name: <b>{{last_name}}</b></p>
+          <hr>
+          <p>About Myself:</p>
+          <i style="height: 200px!important; overflow-y: scroll">{{bio}}</i>
+      </div>
+    </div>
+  </div>
+</div>

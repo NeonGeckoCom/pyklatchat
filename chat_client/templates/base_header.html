@@ -1,0 +1,74 @@
+<nav class="navbar navbar-expand-sm bg-primary">
+    <div class="container-fluid">
+        <div class="navbar-header">
+                <span>
+                    <a class="navbar-brand"
+                       id="home-link"
+                       href="#"
+                       target="_parent">
+                        <strong style="color: #fff">Klatchat</strong>
+                    </a>
+                </span>
+            <button class="navbar-toggler"
+                    type="button"
+                    data-toggle="collapse"
+                    data-target="#navbarNavDropdown"
+                    aria-controls="navbarNavDropdown"
+                    aria-expanded="false"
+                    aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon fa fa-bars" style="color: #fff"></span>
+            </button>
+        </div>
+        <div class="collapse navbar-collapse" id="navbarNavDropdown">
+            <ul class="navbar-nav ml-3">
+                <li class="nav-item">
+                    <a class="nav-link" href="#" style="color: #fff" id="myAccountLink">
+                        Profile
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#" style="color: #fff" id="settingsLink">
+                        Settings
+                    </a>
+                </li>
+                {% if 'chats' in request.url|string %}
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" style="color: #fff" href="#" id="navbarDropdownManageChats" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                          Chats
+                        </a>
+                        <div class="dropdown-menu" aria-labelledby="navbarDropdownManageChats">
+                          <a class="dropdown-item" href="#" data-toggle="modal"
+                             data-target="#newConversationModal">Create</a>
+                          <a class="dropdown-item" id="importConversationOpener" href="#" data-toggle="modal"
+                             data-target="#importConversationModal">Join</a>
+                        </div>
+                    </li>
+                {% endif %}
+            </ul>
+            <ul class="navbar-nav ml-auto">
+                <li class="nav-item">
+                    <a class="nav-link" href="/chats/nano_demo" target="_blank" style="color: #fff" id="nanoLink">
+                        Nano
+                    </a>
+                </li>
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" style="color: #fff" href="#" id="navbarDropdownHelp" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                      Help
+                    </a>
+                    <div class="dropdown-menu" aria-labelledby="navbarDropdownHelp">
+                      <a class="dropdown-item" href="#" data-toggle="modal"
+                         data-target="#userManual">User Manual</a>
+                      <a class="dropdown-item" data-toggle="modal" data-target="#licenseModal">
+                        Terms
+                      </a>
+                    </div>
+                </li>
+                <li class="nav-item" id="currentUserNavDisplay">
+                    <a class="nav-link" href="#" style="color: #fff">
+                        Loading User Data... <div class="spinner-border spinner-border-sm text-light"></div>
+                    </a>
+                </li>
+            </ul>
+        </div>
+    </div>
+</nav>

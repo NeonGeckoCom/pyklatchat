@@ -1,0 +1,16 @@
+log_level: INFO
+logs:
+  level_overrides:
+    error:
+      - pika
+    warning:
+      - filelock
+    info: []
+    debug: []
+MQ:
+  server: mq.2021.us
+  port: 25672
+  users:
+    chat_observer:
+      user: chat_observer
+      password: Klatchat2021

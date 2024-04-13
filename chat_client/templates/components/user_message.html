@@ -1,0 +1,18 @@
+<li class="{message_class}">
+    <div class="chat-img" id="{message_id}_avatar" data-target="{nickname}">
+        {image_component}
+    </div>
+    <div class="chat-body">
+        <div class="chat-message selectable" id="{message_id}" data-sender="{nickname}">
+            <p style="font-size: small;font-weight: bolder;" data-toggle="tooltip" title="{user_tooltip}" class="message-nickname">{nickname_shrunk}{status_icon}</p>
+            <div class="reply-placeholder mb-2 mt-1"></div>
+            <p class="message-text">{message_text}</p>
+            <span class="attachment-toggle fa fa-paperclip fa-lg"><br></span>
+            <span class="attachments-placeholder" style="display: none;"><br></span>
+            <small>{message_time}</small>
+        </div>
+        <div class="chat-message-actions">
+            <button id="{message_id}_speak" class="btn btn-light fa fa-volume-up mt-1"></button>
+        </div>
+     </div>
+</li>

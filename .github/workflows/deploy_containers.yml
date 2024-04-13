@@ -1,20 +1,21 @@
 name: Deploy Images to GHCR
 
 on:
-  workflow_run:
-    workflows: ["Run Unit Tests"]
+  push:
     branches:
-      - alpha
       - dev
-      - master
-    types:
-      - completed
+      - main
+  pull_request:
   workflow_dispatch:
     inputs:
       version:
         description: 'Images tag'
         required: true
-        default: 'alpha'
+        default: 'dev'
+#      images:
+#        description: 'Include Images (klatchat_observer|chat_client|chat_server) space-separated'
+#        required: false
+#        default: klatchat_observer chat_client chat_server
 
 permissions:
   contents: write
@@ -24,7 +25,7 @@ permissions:
 jobs:
   publish-images:
     runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+
     steps:
     - uses: actions/checkout@v2
     - name: Install Node JS
@@ -56,10 +57,17 @@ jobs:
       if: github.event_name == 'workflow_dispatch'
       run: |
         echo "VERSION=${{ github.event.inputs.version }}" >> $GITHUB_ENV
+#        echo ${{ github.event.inputs.images }} >> $IMAGES
+    - name: Apply Pull Request Environments
+      if: github.event_name == 'pull_request'
+      run: |
+        echo "VERSION=${{ github.event.pull_request.base.ref }}" >> $GITHUB_ENV
+#        echo klatchat_observer chat_client chat_server >> $IMAGES
     - name: Apply Push Environments
       if: github.event_name == 'push'
       run: |
-        echo "VERSION=$(echo ${{ github.ref_name }} | tr / -)" >> $GITHUB_ENV
+        echo "VERSION=$(echo ${GITHUB_HEAD_REF} | tr / -)" >> $GITHUB_ENV
+#        echo klatchat_observer chat_client chat_server >> $IMAGES
     - name: Clean Up Version
       run: |
         echo "VERSION=${VERSION//['/']/-}" >> $GITHUB_ENV
