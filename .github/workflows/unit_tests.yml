@@ -1,16 +1,7 @@
 name: Run Unit Tests
 on:
-  pull_request:
-    types: [opened, synchronize, reopened, edited, ready_for_review]
+  push:
   workflow_dispatch:
-  workflow_call:
-    secrets:
-      PYKLATCHAT_TESTING_CREDENTIALS_V2:
-        description: 'testing data'
-        required: true
-      SERVER_ENV:
-        description: 'running environment'
-        required: true
 
 jobs:
   unit_tests:
@@ -23,11 +14,11 @@ jobs:
       PYKLATCHAT_TESTING_CREDENTIALS: ${{ secrets.PYKLATCHAT_TESTING_CREDENTIALS_V2 }}
       KLAT_ENV: ${{ secrets.SERVER_ENV }}
     steps:
-      - uses: actions/checkout@v4
-      - name: echo Testing Creds
-        run: echo $PYKLATCHAT_TESTING_CREDENTIALS
+      - uses: actions/checkout@v2
+      - name: Check branch
+        run: echo "Workflow A is running on branch ${{ github.ref }}"
       - name: Set up python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v2
         with:
           python-version: ${{ matrix.python-version }}
       - name: Install dependencies
@@ -44,7 +35,7 @@ jobs:
         run: |
           pytest tests/test_db_utils.py --doctest-modules --junitxml=tests/db-utils-test-results.xml
       - name: Upload DB Utils test results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v2
         with:
           name: db-utils-test-results
           path: tests/db-utils-test-results.xml
@@ -52,16 +43,16 @@ jobs:
         run: |
           pytest chat_server/tests/test_sio.py --doctest-modules --junitxml=tests/sio-test-results.xml
       - name: Upload SIO test results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v2
         with:
           name: sio-test-results
           path: tests/sio-test-results.xml
   build_tests:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v2
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v1
         with:
           python-version: '3.10'
       - name: Install Build Tools
