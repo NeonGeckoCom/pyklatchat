@@ -14,8 +14,8 @@ sioTriggeringEvents.forEach(event=>{
  */
 function initSIO(){
 
-    const sioServerURL = configData['CHAT_SERVER_URL_BASE'];
-    const socket = io(sioServerURL, {transports: ['polling'], extraHeaders: {
+    const sioServerURL = configData['CHAT_SERVER_URL_BASE'].replace("http", 'ws');
+    const socket = io(sioServerURL, {extraHeaders: {
         "session": getSessionToken()
     }});
 
