@@ -57,6 +57,7 @@ echo "Building Chat Client"
 cp requirements/requirements.txt chat_client
 cp -R utils chat_client
 cp config.py chat_client
+cp version.py chat_server
 cp uvicorn_logging.yaml chat_client
 cd chat_client
 
@@ -68,6 +69,7 @@ cd ..
 echo "Building Chat Server"
 cp requirements/requirements.txt chat_server
 cp config.py chat_server
+cp version.py chat_server
 cp -R utils chat_server
 cp uvicorn_logging.yaml chat_server
 cd chat_server
