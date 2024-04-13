@@ -64,11 +64,8 @@ class KlatServerConfig(KlatConfigurationBase):
         return (
             "COOKIES",
             "FILE_STORING_TYPE",
-            "SFTP",
-            "FILE_STORING_LOCATION",
             "LIBRE_TRANSLATE_URL",
             "MQ_MANAGEMENT",
-            # TODO: add 'K8S_CONFIG' when it will be working on prod environment
             "DATABASE_CONFIG",
         )
 
