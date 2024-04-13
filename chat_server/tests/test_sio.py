@@ -70,7 +70,7 @@ class TestSIO(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
 
-        cls.db_controller = server_config.default_db_controller
+        cls.db_controller = server_config.get_db_controller(name="pyklatchat_3333")
 
         os.environ["DISABLE_AUTH_CHECK"] = "1"
         matching_conversation = cls.db_controller.exec_query(

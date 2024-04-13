@@ -36,7 +36,6 @@ sys.path.append(
         os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
     )
 )
-
 from chat_server.server_config import server_config
 from utils.connection_utils import create_ssh_tunnel
 from utils.database_utils.mongo_utils import *

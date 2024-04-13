@@ -11,7 +11,7 @@ jobs:
       max-parallel: 1
     runs-on: ubuntu-latest
     env:
-      PYKLATCHAT_TESTING_CREDENTIALS: ${{ secrets.PYKLATCHAT_TESTING_CREDENTIALS }}
+      PYKLATCHAT_TESTING_CREDENTIALS: ${{ secrets.PYKLATCHAT_TESTING_CREDENTIALS_V2 }}
       KLAT_ENV: ${{ secrets.SERVER_ENV }}
     steps:
       - uses: actions/checkout@v2
