@@ -34,5 +34,4 @@ from .handlers import (
     tts,
     translation,
     user_message,
-    prompt,
 )
