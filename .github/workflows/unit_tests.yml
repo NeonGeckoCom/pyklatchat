@@ -8,7 +8,7 @@ on:
       PYKLATCHAT_TESTING_CREDENTIALS_V2:
         description: 'testing data'
         required: true
-      KLAT_ENV:
+      SERVER_ENV:
         description: 'running environment'
         required: true
 
