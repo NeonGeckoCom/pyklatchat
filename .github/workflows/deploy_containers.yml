@@ -1,9 +1,11 @@
 name: Deploy Images to GHCR
 
 on:
-  workflow_run:
-    workflows: ["Run Unit Tests"]
-    types: [completed]
+  push:
+    branches:
+      - alpha
+      - dev
+      - master
   workflow_dispatch:
     inputs:
       version:
@@ -17,13 +19,13 @@ permissions:
   packages: write
 
 jobs:
+  run-tests:
+    uses: ./.github/workflows/unit_tests.yml
   publish-images:
     runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+    needs: [run-tests]
     steps:
     - uses: actions/checkout@v2
-      with:
-        ref: ${{ github.event.workflow_run.head_branch }}
     - name: Install Node JS
       run: |
         sudo apt-get update && sudo apt-get install nodejs && sudo apt-get install npm
@@ -53,10 +55,6 @@ jobs:
       if: github.event_name == 'workflow_dispatch'
       run: |
         echo "VERSION=${{ github.event.inputs.version }}" >> $GITHUB_ENV
-    - name: Apply Workflow Run Environments
-      if: github.event_name == 'workflow_run'
-      run: |
-        echo "VERSION=$(echo ${{ github.event.workflow_run.head_branch }} | tr / -)" >> $GITHUB_ENV
     - name: Apply Push Environments
       if: github.event_name == 'push'
       run: |
