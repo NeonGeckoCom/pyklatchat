@@ -33,5 +33,5 @@ from .handlers import (
     stt,
     tts,
     translation,
-    user_message as languages_blueprint,
+    user_message,
 )
