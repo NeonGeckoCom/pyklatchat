@@ -21,6 +21,9 @@ permissions:
 jobs:
   run-tests:
     uses: ./.github/workflows/unit_tests.yml
+    secrets:
+      PYKLATCHAT_TESTING_CREDENTIALS: ${{ secrets.PYKLATCHAT_TESTING_CREDENTIALS_V2 }}
+      KLAT_ENV: ${{ secrets.SERVER_ENV }}
   publish-images:
     runs-on: ubuntu-latest
     needs: [run-tests]

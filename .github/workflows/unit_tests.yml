@@ -4,6 +4,13 @@ on:
     types: [opened, synchronize, reopened, edited, ready_for_review]
   workflow_dispatch:
   workflow_call:
+    secrets:
+      PYKLATCHAT_TESTING_CREDENTIALS_V2:
+        description: 'testing data'
+        required: true
+      KLAT_ENV:
+        description: 'running environment'
+        required: true
 
 jobs:
   unit_tests:
