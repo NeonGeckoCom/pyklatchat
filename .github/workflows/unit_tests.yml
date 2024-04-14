@@ -13,8 +13,6 @@ jobs:
       KLAT_ENV: ${{ secrets.SERVER_ENV }}
     steps:
       - uses: actions/checkout@v2
-      - name: Check branch
-        run: echo "Workflow A is running on branch ${{ github.ref }}"
       - name: Set up python ${{ matrix.python-version }}
         uses: actions/setup-python@v2
         with:
