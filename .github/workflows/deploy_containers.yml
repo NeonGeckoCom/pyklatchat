@@ -22,6 +22,8 @@ jobs:
     if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
     steps:
     - uses: actions/checkout@v2
+      with:
+        ref: ${{ github.event.workflow_run.head_branch }}
     - name: Install Node JS
       run: |
         sudo apt-get update && sudo apt-get install nodejs && sudo apt-get install npm
