@@ -22,7 +22,7 @@ jobs:
   run-tests:
     uses: ./.github/workflows/unit_tests.yml
     secrets:
-      PYKLATCHAT_TESTING_CREDENTIALS: ${{ secrets.PYKLATCHAT_TESTING_CREDENTIALS_V2 }}
+      PYKLATCHAT_TESTING_CREDENTIALS_V2: ${{ secrets.PYKLATCHAT_TESTING_CREDENTIALS_V2 }}
       SERVER_ENV: ${{ secrets.SERVER_ENV }}
   publish-images:
     runs-on: ubuntu-latest
