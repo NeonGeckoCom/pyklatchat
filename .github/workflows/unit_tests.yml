@@ -1,7 +1,9 @@
 name: Run Unit Tests
 on:
-  push:
+  pull_request:
+    types: [opened, synchronize, reopened, edited, ready_for_review]
   workflow_dispatch:
+  workflow_call:
 
 jobs:
   unit_tests:
