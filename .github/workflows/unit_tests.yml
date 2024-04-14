@@ -13,6 +13,8 @@ jobs:
       KLAT_ENV: ${{ secrets.SERVER_ENV }}
     steps:
       - uses: actions/checkout@v2
+      - name: echo Testing Creds
+        run: echo $PYKLATCHAT_TESTING_CREDENTIALS
       - name: Set up python ${{ matrix.python-version }}
         uses: actions/setup-python@v2
         with:
