@@ -27,7 +27,7 @@ jobs:
       - name: echo Testing Creds
         run: echo $PYKLATCHAT_TESTING_CREDENTIALS
       - name: Set up python ${{ matrix.python-version }}
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
       - name: Install dependencies
