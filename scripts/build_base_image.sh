@@ -40,7 +40,7 @@ echo "Build version = $VERSION";
 
 cd ..
 
-cp requirements/requirements.txt base
+cp requirements/base.txt base
 
 cd base
 
