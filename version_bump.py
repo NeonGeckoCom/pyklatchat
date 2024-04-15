@@ -55,7 +55,7 @@ def run():
 def _get_bump_type_from_cli() -> str:
     parser = argparse.ArgumentParser(description='Bumps Project Version')
     parser.add_argument(
-        "-t", "--branch", type=str, help="type of version bump (master, dev, alpha)", required=True
+        "-b", "--branch", help="type of version bump (master, dev, alpha)", required=True
     )
     args = parser.parse_args()
     return args.branch.lower()
