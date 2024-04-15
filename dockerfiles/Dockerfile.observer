@@ -8,6 +8,6 @@ ENV KLAT_ENV PROD
 ENV KLATCHAT_OBSERVER_CONFIG /app/config/config.json
 ENV PYTHONPATH="/app:/app/klatchat_observer/"
 
-RUN pip install --no-cache-dir -r ./services/observer.txt
+RUN pip install --no-cache-dir -r ./observer.txt
 
 CMD python -m klatchat_observer
