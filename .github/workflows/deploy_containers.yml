@@ -1,10 +1,11 @@
 name: Deploy Images to GHCR
 
 on:
-  workflow_run:
-    workflows: ["Run Unit Tests"]
-    branches: [alpha, dev, master]
-    types: [completed]
+  push:
+    branches:
+      - alpha
+      - dev
+      - master
   workflow_dispatch:
     inputs:
       version:
@@ -18,11 +19,18 @@ permissions:
   packages: write
 
 jobs:
+  run-tests:
+    uses: ./.github/workflows/unit_tests.yml
+    secrets:
+      PYKLATCHAT_TESTING_CREDENTIALS_V2: ${{ secrets.PYKLATCHAT_TESTING_CREDENTIALS_V2 }}
+      SERVER_ENV: ${{ secrets.SERVER_ENV }}
+  bump-version:
+    uses: ./.github/workflows/publish_version_change.yml
   publish-images:
     runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+    needs: [run-tests, bump-version]
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: Install Node JS
       run: |
         sudo apt-get update && sudo apt-get install nodejs && sudo apt-get install npm

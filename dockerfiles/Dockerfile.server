@@ -9,4 +9,6 @@ ENV CHATSERVER_CONFIG /app/config/config.json
 ENV DATABASE_CONFIG /app/config/config.json
 ENV PYTHONPATH="/app:/app/chat_server/"
 
+RUN pip install --no-cache-dir -r /app/chat_server/server.txt
+
 CMD python -m chat_server

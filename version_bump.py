@@ -26,29 +26,91 @@
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+import argparse
 import fileinput
 from os.path import join, dirname
 
-with open(join(dirname(__file__), "version.py"), "r", encoding="utf-8") as v:
-    for line in v.readlines():
-        if line.startswith("__version__"):
-            if '"' in line:
-                version = line.split('"')[1]
-            else:
-                version = line.split("'")[1]
 
-if "a" not in version:
-    parts = version.split(".")
-    parts[-1] = str(int(parts[-1]) + 1)
-    version = ".".join(parts)
-    version = f"{version}a0"
-else:
-    post = version.split("a")[1]
-    new_post = int(post) + 1
-    version = version.replace(f"a{post}", f"a{new_post}")
+def run():
+    print('Starting version dump...')
 
-for line in fileinput.input(join(dirname(__file__), "version.py"), inplace=True):
-    if line.startswith("__version__"):
-        print(f'__version__ = "{version}"')
+    branch = _get_bump_type_from_cli()
+
+    _gh_branch_to_handler = {
+        'master': _bump_major_subversion,
+        'dev': _bump_minor_subversion,
+        'alpha': _bump_alpha_subversion
+    }
+
+    if branch not in _gh_branch_to_handler:
+        raise AttributeError(f'No handler for {branch = }')
+
+    current_version = _get_current_version()
+    version = _gh_branch_to_handler[branch](current_version=current_version)
+    save_version(version=version)
+    print('Finished version dump')
+    return 0
+
+
+def _get_bump_type_from_cli() -> str:
+    parser = argparse.ArgumentParser(description='Bumps Project Version')
+    parser.add_argument(
+        "-b", "--branch", help="type of version bump (master, dev, alpha)", required=True
+    )
+    args = parser.parse_args()
+    return args.branch.lower()
+
+
+def _bump_alpha_subversion(current_version: str) -> str:
+    if "a" not in current_version:
+        parts = current_version.split(".")
+        parts[-1] = str(int(parts[-1]) + 1)
+        version = ".".join(parts)
+        version = f"{version}a0"
     else:
-        print(line.rstrip("\n"))
+        post = current_version.split("a")[1]
+        new_post = int(post) + 1
+        version = current_version.replace(f"a{post}", f"a{new_post}")
+    return version
+
+
+def _bump_minor_subversion(current_version: str) -> str:
+    parts = current_version.split(".")
+
+    parts[-1] = str(int(parts[-1].split('a')[0]))
+
+    version = ".".join(parts)
+    return version
+
+
+def _bump_major_subversion(current_version: str) -> str:
+    parts = current_version.split(".")
+
+    parts[1] = str(int(parts[1]) + 1)
+    parts[-1] = parts[-1].split('a')[0]
+
+    version = f".".join(parts)
+    return version
+
+
+def _get_current_version():
+    with open(join(dirname(__file__), "version.py"), encoding="utf-8") as v:
+        for line in v.readlines():
+            if line.startswith("__version__"):
+                if '"' in line:
+                    version = line.split('"')[1]
+                else:
+                    version = line.split("'")[1]
+                return version
+
+
+def save_version(version: str):
+    for line in fileinput.input(join(dirname(__file__), "version.py"), inplace=True):
+        if line.startswith("__version__"):
+            print(f'__version__ = "{version}"')
+        else:
+            print(line.rstrip("\n"))
+
+
+if __name__ == '__main__':
+    run()
