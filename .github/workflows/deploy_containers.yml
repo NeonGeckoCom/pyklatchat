@@ -60,6 +60,10 @@ jobs:
       if: github.event_name == 'workflow_dispatch'
       run: |
         echo "VERSION=${{ github.event.inputs.version }}" >> $GITHUB_ENV
+    - name: Apply Workflow Run Environments
+      if: github.event_name == 'workflow_run'
+      run: |
+        echo "VERSION=$(echo ${{ github.ref_name }} | tr / -)" >> $GITHUB_ENV
     - name: Apply Push Environments
       if: github.event_name == 'push'
       run: |
