@@ -87,7 +87,7 @@ def _bump_major_subversion(current_version: str) -> str:
     parts = current_version.split(".")
 
     parts[1] = str(int(parts[1]) + 1)
-    parts[-1] = parts[-1].split('a')[0]
+    parts[-1] = "0"
 
     version = f".".join(parts)
     return version
