@@ -25,21 +25,6 @@
 # LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-from ..constants.neon_api_constants import NeonServices, neon_service_tokens
+import os
 
-
-def resolve_neon_service(message_data: dict, bypass_threshold: float = 0.5) -> NeonServices:
-    """
-        Resolves desired neon service based on the data content from message
-
-        :param message_data: dictionary containing data for message
-        :param bypass_threshold: edge value to consider valid match
-
-        :returns neon service from NeonServices
-    """
-    # TODO: parse message text into lexemes
-    for neon_service, tokens in neon_service_tokens.items():
-        match_percentage = len(set(list(message_data)) & set(tokens))/len(tokens)
-        if match_percentage > bypass_threshold:
-            return neon_service
-    return NeonServices.WOLFRAM
+KLAT_ENV = os.environ.get("KLAT_ENV", "DEV")

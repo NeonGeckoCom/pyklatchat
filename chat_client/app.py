@@ -47,44 +47,52 @@ from utils.logging_utils import LOG
 sys.path.append(os.path.pardir)
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from .blueprints import base as base_blueprint, \
-                        chat as chat_blueprint, \
-                        components as components_blueprint
+from .blueprints import (
+    base as base_blueprint,
+    chat as chat_blueprint,
+    components as components_blueprint,
+)
 
 
 def create_app() -> FastAPI:
     """
-        Application factory for the Klatchat Client
+    Application factory for the Klatchat Client
     """
-    app_version = get_version('chat_client/version.py')
-    LOG.name = os.environ.get('LOG_NAME', 'client_err')
-    LOG.base_path = os.environ.get('LOG_BASE_PATH', '.')
-    LOG.init(config={'level': os.environ.get('LOG_LEVEL', 'INFO'), 'path': os.environ.get('LOG_PATH', os.getcwd())})
-    logger = LOG.create_logger('chat_client')
+    app_version = get_version("version.py")
+    LOG.name = os.environ.get("LOG_NAME", "client_err")
+    LOG.base_path = os.environ.get("LOG_BASE_PATH", ".")
+    LOG.init(
+        config={
+            "level": os.environ.get("LOG_LEVEL", "INFO"),
+            "path": os.environ.get("LOG_PATH", os.getcwd()),
+        }
+    )
+    logger = LOG.create_logger("chat_client")
     logger.addHandler(logging.StreamHandler())
-    LOG.info(f'Starting Klatchat Client v{app_version}')
-    chat_app = FastAPI(title="Klatchat Client",
-                       version=app_version)
+    LOG.info(f"Starting Klatchat Client v{app_version}")
+    chat_app = FastAPI(title="Klatchat Client", version=app_version)
 
     @chat_app.middleware("http")
     async def log_requests(request: Request, call_next):
         """Logs requests and gracefully handles Internal Server Errors"""
-        idem = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+        idem = "".join(random.choices(string.ascii_uppercase + string.digits, k=6))
         LOG.info(f"rid={idem} start request path={request.url.path}")
         start_time = time.time()
         try:
             response = await call_next(request)
             process_time = (time.time() - start_time) * 1000
-            formatted_process_time = '{0:.2f}'.format(process_time)
-            LOG.info(f"rid={idem} completed_in={formatted_process_time}ms status_code={response.status_code}")
+            formatted_process_time = "{0:.2f}".format(process_time)
+            LOG.info(
+                f"rid={idem} completed_in={formatted_process_time}ms status_code={response.status_code}"
+            )
             return response
         except ConnectionError as ex:
             LOG.error(ex)
-            from .client_config import app_config
-            return Response(f'Connection error : {app_config["SERVER_URL"]}', status_code=404)
+
+            return Response("Error connecting to server", status_code=404)
         except Exception as ex:
             LOG.error(f"rid={idem} received an exception {ex}")
-        return Response(f'Chat server error occurred', status_code=500)
+        return Response(f"Chat server error occurred", status_code=500)
 
     # Redirects any not found pages to chats page
     @chat_app.exception_handler(StarletteHTTPException)
@@ -92,20 +100,26 @@ def create_app() -> FastAPI:
         if exc.status_code == status.HTTP_404_NOT_FOUND:
             return RedirectResponse("/chats")
 
-    __cors_allowed_origins = os.environ.get('COST_ALLOWED_ORIGINS', '') or '*'
-
-    LOG.info(f'CORS_ALLOWED_ORIGINS={__cors_allowed_origins}')
+    __cors_allowed_origins = os.environ.get("CORS_ALLOWED_ORIGINS", "") or "*"
 
     chat_app.add_middleware(
         CORSMiddleware,
-        allow_origins=__cors_allowed_origins.split(','),
+        allow_origins=__cors_allowed_origins.split(","),
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
     )
-    static_suffix = '/build' if os.environ.get('KLAT_ENV', 'dev').upper() == 'PROD' else ''
-    chat_app.mount("/css", StaticFiles(directory=f"chat_client/static/css{static_suffix}"), name="css")
-    chat_app.mount("/js", StaticFiles(directory=f"chat_client/static/js{static_suffix}"), name="js")
+    static_suffix = (
+        "/build" if os.environ.get("KLAT_ENV", "dev").upper() == "PROD" else ""
+    )
+    chat_app.mount(
+        "/css",
+        StaticFiles(directory=f"chat_client/static/css{static_suffix}"),
+        name="css",
+    )
+    chat_app.mount(
+        "/js", StaticFiles(directory=f"chat_client/static/js{static_suffix}"), name="js"
+    )
     chat_app.mount("/img", StaticFiles(directory=f"chat_client/static/img"), name="img")
 
     chat_app.include_router(base_blueprint.router)

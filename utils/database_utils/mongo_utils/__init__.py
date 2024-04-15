@@ -26,4 +26,10 @@
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from .structures import MongoFilter, MongoCommands, MongoQuery, MongoDocuments, MongoLogicalOperators
+from .structures import (
+    MongoFilter,
+    MongoCommands,
+    MongoQuery,
+    MongoDocuments,
+    MongoLogicalOperators,
+)

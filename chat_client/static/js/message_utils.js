@@ -165,10 +165,10 @@ async function addOldMessages(cid, skin=CONVERSATION_SKINS.BASE) {
     if (messageContainer.children.length > 0) {
         for (let i = 0; i < messageContainer.children.length; i++) {
             const firstMessageItem = messageContainer.children[i];
-            const firstMessageID = getFirstMessageFromCID( firstMessageItem );
-            if (firstMessageID) {
+            const oldestMessageTS = await DBGateway.getInstance(DB_TABLES.CHAT_MESSAGES_PAGINATION).getItem(cid).then(res=> res?.oldest_created_on || null);
+            if (oldestMessageTS) {
                 const numMessages = await getCurrentSkin(cid) === CONVERSATION_SKINS.PROMPTS? 50: 20;
-                await getConversationDataByInput( cid, skin, firstMessageID, numMessages, null ).then( async conversationData => {
+                await getConversationDataByInput( cid, skin, oldestMessageTS, numMessages, null ).then( async conversationData => {
                     if (messageContainer) {
                         const userMessageList = getUserMessages( conversationData, null );
                         userMessageList.sort( (a, b) => {
@@ -183,7 +183,7 @@ async function addOldMessages(cid, skin=CONVERSATION_SKINS.BASE) {
                                 console.debug( `!!message_id=${message["message_id"]} is already displayed` )
                             }
                         }
-                        initMessages( conversationData, skin );
+                        await initMessages( conversationData, skin );
                     }
                 } ).then( _ => {
                     firstMessageItem.scrollIntoView( {behavior: "smooth"} );
@@ -293,7 +293,7 @@ function addProfileDisplay(cid, messageId, messageType='plain'){
 
 /**
  * Inits addProfileDisplay() on each message of provided conversation
- * @param conversationData: target conversation data
+ * @param conversationData - target conversation data
  */
 function initProfileDisplay(conversationData){
     getUserMessages(conversationData, null).forEach(message => {
@@ -303,8 +303,24 @@ function initProfileDisplay(conversationData){
 
 
 /**
+ * Inits pagination based on the oldest message creation timestamp
+ * @param conversationData - target conversation data
+ */
+async function initPagination(conversationData) {
+    const userMessages = getUserMessages(conversationData, null);
+    if (userMessages.length > 0){
+        const oldestMessage = Math.min(...userMessages.map(msg => parseInt(msg.created_on)));
+        await DBGateway
+            .getInstance(DB_TABLES.CHAT_MESSAGES_PAGINATION)
+            .putItem({cid: conversationData['_id'],
+                           oldest_created_on: oldestMessage})
+    }
+}
+
+
+/**
  * Initializes messages based on provided conversation aata
- * @param conversationData: JS Object containing conversation data of type:
+ * @param conversationData - JS Object containing conversation data of type:
  * {
  *     '_id': 'id of conversation',
  *     'conversation_name': 'title of the conversation',
@@ -318,14 +334,15 @@ function initProfileDisplay(conversationData){
  *         'created_on': 'creation time of the message'
  *     }, ... (num of user messages returned)]
  * }
- * @param skin: target conversation skin to consider
+ * @param skin - target conversation skin to consider
  */
-function initMessages(conversationData, skin = CONVERSATION_SKINS.BASE){
+async function initMessages(conversationData, skin = CONVERSATION_SKINS.BASE){
     initProfileDisplay(conversationData);
     attachReplies(conversationData);
     addAttachments(conversationData);
     addCommunicationChannelTransformCallback(conversationData);
     initLoadOldMessages(conversationData, skin);
+    await initPagination(conversationData);
 }
 
 /**

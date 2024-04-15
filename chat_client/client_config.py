@@ -26,15 +26,32 @@
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+from config import KlatConfigurationBase
 
-import os
 
-from config import Configuration
-from utils.logging_utils import LOG
+class KlatClientConfig(KlatConfigurationBase):
+    def __init__(self):
+        super().__init__()
+        self._runtime_configs = None
 
-config_file_path = os.environ.get('CHATCLIENT_CONFIG', '~/.local/share/neon/credentials_client.json')
+    @property
+    def config_key(self) -> str:
+        return "CHAT_CLIENT"
 
-config = Configuration(from_files=[config_file_path])
-app_config = config.get('CHAT_CLIENT', {}).get(Configuration.KLAT_ENV)
+    @property
+    def required_sub_keys(self) -> tuple[str]:
+        return (
+            "SERVER_URL",
+            "RUNTIME_CONFIG",
+        )
 
-LOG.info(f'App config: {app_config}')
+    @property
+    def runtime_configs(self):
+        if not self._runtime_configs:
+            runtime_configs = self.config_data.get("RUNTIME_CONFIG", {})
+            runtime_configs["CHAT_SERVER_URL_BASE"] = self.config_data["SERVER_URL"]
+            self._runtime_configs = runtime_configs
+        return self._runtime_configs
+
+
+client_config = KlatClientConfig()

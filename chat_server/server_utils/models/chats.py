@@ -26,25 +26,18 @@
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-import os
+from time import time
 
-from starlette.requests import Request
-from starlette.templating import Jinja2Templates
+from fastapi import Query, Path
+from pydantic import BaseModel, Field
+
+from chat_server.constants.conversations import ConversationSkins
 
 
-component_templates = Jinja2Templates(directory=os.environ.get('TEMPLATES_DIR', "chat_client/templates"))
-
-
-def callback_template(request: Request, template_name: str, context: dict = None):
-    """
-        Returns template response based on provided params
-        :param request: FastAPI request object
-        :param template_name: name of template to render
-        :param context: supportive context to add
-    """
-    if not context:
-        context = {}
-    context['request'] = request
-    # Preventing exiting to the source code files
-    template_name = template_name.replace('../', '').replace('.', '/')
-    return component_templates.TemplateResponse(f"components/{template_name}.html", context)
+class GetConversationModel(BaseModel):
+    search_str: str = Field(Path(), examples=["1"])
+    limit_chat_history: int | None = Field(Query(default=100), examples=[100])
+    creation_time_from: str | None = Field(Query(default=None), examples=[int(time())])
+    skin: str = Field(
+        Query(default=ConversationSkins.BASE), examples=[ConversationSkins.BASE]
+    )

@@ -36,17 +36,19 @@ from files_manipulator import FilesManipulator
 
 
 class FilesMinifier(FilesManipulator):
-    """ Intelligent minifier of frontend modules """
+    """Intelligent minifier of frontend modules"""
 
     __css_lib_installed = False
     __js_lib_installed = False
 
-    def __init__(self,
-                 working_dir: str,
-                 processing_pattern: str,
-                 skipping_pattern: str = '',
-                 skip_files: list = None,
-                 skip_dirs: list = None):
+    def __init__(
+        self,
+        working_dir: str,
+        processing_pattern: str,
+        skipping_pattern: str = "",
+        skip_files: list = None,
+        skip_dirs: list = None,
+    ):
         super().__init__(working_dir, skip_files=skip_files, skip_dirs=skip_dirs)
         self.processing_patter = re.compile(pattern=processing_pattern)
         self.skipping_pattern = re.compile(pattern=skipping_pattern)
@@ -54,25 +56,49 @@ class FilesMinifier(FilesManipulator):
     @staticmethod
     def build_from_args():
         parser = argparse.ArgumentParser()
-        parser.add_argument('-wdir', '--working_dir', metavar='.', default='.')
-        parser.add_argument('-ppattern', '--processing_pattern', help='regex string of files that must be processed')
-        parser.add_argument('-spattern', '--skipping_pattern', help='regex string of files that must be skipped')
-        parser.add_argument('-skip', '--skip_files', nargs='+', help='list of filenames to skip', default=None)
-        parser.add_argument('-dskip', '--skip_dirs', nargs='+', help='list of directories to skip', default=None)
+        parser.add_argument("-wdir", "--working_dir", metavar=".", default=".")
+        parser.add_argument(
+            "-ppattern",
+            "--processing_pattern",
+            help="regex string of files that must be processed",
+        )
+        parser.add_argument(
+            "-spattern",
+            "--skipping_pattern",
+            help="regex string of files that must be skipped",
+        )
+        parser.add_argument(
+            "-skip",
+            "--skip_files",
+            nargs="+",
+            help="list of filenames to skip",
+            default=None,
+        )
+        parser.add_argument(
+            "-dskip",
+            "--skip_dirs",
+            nargs="+",
+            help="list of directories to skip",
+            default=None,
+        )
 
         script_args = parser.parse_args()
 
-        return FilesMinifier(working_dir=script_args.working_dir,
-                             processing_pattern=script_args.processing_pattern,
-                             skipping_pattern=script_args.skipping_pattern,
-                             skip_files=script_args.skip_files,
-                             skip_dirs=script_args.skip_dirs)
+        return FilesMinifier(
+            working_dir=script_args.working_dir,
+            processing_pattern=script_args.processing_pattern,
+            skipping_pattern=script_args.skipping_pattern,
+            skip_files=script_args.skip_files,
+            skip_dirs=script_args.skip_dirs,
+        )
 
     def is_valid_processing_file(self, file_path) -> bool:
-        return super().is_valid_processing_file(file_path) and self.processing_patter.match(file_path)
+        return super().is_valid_processing_file(
+            file_path
+        ) and self.processing_patter.match(file_path)
 
     def on_valid_file(self, file_path):
-        dest_path = os.path.join(self.working_dir, 'build')
+        dest_path = os.path.join(self.working_dir, "build")
         file_path_lst = os.path.normpath(file_path).split(os.sep)
         dest_path = os.path.join(dest_path, *file_path_lst[:-1])
         if not os.path.exists(dest_path):
@@ -83,18 +109,20 @@ class FilesMinifier(FilesManipulator):
             shutil.copyfile(source_path, dest_path)
         else:
             # dest_path = dest_path.replace('.js', '.min.js')
-            if source_path.endswith('css'):
+            if source_path.endswith("css"):
                 if not self.__css_lib_installed:
-                    os.system('npm install uglifycss -g')
+                    os.system("npm install uglifycss -g")
                     self.__css_lib_installed = True
-                command = f'uglifycss --ugly-comments --output {dest_path} {source_path}'
-            elif source_path.endswith('js'):
+                command = (
+                    f"uglifycss --ugly-comments --output {dest_path} {source_path}"
+                )
+            elif source_path.endswith("js"):
                 if not self.__js_lib_installed:
                     os.system(f"npm install uglify-js -g")
                     self.__js_lib_installed = True
                 command = f"uglifyjs --compress --mangle --output {dest_path}  -- {source_path}"
             else:
-                print(f'{source_path} is skipped')
+                print(f"{source_path} is skipped")
                 return
             os.system(command)
 
@@ -103,6 +131,6 @@ class FilesMinifier(FilesManipulator):
         return self.walk_tree()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     instance = FilesMinifier.build_from_args()
     instance.run()

@@ -1,10 +1,13 @@
 FROM ghcr.io/neongeckocom/pyklatchat_base:dev
 
 COPY /utils /app
+COPY version.py /app
 COPY . /app/chat_client/
 
 ENV KLAT_ENV PROD
 ENV CHATCLIENT_CONFIG /app/config/config.json
 ENV PYTHONPATH="/app:/app/chat_client/"
+
+RUN pip install --no-cache-dir -r /app/chat_client/client.txt
 
 CMD python -m chat_client

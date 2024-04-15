@@ -30,84 +30,84 @@ import requests
 from fastapi import APIRouter, Form
 from fastapi.responses import JSONResponse
 
-from chat_client.client_config import app_config
+from chat_client.client_config import client_config
 from utils.logging_utils import LOG
 
 router = APIRouter(
     prefix="/auth",
-    responses={'404': {"description": "Unknown endpoint"}},
+    responses={"404": {"description": "Unknown endpoint"}},
 )
 
 
 @router.post("/login", response_class=JSONResponse)
-async def login(username: str = Form(...),
-                password: str = Form(...)):
+async def login(username: str = Form(...), password: str = Form(...)):
     """
-        Forwards input login data to the Server API endpoint and handles the returned response
+    Forwards input login data to the Server API endpoint and handles the returned response
 
-        :param username: posted Form Data username param
-        :param password: posted Form Data password param
+    :param username: posted Form Data username param
+    :param password: posted Form Data password param
 
-        :returns Response object depending on returned status with refreshed session cookies if status_code == 200
+    :returns Response object depending on returned status with refreshed session cookies if status_code == 200
     """
 
-    data = dict(username=username,
-                password=password)
+    data = dict(username=username, password=password)
 
-    post_response = requests.post(f'{app_config["SERVER_URL"]}/auth/login', data=data)
+    post_response = requests.post(
+        f'{client_config["SERVER_URL"]}/auth/login', data=data
+    )
 
     json_data = post_response.json()
 
     response = JSONResponse(content=json_data, status_code=post_response.status_code)
 
     if post_response.status_code == 200:
-
         for cookie in post_response.cookies:
-
-            response.delete_cookie('session')
+            response.delete_cookie("session")
 
             response.set_cookie(key=cookie.name, value=cookie.value, httponly=True)
 
-        LOG.info(f'Login response for {username}: {json_data}')
+        LOG.info(f"Login response for {username}: {json_data}")
 
     return response
 
 
 @router.post("/signup", response_class=JSONResponse)
-async def signup(nickname: str = Form(...),
-                 first_name: str = Form(...),
-                 last_name: str = Form(...),
-                 password: str = Form(...)):
+async def signup(
+    nickname: str = Form(...),
+    first_name: str = Form(...),
+    last_name: str = Form(...),
+    password: str = Form(...),
+):
     """
-        Forwards new user signup data to the Server API endpoint and handles the returned response
+    Forwards new user signup data to the Server API endpoint and handles the returned response
 
-        :param nickname: posted Form Data nickname param
-        :param first_name: posted Form Data first name param
-        :param last_name: posted Form Data last name param
-        :param password: posted Form Data password param
+    :param nickname: posted Form Data nickname param
+    :param first_name: posted Form Data first name param
+    :param last_name: posted Form Data last name param
+    :param password: posted Form Data password param
 
-        :returns Response object depending on returned status with refreshed session cookies if status_code == 200
+    :returns Response object depending on returned status with refreshed session cookies if status_code == 200
     """
 
-    data = dict(nickname=nickname,
-                first_name=first_name,
-                last_name=last_name,
-                password=password)
+    data = dict(
+        nickname=nickname, first_name=first_name, last_name=last_name, password=password
+    )
 
-    post_response = requests.post(f'{app_config["SERVER_URL"]}/auth/signup', data=data)
+    post_response = requests.post(
+        f'{client_config["SERVER_URL"]}/auth/signup', data=data
+    )
 
     json_data = post_response.json()
 
     response = JSONResponse(content=json_data, status_code=post_response.status_code)
 
     if post_response.status_code == 200:
-
-        response.delete_cookie('session')
+        response.delete_cookie("session")
 
         for cookie in post_response.cookies:
             response.set_cookie(key=cookie.name, value=cookie.value, httponly=True)
 
-    LOG.info(f'Signup response for {nickname}: {json_data}')
+    LOG.info(f"Signup response for {nickname}: {json_data}")
 
     return response
 
@@ -116,19 +116,18 @@ async def signup(nickname: str = Form(...),
 async def logout():
     """Emits logout request to the server API and sets returned tmp user cookie in response"""
 
-    logout_response = requests.get(f'{app_config["SERVER_URL"]}/auth/logout')
+    logout_response = requests.get(f'{client_config["SERVER_URL"]}/auth/logout')
 
     json_data = logout_response.json()
 
     response = JSONResponse(content=json_data, status_code=logout_response.status_code)
 
     if logout_response.status_code == 200:
-
-        response.delete_cookie('session')
+        response.delete_cookie("session")
 
         for cookie in logout_response.cookies:
             response.set_cookie(key=cookie.name, value=cookie.value, httponly=True)
 
-    LOG.info(f'Logout response: {json_data}')
+    LOG.info(f"Logout response: {json_data}")
 
     return response
