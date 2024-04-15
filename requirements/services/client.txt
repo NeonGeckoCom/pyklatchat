@@ -1,0 +1,6 @@
+fastapi==0.103.2
+httpx==0.25.0  # required by FastAPI
+Jinja2==3.1.2
+ovos_config==0.0.10
+ovos_utils==0.0.35
+uvicorn==0.23.2

@@ -31,8 +31,8 @@ from fastapi import APIRouter
 from starlette.requests import Request
 
 from chat_client.client_config import client_config
+from chat_client.client_utils.template_utils import callback_template
 from utils.http_utils import respond
-from utils.template_utils import callback_template
 
 router = APIRouter(
     prefix="/components",
