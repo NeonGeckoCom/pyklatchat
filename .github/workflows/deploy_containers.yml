@@ -31,6 +31,9 @@ jobs:
     needs: [run-tests, bump-version]
     steps:
     - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        ref: ${{ github.ref_name }}
     - name: Install Node JS
       run: |
         sudo apt-get update && sudo apt-get install nodejs && sudo apt-get install npm
