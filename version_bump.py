@@ -55,7 +55,7 @@ def run():
 def _get_bump_type_from_cli() -> str:
     parser = argparse.ArgumentParser(description='Bumps Project Version')
     parser.add_argument(
-        "-b", "--branch", help="type of version bump (master, dev, alpha)", required=True
+        "-t", "--branch", type=str, help="type of version bump (master, dev, alpha)", required=True
     )
     args = parser.parse_args()
     return args.branch.lower()
@@ -87,7 +87,7 @@ def _bump_major_subversion(current_version: str) -> str:
     parts = current_version.split(".")
 
     parts[1] = str(int(parts[1]) + 1)
-    parts[-1] = "0"
+    parts[-1] = parts[-1].split('a')[0]
 
     version = f".".join(parts)
     return version
