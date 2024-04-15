@@ -10,7 +10,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
         with:
-          ref: ${{ github.head_ref }}
+          ref: ${{ github.ref_name }}
       - name: Setup Python
         uses: actions/setup-python@v1
         with:
@@ -21,7 +21,7 @@ jobs:
       - name: Increment Version
         run: |
           VER=$(python setup.py --version)
-          python version_bump.py -b ${{ github.head_ref }}
+          python version_bump.py -b ${{ github.ref_name }}
       - name: Push Version Change
         uses: stefanzweifel/git-auto-commit-action@v4
         with:
