@@ -3,8 +3,6 @@
 name: Publish Version Change
 on:
   workflow_call:
-    paths-ignore:
-      - 'version.py'
 
 jobs:
   build_and_publish:
