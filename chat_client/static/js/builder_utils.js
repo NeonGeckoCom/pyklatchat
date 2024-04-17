@@ -206,7 +206,7 @@ async function buildPromptHTML(prompt) {
     let submindsHTML = "";
     const promptData = prompt['data'];
     if (prompt['is_completed'] === '0'){
-        promptData['winner'] = `Prompt in progress 
+        promptData['winner'] = `Prompt in progress
         <div class="spinner-border spinner-border-sm text-dark" role="status">
             <span class="sr-only">Loading...</span>
         </div>`
