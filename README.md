@@ -53,4 +53,3 @@ Example of configuration can be found in "chat_client/example_client_config.json
 ### Launching
 
 Chat Client can be launched as python module from root directory: ```python -m chat_client```
-

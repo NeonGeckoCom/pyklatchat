@@ -60,4 +60,3 @@ document.addEventListener('DOMContentLoaded', async (e)=>{
         document.dispatchEvent(configFullLoadedEvent);
     }
 });
-

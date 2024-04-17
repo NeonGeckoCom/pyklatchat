@@ -1,10 +1,10 @@
 {
   "DATABASE_CONFIG": {
     "(Runtime environment)": {
+      "database": "Database Name",
       "dialect": "(supported database dialect)",
       "host": "Database host address",
-      "port": "Database Port (int)",
-      "database": "Database Name"
+      "port": "Database Port (int)"
     }
   }
 }
