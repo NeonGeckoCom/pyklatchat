@@ -27,7 +27,7 @@
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 from fastapi import Query
-from pydantic import BaseModel, Field, computed_field
+from pydantic import Field, computed_field, BaseModel
 
 
 class PersonaModel(BaseModel):

@@ -28,28 +28,40 @@
 
 from typing import Type
 
-from fastapi import Depends
+from fastapi import Depends, Request
 from pydantic import BaseModel
 
 from chat_server.server_utils.http_exceptions import UserUnauthorizedException
 from ..extractors import CurrentUserData
-from ...enums import UserRoles
+from ...enums import UserRoles, RequestModelType
 
 
-def permitted_access(model_type, min_required_role=UserRoles.GUEST):
-    return Depends(_validate_api_access(model_type, min_required_role))
+def permitted_access(
+    model_type,
+    min_required_role=UserRoles.GUEST,
+    request_model_type: RequestModelType = RequestModelType.QUERY,
+):
+    return Depends(
+        _validate_api_access(model_type, min_required_role, request_model_type)
+    )
 
 
 def _validate_api_access(
     model_type: Type[BaseModel],
     min_required_role: UserRoles = UserRoles.AUTHORIZED_USER,
+    request_model_type: RequestModelType = RequestModelType.QUERY,
 ) -> BaseModel:
     """
     Checks if provided to current user model and is authorized to perform actions on behalf of the target user data
     """
 
+    if request_model_type == RequestModelType.QUERY:
+        default_value = Depends()
+    else:
+        default_value = None
+
     async def permission_dependency_checker(
-        current_user: CurrentUserData, request_model: model_type = Depends()
+        current_user: CurrentUserData, request_model: model_type = default_value
     ):
         is_authorized = _check_is_authorized(
             current_user=current_user,

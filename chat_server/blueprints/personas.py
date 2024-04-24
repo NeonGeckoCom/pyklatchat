@@ -31,7 +31,7 @@ from starlette.responses import JSONResponse
 from chat_server.server_utils.api_dependencies.extractors.personas import (
     _get_persona_model,
 )
-from chat_server.server_utils.enums import UserRoles
+from chat_server.server_utils.enums import UserRoles, RequestModelType
 from chat_server.server_utils.http_exceptions import (
     ItemNotFoundException,
     DuplicatedItemException,
@@ -63,9 +63,7 @@ router = APIRouter(
 @router.get("/list")
 async def list_personas(
     current_user: CurrentUserData,
-    request_model: ListPersonasQueryModel = permitted_access(
-        ListPersonasQueryModel, UserRoles.GUEST
-    ),
+    request_model: ListPersonasQueryModel = permitted_access(ListPersonasQueryModel),
 ):
     """Lists personas matching query params"""
     filters = []
@@ -106,7 +104,9 @@ async def get_persona(request_model: PersonaData = permitted_access(PersonaData)
 
 @router.put("/add")
 async def add_persona(
-    request_model: AddPersonaModelModel = permitted_access(AddPersonaModelModel),
+    request_model: AddPersonaModelModel = permitted_access(
+        AddPersonaModelModel, request_model_type=RequestModelType.DATA
+    ),
 ):
     """Adds new persona"""
     existing_model = MongoDocumentsAPI.PERSONAS.get_item(
@@ -120,7 +120,9 @@ async def add_persona(
 
 @router.post("/set")
 async def set_persona(
-    request_model: SetPersonaModelModel = permitted_access(SetPersonaModelModel),
+    request_model: SetPersonaModelModel = permitted_access(
+        SetPersonaModelModel, request_model_type=RequestModelType.DATA
+    ),
 ):
     """Sets persona's data"""
     existing_model = MongoDocumentsAPI.PERSONAS.get_item(
@@ -147,7 +149,7 @@ async def delete_persona(
 @router.post("/toggle")
 async def toggle_persona_state(
     request_model: TogglePersonaStatusModelModel = permitted_access(
-        TogglePersonaStatusModelModel
+        TogglePersonaStatusModelModel, request_model_type=RequestModelType.DATA
     ),
 ):
     updated_data = MongoDocumentsAPI.PERSONAS.update_item(
