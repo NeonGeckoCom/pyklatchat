@@ -34,7 +34,6 @@ import jwt
 from time import time
 from fastapi import Request
 
-from chat_server.server_utils.models.users import CurrentUserModel
 from utils.database_utils.mongo_utils import MongoFilter, MongoLogicalOperators
 from utils.database_utils.mongo_utils.queries.wrapper import MongoDocumentsAPI
 from utils.logging_utils import LOG
@@ -305,24 +304,3 @@ def login_required(*outer_args, **outer_kwargs):
         return outer(func)
     else:
         return outer
-
-
-def is_authorized_for_user_id(current_user: CurrentUserModel, user_id: str) -> bool:
-    """
-    Checks if provided to current user model and is authorized to perform actions on behalf of the target user data
-    :param current_user: current user model created from request
-    :param user_id: target user id to check authority on
-    :return: True if authorized, False otherwise
-    """
-    return current_user.user_id == user_id or "admin" in current_user.roles
-
-
-def get_current_user_model(request: Request) -> CurrentUserModel:
-    """
-    Get current user from request objects and returns it as a CurrentUserModel instance
-    :param request: Starlette request object to process
-    :return: CurrentUserModel instance
-    :raises ValidationError: if pydantic validation failed for provided request
-    """
-    current_user = get_current_user(request=request)
-    return CurrentUserModel.model_validate(current_user, strict=True)

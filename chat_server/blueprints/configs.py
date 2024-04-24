@@ -29,13 +29,15 @@
 from fastapi import APIRouter, Depends
 from starlette.responses import JSONResponse
 
-from chat_server.server_utils.dependencies import CurrentUserDependency
-from chat_server.server_utils.exceptions import (
+from chat_server.server_utils.http_exceptions import (
     ItemNotFoundException,
     UserUnauthorizedException,
 )
 from chat_server.server_utils.http_utils import KlatAPIResponse
-from chat_server.server_utils.models.configs import SetConfigModel, ConfigModel
+
+from chat_server.server_utils.api_dependencies.models import SetConfigModel, ConfigModel
+from chat_server.server_utils.api_dependencies.extractors import CurrentUserData
+
 from utils.database_utils.mongo_utils.queries.wrapper import MongoDocumentsAPI
 
 router = APIRouter(
@@ -55,7 +57,7 @@ async def get_config_data(model: ConfigModel = Depends()) -> JSONResponse:
 
 @router.put("/{config_property}")
 async def update_config(
-    current_user: CurrentUserDependency, model: SetConfigModel = Depends()
+    current_user: CurrentUserData, model: SetConfigModel = Depends()
 ) -> JSONResponse:
     """Updates provided config by name"""
     if "admin" not in current_user.roles:

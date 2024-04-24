@@ -26,12 +26,6 @@
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-
-from typing import Annotated
-
-from fastapi import Depends
-
-from chat_server.server_utils.auth import get_current_user_model
-from chat_server.server_utils.models.users import CurrentUserModel
-
-CurrentUserDependency = Annotated[CurrentUserModel, Depends(get_current_user_model)]
+from .extractors import *
+from .models import *
+from .validators import *

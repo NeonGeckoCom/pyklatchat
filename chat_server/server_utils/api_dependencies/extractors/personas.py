@@ -25,20 +25,11 @@
 # LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-from enum import Enum, IntEnum
-
-
-class DataSources(Enum):
-    """Enumeration of supported data sources"""
-
-    SFTP = "SFTP"
-    LOCAL = "LOCAL"
+from chat_server.server_utils.api_dependencies.models.personas import PersonaModel
 
 
-class UserRoles(IntEnum):
+def _get_persona_model(persona_id: str) -> PersonaModel:
+    return PersonaModel.create_from_id(persona_id=persona_id)
 
-    GUEST = 0
-    AUTHORIZED_USER = 1
-    ADMIN = 2
-    SUPER_ADMIN = 3
+
+PersonaData = _get_persona_model

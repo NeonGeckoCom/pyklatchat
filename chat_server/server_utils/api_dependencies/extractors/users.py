@@ -26,19 +26,25 @@
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from enum import Enum, IntEnum
+
+from typing import Annotated
+
+from fastapi import Depends
+from starlette.requests import Request
+
+from ..models.users import CurrentUserModel
+from ...auth import get_current_user
 
 
-class DataSources(Enum):
-    """Enumeration of supported data sources"""
+def _get_current_user_model(request: Request) -> CurrentUserModel:
+    """
+    Get current user from request objects and returns it as a CurrentUserModel instance
+    :param request: Starlette request object to process
+    :return: CurrentUserModel instance
+    :raises ValidationError: if pydantic validation failed for provided request
+    """
+    current_user = get_current_user(request=request)
+    return CurrentUserModel.model_validate(current_user, strict=True)
 
-    SFTP = "SFTP"
-    LOCAL = "LOCAL"
 
-
-class UserRoles(IntEnum):
-
-    GUEST = 0
-    AUTHORIZED_USER = 1
-    ADMIN = 2
-    SUPER_ADMIN = 3
+CurrentUserData = Annotated[CurrentUserModel, Depends(_get_current_user_model)]

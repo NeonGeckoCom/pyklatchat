@@ -33,8 +33,8 @@ from fastapi.responses import JSONResponse
 
 from chat_server.server_utils.auth import login_required
 from chat_server.server_utils.conversation_utils import build_message_json
-from chat_server.server_utils.dependencies import CurrentUserDependency
-from chat_server.server_utils.models.chats import GetConversationModel
+from chat_server.server_utils.api_dependencies.extractors import CurrentUserData
+from chat_server.server_utils.api_dependencies.models import GetConversationModel
 from chat_server.services.popularity_counter import PopularityCounter
 from utils.common import generate_uuid
 from utils.database_utils.mongo_utils import MongoFilter, MongoLogicalOperators
@@ -93,7 +93,7 @@ async def new_conversation(
 
 @router.get("/search/{search_str}")
 async def get_matching_conversation(
-    current_user: CurrentUserDependency, model: GetConversationModel = Depends()
+    current_user: CurrentUserData, model: GetConversationModel = Depends()
 ):
     """
     Gets conversation data matching search string
