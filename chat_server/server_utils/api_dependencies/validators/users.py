@@ -28,7 +28,7 @@
 
 from typing import Type
 
-from fastapi import Depends, Request
+from fastapi import Depends
 from pydantic import BaseModel
 
 from chat_server.server_utils.http_exceptions import UserUnauthorizedException
@@ -81,7 +81,7 @@ def _check_is_authorized(
     min_required_role: UserRoles,
 ) -> bool:
     is_authorized = True
-    if min_required_role != UserRoles.GUEST and current_user.is_tmp:
+    if min_required_role > UserRoles.GUEST and current_user.is_tmp:
         return False
     if user_id := getattr(request_model, "user_id", None):
         min_required_role, is_authorized = _is_authorized_by_model_user(

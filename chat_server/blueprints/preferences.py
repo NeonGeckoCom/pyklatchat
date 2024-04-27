@@ -38,6 +38,26 @@ router = APIRouter(
 )
 
 
+@router.post("/update")
+@login_required
+async def update_settings(
+    request: Request,
+    minify_messages: str = Form("0"),
+):
+    """
+    Updates user settings with provided form data
+    :param request: FastAPI Request Object
+    :param minify_messages: "1" if user prefers to get minified messages
+    :return: status 200 if OK, error code otherwise
+    """
+    user = get_current_user(request=request)
+    preferences_mapping = {"minify_messages": minify_messages}
+    MongoDocumentsAPI.USERS.set_preferences(
+        user_id=user["_id"], preferences_mapping=preferences_mapping
+    )
+    return respond(msg="OK")
+
+
 @router.post("/update_language/{cid}/{input_type}")
 @login_required
 async def update_language(

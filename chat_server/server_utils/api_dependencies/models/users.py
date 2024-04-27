@@ -25,7 +25,6 @@
 # LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
 from pydantic import BaseModel, Field
 
 
@@ -42,3 +41,8 @@ class CurrentUserModel(BaseModel):
     is_bot: bool | None = Field(examples=[True, False], default=False)
     is_tmp: bool | None = Field(examples=[False, True], default=True)
     roles: list[str] | None = Field(examples=["admin", ""], default=[])
+
+
+class CurrentUserSessionModel(BaseModel):
+    user: CurrentUserModel
+    session: str

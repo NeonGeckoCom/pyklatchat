@@ -25,15 +25,14 @@
 # LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-
+from dataclasses import asdict
 from typing import Annotated
 
 from fastapi import Depends
 from starlette.requests import Request
 
-from ..models.users import CurrentUserModel
-from ...auth import get_current_user
+from ..models.users import CurrentUserModel, CurrentUserSessionModel
+from ...auth import get_current_user, get_current_user_data
 
 
 def _get_current_user_model(request: Request) -> CurrentUserModel:
@@ -47,4 +46,12 @@ def _get_current_user_model(request: Request) -> CurrentUserModel:
     return CurrentUserModel.model_validate(current_user, strict=True)
 
 
+def _get_current_user_session_model(
+    request: Request, nano_token: str = None
+) -> CurrentUserSessionModel:
+    current_user = get_current_user_data(request=request, nano_token=nano_token)
+    return CurrentUserSessionModel.model_validate(asdict(current_user), strict=True)
+
+
 CurrentUserData = Annotated[CurrentUserModel, Depends(_get_current_user_model)]
+CurrentUserSessionData = Annotated[str, Depends(_get_current_user_session_model)]

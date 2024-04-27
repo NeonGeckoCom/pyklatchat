@@ -26,15 +26,14 @@
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from typing import Optional
 from fastapi import APIRouter, status, Request, UploadFile, File, Form
-from fastapi.responses import JSONResponse
-from fastapi.encoders import jsonable_encoder
 
+from chat_server.server_utils.api_dependencies.extractors.users import (
+    CurrentUserSessionData,
+)
 from chat_server.server_utils.auth import (
     get_current_user,
     check_password_strength,
-    get_current_user_data,
     login_required,
 )
 from chat_server.server_utils.http_utils import save_file
@@ -52,15 +51,13 @@ router = APIRouter(
 
 @router.get("/")
 async def get_user(
-    request: Request,
-    nano_token: str = None,
-    user_id: Optional[str] = None,
+    session_data: CurrentUserSessionData,
+    user_id: str | None = None,
 ):
     """
     Gets current user data from session cookies
 
-    :param request: active client session request
-    :param nano_token: token from nano client (optional)
+    :param session_data: current user session data
     :param user_id: id of external user (optional, if not provided - current user is returned)
 
     :returns JSON response containing data of current user
@@ -71,50 +68,16 @@ async def get_user(
         user.pop("password", None)
         user.pop("date_created", None)
         user.pop("tokens", None)
+        if session_data.user.user_id != user_id:
+            user.pop("roles", None)
+            user.pop("preferences", None)
         LOG.info(f"Fetched user data (id={user_id}): {user}")
     else:
-        current_user_data = get_current_user_data(
-            request=request, nano_token=nano_token
-        )
-        user = current_user_data.user
-        session_token = current_user_data.session
+        user = session_data.user
+        session_token = session_data.session
     if not user:
         return respond("User not found", 404)
     return dict(data=user, token=session_token)
-
-
-@router.get("/get_users")
-# @login_required
-async def fetch_received_user_ids(
-    request: Request, user_ids: str = None, nicknames: str = None
-):
-    """
-    Gets users data based on provided user ids
-
-    :param request: Starlette Request Object
-    :param user_ids: list of provided user ids
-    :param nicknames: list of provided nicknames
-
-    :returns JSON response containing array of fetched user data
-    """
-    filter_data = {}
-    if not any(x for x in (user_ids, nicknames)):
-        return respond("Either user_ids or nicknames should be provided", 422)
-    if user_ids:
-        filter_data["_id"] = {"$in": user_ids.split(",")}
-    if nicknames:
-        filter_data["nickname"] = {"$in": nicknames.split(",")}
-
-    users = MongoDocumentsAPI.USERS.list_items(
-        filters=filter_data, result_as_cursor=False
-    )
-    for user in users:
-        user.pop("password", None)
-        user.pop("is_tmp", None)
-        user.pop("tokens", None)
-        user.pop("date_created", None)
-
-    return JSONResponse(content={"users": jsonable_encoder(users)})
 
 
 @router.post("/update")
@@ -181,23 +144,3 @@ async def update_profile(
             msg="Unable to update user data at the moment",
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
         )
-
-
-@router.post("/settings/update")
-@login_required
-async def update_settings(
-    request: Request,
-    minify_messages: str = Form("0"),
-):
-    """
-    Updates user settings with provided form data
-    :param request: FastAPI Request Object
-    :param minify_messages: "1" if user prefers to get minified messages
-    :return: status 200 if OK, error code otherwise
-    """
-    user = get_current_user(request=request)
-    preferences_mapping = {"minify_messages": minify_messages}
-    MongoDocumentsAPI.USERS.set_preferences(
-        user_id=user["_id"], preferences_mapping=preferences_mapping
-    )
-    return respond(msg="OK")
