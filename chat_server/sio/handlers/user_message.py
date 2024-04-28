@@ -79,7 +79,7 @@ async def user_message(sid, data):
         cid_data = MongoDocumentsAPI.CHATS.get_chat(
             search_str=data["cid"],
             column_identifiers=["_id"],
-            requested_user_id=data["userId"],
+            requested_user_id=data["userID"],
         )
         if not cid_data:
             msg = "Shouting to non-existent conversation, skipping further processing"

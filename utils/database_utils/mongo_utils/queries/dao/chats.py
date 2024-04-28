@@ -50,14 +50,12 @@ class ChatsDAO(MongoDocumentDAO):
         search_str: list | str,
         column_identifiers: List[str] = None,
         allow_regex_search: bool = False,
-        include_private: bool = False,
         requested_user_id: str = None,
     ) -> dict | None:
         chats = self.get_chats(
             search_str=search_str,
             column_identifiers=column_identifiers,
             allow_regex_search=allow_regex_search,
-            include_private=include_private,
             requested_user_id=requested_user_id,
             limit=1,
         )
@@ -70,7 +68,6 @@ class ChatsDAO(MongoDocumentDAO):
         limit: int,
         column_identifiers: List[str] = None,
         allow_regex_search: bool = False,
-        include_private: bool = False,
         requested_user_id: str = None,
     ) -> Union[None, dict]:
         """
@@ -79,7 +76,6 @@ class ChatsDAO(MongoDocumentDAO):
         :param column_identifiers: desired column identifiers to look up
         :param limit: limit found conversations
         :param allow_regex_search: to allow search for matching entries that CONTAIN :param search_str
-        :param include_private: to include private conversations (defaults to False)
         :param requested_user_id: id of the requested user (defaults to None) - used to find owned private conversations
         """
         filters = self._create_matching_chat_filters(
@@ -87,14 +83,13 @@ class ChatsDAO(MongoDocumentDAO):
             query_attributes=column_identifiers,
             regex_search=allow_regex_search,
         )
-        if include_private:
+        if requested_user_id:
             filters += self._create_privacy_filters(requested_user_id)
 
         chats = self.list_items(
             filters=filters,
             limit=limit,
             result_as_cursor=False,
-            result_filters={"limit": limit},
         )
         for chat in chats:
             chat["_id"] = str(chat["_id"])
