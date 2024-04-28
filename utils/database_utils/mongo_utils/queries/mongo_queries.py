@@ -34,11 +34,14 @@ from .wrapper import MongoDocumentsAPI
 from utils.logging_utils import LOG
 
 
-def get_translations(translation_mapping: dict) -> Tuple[dict, dict]:
+def get_translations(
+    translation_mapping: dict, requested_user_id: str
+) -> Tuple[dict, dict]:
     """
     Gets translation from db based on provided mapping
 
     :param translation_mapping: mapping of cid to desired translation language
+    :param requested_user_id: id of requested user
 
     :return translations fetched from db
     """
@@ -48,7 +51,7 @@ def get_translations(translation_mapping: dict) -> Tuple[dict, dict]:
         lang = cid_data.get("lang", "en")
         shout_ids = cid_data.get("shouts", [])
         conversation_data = MongoDocumentsAPI.CHATS.get_chat(
-            search_str=cid, include_private=True
+            search_str=cid, requested_user_id=requested_user_id
         )
         if not conversation_data:
             LOG.error(f"Failed to fetch conversation data - {cid}")
