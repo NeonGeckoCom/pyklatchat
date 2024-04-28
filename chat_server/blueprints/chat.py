@@ -31,7 +31,9 @@ from time import time
 from fastapi import APIRouter, Request, Form, Depends
 from fastapi.responses import JSONResponse
 
-from chat_server.server_utils.auth import login_required
+from chat_server.server_utils.api_dependencies.validators.users import (
+    get_authorized_user,
+)
 from chat_server.server_utils.conversation_utils import build_message_json
 from chat_server.server_utils.api_dependencies.extractors import CurrentUserData
 from chat_server.server_utils.api_dependencies.models import GetConversationModel
@@ -50,9 +52,8 @@ router = APIRouter(
 
 
 @router.post("/new")
-@login_required
 async def new_conversation(
-    request: Request,
+    current_user: CurrentUserData = get_authorized_user,
     conversation_id: str = Form(""),  # DEPRECATED
     conversation_name: str = Form(...),
     is_private: str = Form(False),
@@ -61,7 +62,7 @@ async def new_conversation(
     """
     Creates new conversation from provided conversation data
 
-    :param request: Starlette Request object
+    :param current_user: current user data
     :param conversation_id: new conversation id (DEPRECATED)
     :param conversation_name: new conversation name (optional)
     :param is_private: if new conversation should be private (defaults to False)
@@ -73,8 +74,10 @@ async def new_conversation(
         warnings.warn(
             "Param conversation id is no longer considered", DeprecationWarning
         )
-    conversation_data = MongoDocumentsAPI.CHATS.get_conversation_data(
-        search_str=[conversation_name],
+    conversation_data = MongoDocumentsAPI.CHATS.get_chat(
+        search_str=conversation_name,
+        column_identifiers=["conversation_name"],
+        requested_user_id=current_user.user_id,
     )
     if conversation_data:
         return respond(f'Conversation "{conversation_name}" already exists', 400)
@@ -84,6 +87,7 @@ async def new_conversation(
         "conversation_name": conversation_name,
         "is_private": True if is_private == "1" else False,
         "bound_service": bound_service,
+        "creator": current_user.user_id,
         "created_on": int(time()),
     }
     MongoDocumentsAPI.CHATS.add_item(data=request_data_dict)
@@ -103,8 +107,10 @@ async def get_matching_conversation(
 
     :returns conversation data if found, 401 error code otherwise
     """
-    conversation_data = MongoDocumentsAPI.CHATS.get_conversation_data(
-        search_str=model.search_str, requested_user_id=current_user.user_id
+    conversation_data = MongoDocumentsAPI.CHATS.get_chat(
+        search_str=model.search_str,
+        column_identifiers=["_id", "conversation_name"],
+        requested_user_id=current_user.user_id,
     )
 
     if not conversation_data:

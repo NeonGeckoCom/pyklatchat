@@ -26,11 +26,14 @@
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from fastapi import APIRouter, Request, Form
-from chat_server.server_utils.auth import get_current_user, login_required
+from fastapi import APIRouter, Form, Depends
+
+from chat_server.server_utils.api_dependencies import CurrentUserData
+from chat_server.server_utils.api_dependencies.validators.users import (
+    get_authorized_user,
+)
 from utils.database_utils.mongo_utils.queries.wrapper import MongoDocumentsAPI
 from utils.http_utils import respond
-from utils.logging_utils import LOG
 
 router = APIRouter(
     prefix="/preferences",
@@ -39,38 +42,33 @@ router = APIRouter(
 
 
 @router.post("/update")
-@login_required
 async def update_settings(
-    request: Request,
     minify_messages: str = Form("0"),
+    current_user: CurrentUserData = get_authorized_user,
 ):
     """
     Updates user settings with provided form data
-    :param request: FastAPI Request Object
+    :param current_user: current user data
     :param minify_messages: "1" if user prefers to get minified messages
     :return: status 200 if OK, error code otherwise
     """
-    user = get_current_user(request=request)
     preferences_mapping = {"minify_messages": minify_messages}
     MongoDocumentsAPI.USERS.set_preferences(
-        user_id=user["_id"], preferences_mapping=preferences_mapping
+        user_id=current_user.user_id, preferences_mapping=preferences_mapping
     )
     return respond(msg="OK")
 
 
 @router.post("/update_language/{cid}/{input_type}")
-@login_required
 async def update_language(
-    request: Request, cid: str, input_type: str, lang: str = Form(...)
+    cid: str,
+    input_type: str,
+    lang: str = Form(...),
+    current_user: CurrentUserData = get_authorized_user,
 ):
     """Updates preferred language of user in conversation"""
-    try:
-        current_user_id = get_current_user(request)["_id"]
-    except Exception as ex:
-        LOG.error(ex)
-        return respond(f"Failed to update language of {cid}/{input_type} to {lang}")
     MongoDocumentsAPI.USERS.set_preferences(
-        user_id=current_user_id,
+        user_id=current_user.user_id,
         preferences_mapping={f"chat_language_mapping.{cid}.{input_type}": lang},
     )
     return respond(f"Updated cid={cid}, input_type={input_type} to language={lang}")

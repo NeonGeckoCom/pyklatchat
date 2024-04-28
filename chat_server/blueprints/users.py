@@ -26,15 +26,17 @@
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from fastapi import APIRouter, status, Request, UploadFile, File, Form
+from fastapi import APIRouter, status, UploadFile, File, Form
 
 from chat_server.server_utils.api_dependencies.extractors.users import (
     CurrentUserSessionData,
+    CurrentUserData,
+)
+from chat_server.server_utils.api_dependencies.validators.users import (
+    get_authorized_user,
 )
 from chat_server.server_utils.auth import (
-    get_current_user,
     check_password_strength,
-    login_required,
 )
 from chat_server.server_utils.http_utils import save_file
 from utils.common import get_hash
@@ -81,10 +83,8 @@ async def get_user(
 
 
 @router.post("/update")
-@login_required
 async def update_profile(
-    request: Request,
-    user_id: str = Form(...),
+    current_user: CurrentUserData = get_authorized_user,
     first_name: str = Form(""),
     last_name: str = Form(""),
     bio: str = Form(""),
@@ -96,8 +96,7 @@ async def update_profile(
     """
     Gets file from the server
 
-    :param request: FastAPI Request Object
-    :param user_id: submitted user id
+    :param current_user: current user data
     :param first_name: new first name value
     :param last_name: new last name value
     :param nickname: new nickname value
@@ -108,12 +107,6 @@ async def update_profile(
 
     :returns status: 200 if data updated successfully, 403 if operation is on tmp user, 401 if something went wrong
     """
-    user = get_current_user(request=request)
-    if user.get("is_tmp"):
-        return respond(
-            msg=f"Unable to update data of 'tmp' user",
-            status_code=status.HTTP_403_FORBIDDEN,
-        )
     update_dict = {
         "first_name": first_name,
         "last_name": last_name,
@@ -132,7 +125,7 @@ async def update_profile(
     if avatar:
         update_dict["avatar"] = await save_file(location_prefix="avatars", file=avatar)
     try:
-        filter_expression = MongoFilter(key="_id", value=user_id)
+        filter_expression = MongoFilter(key="_id", value=current_user.user_id)
         update_dict = {k: v for k, v in update_dict.items() if v}
         MongoDocumentsAPI.USERS.update_item(
             filters=(filter_expression,), data=update_dict

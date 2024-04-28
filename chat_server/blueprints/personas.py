@@ -28,10 +28,7 @@
 from fastapi import APIRouter
 from starlette.responses import JSONResponse
 
-from chat_server.server_utils.api_dependencies.extractors.personas import (
-    _get_persona_model,
-)
-from chat_server.server_utils.enums import UserRoles, RequestModelType
+from chat_server.server_utils.enums import RequestModelType, UserRoles
 from chat_server.server_utils.http_exceptions import (
     ItemNotFoundException,
     DuplicatedItemException,
@@ -149,7 +146,9 @@ async def delete_persona(
 @router.post("/toggle")
 async def toggle_persona_state(
     request_model: TogglePersonaStatusModelModel = permitted_access(
-        TogglePersonaStatusModelModel, request_model_type=RequestModelType.DATA
+        TogglePersonaStatusModelModel,
+        min_required_role=UserRoles.AUTHORIZED_USER,
+        request_model_type=RequestModelType.DATA,
     ),
 ):
     updated_data = MongoDocumentsAPI.PERSONAS.update_item(

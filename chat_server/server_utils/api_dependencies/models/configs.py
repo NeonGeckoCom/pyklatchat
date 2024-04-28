@@ -38,4 +38,6 @@ class ConfigModel(BaseModel):
 
 
 class SetConfigModel(ConfigModel):
-    data: dict = Field([{"records": [{"label": "Chat GPT", "value": "chatgpt"}]}])
+    data: dict = Field(
+        default=[{"records": [{"label": "Chat GPT", "value": "chatgpt"}]}]
+    )

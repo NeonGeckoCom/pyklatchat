@@ -47,8 +47,8 @@ def get_translations(translation_mapping: dict) -> Tuple[dict, dict]:
     for cid, cid_data in translation_mapping.items():
         lang = cid_data.get("lang", "en")
         shout_ids = cid_data.get("shouts", [])
-        conversation_data = MongoDocumentsAPI.CHATS.get_conversation_data(
-            search_str=cid
+        conversation_data = MongoDocumentsAPI.CHATS.get_chat(
+            search_str=cid, include_private=True
         )
         if not conversation_data:
             LOG.error(f"Failed to fetch conversation data - {cid}")

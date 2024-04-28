@@ -116,3 +116,9 @@ def _is_authorized_by_admin_role(
     )
     matching_roles_subset = set(current_user.roles).intersection(allowed_roles)
     return len(matching_roles_subset) > 0
+
+
+def get_authorized_user(current_user: CurrentUserData):
+    if current_user.is_tmp:
+        raise UserUnauthorizedException
+    return current_user
