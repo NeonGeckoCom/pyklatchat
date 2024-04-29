@@ -26,7 +26,6 @@
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 from dataclasses import dataclass
-from functools import wraps
 from typing import Optional, Tuple, Union
 
 import jwt
@@ -34,12 +33,13 @@ import jwt
 from time import time
 from fastapi import Request
 
+from chat_server.server_utils.enums import UserRoles
+from chat_server.server_utils.http_exceptions import UserUnauthorizedException
 from utils.database_utils.mongo_utils import MongoFilter, MongoLogicalOperators
 from utils.database_utils.mongo_utils.queries.wrapper import MongoDocumentsAPI
 from utils.logging_utils import LOG
 
 from chat_server.server_config import server_config
-from utils.http_utils import respond
 
 cookies_config = server_config.get("COOKIES", {})
 
@@ -239,8 +239,7 @@ def refresh_session(payload: dict):
 
 def validate_session(
     request: Union[str, Request],
-    check_tmp: bool = False,
-    required_roles: list = None,
+    min_required_role: UserRoles,
     sio_request: bool = False,
 ) -> Tuple[str, int]:
     """
@@ -252,18 +251,20 @@ def validate_session(
         payload = jwt.decode(
             jwt=session, key=secret_key, algorithms=jwt_encryption_algo
         )
-        should_check_user_data = check_tmp or required_roles
-        is_authorized = True
-        if should_check_user_data:
+        if min_required_role:
             user = MongoDocumentsAPI.USERS.get_user(user_id=payload["sub"])
-            if check_tmp and user.get("is_tmp"):
-                is_authorized = False
-            elif required_roles and not any(
-                user_role in required_roles for user_role in user.get("roles", [])
+            if (
+                min_required_role > UserRoles.GUEST
+                and user.get("is_tmp")
+                or not any(
+                    user_role > min_required_role for user_role in user.get("roles", [])
+                )
             ):
-                is_authorized = False
-        if not is_authorized:
-            return "Permission denied", 403
+                raise UserUnauthorizedException()
         if (int(time()) - int(payload.get("creation_time", 0))) <= session_lifetime:
             return "OK", 200
-    return "Session Expired", 401
+        else:
+            LOG.warning("Session expired")
+            raise UserUnauthorizedException()
+    LOG.warning("Session header missing")
+    raise UserUnauthorizedException()
