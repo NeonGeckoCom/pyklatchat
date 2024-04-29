@@ -40,7 +40,6 @@ from utils.logging_utils import LOG
 from utils.http_utils import respond
 
 from chat_server.server_config import server_config
-from chat_server.server_utils.auth import login_required
 from chat_server.server_utils.k8s_utils import restart_deployment
 from chat_server.server_utils.admin_utils import run_mq_validation
 

@@ -39,7 +39,6 @@ from ...services.popularity_counter import PopularityCounter
 
 
 @sio.event
-# @login_required
 async def user_message(sid, data):
     """
     SIO event fired on new user message in chat

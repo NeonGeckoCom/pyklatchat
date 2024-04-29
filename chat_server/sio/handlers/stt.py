@@ -64,7 +64,6 @@ async def stt_response(sid, data):
 
 
 @sio.event
-# @login_required
 async def request_stt(sid, data):
     """
     Handles request to Neon STT service

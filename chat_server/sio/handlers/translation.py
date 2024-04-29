@@ -37,7 +37,6 @@ from ...server_utils.cache_utils import CacheFactory
 
 
 @sio.event
-# @login_required
 async def request_translate(sid, data):
     """
     Handles requesting for cid translation
