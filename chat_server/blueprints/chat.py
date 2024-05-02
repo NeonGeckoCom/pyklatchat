@@ -28,7 +28,9 @@
 import warnings
 
 from time import time
-from fastapi import APIRouter, Request, Form, Depends
+
+import ovos_utils.log
+from fastapi import APIRouter, Form, Depends
 from fastapi.responses import JSONResponse
 
 from chat_server.server_utils.api_dependencies.validators.users import (
@@ -71,9 +73,7 @@ async def new_conversation(
     :returns JSON response with new conversation data if added, 401 error message otherwise
     """
     if conversation_id:
-        warnings.warn(
-            "Param conversation id is no longer considered", DeprecationWarning
-        )
+        ovos_utils.log.log_deprecation("Param conversation id is no longer considered")
     conversation_data = MongoDocumentsAPI.CHATS.get_chat(
         search_str=conversation_name,
         column_identifiers=["conversation_name"],
