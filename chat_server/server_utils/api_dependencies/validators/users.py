@@ -37,10 +37,18 @@ from ...enums import UserRoles, RequestModelType
 
 
 def permitted_access(
-    model_type,
-    min_required_role=UserRoles.GUEST,
+    model_type: Type[BaseModel],
+    min_required_role: UserRoles = UserRoles.GUEST,
     request_model_type: RequestModelType = RequestModelType.QUERY,
 ):
+    """
+    Dependency called for Fast API request models to verify if it can be accessed by the requested user
+    :param model_type: arbitrary model type inherited from pydantic.BaseModel
+    :param min_required_role: minimal required role to consider from UserRoles
+    :param request_model_type: type of the API handler (default RequestModelType.QUERY)
+    :return: Validated model
+    :raises UserUnauthorizedException: if the user is not authorized to access the endpoint
+    """
     return Depends(
         _validate_api_access(model_type, min_required_role, request_model_type)
     )
@@ -80,6 +88,13 @@ def _check_is_authorized(
     request_model: BaseModel,
     min_required_role: UserRoles,
 ) -> bool:
+    """
+    Runs check if current user if authorized to perform actions on behalf of the model
+    :param current_user: Current user data model
+    :param request_model: Provided Request Model
+    :param min_required_role: minimal required role to consider from UserRoles
+    :return:
+    """
     is_authorized = True
     if min_required_role > UserRoles.GUEST and current_user.is_tmp:
         return False
@@ -98,7 +113,15 @@ def _check_is_authorized(
 
 def _is_authorized_by_model_user(
     user_id: str, current_user: CurrentUserData, min_required_role: UserRoles
-) -> bool:
+) -> tuple[UserRoles, bool]:
+    """
+    Checks if current user model is authorized target user id contained in request model
+    :param user_id: "user_id" attribute of request model
+    :param current_user: current user data model
+    :param min_required_role: minimal required role to consider from UserRoles
+    :return: tuple contains of two items: actual minimal required role (could be recalculated based on user_id value)
+             and state of authorization flag
+    """
     is_authorized = False
     if user_id == "*":
         min_required_role = UserRoles.ADMIN
@@ -110,6 +133,12 @@ def _is_authorized_by_model_user(
 def _is_authorized_by_admin_role(
     current_user: CurrentUserData, min_required_role: UserRoles
 ) -> bool:
+    """
+    Checks if current user model is authorized to request endpoint based on admin role
+    :param current_user: current user data model
+    :param min_required_role: minimal required role to consider from UserRoles
+    :return: True if current user model is authorized to request endpoint based on admin role else False
+    """
     min_required_role = max(min_required_role, UserRoles.ADMIN)
     allowed_roles = set(
         role.name.lower() for role in UserRoles if role >= min_required_role
@@ -119,6 +148,12 @@ def _is_authorized_by_admin_role(
 
 
 def get_authorized_user(current_user: CurrentUserData):
+    """
+    Fast API Dependency ensuring that caller is authorized user on Klat Server
+    :param current_user: current user data model
+    :return: current user data model
+    :raises UserUnauthorizedException: if the user is not authorized to access the endpoint
+    """
     if current_user.is_tmp:
         raise UserUnauthorizedException
     return current_user
