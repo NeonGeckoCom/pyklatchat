@@ -36,10 +36,10 @@ from chat_server.server_utils.http_exceptions import (
 from chat_server.server_utils.http_utils import KlatAPIResponse
 
 from chat_server.server_utils.api_dependencies.models import (
-    AddPersonaModelModel,
-    DeletePersonaModelModel,
-    SetPersonaModelModel,
-    TogglePersonaStatusModelModel,
+    AddPersonaModel,
+    DeletePersonaModel,
+    SetPersonaModel,
+    TogglePersonaStatusModel,
     ListPersonasQueryModel,
 )
 from chat_server.server_utils.api_dependencies.extractors import (
@@ -101,8 +101,8 @@ async def get_persona(request_model: PersonaData = permitted_access(PersonaData)
 
 @router.put("/add")
 async def add_persona(
-    request_model: AddPersonaModelModel = permitted_access(
-        AddPersonaModelModel, request_model_type=RequestModelType.DATA
+    request_model: AddPersonaModel = permitted_access(
+        AddPersonaModel, request_model_type=RequestModelType.DATA
     ),
 ):
     """Adds new persona"""
@@ -117,8 +117,8 @@ async def add_persona(
 
 @router.post("/set")
 async def set_persona(
-    request_model: SetPersonaModelModel = permitted_access(
-        SetPersonaModelModel, request_model_type=RequestModelType.DATA
+    request_model: SetPersonaModel = permitted_access(
+        SetPersonaModel, request_model_type=RequestModelType.DATA
     ),
 ):
     """Sets persona's data"""
@@ -136,7 +136,7 @@ async def set_persona(
 
 @router.delete("/delete")
 async def delete_persona(
-    request_model: DeletePersonaModelModel = permitted_access(DeletePersonaModelModel),
+    request_model: DeletePersonaModel = permitted_access(DeletePersonaModel),
 ):
     """Deletes persona"""
     MongoDocumentsAPI.PERSONAS.delete_item(item_id=request_model.persona_id)
@@ -145,8 +145,8 @@ async def delete_persona(
 
 @router.post("/toggle")
 async def toggle_persona_state(
-    request_model: TogglePersonaStatusModelModel = permitted_access(
-        TogglePersonaStatusModelModel,
+    request_model: TogglePersonaStatusModel = permitted_access(
+        TogglePersonaStatusModel,
         min_required_role=UserRoles.AUTHORIZED_USER,
         request_model_type=RequestModelType.DATA,
     ),

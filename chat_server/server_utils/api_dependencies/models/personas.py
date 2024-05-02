@@ -57,7 +57,7 @@ class PersonaModel(BaseModel):
         return cls(persona_name=persona_name, user_id=user_id)
 
 
-class AddPersonaModelModel(PersonaModel):
+class AddPersonaModel(PersonaModel):
     supported_llms: list[str] = Field(
         examples=[["chat_gpt", "llama", "fastchat"]], default=[]
     )
@@ -66,7 +66,7 @@ class AddPersonaModelModel(PersonaModel):
     enabled: bool = False
 
 
-class SetPersonaModelModel(PersonaModel):
+class SetPersonaModel(PersonaModel):
     supported_llms: list[str] = Field(
         examples=[["chat_gpt", "llama", "fastchat"]], default=[]
     )
@@ -74,12 +74,12 @@ class SetPersonaModelModel(PersonaModel):
     description: str = Field(examples=["I am the doctor. I am helping people."])
 
 
-class DeletePersonaModelModel(PersonaModel):
+class DeletePersonaModel(PersonaModel):
     persona_name: str = Field(Query(), examples=["doctor"])
     user_id: str | None = Field(Query(None), examples=["test_user_id"])
 
 
-class TogglePersonaStatusModelModel(PersonaModel):
+class TogglePersonaStatusModel(PersonaModel):
     enabled: bool = Field(examples=[True, False], default=True)
 
 

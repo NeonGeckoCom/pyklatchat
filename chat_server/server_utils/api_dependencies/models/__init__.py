@@ -29,10 +29,10 @@
 from .chats import GetConversationModel
 from .configs import ConfigModel, SetConfigModel
 from .personas import (
-    AddPersonaModelModel,
-    SetPersonaModelModel,
-    DeletePersonaModelModel,
-    TogglePersonaStatusModelModel,
+    AddPersonaModel,
+    SetPersonaModel,
+    DeletePersonaModel,
+    TogglePersonaStatusModel,
     ListPersonasQueryModel,
 )
 from .users import CurrentUserModel
