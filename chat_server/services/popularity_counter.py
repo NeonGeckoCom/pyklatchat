@@ -89,7 +89,6 @@ class PopularityCounter:
                     value=oldest_timestamp,
                 )
             ],
-            include_private=False,
             result_as_cursor=False,
         )
         relevant_shouts = MongoDocumentsAPI.SHOUTS.list_items(

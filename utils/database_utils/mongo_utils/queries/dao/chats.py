@@ -33,7 +33,6 @@ from bson import ObjectId
 
 from utils.database_utils.mongo_utils import (
     MongoDocuments,
-    MongoCommands,
     MongoFilter,
     MongoLogicalOperators,
 )
@@ -46,13 +45,29 @@ class ChatsDAO(MongoDocumentDAO):
     def document(self):
         return MongoDocuments.CHATS
 
-    def get_conversation_data(
+    def get_chat(
+        self,
+        search_str: list | str,
+        column_identifiers: List[str] = None,
+        allow_regex_search: bool = False,
+        requested_user_id: str = None,
+    ) -> dict | None:
+        chats = self.get_chats(
+            search_str=search_str,
+            column_identifiers=column_identifiers,
+            allow_regex_search=allow_regex_search,
+            requested_user_id=requested_user_id,
+            limit=1,
+        )
+        if chats:
+            return chats[0]
+
+    def get_chats(
         self,
         search_str: Union[list, str],
+        limit: int,
         column_identifiers: List[str] = None,
-        limit: int = 1,
         allow_regex_search: bool = False,
-        include_private: bool = False,
         requested_user_id: str = None,
     ) -> Union[None, dict]:
         """
@@ -61,64 +76,64 @@ class ChatsDAO(MongoDocumentDAO):
         :param column_identifiers: desired column identifiers to look up
         :param limit: limit found conversations
         :param allow_regex_search: to allow search for matching entries that CONTAIN :param search_str
-        :param include_private: to include private conversations (defaults to False)
         :param requested_user_id: id of the requested user (defaults to None) - used to find owned private conversations
         """
-        if isinstance(search_str, str):
-            search_str = [search_str]
-        if not column_identifiers:
-            column_identifiers = ["_id", "conversation_name"]
+        filters = self._create_matching_chat_filters(
+            lst_search_substr=search_str,
+            query_attributes=column_identifiers,
+            regex_search=allow_regex_search,
+        )
+        if requested_user_id:
+            filters += self._create_privacy_filters(requested_user_id)
+
+        chats = self.list_items(
+            filters=filters,
+            limit=limit,
+            result_as_cursor=False,
+        )
+        for chat in chats:
+            chat["_id"] = str(chat["_id"])
+        return chats
+
+    @staticmethod
+    def _create_matching_chat_filters(
+        lst_search_substr: list[str],
+        query_attributes: list[str],
+        regex_search: bool = False,
+    ) -> MongoFilter:
         or_expression = []
-        for _keyword in [item for item in search_str if item is not None]:
-            for identifier in column_identifiers:
+        if isinstance(lst_search_substr, str):
+            lst_search_substr = [lst_search_substr]
+        if not query_attributes:
+            query_attributes = ["_id"]
+        for _keyword in [item for item in lst_search_substr if item is not None]:
+            for identifier in query_attributes:
                 if identifier == "_id" and isinstance(_keyword, str):
                     try:
                         or_expression.append({identifier: ObjectId(_keyword)})
                     except Exception as ex:
                         LOG.debug(f"Failed to add {_keyword = }| {ex = }")
-                if allow_regex_search:
+                if regex_search:
                     if not _keyword:
                         expression = ".*"
                     else:
                         expression = f".*{_keyword}.*"
                     _keyword = re.compile(expression, re.IGNORECASE)
                 or_expression.append({identifier: _keyword})
-
-        chats = self.list_items(
-            filters=[
+        if or_expression:
+            or_expression = [
                 MongoFilter(
                     value=or_expression, logical_operator=MongoLogicalOperators.OR
                 )
-            ],
-            limit=limit,
-            result_as_cursor=False,
-            include_private=include_private,
-        )
-        for chat in chats:
-            chat["_id"] = str(chat["_id"])
-        if chats and limit == 1:
-            chats = chats[0]
-        return chats
+            ]
+        return or_expression
 
-    def list_items(
-        self,
-        filters: list[MongoFilter] = None,
-        limit: int = None,
-        result_as_cursor: bool = True,
-        include_private: bool = False,
-        requested_user_id: str = None,
-    ) -> dict:
-        filters = filters or []
-        if not include_private:
-            expression = {"is_private": False}
-            if requested_user_id:
-                expression["user_id"] = requested_user_id
-                expression = MongoFilter(
-                    value=expression, logical_operator=MongoLogicalOperators.OR
-                )
-            filters.append(expression)
-        return super().list_items(
-            filters=filters,
-            limit=limit,
-            result_as_cursor=result_as_cursor,
-        )
+    @staticmethod
+    def _create_privacy_filters(requested_user_id):
+        expression = {"is_private": False}
+        if requested_user_id:
+            expression["creator"] = requested_user_id
+            expression = MongoFilter(
+                value=expression, logical_operator=MongoLogicalOperators.OR
+            )
+        return [expression]

@@ -33,13 +33,13 @@ from utils.database_utils.mongo_utils.queries import mongo_queries
 from utils.database_utils.mongo_utils.queries.wrapper import MongoDocumentsAPI
 from utils.logging_utils import LOG
 from ..server import sio
-from ..utils import emit_error
+from ..utils import emit_error, login_required
 from ...server_config import server_config
+from ...server_utils.enums import UserRoles
 from ...services.popularity_counter import PopularityCounter
 
 
 @sio.event
-# @login_required
 async def user_message(sid, data):
     """
     SIO event fired on new user message in chat
@@ -64,19 +64,8 @@ async def user_message(sid, data):
                 'timeCreated': 'timestamp on which message was created'}
     ```
     """
-    LOG.debug(f"Got new user message from {sid}: {data}")
+    LOG.info(f"Received user message data: {data}")
     try:
-        cid_data = MongoDocumentsAPI.CHATS.get_conversation_data(
-            search_str=data["cid"],
-            column_identifiers=["_id"],
-        )
-        if not cid_data:
-            msg = "Shouting to non-existent conversation, skipping further processing"
-            await emit_error(sids=[sid], message=msg)
-            return
-
-        LOG.info(f"Received user message data: {data}")
-        data["message_id"] = generate_uuid()
         data["is_bot"] = data.pop("bot", "0")
         if data["userID"].startswith("neon"):
             neon_data = MongoDocumentsAPI.USERS.get_neon_data(skill_name="neon")
@@ -87,6 +76,17 @@ async def user_message(sid, data):
             )
             data["userID"] = bot_data["_id"]
 
+        cid_data = MongoDocumentsAPI.CHATS.get_chat(
+            search_str=data["cid"],
+            column_identifiers=["_id"],
+            requested_user_id=data["userID"],
+        )
+        if not cid_data:
+            msg = "Shouting to non-existent conversation, skipping further processing"
+            await emit_error(sids=[sid], message=msg)
+            return
+
+        data["message_id"] = generate_uuid()
         is_audio = data.get("isAudio", "0")
 
         if is_audio != "1":
@@ -176,10 +176,9 @@ async def user_message(sid, data):
 
 
 @sio.event
-# @login_required
+@login_required(min_required_role=UserRoles.ADMIN)
 async def broadcast(sid, data):
     """Forwards received broadcast message from client"""
-    # TODO: introduce certification mechanism to forward messages only from trusted entities
     msg_type = data.pop("msg_type", None)
     msg_receivers = data.pop("to", None)
     if msg_type:

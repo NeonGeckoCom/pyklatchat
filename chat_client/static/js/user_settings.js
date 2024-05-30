@@ -50,10 +50,9 @@ const initSettingsModal = async () => {
  * Applies new settings to current user
  */
 const applyNewSettings = async () => {
-    const formData = new FormData();
-    formData.append('minify_messages', minifyMessagesCheck.checked?'1':'0');
-    const query_url = 'users_api/settings/update'
-    await fetchServer(query_url, REQUEST_METHODS.POST, formData).then(async response => {
+    const newUserSettings = {'minify_messages': minifyMessagesCheck.checked?'1':'0'};
+    const query_url = 'preferences/update'
+    await fetchServer(query_url, REQUEST_METHODS.POST, newUserSettings, true).then(async response => {
         const responseJson = await response.json();
         if (response.ok) {
             location.reload();

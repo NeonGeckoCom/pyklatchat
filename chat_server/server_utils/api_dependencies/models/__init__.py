@@ -26,54 +26,14 @@
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from fastapi import Query
-from pydantic import BaseModel, Field, computed_field
-
-
-class Persona(BaseModel):
-    persona_name: str = Field(examples=["doctor"])
-    user_id: str | None = Field(default=None, examples=["test_user_id"])
-
-    @computed_field
-    @property
-    def _id(self) -> str:
-        persona_id = self.persona_name
-        if self.user_id:
-            persona_id += f"_{self.user_id}"
-        return persona_id
-
-    @property
-    def persona_id(self):
-        return self._id
-
-
-class AddPersonaModel(Persona):
-    supported_llms: list[str] = Field(
-        examples=[["chat_gpt", "llama", "fastchat"]], default=[]
-    )
-    default_llm: str | None = Field(examples=["chat_gpt"], default=None)
-    description: str = Field(examples=["I am the doctor. I am helping people."])
-    enabled: bool = False
-
-
-class SetPersonaModel(Persona):
-    supported_llms: list[str] = Field(
-        examples=[["chat_gpt", "llama", "fastchat"]], default=[]
-    )
-    default_llm: str | None = Field(examples=["chat_gpt"], default=None)
-    description: str = Field(examples=["I am the doctor. I am helping people."])
-
-
-class DeletePersonaModel(Persona):
-    persona_name: str = Field(Query(), examples=["doctor"])
-    user_id: str | None = Field(Query(None), examples=["test_user_id"])
-
-
-class TogglePersonaStatusModel(Persona):
-    enabled: bool = Field(examples=[True, False], default=True)
-
-
-class ListPersonasQueryModel(BaseModel):
-    llms: list[str] | None = Field(Query(default=None), examples=[["doctor"]])
-    user_id: str | None = Field(Query(default=None), examples=["test_user_id"])
-    only_enabled: bool = Field(Query(default=False), examples=[True, False])
+from .chats import GetConversationModel
+from .configs import ConfigModel, SetConfigModel
+from .personas import (
+    AddPersonaModel,
+    SetPersonaModel,
+    DeletePersonaModel,
+    TogglePersonaStatusModel,
+    ListPersonasQueryModel,
+)
+from .users import CurrentUserModel
+from .preferences import SetPreferencesModel

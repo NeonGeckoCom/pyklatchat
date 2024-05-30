@@ -34,6 +34,8 @@ from typing import Optional, List
 from utils.logging_utils import LOG
 from .server import sio
 from ..server_utils.auth import validate_session
+from ..server_utils.enums import UserRoles
+from ..server_utils.http_exceptions import KlatAPIException, ItemNotFoundException
 
 
 def list_current_headers(sid: str) -> list:
@@ -50,7 +52,7 @@ def get_header(sid: str, match_str: str):
             return header_tuple[1].decode()
 
 
-def login_required(*outer_args, **outer_kwargs):
+def login_required(min_required_role=UserRoles.GUEST, *outer_args, **outer_kwargs):
     """
     Decorator that validates current authorization token
     """
@@ -62,25 +64,33 @@ def login_required(*outer_args, **outer_kwargs):
         no_args = True
         func = outer_args[0]
 
-    outer_kwargs.setdefault("tmp_allowed", True)
-
     def outer(func):
         @wraps(func)
         async def wrapper(sid, *args, **kwargs):
             if os.environ.get("DISABLE_AUTH_CHECK", "0") != "1":
                 auth_token = get_header(sid, "session")
-                session_validation_output = (
-                    None,
-                    None,
-                )
-                if auth_token:
-                    session_validation_output = validate_session(
-                        auth_token,
-                        check_tmp=not outer_kwargs["tmp_allowed"],
-                        sio_request=True,
+                try:
+                    if auth_token:
+                        validate_session(
+                            auth_token,
+                            min_required_role=min_required_role,
+                            sio_request=True,
+                        )
+                    else:
+                        raise ItemNotFoundException(
+                            message="Missing session header in SIO request"
+                        )
+                except KlatAPIException as ex:
+                    http_response_data = ex.to_http_response()
+                    return await sio.emit(
+                        "auth_expired",
+                        data={
+                            "body": http_response_data.body.decode(),
+                            "status": http_response_data.status_code,
+                            "handler": func.__name__,
+                        },
+                        to=sid,
                     )
-                if session_validation_output[1] != 200:
-                    return await sio.emit("auth_expired", data={}, to=sid)
             return await func(sid, *args, **kwargs)
 
         return wrapper

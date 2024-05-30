@@ -34,8 +34,8 @@ from fastapi.responses import JSONResponse
 from utils.common import get_hash, generate_uuid
 from chat_server.server_utils.auth import (
     check_password_strength,
-    get_current_user_data,
     generate_session_token,
+    create_unauthorized_user,
 )
 from utils.database_utils.mongo_utils.queries.wrapper import MongoDocumentsAPI
 from utils.http_utils import respond
@@ -109,14 +109,12 @@ async def login(username: str = Form(...), password: str = Form(...)):
 
 
 @router.get("/logout")
-async def logout(request: Request):
+async def logout():
     """
-    Erases current user session cookies and returns temporal credentials
-
-    :param request: logout intended request
-
+    Creates temporary user and returns its credentials
     :returns response with temporal cookie
     """
-    user_data = get_current_user_data(request=request, force_tmp=True)
+    # TODO: store session tokens in runtime
+    user_data = create_unauthorized_user()
     response = JSONResponse(content=dict(token=user_data.session))
     return response

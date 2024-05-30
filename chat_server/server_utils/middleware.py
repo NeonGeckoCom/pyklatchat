@@ -34,7 +34,7 @@ import traceback
 from starlette.requests import Request
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from chat_server.server_utils.exceptions import KlatAPIException
+from chat_server.server_utils.http_exceptions import KlatAPIException
 from chat_server.server_utils.http_utils import get_request_path_string, KlatAPIResponse
 from utils.logging_utils import LOG
 
