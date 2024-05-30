@@ -37,7 +37,6 @@ from ...server_utils.cache_utils import CacheFactory
 
 
 @sio.event
-# @login_required
 async def request_translate(sid, data):
     """
     Handles requesting for cid translation
@@ -48,9 +47,10 @@ async def request_translate(sid, data):
         LOG.warning("Missing request translate data, skipping...")
     else:
         input_type = data.get("inputType", "incoming")
+        user_id = data.get("user")
 
         populated_translations, missing_translations = mongo_queries.get_translations(
-            translation_mapping=data.get("chat_mapping", {})
+            translation_mapping=data.get("chat_mapping", {}), requested_user_id=user_id
         )
         if populated_translations and not missing_translations:
             await sio.emit(

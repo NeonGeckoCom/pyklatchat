@@ -26,7 +26,7 @@
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from enum import Enum
+from enum import Enum, IntEnum, StrEnum
 
 
 class DataSources(Enum):
@@ -34,3 +34,16 @@ class DataSources(Enum):
 
     SFTP = "SFTP"
     LOCAL = "LOCAL"
+
+
+class UserRoles(IntEnum):
+
+    GUEST = 0
+    AUTHORIZED_USER = 1
+    ADMIN = 2
+    SUPER_ADMIN = 3
+
+
+class RequestModelType(StrEnum):
+    QUERY = "QUERY"
+    DATA = "DATA"

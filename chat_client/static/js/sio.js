@@ -25,8 +25,10 @@ function initSIO(){
     }
 
     socket.on('auth_expired', ()=>{
-        console.log('Authorization Token expired, refreshing...')
-        location.reload();
+        if (currentUser && Object.keys(currentUser).length > 0) {
+            console.log('Authorization Token expired, refreshing...')
+            location.reload();
+        }
     });
 
     socket.on('connect', () => {

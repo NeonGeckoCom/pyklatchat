@@ -7,18 +7,18 @@ const myAccountLink = document.getElementById('myAccountLink');
  *
  * @return true if modal shown successfully, false otherwise
  */
-async function showProfileModal(nick=null, edit='0'){
+async function showProfileModal(userID=null, edit='0'){
     let fetchURL = `${configData['currentURLBase']}/components/profile?`
     let modalId;
     let avatarId;
     if(edit === '1'){
-        modalId = `${currentUser['nickname']}EditModal`;
+        modalId = `${currentUser['_id']}EditModal`;
         // avatarId = `${currentUser['nickname']}EditAvatar`;
         fetchURL += `edit=1`;
     }else{
-        modalId = `${nick}Modal`;
+        modalId = `${userID}Modal`;
         // avatarId = `${nick}Avatar`;
-        fetchURL += `nickname=${nick}`;
+        fetchURL += `user_id=${userID}`;
     }
     const profileModalHTML = await fetch(fetchURL, {headers: new Headers({'Authorization': getSessionToken()})}).then(async (response) => {
         if (response.ok) {

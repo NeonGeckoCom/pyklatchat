@@ -26,7 +26,7 @@
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from chat_server.server_utils.exceptions import ItemNotFoundException
+from chat_server.server_utils.http_exceptions import ItemNotFoundException
 from utils.database_utils.mongo_utils import MongoDocuments, MongoFilter
 from utils.database_utils.mongo_utils.queries.dao.abc import MongoDocumentDAO
 from utils.logging_utils import LOG

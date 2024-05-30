@@ -26,7 +26,6 @@
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 from dataclasses import dataclass
-from functools import wraps
 from typing import Optional, Tuple, Union
 
 import jwt
@@ -34,13 +33,13 @@ import jwt
 from time import time
 from fastapi import Request
 
-from chat_server.server_utils.models.users import CurrentUserModel
+from chat_server.server_utils.enums import UserRoles
+from chat_server.server_utils.http_exceptions import UserUnauthorizedException
 from utils.database_utils.mongo_utils import MongoFilter, MongoLogicalOperators
 from utils.database_utils.mongo_utils.queries.wrapper import MongoDocumentsAPI
 from utils.logging_utils import LOG
 
 from chat_server.server_config import server_config
-from utils.http_utils import respond
 
 cookies_config = server_config.get("COOKIES", {})
 
@@ -240,8 +239,7 @@ def refresh_session(payload: dict):
 
 def validate_session(
     request: Union[str, Request],
-    check_tmp: bool = False,
-    required_roles: list = None,
+    min_required_role: UserRoles,
     sio_request: bool = False,
 ) -> Tuple[str, int]:
     """
@@ -253,76 +251,20 @@ def validate_session(
         payload = jwt.decode(
             jwt=session, key=secret_key, algorithms=jwt_encryption_algo
         )
-        should_check_user_data = check_tmp or required_roles
-        is_authorized = True
-        if should_check_user_data:
+        if min_required_role:
             user = MongoDocumentsAPI.USERS.get_user(user_id=payload["sub"])
-            if check_tmp and user.get("is_tmp"):
-                is_authorized = False
-            elif required_roles and not any(
-                user_role in required_roles for user_role in user.get("roles", [])
+            if (
+                min_required_role > UserRoles.GUEST
+                and user.get("is_tmp")
+                or not any(
+                    user_role > min_required_role for user_role in user.get("roles", [])
+                )
             ):
-                is_authorized = False
-        if not is_authorized:
-            return "Permission denied", 403
+                raise UserUnauthorizedException()
         if (int(time()) - int(payload.get("creation_time", 0))) <= session_lifetime:
             return "OK", 200
-    return "Session Expired", 401
-
-
-def login_required(*outer_args, **outer_kwargs):
-    """
-    Decorator that validates current authorization token
-    """
-
-    no_args = False
-    func = None
-    if len(outer_args) == 1 and not outer_kwargs and callable(outer_args[0]):
-        # Function was called with no arguments
-        no_args = True
-        func = outer_args[0]
-
-    outer_kwargs.setdefault("tmp_allowed", True)
-
-    def outer(func):
-        @wraps(func)
-        async def wrapper(request: Request, *args, **kwargs):
-            session_validation_output = validate_session(
-                request,
-                check_tmp=not outer_kwargs.get("tmp_allowed"),
-                required_roles=outer_kwargs.get("required_roles"),
-            )
-            LOG.debug(
-                f"(url={request.url}) Received session validation output: {session_validation_output}"
-            )
-            if session_validation_output[1] != 200:
-                return respond(*session_validation_output)
-            return await func(request, *args, **kwargs)
-
-        return wrapper
-
-    if no_args:
-        return outer(func)
-    else:
-        return outer
-
-
-def is_authorized_for_user_id(current_user: CurrentUserModel, user_id: str) -> bool:
-    """
-    Checks if provided to current user model and is authorized to perform actions on behalf of the target user data
-    :param current_user: current user model created from request
-    :param user_id: target user id to check authority on
-    :return: True if authorized, False otherwise
-    """
-    return current_user.user_id == user_id or "admin" in current_user.roles
-
-
-def get_current_user_model(request: Request) -> CurrentUserModel:
-    """
-    Get current user from request objects and returns it as a CurrentUserModel instance
-    :param request: Starlette request object to process
-    :return: CurrentUserModel instance
-    :raises ValidationError: if pydantic validation failed for provided request
-    """
-    current_user = get_current_user(request=request)
-    return CurrentUserModel.model_validate(current_user, strict=True)
+        else:
+            LOG.warning("Session expired")
+            raise UserUnauthorizedException()
+    LOG.warning("Session header missing")
+    raise UserUnauthorizedException()

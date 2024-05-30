@@ -36,6 +36,10 @@ class KlatAPIException(Exception):
     HTTP_CODE = http.HTTPStatus.INTERNAL_SERVER_ERROR
     MESSAGE = "Internal Server Error"
 
+    def __init__(self, message: str = None):
+        self.MESSAGE = message or self.MESSAGE
+        super().__init__(message)
+
     def to_http_response(self):
         return respond(msg=self.MESSAGE, status_code=self.HTTP_CODE.value)
 
@@ -53,3 +57,13 @@ class ItemNotFoundException(KlatAPIException):
 class DuplicatedItemException(KlatAPIException):
     HTTP_CODE = http.HTTPStatus.CONFLICT
     MESSAGE = "Requested item already exists"
+
+
+class MissingAttributeException(KlatAPIException):
+    HTTP_CODE = http.HTTPStatus.UNPROCESSABLE_ENTITY
+    MESSAGE = "Missing required attributes"
+
+
+class InvalidInputData(KlatAPIException):
+    HTTP_CODE = http.HTTPStatus.BAD_REQUEST
+    MESSAGE = "Wrong input data provided"

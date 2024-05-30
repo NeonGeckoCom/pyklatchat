@@ -325,15 +325,29 @@ class ChatObserver(MQConnector):
             "revoke_submind_ban_from_conversation",
             handler=self.request_revoke_submind_ban_from_conversation,
         )
+        self._sio.on("auth_expired", handler=self._handle_auth_expired)
 
-    @retry(use_self=True)
     def connect_sio(self):
         """
         Method for establishing connection with Socket IO server
         """
         self._sio = socketio.Client()
-        self._sio.connect(url=self.sio_url, namespaces=["/"])
+        self._sio.connect(
+            url=self.sio_url,
+            namespaces=["/"],
+            retry=True,
+            headers={"session": self._klat_session_token},
+        )
         self.register_sio_handlers()
+
+    def reconnect_sio(self):
+        """
+        Method for reconnecting to the Socket IO server
+        """
+        if self._sio is not None:
+            self._sio.disconnect()
+        self.connect_sio()
+        return self._sio
 
     @property
     def sio(self):
@@ -345,6 +359,15 @@ class ChatObserver(MQConnector):
         if not self._sio:
             self.connect_sio()
         return self._sio
+
+    def _handle_auth_expired(self, data: dict):
+        handler = data["handler"]
+        status = data["status"]
+        error = data["body"]
+        LOG.error(
+            f"({status}) Failed to authorize response for {handler=!r}, {error=!r}"
+        )
+        self._login_to_klat_server()
 
     def apply_testing_prefix(self, vhost):
         """
@@ -821,6 +844,7 @@ class ChatObserver(MQConnector):
         )
         if response.ok:
             self._klat_session_token = response.json()["token"]
+            self.reconnect_sio()
         else:
             LOG.error(
                 f"Klat API authorization error: [{response.status_code}] {response.text}"

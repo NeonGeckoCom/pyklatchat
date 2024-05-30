@@ -18,16 +18,20 @@ const setSessionToken = (val) => {
     }
 }
 
-const fetchServer = async (urlSuffix, method=REQUEST_METHODS.GET, body=null, noCors=false) => {
+const fetchServer = async (urlSuffix, method=REQUEST_METHODS.GET, body=null, json=false) => {
     const options = {
         method: method,
         headers: new Headers({'Authorization': getSessionToken()})
     }
-    if (noCors){
-        options['mode'] = 'no-cors';
-    }
     if (body){
         options['body'] = body;
+    }
+    // TODO: there is an issue validating FormData on backend, so JSON property should eventually become true
+    if (json){
+        options['headers'].append('Content-Type', 'application/json');
+        if (options['body']) {
+            options['body'] &&= JSON.stringify(options['body'])
+        }
     }
     return fetch(`${configData["CHAT_SERVER_URL_BASE"]}/${urlSuffix}`, options).then(async response => {
         if (response.status === 401){

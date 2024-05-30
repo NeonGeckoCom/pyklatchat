@@ -41,7 +41,7 @@ router = APIRouter(
 
 
 @router.get("/profile")
-async def get_profile_modal(request: Request, nickname: str = "", edit: str = "0"):
+async def get_profile_modal(request: Request, user_id: str = "", edit: str = "0"):
     """Callbacks template with matching modal populated with user's data"""
     auth_header = "Authorization"
     headers = {auth_header: request.headers.get(auth_header, "")}
@@ -51,25 +51,19 @@ async def get_profile_modal(request: Request, nickname: str = "", edit: str = "0
         )
         if resp.ok:
             user = resp.json()["data"]
-            # if user.get('is_tmp'):
-            #     raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
-            #                         detail='Cannot render edit modal for tmp user')
         else:
             return respond("Server was not able to process the request", 422)
         template_name = "edit_profile_modal"
     else:
-        if not nickname:
-            return respond("No nickname provided", 422)
+        if not user_id:
+            return respond("No user_id provided", 422)
         resp = requests.get(
-            f'{client_config["SERVER_URL"]}/users_api/get_users?nicknames={nickname}',
+            f'{client_config["SERVER_URL"]}/users_api?user_id={user_id}',
             headers=headers,
         )
         if resp.ok:
-            user_data = resp.json().get("users", [])
-            if not user_data:
-                return respond(f"User with nickname={nickname} not found", 404)
-            else:
-                user = user_data[0]
+            if not (user := resp.json().get("data")):
+                return respond(f"User with {user_id=} not found", 404)
         else:
             return respond("Server was not able to process the request", 422)
         template_name = "profile_modal"

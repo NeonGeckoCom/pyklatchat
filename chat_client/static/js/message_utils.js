@@ -67,7 +67,7 @@ async function addNewMessage(cid, userID=null, messageID=null, messageText, time
         messageList.insertAdjacentHTML('beforeend', messageHTML);
         resolveMessageAttachments(cid, messageID, attachments);
         resolveUserReply(messageID, repliedMessageID);
-        addProfileDisplay(cid, messageID, 'plain');
+        addProfileDisplay(userID, cid, messageID, 'plain');
         addConversationParticipant(cid, userData['nickname'], true);
         scrollOnNewMessage(messageList);
         return messageID;
@@ -261,31 +261,32 @@ function initLoadOldMessages(conversationData, skin) {
 
 /**
  * Attaches event listener to display element's target user profile
- * @param elem: target DOM element
+ * @param userID target user id
+ * @param elem target DOM element
  */
-function attachTargetProfileDisplay(elem){
+function attachTargetProfileDisplay(userID, elem){
     if (elem) {
         elem.addEventListener( 'click', async (_) => {
-            const userNickname = elem.getAttribute( 'data-target' );
-            if (userNickname) await showProfileModal( userNickname )
+            if (userID) await showProfileModal( userID )
         } );
     }
 }
 
 /**
  * Adds callback for showing profile information on profile avatar click
- * @param cid: target conversation id
- * @param messageId: target message id
- * @param messageType: type of message to display
+ * @param userID target user id
+ * @param cid target conversation id
+ * @param messageId target message id
+ * @param messageType type of message to display
  */
-function addProfileDisplay(cid, messageId, messageType='plain'){
+function addProfileDisplay(userID, cid, messageId, messageType='plain'){
     if (messageType === 'plain') {
-        attachTargetProfileDisplay(document.getElementById( `${messageId}_avatar` ))
+        attachTargetProfileDisplay(userID, document.getElementById( `${messageId}_avatar` ))
     }else if (messageType === 'prompt'){
         const promptTBody = document.getElementById(`${messageId}_tbody`);
         const rows = promptTBody.getElementsByTagName('tr');
         Array.from(rows).forEach(row=>{
-            attachTargetProfileDisplay(Array.from(row.getElementsByTagName('td'))[0].getElementsByClassName('chat-img')[0]);
+            attachTargetProfileDisplay(userID, Array.from(row.getElementsByTagName('td'))[0].getElementsByClassName('chat-img')[0]);
         })
     }
 }
@@ -297,7 +298,7 @@ function addProfileDisplay(cid, messageId, messageType='plain'){
  */
 function initProfileDisplay(conversationData){
     getUserMessages(conversationData, null).forEach(message => {
-        addProfileDisplay( conversationData['_id'], getMessageID(message), message['message_type']);
+        addProfileDisplay( message['user_id'], conversationData['_id'], getMessageID(message), message['message_type']);
     });
 }
 

@@ -32,30 +32,33 @@ from os.path import join, dirname
 
 
 def run():
-    print('Starting version dump...')
+    print("Starting version dump...")
 
     branch = _get_bump_type_from_cli()
 
     _gh_branch_to_handler = {
-        'master': _bump_major_subversion,
-        'dev': _bump_minor_subversion,
-        'alpha': _bump_alpha_subversion
+        "master": _bump_major_subversion,
+        "dev": _bump_minor_subversion,
+        "alpha": _bump_alpha_subversion,
     }
 
     if branch not in _gh_branch_to_handler:
-        raise AttributeError(f'No handler for {branch = }')
+        raise AttributeError(f"No handler for {branch = }")
 
     current_version = _get_current_version()
     version = _gh_branch_to_handler[branch](current_version=current_version)
     save_version(version=version)
-    print('Finished version dump')
+    print("Finished version dump")
     return 0
 
 
 def _get_bump_type_from_cli() -> str:
-    parser = argparse.ArgumentParser(description='Bumps Project Version')
+    parser = argparse.ArgumentParser(description="Bumps Project Version")
     parser.add_argument(
-        "-b", "--branch", help="type of version bump (master, dev, alpha)", required=True
+        "-b",
+        "--branch",
+        help="type of version bump (master, dev, alpha)",
+        required=True,
     )
     args = parser.parse_args()
     return args.branch.lower()
@@ -77,7 +80,7 @@ def _bump_alpha_subversion(current_version: str) -> str:
 def _bump_minor_subversion(current_version: str) -> str:
     parts = current_version.split(".")
 
-    parts[-1] = str(int(parts[-1].split('a')[0]))
+    parts[-1] = str(int(parts[-1].split("a")[0]))
 
     version = ".".join(parts)
     return version
@@ -112,5 +115,5 @@ def save_version(version: str):
             print(line.rstrip("\n"))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     run()

@@ -36,7 +36,6 @@ from ...server_utils.languages import LanguageSettings
 
 
 @sio.event
-# @login_required
 async def request_tts(sid, data):
     """
     Handles request to Neon TTS service

@@ -50,7 +50,7 @@ async function downloadAttachment(attachmentItem, cid, messageID){
         await fetchServer(getFileURL).then(async response => {
             response.ok ?
                 download(await response.blob(), fileName, mime)
-                :console.error(`No file data received for path, 
+                :console.error(`No file data received for path,
                                   cid=${cid};\n
                                   message_id=${messageID};\n
                                   file_name=${fileName}`)

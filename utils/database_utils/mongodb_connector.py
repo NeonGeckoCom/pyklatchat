@@ -74,8 +74,7 @@ class MongoDBConnector(DatabaseConnector):
                 f"please use one of the following: "
                 f"{self.mongo_recognised_commands}"
             )
-        db_command = getattr(self.connection[query.get("document")],
-                             received_command)
+        db_command = getattr(self.connection[query.get("document")], received_command)
         if not isinstance(query.get("data"), tuple):
             LOG.debug(f'Casting data from {type(query["data"])} to tuple')
             query["data"] = (query.get("data", {}),)
