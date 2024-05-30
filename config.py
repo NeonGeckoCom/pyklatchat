@@ -31,6 +31,8 @@ import json
 from abc import ABC, abstractmethod
 
 from os.path import isfile, join, dirname
+
+from neon_utils.log_aggregators import init_log_aggregators
 from ovos_config.config import Configuration as OVOSConfiguration
 
 from utils.exceptions import MalformedConfigurationException
@@ -51,6 +53,7 @@ class KlatConfigurationBase(ABC):
             self._init_legacy_config()
         self._config_data = self._config_data[self.config_key]
         self.validate_provided_configuration()
+        init_log_aggregators(config=self.config_data)
 
     def _init_ovos_config(self):
         ovos_config = _load_ovos_config()
