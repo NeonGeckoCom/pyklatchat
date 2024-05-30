@@ -257,7 +257,9 @@ def validate_session(
                 min_required_role > UserRoles.GUEST
                 and user.get("is_tmp")
                 or not any(
-                    user_role > min_required_role for user_role in user.get("roles", [])
+                    getattr(UserRoles, user_role.upper(), UserRoles.GUEST)
+                    >= min_required_role
+                    for user_role in user.get("roles", [])
                 )
             ):
                 raise UserUnauthorizedException()
