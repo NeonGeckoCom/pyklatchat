@@ -26,11 +26,17 @@
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from fastapi import APIRouter, Request, Form
-from chat_server.server_utils.auth import get_current_user, login_required
+from fastapi import APIRouter, Form
+
+from chat_server.server_utils.api_dependencies import (
+    CurrentUserData,
+    SetPreferencesModel,
+)
+from chat_server.server_utils.api_dependencies.validators.users import (
+    get_authorized_user,
+)
 from utils.database_utils.mongo_utils.queries.wrapper import MongoDocumentsAPI
 from utils.http_utils import respond
-from utils.logging_utils import LOG
 
 router = APIRouter(
     prefix="/preferences",
@@ -38,19 +44,34 @@ router = APIRouter(
 )
 
 
+@router.post("/update")
+async def update_settings(
+    model: SetPreferencesModel,
+    current_user: CurrentUserData = get_authorized_user,
+):
+    """
+    Updates user settings with provided form data
+    :param current_user: current user data
+    :param model: SetPreferencesModel instance containing user settings to set
+    :return: status 200 if OK, error code otherwise
+    """
+    preferences_mapping = model.dict(exclude_unset=True)
+    MongoDocumentsAPI.USERS.set_preferences(
+        user_id=current_user.user_id, preferences_mapping=preferences_mapping
+    )
+    return respond(msg="OK")
+
+
 @router.post("/update_language/{cid}/{input_type}")
-@login_required
 async def update_language(
-    request: Request, cid: str, input_type: str, lang: str = Form(...)
+    cid: str,
+    input_type: str,
+    lang: str = Form(...),
+    current_user: CurrentUserData = get_authorized_user,
 ):
     """Updates preferred language of user in conversation"""
-    try:
-        current_user_id = get_current_user(request)["_id"]
-    except Exception as ex:
-        LOG.error(ex)
-        return respond(f"Failed to update language of {cid}/{input_type} to {lang}")
     MongoDocumentsAPI.USERS.set_preferences(
-        user_id=current_user_id,
+        user_id=current_user.user_id,
         preferences_mapping={f"chat_language_mapping.{cid}.{input_type}": lang},
     )
     return respond(f"Updated cid={cid}, input_type={input_type} to language={lang}")

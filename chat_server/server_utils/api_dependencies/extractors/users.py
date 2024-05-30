@@ -25,44 +25,33 @@
 # LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+from dataclasses import asdict
+from typing import Annotated
 
-from fastapi import APIRouter, Depends
-from starlette.responses import JSONResponse
+from fastapi import Depends
+from starlette.requests import Request
 
-from chat_server.server_utils.api_dependencies import permitted_access
-from chat_server.server_utils.enums import UserRoles, RequestModelType
-from chat_server.server_utils.http_exceptions import (
-    ItemNotFoundException,
-)
-from chat_server.server_utils.http_utils import KlatAPIResponse
-from chat_server.server_utils.api_dependencies.models import SetConfigModel, ConfigModel
-from utils.database_utils.mongo_utils.queries.wrapper import MongoDocumentsAPI
-
-router = APIRouter(
-    prefix="/configs",
-    responses={"404": {"description": "Unknown endpoint"}},
-)
+from ..models.users import CurrentUserModel, CurrentUserSessionModel
+from ...auth import get_current_user, get_current_user_data
 
 
-@router.get("/{config_property}")
-async def get_config_data(model: ConfigModel = Depends()) -> JSONResponse:
-    """Retrieves configured data by name"""
-    items = MongoDocumentsAPI.CONFIGS.get_by_name(
-        config_name=model.config_property, version=model.version
-    )
-    return JSONResponse(content=items)
+def _get_current_user_model(request: Request) -> CurrentUserModel:
+    """
+    Get current user from request objects and returns it as a CurrentUserModel instance
+    :param request: Starlette request object to process
+    :return: CurrentUserModel instance
+    :raises ValidationError: if pydantic validation failed for provided request
+    """
+    current_user = get_current_user(request=request)
+    return CurrentUserModel.model_validate(current_user, strict=True)
 
 
-@router.put("/{config_property}")
-async def update_config(
-    model: SetConfigModel = permitted_access(
-        SetConfigModel, min_required_role=UserRoles.ADMIN
-    )
-) -> JSONResponse:
-    """Updates provided config by name"""
-    updated_data = MongoDocumentsAPI.CONFIGS.update_by_name(
-        config_name=model.config_property, version=model.version, data=model.data
-    )
-    if updated_data.matched_count == 0:
-        raise ItemNotFoundException
-    return KlatAPIResponse.OK
+def _get_current_user_session_model(
+    request: Request, nano_token: str = None
+) -> CurrentUserSessionModel:
+    current_user = get_current_user_data(request=request, nano_token=nano_token)
+    return CurrentUserSessionModel.model_validate(asdict(current_user), strict=True)
+
+
+CurrentUserData = Annotated[CurrentUserModel, Depends(_get_current_user_model)]
+CurrentUserSessionData = Annotated[str, Depends(_get_current_user_session_model)]

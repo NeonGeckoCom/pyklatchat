@@ -28,10 +28,11 @@
 from typing import List
 
 from fastapi import APIRouter, UploadFile, File
-from starlette.requests import Request
 from starlette.responses import JSONResponse
 
-from chat_server.server_utils.auth import login_required
+from chat_server.server_utils.api_dependencies.validators.users import (
+    get_authorized_user,
+)
 from chat_server.server_utils.http_utils import get_file_response, save_file
 from utils.database_utils.mongo_utils.queries.wrapper import MongoDocumentsAPI
 from utils.http_utils import respond
@@ -45,7 +46,6 @@ router = APIRouter(
 
 @router.get("/audio/{message_id}")
 async def get_audio_message(
-    request: Request,
     message_id: str,
 ):
     """Gets file based on the name"""
@@ -85,12 +85,10 @@ async def get_avatar(user_id: str):
 
 
 @router.get("/{msg_id}/get_attachment/{filename}")
-# @login_required
-async def get_message_attachment(request: Request, msg_id: str, filename: str):
+async def get_message_attachment(msg_id: str, filename: str):
     """
     Gets file from the server
 
-    :param request: Starlette Request Object
     :param msg_id: parent message id
     :param filename: name of the file to get
     """
@@ -114,12 +112,10 @@ async def get_message_attachment(request: Request, msg_id: str, filename: str):
 
 
 @router.post("/attachments")
-@login_required
-async def save_attachments(request: Request, files: List[UploadFile] = File(...)):
+async def save_attachments(_=get_authorized_user, files: List[UploadFile] = File(...)):
     """
     Stores received files in filesystem
 
-    :param request: Starlette Request Object
     :param files: list of files to process
 
     :returns JSON-formatted response from server

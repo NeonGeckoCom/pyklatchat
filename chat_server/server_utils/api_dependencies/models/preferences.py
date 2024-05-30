@@ -25,20 +25,17 @@
 # LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+from enum import Enum
 
 from pydantic import BaseModel, Field
 
 
-class CurrentUserModel(BaseModel):
-    user_id: str = Field(default=None, examples=["test_user_id"], alias="_id")
-    nickname: str = Field(examples=["test_nickname"])
-    first_name: str = Field(examples=["Test"])
-    last_name: str = Field(examples=["Test"])
-    preferences: dict | None = Field(
-        examples=[{"tts": {}, "chat_language_mapping": {}}], default=None
+class ToggleOptions(Enum):
+    ON = "1"
+    OFF = "0"
+
+
+class SetPreferencesModel(BaseModel, use_enum_values=True):
+    minify_messages: ToggleOptions = Field(
+        default="0", examples=list([x.value for x in ToggleOptions])
     )
-    avatar: str | None = Field(default=None)
-    full_nickname: str | None = Field(default=None)
-    is_bot: bool | None = Field(examples=[True, False], default=False)
-    is_tmp: bool | None = Field(examples=[False, True], default=True)
-    roles: list[str] | None = Field(examples=["admin", ""], default=[])

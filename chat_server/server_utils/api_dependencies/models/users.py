@@ -25,44 +25,24 @@
 # LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-from fastapi import APIRouter, Depends
-from starlette.responses import JSONResponse
-
-from chat_server.server_utils.api_dependencies import permitted_access
-from chat_server.server_utils.enums import UserRoles, RequestModelType
-from chat_server.server_utils.http_exceptions import (
-    ItemNotFoundException,
-)
-from chat_server.server_utils.http_utils import KlatAPIResponse
-from chat_server.server_utils.api_dependencies.models import SetConfigModel, ConfigModel
-from utils.database_utils.mongo_utils.queries.wrapper import MongoDocumentsAPI
-
-router = APIRouter(
-    prefix="/configs",
-    responses={"404": {"description": "Unknown endpoint"}},
-)
+from pydantic import BaseModel, Field
 
 
-@router.get("/{config_property}")
-async def get_config_data(model: ConfigModel = Depends()) -> JSONResponse:
-    """Retrieves configured data by name"""
-    items = MongoDocumentsAPI.CONFIGS.get_by_name(
-        config_name=model.config_property, version=model.version
+class CurrentUserModel(BaseModel):
+    user_id: str = Field(default=None, examples=["test_user_id"], alias="_id")
+    nickname: str = Field(examples=["test_nickname"])
+    first_name: str = Field(examples=["Test"])
+    last_name: str = Field(examples=["Test"])
+    preferences: dict | None = Field(
+        examples=[{"tts": {}, "chat_language_mapping": {}}], default=None
     )
-    return JSONResponse(content=items)
+    avatar: str | None = Field(default=None)
+    full_nickname: str | None = Field(default=None)
+    is_bot: bool | None = Field(examples=[True, False], default=False)
+    is_tmp: bool | None = Field(examples=[False, True], default=True)
+    roles: list[str] | None = Field(examples=["admin", ""], default=[])
 
 
-@router.put("/{config_property}")
-async def update_config(
-    model: SetConfigModel = permitted_access(
-        SetConfigModel, min_required_role=UserRoles.ADMIN
-    )
-) -> JSONResponse:
-    """Updates provided config by name"""
-    updated_data = MongoDocumentsAPI.CONFIGS.update_by_name(
-        config_name=model.config_property, version=model.version, data=model.data
-    )
-    if updated_data.matched_count == 0:
-        raise ItemNotFoundException
-    return KlatAPIResponse.OK
+class CurrentUserSessionModel(BaseModel):
+    user: CurrentUserModel
+    session: str

@@ -25,24 +25,29 @@
 # LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter
 from starlette.responses import JSONResponse
 
-from chat_server.server_utils.auth import is_authorized_for_user_id
-from chat_server.server_utils.dependencies import CurrentUserDependency
-from chat_server.server_utils.exceptions import (
-    UserUnauthorizedException,
+from chat_server.server_utils.enums import RequestModelType, UserRoles
+from chat_server.server_utils.http_exceptions import (
     ItemNotFoundException,
     DuplicatedItemException,
 )
 from chat_server.server_utils.http_utils import KlatAPIResponse
-from chat_server.server_utils.models.personas import (
+
+from chat_server.server_utils.api_dependencies.models import (
     AddPersonaModel,
     DeletePersonaModel,
     SetPersonaModel,
     TogglePersonaStatusModel,
     ListPersonasQueryModel,
 )
+from chat_server.server_utils.api_dependencies.extractors import (
+    CurrentUserData,
+    PersonaData,
+)
+from chat_server.server_utils.api_dependencies.validators import permitted_access
+
 from utils.database_utils.mongo_utils import MongoFilter, MongoLogicalOperators
 from utils.database_utils.mongo_utils.queries.wrapper import MongoDocumentsAPI
 
@@ -54,31 +59,27 @@ router = APIRouter(
 
 @router.get("/list")
 async def list_personas(
-    current_user: CurrentUserDependency, model: ListPersonasQueryModel = Depends()
+    current_user: CurrentUserData,
+    request_model: ListPersonasQueryModel = permitted_access(ListPersonasQueryModel),
 ):
     """Lists personas matching query params"""
     filters = []
-    if model.llms:
+    if request_model.llms:
         filters.append(
             MongoFilter(
                 key="supported_llms",
-                value=model.llms,
+                value=request_model.llms,
                 logical_operator=MongoLogicalOperators.ALL,
             )
         )
-    if model.user_id:
-        if (
-            model.user_id == "*" and "admin" not in current_user.roles
-        ) or not is_authorized_for_user_id(current_user, user_id=model.user_id):
-            raise UserUnauthorizedException
-        elif model.user_id != "*":
-            filters.append(MongoFilter(key="user_id", value=model.user_id))
+    if request_model.user_id and request_model.user_id != "*":
+        filters.append(MongoFilter(key="user_id", value=request_model.user_id))
     else:
         user_filter = [{"user_id": None}, {"user_id": current_user.user_id}]
         filters.append(
             MongoFilter(value=user_filter, logical_operator=MongoLogicalOperators.OR)
         )
-    if model.only_enabled:
+    if request_model.only_enabled:
         filters.append(MongoFilter(key="enabled", value=True))
     items = MongoDocumentsAPI.PERSONAS.list_items(
         filters=filters, result_as_cursor=False
@@ -90,69 +91,69 @@ async def list_personas(
 
 
 @router.get("/get/{persona_id}")
-async def get_persona(
-    current_user: CurrentUserDependency,
-    persona_id: str,
-):
+async def get_persona(request_model: PersonaData = permitted_access(PersonaData)):
     """Gets persona details for a given persona_id"""
-    personas_tokens = persona_id.split("_")
-    if len(personas_tokens) >= 2:
-        persona_user_id = personas_tokens[1]
-        if not is_authorized_for_user_id(current_user, user_id=persona_user_id):
-            raise ItemNotFoundException
-    item = MongoDocumentsAPI.PERSONAS.get_item(item_id=persona_id)
+    item = MongoDocumentsAPI.PERSONAS.get_item(item_id=request_model.persona_id)
     if not item:
         raise ItemNotFoundException
     return JSONResponse(content=item)
 
 
 @router.put("/add")
-async def add_persona(current_user: CurrentUserDependency, model: AddPersonaModel):
+async def add_persona(
+    request_model: AddPersonaModel = permitted_access(
+        AddPersonaModel, request_model_type=RequestModelType.DATA
+    ),
+):
     """Adds new persona"""
-    if not is_authorized_for_user_id(current_user=current_user, user_id=model.user_id):
-        raise UserUnauthorizedException
-    existing_model = MongoDocumentsAPI.PERSONAS.get_item(item_id=model.persona_id)
+    existing_model = MongoDocumentsAPI.PERSONAS.get_item(
+        item_id=request_model.persona_id
+    )
     if existing_model:
         raise DuplicatedItemException
-    MongoDocumentsAPI.PERSONAS.add_item(data=model.model_dump())
+    MongoDocumentsAPI.PERSONAS.add_item(data=request_model.model_dump())
     return KlatAPIResponse.OK
 
 
 @router.post("/set")
-async def set_persona(current_user: CurrentUserDependency, model: SetPersonaModel):
+async def set_persona(
+    request_model: SetPersonaModel = permitted_access(
+        SetPersonaModel, request_model_type=RequestModelType.DATA
+    ),
+):
     """Sets persona's data"""
-    if not is_authorized_for_user_id(current_user=current_user, user_id=model.user_id):
-        raise UserUnauthorizedException
-    existing_model = MongoDocumentsAPI.PERSONAS.get_item(item_id=model.persona_id)
+    existing_model = MongoDocumentsAPI.PERSONAS.get_item(
+        item_id=request_model.persona_id
+    )
     if not existing_model:
         raise ItemNotFoundException
-    mongo_filter = MongoFilter(key="_id", value=model.persona_id)
+    mongo_filter = MongoFilter(key="_id", value=request_model.persona_id)
     MongoDocumentsAPI.PERSONAS.update_item(
-        filters=mongo_filter, data=model.model_dump()
+        filters=mongo_filter, data=request_model.model_dump()
     )
     return KlatAPIResponse.OK
 
 
 @router.delete("/delete")
 async def delete_persona(
-    current_user: CurrentUserDependency, model: DeletePersonaModel = Depends()
+    request_model: DeletePersonaModel = permitted_access(DeletePersonaModel),
 ):
     """Deletes persona"""
-    if not is_authorized_for_user_id(current_user=current_user, user_id=model.user_id):
-        raise UserUnauthorizedException
-    MongoDocumentsAPI.PERSONAS.delete_item(item_id=model.persona_id)
+    MongoDocumentsAPI.PERSONAS.delete_item(item_id=request_model.persona_id)
     return KlatAPIResponse.OK
 
 
 @router.post("/toggle")
 async def toggle_persona_state(
-    current_user: CurrentUserDependency, model: TogglePersonaStatusModel
+    request_model: TogglePersonaStatusModel = permitted_access(
+        TogglePersonaStatusModel,
+        min_required_role=UserRoles.AUTHORIZED_USER,
+        request_model_type=RequestModelType.DATA,
+    ),
 ):
-    if not is_authorized_for_user_id(current_user=current_user, user_id=model.user_id):
-        raise UserUnauthorizedException
     updated_data = MongoDocumentsAPI.PERSONAS.update_item(
-        filters=MongoFilter(key="_id", value=model.persona_id),
-        data={"enabled": model.enabled},
+        filters=MongoFilter(key="_id", value=request_model.persona_id),
+        data={"enabled": request_model.enabled},
     )
     if updated_data.matched_count == 0:
         raise ItemNotFoundException

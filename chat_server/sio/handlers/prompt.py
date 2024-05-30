@@ -35,7 +35,6 @@ from ..server import sio
 
 
 @sio.event
-# @login_required
 async def new_prompt(sid, data):
     """
     SIO event fired on new prompt data saving request
@@ -69,7 +68,6 @@ async def new_prompt(sid, data):
 
 
 @sio.event
-# @login_required
 async def prompt_completed(sid, data):
     """
     SIO event fired upon prompt completion
@@ -91,7 +89,6 @@ async def prompt_completed(sid, data):
 
 
 @sio.event
-# @login_required
 async def get_prompt_data(sid, data):
     """
     SIO event fired getting prompt data request
