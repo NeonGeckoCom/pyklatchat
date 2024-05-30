@@ -1,6 +1,6 @@
 # NEON AI (TM) SOFTWARE, Software Development Kit & Application Framework
 # All trademark and other rights reserved by their respective owners
-# Copyright 2008-2025 Neongecko.com Inc.
+# Copyright 2008-2022 Neongecko.com Inc.
 # Contributors: Daniel McKnight, Guy Daniels, Elon Gasper, Richard Leeds,
 # Regina Bloomstine, Casimiro Ferreira, Andrii Pernatii, Kirill Hrymailo
 # BSD-3 License
@@ -26,13 +26,16 @@
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, Tuple, Union
 
 import jwt
 
 from time import time
 from fastapi import Request
 
+from chat_server.server_utils.enums import UserRoles
+from chat_server.server_utils.http_exceptions import UserUnauthorizedException
+from utils.database_utils.mongo_utils import MongoFilter, MongoLogicalOperators
 from utils.database_utils.mongo_utils.queries.wrapper import MongoDocumentsAPI
 from utils.logging_utils import LOG
 
@@ -44,9 +47,7 @@ secret_key = cookies_config.get("SECRET", None)
 session_lifetime = int(cookies_config.get("LIFETIME", 60 * 60))
 session_refresh_rate = int(cookies_config.get("REFRESH_RATE", 5 * 60))
 jwt_encryption_algo = cookies_config.get("JWT_ALGO", "HS256")
-
 AUTHORIZATION_HEADER = "Authorization"
-NANO_AUTHORIZATION_HEADER = "NanoAuthorization"
 
 
 @dataclass
@@ -54,7 +55,7 @@ class UserData:
     """Dataclass wrapping user data"""
 
     user: dict
-    session: str | None = None
+    session: str
 
 
 def check_password_strength(password: str) -> str:
@@ -84,18 +85,21 @@ def get_cookie_from_request(request: Request, cookie_name: str) -> Optional[str]
 
 
 def get_header_from_request(
-    request: Request,
-    header_name: str,
+    request: Union[Request, str], header_name: str, sio_request: bool = False
 ) -> Optional[str]:
     """
     Gets header value from response by its name
 
     :param request: Starlet request object
     :param header_name: name of the desired cookie
+    :param sio_request: is request from Socket IO service endpoint (defaults to False)
 
     :returns value of cookie if present
     """
-    return request.headers.get(header_name)
+    if sio_request:
+        return request
+    else:
+        return request.headers.get(header_name)
 
 
 def generate_session_token(user_id) -> str:
@@ -137,6 +141,7 @@ def get_current_user_data(
     request: Request,
     force_tmp: bool = False,
     nano_token: str = None,
+    sio_request: bool = False,
 ) -> UserData:
     """
     Gets current user according to response cookies
@@ -144,33 +149,38 @@ def get_current_user_data(
     :param request: Starlet request object
     :param force_tmp: to force setting temporal credentials
     :param nano_token: token from nano client (optional)
+    :param sio_request: if request is from Socket IO server
 
     :returns UserData based on received authorization header or sets temporal user credentials if not found
     """
     user_data: UserData = None
     if not force_tmp:
-        if not nano_token:
-            nano_token = get_header_from_request(
-                request=request,
-                header_name=NANO_AUTHORIZATION_HEADER,
-            )
         if nano_token:
-            nano_user = MongoDocumentsAPI.USERS.get_user_by_nano_token(
-                nano_token=nano_token,
+            user = MongoDocumentsAPI.USERS.get_item(
+                filters=MongoFilter(
+                    key="tokens",
+                    value=[nano_token],
+                    logical_operator=MongoLogicalOperators.ALL,
+                )
             )
-            if nano_user:
-                user_data = UserData(
-                    user=nano_user,
+            if not user:
+                LOG.info("Creating new user for nano agent")
+                user_data = create_unauthorized_user(
+                    nano_token=nano_token, authorize=False
                 )
         else:
             try:
                 session = get_header_from_request(
-                    request=request,
-                    header_name=AUTHORIZATION_HEADER,
+                    request, AUTHORIZATION_HEADER, sio_request
                 )
                 if session:
-                    payload = decode_jwt_token(jwt_session_token=session)
-                    if not session_token_expired(jwt_payload=payload):
+                    payload = jwt.decode(
+                        jwt=session, key=secret_key, algorithms=jwt_encryption_algo
+                    )
+                    current_timestamp = time()
+                    if (
+                        int(current_timestamp) - int(payload.get("creation_time", 0))
+                    ) <= session_lifetime:
                         user_id = payload["sub"]
                         user = MongoDocumentsAPI.USERS.get_user(user_id=user_id)
                         LOG.info(f"Fetched user data for nickname = {user['nickname']}")
@@ -179,12 +189,13 @@ def get_current_user_data(
                                 f'{payload["sub"]} is not found among users, setting temporal user credentials'
                             )
                         else:
-                            if refresh_token_expired(jwt_payload=payload):
+                            if (
+                                int(current_timestamp)
+                                - int(payload.get("last_refresh_time", 0))
+                            ) >= session_refresh_rate:
                                 session = refresh_session(payload=payload)
                                 LOG.info("Session was refreshed")
                             user_data = UserData(user=user, session=session)
-            except jwt.DecodeError as ex:
-                LOG.info(f"Invalid session token: {ex}")
             except BaseException as ex:
                 LOG.exception(
                     f"Problem resolving current user: {ex}\n"
@@ -198,16 +209,6 @@ def get_current_user_data(
     user_data.user.pop("date_created", None)
     user_data.user.pop("tokens", None)
     return user_data
-
-
-def session_token_expired(jwt_payload) -> bool:
-    return (int(time()) - int(jwt_payload.get("creation_time", 0))) > session_lifetime
-
-
-def refresh_token_expired(jwt_payload) -> bool:
-    return (
-        int(time()) - int(jwt_payload.get("last_refresh_time", 0))
-    ) > session_refresh_rate
 
 
 def get_current_user(
@@ -236,9 +237,36 @@ def refresh_session(payload: dict):
     return session
 
 
-def decode_jwt_token(jwt_session_token: str):
-    return jwt.decode(
-        jwt=jwt_session_token,
-        key=secret_key,
-        algorithms=jwt_encryption_algo,
-    )
+def validate_session(
+    request: Union[str, Request],
+    min_required_role: UserRoles,
+    sio_request: bool = False,
+) -> Tuple[str, int]:
+    """
+    Check if session token contained in request is valid
+    :returns validation output
+    """
+    session = get_header_from_request(request, AUTHORIZATION_HEADER, sio_request)
+    if session:
+        payload = jwt.decode(
+            jwt=session, key=secret_key, algorithms=jwt_encryption_algo
+        )
+        if min_required_role:
+            user = MongoDocumentsAPI.USERS.get_user(user_id=payload["sub"])
+            if (
+                min_required_role > UserRoles.GUEST
+                and user.get("is_tmp")
+                or not any(
+                    getattr(UserRoles, user_role.upper(), UserRoles.GUEST)
+                    >= min_required_role
+                    for user_role in user.get("roles", [])
+                )
+            ):
+                raise UserUnauthorizedException()
+        if (int(time()) - int(payload.get("creation_time", 0))) <= session_lifetime:
+            return "OK", 200
+        else:
+            LOG.warning("Session expired")
+            raise UserUnauthorizedException()
+    LOG.warning("Session header missing")
+    raise UserUnauthorizedException()
