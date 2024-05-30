@@ -26,9 +26,12 @@
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from fastapi import APIRouter, Form, Depends
+from fastapi import APIRouter, Form
 
-from chat_server.server_utils.api_dependencies import CurrentUserData
+from chat_server.server_utils.api_dependencies import (
+    CurrentUserData,
+    SetPreferencesModel,
+)
 from chat_server.server_utils.api_dependencies.validators.users import (
     get_authorized_user,
 )
@@ -43,16 +46,16 @@ router = APIRouter(
 
 @router.post("/update")
 async def update_settings(
-    minify_messages: str = Form("0"),
+    model: SetPreferencesModel,
     current_user: CurrentUserData = get_authorized_user,
 ):
     """
     Updates user settings with provided form data
     :param current_user: current user data
-    :param minify_messages: "1" if user prefers to get minified messages
+    :param model: SetPreferencesModel instance containing user settings to set
     :return: status 200 if OK, error code otherwise
     """
-    preferences_mapping = {"minify_messages": minify_messages}
+    preferences_mapping = model.dict(exclude_unset=True)
     MongoDocumentsAPI.USERS.set_preferences(
         user_id=current_user.user_id, preferences_mapping=preferences_mapping
     )

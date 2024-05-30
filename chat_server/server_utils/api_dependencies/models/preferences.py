@@ -25,15 +25,17 @@
 # LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+from enum import Enum
 
-from .chats import GetConversationModel
-from .configs import ConfigModel, SetConfigModel
-from .personas import (
-    AddPersonaModel,
-    SetPersonaModel,
-    DeletePersonaModel,
-    TogglePersonaStatusModel,
-    ListPersonasQueryModel,
-)
-from .users import CurrentUserModel
-from .preferences import SetPreferencesModel
+from pydantic import BaseModel, Field
+
+
+class ToggleOptions(Enum):
+    ON = "1"
+    OFF = "0"
+
+
+class SetPreferencesModel(BaseModel, use_enum_values=True):
+    minify_messages: ToggleOptions = Field(
+        default="0", examples=list([x.value for x in ToggleOptions])
+    )
