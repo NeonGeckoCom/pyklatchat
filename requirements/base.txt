@@ -1,6 +1,5 @@
 cachetools==5.3.3
-ovos_config==0.0.12
-ovos_utils==0.0.38
+neon_utils[sentry]==1.9.2a3
 pre-commit==3.7.0
 pydantic==2.7.0
 python-socketio==5.11.2
