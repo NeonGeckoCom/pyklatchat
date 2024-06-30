@@ -33,9 +33,9 @@ from utils.database_utils.mongo_utils.queries import mongo_queries
 from utils.database_utils.mongo_utils.queries.wrapper import MongoDocumentsAPI
 from utils.logging_utils import LOG
 from ..server import sio
-from ..utils import emit_error, login_required
+from ..utils import emit_error
 from ...server_config import server_config
-from ...server_utils.enums import UserRoles
+from ...server_utils.cache_utils import SubmindsState
 from ...services.popularity_counter import PopularityCounter
 
 
@@ -176,16 +176,13 @@ async def user_message(sid, data):
 
 
 @sio.event
-@login_required(min_required_role=UserRoles.ADMIN)
-async def broadcast(sid, data):
-    """Forwards received broadcast message from client"""
-    msg_type = data.pop("msg_type", None)
-    msg_receivers = data.pop("to", None)
-    if msg_type:
+async def subminds_state_received(sid, data):
+    """Handles received subminds state"""
+    if data:
+        SubmindsState.update(data=data)
         await sio.emit(
-            msg_type,
+            "subminds_state_updated",
             data=data,
-            to=msg_receivers,
         )
     else:
-        LOG.error(f'data={data} skipped - no "msg_type" provided')
+        LOG.error(f"Empty data skipped for subminds_state_received")

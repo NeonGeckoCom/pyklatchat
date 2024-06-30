@@ -28,8 +28,9 @@
 from time import time
 from typing import List, Tuple
 
+from chat_server.constants.conversations import ConversationSkins
 from ..structures import MongoFilter
-from .constants import UserPatterns, ConversationSkins
+from .constants import UserPatterns
 from .wrapper import MongoDocumentsAPI
 from utils.logging_utils import LOG
 

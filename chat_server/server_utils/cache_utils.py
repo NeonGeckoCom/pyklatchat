@@ -27,6 +27,10 @@
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 from typing import Type
+from cachetools import Cache
+
+
+# TODO: consider storing cached values in Redis (Kirill)
 
 
 class CacheFactory:
@@ -35,7 +39,7 @@ class CacheFactory:
     __active_caches = {}
 
     @classmethod
-    def get(cls, name: str, cache_type: Type = None, **kwargs):
+    def get(cls, name: str, cache_type: Type[Cache] = None, **kwargs) -> Cache:
         """
         Get cache instance based on name and type
 
@@ -50,3 +54,32 @@ class CacheFactory:
             else:
                 raise KeyError(f"Missing cache instance under {name}")
         return cls.__active_caches[name]
+
+
+class SubmindsState:
+    items = {}
+
+    @classmethod
+    def update(cls, data: dict):
+        cls.items["proctored_conversations"] = cls._get_proctored_conversations(data)
+
+    @classmethod
+    def _get_proctored_conversations(cls, data):
+        proctored_conversations = []
+        for cid, subminds in data.get("subminds_per_cid", {}).items():
+            for submind in subminds:
+                if (
+                    cls._is_proctor(submind["submind_id"])
+                    and submind["status"] != "banned"
+                ):
+                    proctored_conversations.append(cid)
+                    break
+        return proctored_conversations
+
+    @classmethod
+    def _is_proctor(cls, submind_id: str) -> bool:
+        return submind_id.startswith("proctor")
+
+    @classmethod
+    def is_proctored_conversation(cls, cid: str) -> bool:
+        return cid in cls.items.get("proctored_conversations", [])

@@ -45,10 +45,3 @@ class UserPatterns(Enum):
         "avatar": "neon.webp",
     }
     GUEST_NANO = {"first_name": "Nano", "last_name": "Guest", "tokens": []}
-
-
-class ConversationSkins:
-    """List of supported conversation skins"""
-
-    BASE = "base"
-    PROMPTS = "prompts"

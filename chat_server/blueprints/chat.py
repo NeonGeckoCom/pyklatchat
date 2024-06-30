@@ -33,9 +33,11 @@ import ovos_utils.log
 from fastapi import APIRouter, Form, Depends
 from fastapi.responses import JSONResponse
 
+from chat_server.constants.conversations import ConversationSkins
 from chat_server.server_utils.api_dependencies.validators.users import (
     get_authorized_user,
 )
+from chat_server.server_utils.cache_utils import SubmindsState
 from chat_server.server_utils.conversation_utils import build_message_json
 from chat_server.server_utils.api_dependencies.extractors import CurrentUserData
 from chat_server.server_utils.api_dependencies.models import GetConversationModel
@@ -125,9 +127,21 @@ async def get_matching_conversation(
     else:
         query_filter = None
 
+    if not model.skin:
+        is_proctored_conversation = SubmindsState.is_proctored_conversation(
+            cid=conversation_data["_id"]
+        )
+        skin = (
+            ConversationSkins.PROMPTS
+            if is_proctored_conversation
+            else ConversationSkins.BASE
+        )
+    else:
+        skin = model.skin
+
     message_data = (
         fetch_message_data(
-            skin=model.skin,
+            skin=skin,
             conversation_data=conversation_data,
             limit=model.limit_chat_history,
             creation_time_filter=query_filter,
@@ -138,6 +152,7 @@ async def get_matching_conversation(
         build_message_json(raw_message=message_data[i], skin=model.skin)
         for i in range(len(message_data))
     ]
+    conversation_data["skin"] = skin
 
     return conversation_data
 

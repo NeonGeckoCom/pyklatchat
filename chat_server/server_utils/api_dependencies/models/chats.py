@@ -38,6 +38,4 @@ class GetConversationModel(BaseModel):
     search_str: str = Field(Path(), examples=["1"])
     limit_chat_history: int | None = Field(Query(default=100), examples=[100])
     creation_time_from: str | None = Field(Query(default=None), examples=[int(time())])
-    skin: str = Field(
-        Query(default=ConversationSkins.BASE), examples=[ConversationSkins.BASE]
-    )
+    skin: str | None = Field(Query(default=None), examples=[ConversationSkins.BASE])
