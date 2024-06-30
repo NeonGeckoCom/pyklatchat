@@ -162,7 +162,7 @@ class FileMerger(FilesManipulator):
                     self.current_content += "\n" + content
             matching_dirs = self.weighted_dirs.get(str(weight), ())
             for folder in matching_dirs:
-                self.walk_tree(join(self.working_dir, folder))
+                self.walk_tree(folder)
         with open(os.path.join(self.working_dir, self.save_to), "w") as f:
             f.write(self.current_content)
         self.current_content = ""
