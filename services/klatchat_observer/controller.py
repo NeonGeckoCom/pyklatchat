@@ -331,7 +331,9 @@ class ChatObserver(MQConnector):
         """
         Method for establishing connection with Socket IO server
         """
-        self._sio = socketio.Client()
+        self._sio = socketio.Client(
+            request_timeout=15, reconnection_delay=0.5, reconnection_delay_max=2
+        )
         self._sio.connect(
             url=self.sio_url,
             namespaces=["/"],
@@ -769,8 +771,7 @@ class ChatObserver(MQConnector):
     def on_subminds_state(self, body: dict):
         """Handles receiving subminds state message"""
         LOG.debug(f"Received submind state: {body}")
-        body["msg_type"] = "subminds_state"
-        self.sio.emit("broadcast", data=body)
+        self.sio.emit("subminds_state_received", data=body)
 
     @create_mq_callback()
     def on_get_configured_personas(self, body: dict):

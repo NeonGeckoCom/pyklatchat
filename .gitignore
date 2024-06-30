@@ -8,9 +8,6 @@ sandbox.py
 # Generated Migration Files
 passed_migrations
 
-# Nano generated files
-*Nano
-
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
