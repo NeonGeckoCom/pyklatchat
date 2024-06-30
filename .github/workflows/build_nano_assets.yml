@@ -26,10 +26,10 @@ jobs:
           python -m pip install jsbeautifier==1.15.1
       - name: Build Nano JS
         working-directory: ./chat_client/static
-        run: python ../../scripts/file_merger.py --weighted_dirs 1=['js'] --weighted_files 0=['nano_builder.js'] --skip_files meta.js klatchatNano.js --save_to js/klatchatNano.js --beautify 1
+        run: python ../../scripts/file_merger.py --weighted_dirs 1=[js] --weighted_files 0=[nano_builder.js] --skip_files meta.js klatchatNano.js --save_to js/klatchatNano.js --beautify 1
       - name: Build Nano CSS
         working-directory: ./chat_client/static
-        run: python ../../scripts/file_merger.py --weighted_dirs 1=['css'] --skip_files sidebar.css klatchatNano.css --save_to css/klatchatNano.css --beautify 0
+        run: python ../../scripts/file_merger.py --weighted_dirs 1=[css] --skip_files sidebar.css klatchatNano.css --save_to css/klatchatNano.css --beautify 0
       - name: Push Version Change
         uses: stefanzweifel/git-auto-commit-action@v5
         with:

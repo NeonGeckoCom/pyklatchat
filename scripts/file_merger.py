@@ -45,7 +45,8 @@ class ParseKwargs(argparse.Action):
         setattr(namespace, self.dest, dict())
         for value in values:
             key, value = value.split("=")
-            value = eval(value)
+            if value.startswith("[") and value.endswith("]"):
+                value = value[1:-1].split(",")
             getattr(namespace, self.dest)[key] = value
 
 

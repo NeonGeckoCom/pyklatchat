@@ -1,6 +1,5 @@
 # Local configs
-/configs/*.json
-/configs/*.yml
+/configs/*
 kube_config
 
 # Sandbox
