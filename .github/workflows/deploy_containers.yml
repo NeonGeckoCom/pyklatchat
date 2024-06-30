@@ -28,7 +28,7 @@ jobs:
     uses: ./.github/workflows/bump_dynamic_dependencies.yml
   publish-images:
     runs-on: ubuntu-latest
-    needs: [run-tests, bump-dynamic-dependencies, build-nano]
+    needs: [run-tests, bump-dynamic-dependencies]
     steps:
     - uses: actions/checkout@v4
       with:
