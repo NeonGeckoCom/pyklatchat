@@ -229,7 +229,7 @@ const sendMessage = async (inputElem, cid, repliedMessageId=null, isAudio='0', i
 
 /**
  * Builds new conversation HTML from provided data and attaches it to the list of displayed conversations
- * @param conversationData: JS Object containing conversation data of type:
+ * @param conversationData - JS Object containing conversation data of type:
  * {
  *     '_id': 'id of conversation',
  *     'conversation_name': 'title of the conversation',
@@ -243,13 +243,12 @@ const sendMessage = async (inputElem, cid, repliedMessageId=null, isAudio='0', i
  *         'created_on': 'creation time of the message'
  *     }, ... (num of user messages returned)]
  * }
- * @param conversationParentID: ID of conversation parent
- * @param remember: to store this conversation into localStorage (defaults to true)
- * @param skin: Conversation skin to build
- *
+ * @param skin - Conversation skin to build
+ * @param remember - to store this conversation into localStorage (defaults to true)
+ * @param conversationParentID - ID of conversation parent
  * @return id of the built conversation
  */
-async function buildConversation(conversationData={}, skin = CONVERSATION_SKINS.BASE, remember=true,conversationParentID = 'conversationsBody'){
+async function buildConversation(conversationData, skin, remember=true,conversationParentID = 'conversationsBody'){
     const idField = '_id';
     const cid = conversationData[idField];
     if (!cid){
@@ -257,7 +256,7 @@ async function buildConversation(conversationData={}, skin = CONVERSATION_SKINS.
         return -1;
     }
     if(remember){
-       await addNewCID(cid, skin);
+       await addNewConversationToAlignmentStore(cid, skin);
     }
     const newConversationHTML = await buildConversationHTML(conversationData, skin);
     const conversationsBody = document.getElementById(conversationParentID);
@@ -369,10 +368,13 @@ async function buildConversation(conversationData={}, skin = CONVERSATION_SKINS.
  * @param alertParent: parent of error alert (optional)
  * @returns {Promise<{}>} promise resolving conversation data returned
  */
-async function getConversationDataByInput(input="", skin=CONVERSATION_SKINS.BASE, oldestMessageTS=null, maxResults=20, alertParent=null){
+async function getConversationDataByInput(input="", forceSkin=null, oldestMessageTS=null, maxResults=20, alertParent=null){
     let conversationData = {};
     if(input){
-        let query_url = `chat_api/search/${input.toString()}?limit_chat_history=${maxResults}&skin=${skin}`;
+        let query_url = `chat_api/search/${input.toString()}?limit_chat_history=${maxResults}`;
+        if (forceSkin){
+            query_url += `&skin=${forceSkin}`
+        }
         if(oldestMessageTS){
             query_url += `&creation_time_from=${oldestMessageTS}`;
         }
@@ -434,7 +436,7 @@ const getMinifySettingsTable = () => {
  * @param cid: conversation id to add
  * @param skin: conversation skin to add
  */
-async function addNewCID(cid, skin){
+async function addNewConversationToAlignmentStore(cid, skin){
     return await getChatAlignmentTable().put({'cid': cid, 'skin': skin, 'added_on': getCurrentTimestamp()}, [cid]);
 }
 
@@ -504,15 +506,16 @@ const chatAlignmentRestoredEvent = new CustomEvent("chatAlignmentRestored", { "d
 async function restoreChatAlignment(keyName=conversationAlignmentKey){
     let cachedItems = await retrieveItemsLayout();
     if (cachedItems.length === 0){
-        cachedItems = [{'cid': '1', 'added_on': getCurrentTimestamp(), 'skin': CONVERSATION_SKINS.BASE}]
-        await addNewCID('1', CONVERSATION_SKINS.BASE);
+        cachedItems = [{'cid': '1', 'added_on': getCurrentTimestamp()}]
     }
     for (const item of cachedItems) {
-        await getConversationDataByInput(item.cid, item.skin).then(async conversationData=>{
+        await getConversationDataByInput(item.cid).then(async conversationData=>{
             if(conversationData && Object.keys(conversationData).length > 0) {
-                await buildConversation(conversationData, item.skin, false);
+                await buildConversation(conversationData, conversationData.skin, true);
             }else{
-                if (item.cid !== '1') {
+                if (item.cid === '1'){
+                    displayAlert(document.getElementById('conversationsBody'), 'Default Conversation is missing!', 'danger', 'noRestoreConversationAlert');
+                }else{
                     displayAlert(document.getElementById('conversationsBody'), 'No matching conversation found', 'danger', 'noRestoreConversationAlert', {'type': alertBehaviors.AUTO_EXPIRE});
                 }
                 await removeConversation(item.cid);
@@ -652,10 +655,10 @@ function setChatState(cid, state='active', state_msg = ''){
  * @param alertParentID: id of the element to display alert in
  * @param conversationParentID: parent Node ID of the conversation
  */
-async function displayConversation(searchStr, skin=CONVERSATION_SKINS.BASE, alertParentID = null, conversationParentID='conversationsBody'){
+async function displayConversation(searchStr, forceSkin=null, alertParentID = null, conversationParentID='conversationsBody'){
     if (searchStr !== "") {
         const alertParent = document.getElementById(alertParentID);
-        await getConversationDataByInput(searchStr, skin, null, 20, alertParent).then(async conversationData => {
+        await getConversationDataByInput(searchStr, forceSkin, null, 20, alertParent).then(async conversationData => {
             let responseOk = false;
             if (!conversationData || Object.keys(conversationData).length === 0){
                 displayAlert(
@@ -669,6 +672,7 @@ async function displayConversation(searchStr, skin=CONVERSATION_SKINS.BASE, aler
             else if (isDisplayed(conversationData['_id'])) {
                 displayAlert(alertParent, 'Chat is already displayed', 'danger');
             } else {
+                const skin = conversationData.skin
                 await buildConversation(conversationData, skin, true, conversationParentID);
                 if (skin === CONVERSATION_SKINS.BASE) {
                     for (const inputType of ['incoming', 'outcoming']) {
@@ -707,7 +711,7 @@ async function createNewConversation(conversationName, isPrivate=false, conversa
         const responseJson = await response.json();
         let responseOk = false;
         if (response.ok) {
-            await buildConversation(responseJson);
+            await buildConversation(responseJson, CONVERSATION_SKINS.BASE);
             responseOk = true;
         } else {
             displayAlert('newConversationModalBody',
@@ -730,7 +734,7 @@ document.addEventListener('DOMContentLoaded', (e)=>{
         });
         addBySearch.addEventListener('click', async (e) => {
             e.preventDefault();
-            displayConversation(conversationSearchInput.value, CONVERSATION_SKINS.BASE, 'importConversationModalBody').then(responseOk=> {
+            displayConversation(conversationSearchInput.value, null, 'importConversationModalBody').then(responseOk=> {
                 conversationSearchInput.value = "";
                 if(responseOk) {
                     importConversationModal.modal('hide');

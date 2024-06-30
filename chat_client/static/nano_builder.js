@@ -70,7 +70,7 @@ class NanoBuilder {
         const chatData = options['CHAT_DATA'];
         const nanoChatsLoaded = new CustomEvent('nanoChatsLoaded')
         Array.from(chatData).forEach(async chat => {
-            await displayConversation(chat['CID'], CONVERSATION_SKINS.BASE, chat['PARENT_ID'], chat['PARENT_ID'])
+            await displayConversation(chat['CID'], null, chat['PARENT_ID'], chat['PARENT_ID'])
         });
         console.log('all chats loaded')
         document.dispatchEvent(nanoChatsLoaded);

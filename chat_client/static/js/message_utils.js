@@ -160,7 +160,7 @@ function getFirstMessageFromCID(firstChild){
  * @param cid: target conversation id
  * @param skin: target conversation skin
  */
-async function addOldMessages(cid, skin=CONVERSATION_SKINS.BASE) {
+async function addOldMessages(cid, skin) {
     const messageContainer = getMessageListContainer( cid );
     if (messageContainer.children.length > 0) {
         for (let i = 0; i < messageContainer.children.length; i++) {
@@ -183,7 +183,7 @@ async function addOldMessages(cid, skin=CONVERSATION_SKINS.BASE) {
                                 console.debug( `!!message_id=${message["message_id"]} is already displayed` )
                             }
                         }
-                        await initMessages( conversationData, skin );
+                        await initMessages( conversationData );
                     }
                 } ).then( _ => {
                     firstMessageItem.scrollIntoView( {behavior: "smooth"} );
@@ -234,9 +234,8 @@ const getUserMessages = (conversationData, forceType='plain') => {
 /**
  * Initializes listener for loading old message on scrolling conversation box
  * @param conversationData: Conversation Data object to fetch
- * @param skin: conversation skin to apply
  */
-function initLoadOldMessages(conversationData, skin) {
+function initLoadOldMessages(conversationData) {
     const cid = conversationData['_id'];
     const messageList = getMessageListContainer(cid);
     const messageListParent = messageList.parentElement;
@@ -248,7 +247,7 @@ function initLoadOldMessages(conversationData, skin) {
             !conversationState[cid]['all_messages_displayed'] &&
             conversationState[cid]['scrollY'] === 0) {
             setChatState(cid, 'updating', 'Loading messages...')
-            await addOldMessages(cid, skin);
+            await addOldMessages(cid, conversationData.skin);
             for(const inputType of ['incoming', 'outcoming']){
                 await requestTranslation(cid, null, null, inputType);
             }
@@ -335,14 +334,13 @@ async function initPagination(conversationData) {
  *         'created_on': 'creation time of the message'
  *     }, ... (num of user messages returned)]
  * }
- * @param skin - target conversation skin to consider
  */
-async function initMessages(conversationData, skin = CONVERSATION_SKINS.BASE){
+async function initMessages(conversationData){
     initProfileDisplay(conversationData);
     attachReplies(conversationData);
     addAttachments(conversationData);
     addCommunicationChannelTransformCallback(conversationData);
-    initLoadOldMessages(conversationData, skin);
+    initLoadOldMessages(conversationData);
     await initPagination(conversationData);
 }
 
