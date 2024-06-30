@@ -156,13 +156,13 @@ class FileMerger(FilesManipulator):
             matching_files = self.weighted_files.get(str(weight), ())
             for file in matching_files:
                 if file not in self.skip_files:
-                    content = self.get_content(file)
+                    content = self.get_content(join(self.working_dir, file))
                     if self.beautify:
                         content = jsbeautifier.beautify(content)
                     self.current_content += "\n" + content
             matching_dirs = self.weighted_dirs.get(str(weight), ())
             for folder in matching_dirs:
-                self.walk_tree(folder)
+                self.walk_tree(join(self.working_dir, folder))
         with open(os.path.join(self.working_dir, self.save_to), "w") as f:
             f.write(self.current_content)
         self.current_content = ""
