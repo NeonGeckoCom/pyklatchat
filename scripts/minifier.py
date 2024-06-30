@@ -29,7 +29,6 @@ import argparse
 import os
 import re
 import shutil
-import sys
 
 # sys.path.insert(0, os.path.dirname(__file__))
 from files_manipulator import FilesManipulator

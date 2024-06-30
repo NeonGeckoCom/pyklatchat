@@ -24,6 +24,8 @@ jobs:
     secrets:
       PYKLATCHAT_TESTING_CREDENTIALS_V2: ${{ secrets.PYKLATCHAT_TESTING_CREDENTIALS_V2 }}
       SERVER_ENV: ${{ secrets.SERVER_ENV }}
+  build-nano:
+    uses: ./.github/workflows/build_nano_assets.yml
   bump-version:
     uses: ./.github/workflows/publish_version_change.yml
   publish-images:
