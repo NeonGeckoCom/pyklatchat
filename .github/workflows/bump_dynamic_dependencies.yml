@@ -1,0 +1,43 @@
+# This workflow will generate a distribution and upload it to PyPI
+
+name: Bump Dynamic Dependencies
+on:
+  workflow_call:
+
+jobs:
+  build_and_publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install Setuptools
+        run: |
+          python -m pip install -U pip setuptools
+      - name: Install Build Tools
+        run: |
+          python -m pip install build wheel
+      - name: Increment Version
+        run: |
+          VER=$(python setup.py --version)
+          python version_bump.py -b ${{ github.ref_name }}
+      - name: Install JS Beautifier
+        if: github.ref == 'refs/heads/alpha'
+        run: |
+          python -m pip install jsbeautifier==1.15.1
+      - name: Build Nano JS
+        if: github.ref == 'refs/heads/alpha'
+        working-directory: ./
+        run: python ./scripts/file_merger.py --working_dir ./chat_client/static --weighted_dirs 1=['js'] --weighted_files 0=['nano_builder.js'] --skip_files meta.js klatchatNano.js --save_to ./js/klatchatNano.js --beautify 1
+      - name: Build Nano CSS
+        if: github.ref == 'refs/heads/alpha'
+        working-directory: ./
+        run: python ./scripts/file_merger.py --working_dir ./chat_client/static --weighted_dirs 1=['css'] --skip_files sidebar.css klatchatNano.css --save_to ./css/klatchatNano.css --beautify 0
+      - name: Push Version Change
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: Updated Version and Dynamic Dependencies
