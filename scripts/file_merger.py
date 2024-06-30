@@ -35,7 +35,7 @@ import jsbeautifier
 from os.path import join
 from typing import Dict, Optional, List
 
-from scripts.files_manipulator import FilesManipulator
+from files_manipulator import FilesManipulator
 
 
 class ParseKwargs(argparse.Action):
@@ -45,7 +45,8 @@ class ParseKwargs(argparse.Action):
         setattr(namespace, self.dest, dict())
         for value in values:
             key, value = value.split("=")
-            value = eval(value)
+            if value.startswith("[") and value.endswith("]"):
+                value = value[1:-1].split(",")
             getattr(namespace, self.dest)[key] = value
 
 
@@ -128,7 +129,7 @@ class FileMerger(FilesManipulator):
         :param from_file: file to get content from
         :returns extracted content
         """
-        with open(join(self.working_dir, from_file)) as f:
+        with open(from_file) as f:
             lines = f.readlines()
             lines = [l.strip() for l in lines]
             lines = "\n".join(lines)
@@ -155,7 +156,7 @@ class FileMerger(FilesManipulator):
             matching_files = self.weighted_files.get(str(weight), ())
             for file in matching_files:
                 if file not in self.skip_files:
-                    content = self.get_content(file)
+                    content = self.get_content(join(self.working_dir, file))
                     if self.beautify:
                         content = jsbeautifier.beautify(content)
                     self.current_content += "\n" + content
@@ -172,7 +173,7 @@ def merge_files_by_arguments():
     Executes files merging based on the provided CMD arguments
 
     Example invocation for reference:
-    python build_widget.py --weighted_dirs 1=['js'] --weighted_files 0=['nano_builder.js'] --save_to output.js --skip_files meta.js
+    python file_merger.py --weighted_dirs 1=['js'] --weighted_files 0=['nano_builder.js'] --save_to output.js --skip_files meta.js
     """
     file_merger = FileMerger.build_from_args()
     file_merger.run()
