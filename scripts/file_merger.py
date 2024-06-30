@@ -35,7 +35,7 @@ import jsbeautifier
 from os.path import join
 from typing import Dict, Optional, List
 
-from scripts.files_manipulator import FilesManipulator
+from files_manipulator import FilesManipulator
 
 
 class ParseKwargs(argparse.Action):
