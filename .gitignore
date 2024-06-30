@@ -3,6 +3,9 @@
 /configs/*.yml
 kube_config
 
+# Sandbox
+sandbox.py
+
 # Generated Migration Files
 passed_migrations
 
