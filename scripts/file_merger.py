@@ -129,7 +129,7 @@ class FileMerger(FilesManipulator):
         :param from_file: file to get content from
         :returns extracted content
         """
-        with open(join(self.working_dir, from_file)) as f:
+        with open(from_file) as f:
             lines = f.readlines()
             lines = [l.strip() for l in lines]
             lines = "\n".join(lines)
