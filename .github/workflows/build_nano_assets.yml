@@ -21,9 +21,9 @@ jobs:
       - name: Install Build Tools
         run: |
           python -m pip install build wheel
-      - name: Install Setuptools
+      - name: Install JS Beautifier
         run: |
-          python -m pip install -U pip setuptools
+          python -m pip install jsbeautifier==1.15.1
       - name: Build Nano JS
         working-directory: ./chat_client/static
         run: python file_merger.py --weighted_dirs 1=['js'] --weighted_files 0=['nano_builder.js'] --skip_files meta.js klatchatNano.js --save_to js/klatchatNano.js --beautify 1
