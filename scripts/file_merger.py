@@ -172,7 +172,7 @@ def merge_files_by_arguments():
     Executes files merging based on the provided CMD arguments
 
     Example invocation for reference:
-    python build_widget.py --weighted_dirs 1=['js'] --weighted_files 0=['nano_builder.js'] --save_to output.js --skip_files meta.js
+    python file_merger.py --weighted_dirs 1=['js'] --weighted_files 0=['nano_builder.js'] --save_to output.js --skip_files meta.js
     """
     file_merger = FileMerger.build_from_args()
     file_merger.run()
