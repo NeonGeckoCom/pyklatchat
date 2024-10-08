@@ -25,7 +25,6 @@
 # LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
 from time import time
 
 from utils.common import generate_uuid
@@ -168,7 +167,9 @@ async def user_message(sid, data):
         await sio.emit("new_message", data=data, skip_sid=[sid])
         PopularityCounter.increment_cid_popularity(new_shout_data["cid"])
     except Exception as ex:
-        LOG.error(f"Exception on sio processing: {ex}")
+        LOG.exception(
+            f"Socket IO failed to process user message", data=data, exc_info=ex
+        )
         await emit_error(
             sids=[sid],
             message=f'Unable to process request "user_message" with data: {data}',
@@ -188,4 +189,4 @@ async def broadcast(sid, data):
             to=msg_receivers,
         )
     else:
-        LOG.error(f'data={data} skipped - no "msg_type" provided')
+        LOG.error("Missing message type attribute", data=data)
