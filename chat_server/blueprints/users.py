@@ -132,7 +132,9 @@ async def update_profile(
         )
         return respond(msg="OK")
     except Exception as ex:
-        LOG.error(ex)
+        LOG.exception(
+            "Unable to update user data", update_data=update_dict, exc_info=ex
+        )
         return respond(
             msg="Unable to update user data at the moment",
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,

@@ -29,14 +29,14 @@
 import logging
 import os
 
-from ovos_utils.log import LOG as ovos_default_logger
+from neon_utils.logger import LOG as neon_default_logger
 
 combo_lock_logger = logging.getLogger("combo_lock")
 combo_lock_logger.disabled = True
 
 
 def _init_app_logger():
-    logger = ovos_default_logger
+    logger = neon_default_logger
     logger.name = os.environ.get("LOG_NAME", "klat_server_log")
     logger.base_path = os.environ.get("LOG_BASE_PATH", ".")
     logger.init(
