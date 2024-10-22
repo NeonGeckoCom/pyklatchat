@@ -1,182 +1,173 @@
 
-/**
- * Collection of supported clients, current client is matched based on client configuration
- * @type {{NANO: string, MAIN: string}}
- */
-const CLIENTS = {
-    MAIN: 'main',
-    NANO: 'nano',
-    UNDEFINED: undefined
-}
-
-/**
- * JS Object containing frontend configuration data
- * @type {{staticFolder: string, currentURLBase: string, currentURLFull: (string|string|string|SVGAnimatedString|*), client: string}}
- */
-
-let configData = {
-    'staticFolder': "../../static",
-    'currentURLBase': extractURLBase(),
-    'currentURLFull': window.location.href,
-    'client': typeof metaConfig !== 'undefined' ? metaConfig?.client : CLIENTS.UNDEFINED
+const MessageScrollPosition = {
+    START: 'START',
+    END: 'END',
+    MIDDLE: 'MIDDLE',
 };
 
 /**
- * Default key for storing data in local storage
- * @type {string}
+ * Gets current message list scroller position based on first and last n-items visibility
+ * @param messageList: Container of messages
+ * @param numElements: number of first and last elements to check for visibility
+ * @param assertOnly: check only for one of the scroll position (preventing ambiguity if its a start or the end)
+ * @return {string} MessageScrollPosition from Enum
  */
-const conversationAlignmentKey = 'conversationAlignment';
-
-/**
- * Custom Event fired on configs ended up loading
- * @type {CustomEvent<string>}
- */
-const configFullLoadedEvent = new CustomEvent("configLoaded", {
-    "detail": "Event that is fired when configs are loaded"
-});
-
-/**
- * Convenience method for getting URL base for current page
- * @returns {string} constructed URL base
- */
-function extractURLBase() {
-    return window.location.protocol + '//' + window.location.hostname + (window.location.port ? ':' + window.location.port : '');
+function getMessageScrollPosition(messageList, numElements = 3, assertOnly = null) {
+    numElements = Math.min(messageList.children.length, numElements);
+    if (numElements > 0) {
+        for (let i = 1; i <= numElements; i++) {
+            if (!(assertOnly === MessageScrollPosition.START) &&
+                isInViewport(messageList.children[messageList.children.length - i])) {
+                return MessageScrollPosition.END;
+            }
+            if (!(assertOnly === MessageScrollPosition.END) && isInViewport(messageList.children[i - 1])) {
+                return MessageScrollPosition.START;
+            }
+        }
+    }
+    return MessageScrollPosition.MIDDLE;
 }
 
 /**
- * Extracts json data from provided URL path
- * @param urlPath: file path string
- * @returns {Promise<* | {}>} promise that resolves data obtained from file path
+ * Decides whether scrolling on new message is required based on the current viewport
+ * @param messageList: message list DOM element
+ * @param lastNElements: number of last elements to consider a live following
  */
-async function extractJsonData(urlPath = "") {
-    return fetch(urlPath).then(response => {
-        if (response.ok) {
-            return response.json();
+function scrollOnNewMessage(messageList, lastNElements = 3) {
+    // If we see last element of the chat - we are following it
+    if (getMessageScrollPosition(messageList, lastNElements, MessageScrollPosition.END) === MessageScrollPosition.END) {
+        messageList.lastChild.scrollIntoView();
+    }
+}
+const DATABASES = {
+    CHATS: 'chats'
+}
+const DB_TABLES = {
+    CHAT_ALIGNMENT: 'chat_alignment',
+    MINIFY_SETTINGS: 'minify_settings',
+    CHAT_MESSAGES_PAGINATION: 'chat_messages_pagination'
+}
+const __db_instances = {}
+const __db_definitions = {
+    [DATABASES.CHATS]: {
+        [DB_TABLES.CHAT_ALIGNMENT]: `cid, added_on, skin`,
+        [DB_TABLES.CHAT_MESSAGES_PAGINATION]: `cid, oldest_created_on`
+    }
+}
+
+/**
+ * Gets database and table from name
+ * @param db: database name to get
+ * @param table: table name to get
+ * @return {Table} Dexie database object under specified table
+ */
+const getDb = (db, table) => {
+    let _instance;
+    if (!Object.keys(__db_instances).includes(db)) {
+        _instance = new Dexie(name);
+        if (Object.keys(__db_definitions).includes(db)) {
+            _instance.version(1).stores(__db_definitions[db]);
         }
-        return {};
+        __db_instances[db] = _instance;
+    } else {
+        _instance = __db_instances[db];
+    }
+    return _instance[table];
+}
+
+
+class DBGateway {
+    constructor(db, table) {
+        this.db = db;
+        this.table = table;
+
+        this._db_instance = getDb(this.db, this.table);
+        this._db_columns_definitions = __db_definitions[this.db][this.table]
+        this._db_key = this._db_columns_definitions.split(',')[0]
+    }
+
+    async getItem(key = "") {
+        return await this._db_instance.where({
+            [this._db_key]: key
+        }).first();
+    }
+
+    async listItems(orderBy = "") {
+        let expression = this._db_instance;
+        if (orderBy !== "") {
+            expression = expression.orderBy(orderBy)
+        }
+        return await expression.toArray();
+    }
+
+    async putItem(data = {}) {
+        return await this._db_instance.put(data, [data[this._db_key]])
+    }
+
+    updateItem(data = {}) {
+        const key = data[this._db_key]
+        delete data[this._db_key]
+        return this._db_instance.update(key, data);
+    }
+
+    async deleteItem(key = "") {
+        return await this._db_instance.where({
+            [this._db_key]: key
+        }).delete();
+    }
+
+    static getInstance(table) {
+        return new DBGateway(DATABASES.CHATS, table);
+    }
+}
+/**
+ * Resolves user reply on message
+ * @param replyID: id of user reply
+ * @param repliedID id of replied message
+ */
+function resolveUserReply(replyID, repliedID) {
+    if (repliedID) {
+        const repliedElem = document.getElementById(repliedID);
+        if (repliedElem) {
+            let repliedText = repliedElem.getElementsByClassName('message-text')[0].innerText;
+            repliedText = shrinkToFit(repliedText, 15);
+            const replyHTML = `<i class="reply-text" data-replied-id="${repliedID}">
+${repliedText}
+</i>`;
+            const replyPlaceholder = document.getElementById(replyID).getElementsByClassName('reply-placeholder')[0];
+            replyPlaceholder.insertAdjacentHTML('afterbegin', replyHTML);
+            attachReplyHighlighting(replyPlaceholder.getElementsByClassName('reply-text')[0]);
+        }
+    }
+}
+
+/**
+ * Attaches reply highlighting for reply item
+ * @param replyItem reply item element
+ */
+function attachReplyHighlighting(replyItem) {
+    replyItem.addEventListener('click', (e) => {
+        const repliedItem = document.getElementById(replyItem.getAttribute('data-replied-id'));
+        const backgroundParent = repliedItem.parentElement.parentElement;
+        repliedItem.scrollIntoView();
+        backgroundParent.classList.remove('message-selected');
+        setTimeout(() => backgroundParent.classList.add('message-selected'), 500);
     });
 }
 
-
-document.addEventListener('DOMContentLoaded', async (e) => {
-    if (configData['client'] === CLIENTS.MAIN) {
-        configData = Object.assign(configData, await extractJsonData(`${configData['currentURLBase']}/base/runtime_config`));
-        document.dispatchEvent(configFullLoadedEvent);
-    }
-});
 /**
- * Adds speaking callback for the message
- * @param cid: id of the conversation
- * @param messageID: id of the message
- */
-function addTTSCallback(cid, messageID) {
-    const speakingButton = document.getElementById(`${messageID}_speak`);
-    if (speakingButton) {
-        speakingButton.addEventListener('click', (e) => {
-            e.preventDefault();
-            getTTS(cid, messageID, getPreferredLanguage(cid));
-            setChatState(cid, 'updating', `Fetching TTS...`)
-        });
-    }
-}
-
-/**
- * Adds speaking callback for the message
- * @param cid: id of the conversation
- * @param messageID: id of the message
- */
-function addSTTCallback(cid, messageID) {
-    const sttButton = document.getElementById(`${messageID}_text`);
-    if (sttButton) {
-        sttButton.addEventListener('click', (e) => {
-            e.preventDefault();
-            const sttContent = document.getElementById(`${messageID}-stt`);
-            if (sttContent) {
-                sttContent.innerHTML = `<div class="text-center">
-Waiting for STT...  <div class="spinner-border spinner-border-sm" role="status">
-<span class="sr-only">Loading...</span>
-</div>
-</div>`;
-                sttContent.style.setProperty('display', 'block', 'important');
-                getSTT(cid, messageID, getPreferredLanguage(cid));
-            }
-        });
-    }
-}
-
-/**
- * Attaches STT capabilities for audio messages and TTS capabilities for text messages
- * @param cid: parent conversation id
- * @param messageID: target message id
- * @param isAudio: if its an audio message (defaults to '0')
- */
-function addMessageTransformCallback(cid, messageID, isAudio = '0') {
-    if (isAudio === '1') {
-        addSTTCallback(cid, messageID);
-    } else {
-        addTTSCallback(cid, messageID);
-    }
-}
-
-
-/**
- * Attaches STT capabilities for audio messages and TTS capabilities for text messages
+ * Attaches message replies to initialized conversation
  * @param conversationData: conversation data object
  */
-function addCommunicationChannelTransformCallback(conversationData) {
+function attachReplies(conversationData) {
     if (conversationData.hasOwnProperty('chat_flow')) {
         getUserMessages(conversationData).forEach(message => {
-            addMessageTransformCallback(conversationData['_id'], message['message_id'], message?.is_audio);
+            resolveUserReply(message['message_id'], message?.replied_message);
+        });
+        Array.from(document.getElementsByClassName('reply-text')).forEach(replyItem => {
+            attachReplyHighlighting(replyItem);
         });
     }
-}
-const REQUEST_METHODS = {
-    GET: 'GET',
-    PUT: 'PUT',
-    DELETE: 'DELETE',
-    POST: 'POST'
-}
-
-
-const getSessionToken = () => {
-    return localStorage.getItem('session') || '';
-}
-
-const setSessionToken = (val) => {
-    const currentValue = getSessionToken();
-    localStorage.setItem('session', val);
-    if (currentValue && currentValue !== val) {
-        location.reload();
-    }
-}
-
-const fetchServer = async (urlSuffix, method = REQUEST_METHODS.GET, body = null, json = false) => {
-    const options = {
-        method: method,
-        headers: new Headers({
-            'Authorization': getSessionToken()
-        })
-    }
-    if (body) {
-        options['body'] = body;
-    }
-    // TODO: there is an issue validating FormData on backend, so JSON property should eventually become true
-    if (json) {
-        options['headers'].append('Content-Type', 'application/json');
-        if (options['body']) {
-            options['body'] &&= JSON.stringify(options['body'])
-        }
-    }
-    return fetch(`${configData["CHAT_SERVER_URL_BASE"]}/${urlSuffix}`, options).then(async response => {
-        if (response.status === 401) {
-            const responseJson = await response.json();
-            if (responseJson['msg'] === 'Session Expired') {
-                localStorage.removeItem('session');
-                location.reload();
-            }
-        }
-        return response;
-    });
 }
 /**
  * Returns preferred language specified in provided cid
@@ -489,181 +480,157 @@ document.addEventListener('DOMContentLoaded', (_) => {
         await fetchSupportedLanguages().then(_ => document.dispatchEvent(supportedLanguagesLoadedEvent));
     });
 });
-/**
- * Returns current UNIX timestamp in seconds
- * @return {number}: current unix timestamp
- */
-const getCurrentTimestamp = () => {
-    return Math.floor(Date.now() / 1000);
-};
-
-// Client's timer
-// TODO consider refactoring to "timer per component" if needed
-let __timer = 0;
-
+let __inputFileList = {};
 
 /**
- * Sets timer to current timestamp
+ * Gets uploaded files from specified conversation id
+ * @param cid specified conversation id
+ * @return {*} list of files from specified cid if any
  */
-const startTimer = () => {
-    __timer = Date.now();
-};
-
-/**
- * Resets times and returns time elapsed since invocation of startTimer()
- * @return {number} Number of seconds elapsed
- */
-const stopTimer = () => {
-    const timeDue = Date.now() - __timer;
-    __timer = 0;
-    return timeDue;
-};
-let userSettingsModal;
-let applyUserSettings;
-let minifyMessagesCheck;
-let settingsLink;
-
-/**
- * Displays relevant user settings section based on provided name
- * @param name: name of the section to display
- */
-const displaySection = (name) => {
-    Array.from(document.getElementsByClassName('user-settings-section')).forEach(elem => {
-        elem.hidden = true;
-    });
-    const elem = document.getElementById(`user-settings-${name}-section`);
-    elem.hidden = false;
+function getUploadedFiles(cid) {
+    if (__inputFileList.hasOwnProperty(cid)) {
+        return __inputFileList[cid];
+    }
+    return [];
 }
 
 /**
- * Displays user settings based on received preferences
- * @param preferences
+ * Cleans uploaded files per conversation
  */
-const displayUserSettings = (preferences) => {
-    if (preferences) {
-        minifyMessagesCheck.checked = preferences?.minify_messages === '1'
+function cleanUploadedFiles(cid) {
+    if (__inputFileList.hasOwnProperty(cid)) {
+        delete __inputFileList[cid];
+    }
+    const attachmentsButton = document.getElementById('file-input-' + cid);
+    attachmentsButton.value = "";
+    const fileContainer = document.getElementById('filename-container-' + cid);
+    fileContainer.innerHTML = "";
+}
+
+/**
+ * Adds File upload to specified cid
+ * @param cid: mentioned cid
+ * @param file: File object
+ */
+function addUpload(cid, file) {
+    if (!__inputFileList.hasOwnProperty(cid)) {
+        __inputFileList[cid] = [];
+    }
+    __inputFileList[cid].push(file);
+}
+
+/**
+ * Adds download request on attachment item click
+ * @param attachmentItem: desired attachment item
+ * @param cid: current conversation id
+ * @param messageID: current message id
+ */
+async function downloadAttachment(attachmentItem, cid, messageID) {
+    if (attachmentItem) {
+        const fileName = attachmentItem.getAttribute('data-file-name');
+        const mime = attachmentItem.getAttribute('data-mime');
+        const getFileURL = `files/${messageID}/get_attachment/${fileName}`;
+        await fetchServer(getFileURL).then(async response => {
+            response.ok ?
+                download(await response.blob(), fileName, mime) :
+                console.error(`No file data received for path,
+cid=${cid};\n
+message_id=${messageID};\n
+file_name=${fileName}`)
+        }).catch(err => console.error(`Failed to fetch: ${getFileURL}: ${err}`));
     }
 }
 
 /**
- * Initialises section of settings based on provided name
- * @param sectionName: name of the section provided
+ * Attaches message replies to initialized conversation
+ * @param conversationData: conversation data object
  */
-const initSettingsSection = async (sectionName) => {
-    await refreshCurrentUser(false)
-        .then(userData => displayUserSettings(userData?.preferences))
-        .then(_ => displaySection(sectionName));
-}
-
-/**
- * Initialises User Settings Modal
- */
-const initSettingsModal = async () => {
-    Array.from(document.getElementsByClassName('nav-user-settings')).forEach(navItem => {
-        navItem.addEventListener('click', async (e) => {
-            await initSettingsSection(navItem.getAttribute('data-section-name'));
+function addAttachments(conversationData) {
+    if (conversationData.hasOwnProperty('chat_flow')) {
+        getUserMessages(conversationData).forEach(message => {
+            resolveMessageAttachments(conversationData['_id'], message['message_id'], message?.attachments);
         });
-    });
-}
-
-/**
- * Applies new settings to current user
- */
-const applyNewSettings = async () => {
-    const newUserSettings = {
-        'minify_messages': minifyMessagesCheck.checked ? '1' : '0'
-    };
-    const query_url = 'preferences/update'
-    await fetchServer(query_url, REQUEST_METHODS.POST, newUserSettings, true).then(async response => {
-        const responseJson = await response.json();
-        if (response.ok) {
-            location.reload();
-        } else {
-            displayAlert(document.getElementById(`userSettingsModalBody`),
-                `${responseJson['msg']}`,
-                'danger');
-        }
-    });
-}
-
-function initSettings(elem) {
-    elem.addEventListener('click', async (e) => {
-        await initSettingsModal();
-        userSettingsModal.modal('show');
-    });
-}
-
-/**
- * Initialise user settings links based on the current client
- */
-const initSettingsLinks = () => {
-    if (configData.client === CLIENTS.NANO) {
-        console.log('initialising settings link for ', Array.from(document.getElementsByClassName('settings-link')).length, ' elements')
-        Array.from(document.getElementsByClassName('settings-link')).forEach(elem => {
-            initSettings(elem);
-        });
-    } else {
-        initSettings(document.getElementById('settingsLink'));
     }
 }
 
-document.addEventListener('DOMContentLoaded', (_) => {
-    if (configData.client === CLIENTS.MAIN) {
-        userSettingsModal = $('#userSettingsModal');
-        applyUserSettings = document.getElementById('applyUserSettings');
-        minifyMessagesCheck = document.getElementById('minifyMessages');
-        applyUserSettings.addEventListener('click', async (e) => await applyNewSettings());
-        settingsLink = document.getElementById('settingsLink');
-        settingsLink.addEventListener('click', async (e) => {
+/**
+ * Activates attachments event listeners for message attachments in specified conversation
+ * @param cid: desired conversation id
+ * @param elem: parent element for attachment (defaults to document)
+ */
+function activateAttachments(cid, elem = null) {
+    if (!elem) {
+        elem = document;
+    }
+    Array.from(elem.getElementsByClassName('attachment-item')).forEach(attachmentItem => {
+        attachmentItem.addEventListener('click', async (e) => {
             e.preventDefault();
-            await initSettingsModal();
-            userSettingsModal.modal('show');
-        });
-    } else {
-        document.addEventListener('modalsLoaded', (e) => {
-            userSettingsModal = $('#userSettingsModal');
-            applyUserSettings = document.getElementById('applyUserSettings');
-            minifyMessagesCheck = document.getElementById('minifyMessages');
-            applyUserSettings.addEventListener('click', async (e) => await applyNewSettings());
-            if (configData.client === CLIENTS.MAIN) {
-                initSettingsLinks();
+            const attachmentName = attachmentItem.getAttribute('data-file-name');
+            try {
+                setChatState(cid, 'updating', `Downloading attachment file`);
+                await downloadAttachment(attachmentItem, cid, attachmentItem.parentNode.parentNode.id);
+            } catch (e) {
+                console.warn(`Failed to download attachment file - ${attachmentName} (${e})`)
+            } finally {
+                setChatState(cid, 'active');
             }
         });
+    });
+}
 
-        document.addEventListener('nanoChatsLoaded', (e) => {
-            setTimeout(() => initSettingsLinks(), 1000);
-        })
-    }
-});
+
 /**
- * Downloads desired content
- * @param content: content to download
- * @param filename: name of the file to download
- * @param contentType: type of the content
+ * Returns DOM element to include as file resolver based on its name
+ * @param filename: name of file to fetch
+ * @return {string}: resulting DOM element
  */
-function download(content, filename, contentType = 'application/octet-stream') {
-    if (content) {
-        const a = document.createElement('a');
-        const blob = new Blob([content], {
-            'type': contentType
-        });
-        a.href = window.URL.createObjectURL(blob);
-        a.target = 'blank';
-        a.download = filename;
-        a.click();
-        window.URL.revokeObjectURL(content);
-    } else {
-        console.warn('Skipping downloading as content is invalid')
+function attachmentHTMLBasedOnFilename(filename) {
+
+    let fSplitted = filename.split('.');
+    if (fSplitted.length > 1) {
+        const extension = fSplitted.pop();
+        const shrinkedName = shrinkToFit(filename, 12, `...${extension}`);
+        if (IMAGE_EXTENSIONS.includes(extension)) {
+            return `<i class="fa fa-file-image"></i> ${shrinkedName}`;
+        } else {
+            return shrinkedName;
+        }
     }
+    return shrinkToFit(filename, 12);
 }
 
 /**
- * Handles error while loading the image data
- * @param image: target image Node
+ * Resolves attachments to the message
+ * @param cid: id of conversation
+ * @param messageID: id of user message
+ * @param attachments list of attachments received
  */
-function handleImgError(image) {
-    image.parentElement.insertAdjacentHTML('afterbegin', `<p>${image.getAttribute('alt')}</p>`);
-    image.parentElement.removeChild(image);
+function resolveMessageAttachments(cid, messageID, attachments = []) {
+    if (messageID) {
+        const messageElem = document.getElementById(messageID);
+        if (messageElem) {
+            const attachmentToggle = messageElem.getElementsByClassName('attachment-toggle')[0];
+            if (attachments.length > 0) {
+                if (messageElem) {
+                    const attachmentPlaceholder = messageElem.getElementsByClassName('attachments-placeholder')[0];
+                    attachments.forEach(attachment => {
+                        const attachmentHTML = `<span class="attachment-item" data-file-name="${attachment['name']}" data-mime="${attachment['mime']}" data-size="${attachment['size']}">
+${attachmentHTMLBasedOnFilename(attachment['name'])}
+</span><br>`;
+                        attachmentPlaceholder.insertAdjacentHTML('afterbegin', attachmentHTML);
+                    });
+                    attachmentToggle.addEventListener('click', (e) => {
+                        attachmentPlaceholder.style.display = attachmentPlaceholder.style.display === "none" ? "" : "none";
+                    });
+                    activateAttachments(cid, attachmentPlaceholder);
+                    attachmentToggle.style.display = "";
+                    // attachmentPlaceholder.style.display = "";
+                }
+            } else {
+                attachmentToggle.style.display = "none";
+            }
+        }
+    }
 }
 let socket;
 
@@ -776,6 +743,670 @@ function initSIO() {
     // });
 
     return socket;
+}
+/**
+ * Renders suggestions HTML
+ */
+async function renderSuggestions() {
+    const displayedCids = Object.values(await retrieveItemsLayout(true)).join(',');
+    await fetchServer(`chat_api/get_popular_cids?limit=5&search_str=${conversationSearchInput.value}&exclude_items=${displayedCids}`).then(async response => {
+        const items = await response.json();
+        importConversationModalSuggestions.innerHTML = "";
+        for (const item of Array.from(items)) {
+            importConversationModalSuggestions.insertAdjacentHTML('afterbegin', await buildSuggestionHTML(item['_id'], item['conversation_name']));
+        }
+        Array.from(importConversationModalSuggestions.getElementsByClassName('suggestion-item')).forEach(item => {
+            const cid = item.getAttribute('data-cid');
+            if (cid) {
+                item.addEventListener('click', async (e) => {
+                    await displayConversation(cid);
+                    conversationSearchInput.value = "";
+                    importConversationModal.modal('hide');
+                    // importConversationModalSuggestions.innerHTML = "";
+                });
+                item.addEventListener('mouseover', (event) => {
+                    item.classList.add('selected')
+                });
+                item.addEventListener('mouseleave', (event) => {
+                    item.classList.remove('selected')
+                });
+            }
+        });
+        importConversationModalSuggestions.style.setProperty('display', 'inherit', 'important');
+    });
+}
+/**
+ * Collection of supported clients, current client is matched based on client configuration
+ * @type {{NANO: string, MAIN: string}}
+ */
+const CLIENTS = {
+    MAIN: 'main',
+    NANO: 'nano',
+    UNDEFINED: undefined
+}
+
+/**
+ * JS Object containing frontend configuration data
+ * @type {{staticFolder: string, currentURLBase: string, currentURLFull: (string|string|string|SVGAnimatedString|*), client: string}}
+ */
+
+let configData = {
+    'staticFolder': "../../static",
+    'currentURLBase': extractURLBase(),
+    'currentURLFull': window.location.href,
+    'client': typeof metaConfig !== 'undefined' ? metaConfig?.client : CLIENTS.UNDEFINED
+};
+
+/**
+ * Default key for storing data in local storage
+ * @type {string}
+ */
+const conversationAlignmentKey = 'conversationAlignment';
+
+/**
+ * Custom Event fired on configs ended up loading
+ * @type {CustomEvent<string>}
+ */
+const configFullLoadedEvent = new CustomEvent("configLoaded", {
+    "detail": "Event that is fired when configs are loaded"
+});
+
+/**
+ * Convenience method for getting URL base for current page
+ * @returns {string} constructed URL base
+ */
+function extractURLBase() {
+    return window.location.protocol + '//' + window.location.hostname + (window.location.port ? ':' + window.location.port : '');
+}
+
+/**
+ * Extracts json data from provided URL path
+ * @param urlPath: file path string
+ * @returns {Promise<* | {}>} promise that resolves data obtained from file path
+ */
+async function extractJsonData(urlPath = "") {
+    return fetch(urlPath).then(response => {
+        if (response.ok) {
+            return response.json();
+        }
+        return {};
+    });
+}
+
+
+document.addEventListener('DOMContentLoaded', async (e) => {
+    if (configData['client'] === CLIENTS.MAIN) {
+        configData = Object.assign(configData, await extractJsonData(`${configData['currentURLBase']}/base/runtime_config`));
+        document.dispatchEvent(configFullLoadedEvent);
+    }
+});
+/**
+ * Returns current UNIX timestamp in seconds
+ * @return {number}: current unix timestamp
+ */
+const getCurrentTimestamp = () => {
+    return Math.floor(Date.now() / 1000);
+};
+
+// Client's timer
+// TODO consider refactoring to "timer per component" if needed
+let __timer = 0;
+
+
+/**
+ * Sets timer to current timestamp
+ */
+const startTimer = () => {
+    __timer = Date.now();
+};
+
+/**
+ * Resets times and returns time elapsed since invocation of startTimer()
+ * @return {number} Number of seconds elapsed
+ */
+const stopTimer = () => {
+    const timeDue = Date.now() - __timer;
+    __timer = 0;
+    return timeDue;
+};
+let currentUserNavDisplay = document.getElementById('currentUserNavDisplay');
+/* Login items */
+let loginModal;
+let loginButton;
+let loginUsername;
+let loginPassword;
+let toggleSignup;
+/* Logout Items */
+let logoutModal;
+let logoutConfirm;
+/* Signup items */
+let signupModal;
+let signupButton;
+let signupUsername;
+let signupFirstName;
+let signupLastName;
+let signupPassword;
+let repeatSignupPassword;
+let toggleLogin;
+
+let currentUser = null;
+
+
+function initModalElements() {
+    currentUserNavDisplay = document.getElementById('currentUserNavDisplay');
+    logoutModal = $('#logoutModal');
+    logoutConfirm = document.getElementById('logoutConfirm');
+    loginModal = $('#loginModal');
+    loginButton = document.getElementById('loginButton');
+    loginUsername = document.getElementById('loginUsername');
+    loginPassword = document.getElementById('loginPassword');
+    toggleSignup = document.getElementById('toggleSignup');
+    signupModal = $('#signupModal');
+    signupButton = document.getElementById('signupButton');
+    signupUsername = document.getElementById('signupUsername');
+    signupFirstName = document.getElementById('signupFirstName');
+    signupLastName = document.getElementById('signupLastName');
+    signupPassword = document.getElementById('signupPassword');
+    repeatSignupPassword = document.getElementById('repeatSignupPassword');
+    toggleLogin = document.getElementById('toggleLogin');
+}
+
+
+const MODAL_NAMES = {
+    LOGIN: 'login',
+    LOGOUT: 'logout',
+    SIGN_UP: 'signup',
+    USER_SETTINGS: 'user_settings'
+}
+
+
+/**
+ * Adds new modal under specific conversation id
+ * @param name: name of the modal from MODAL_NAMES to add
+ */
+async function addModal(name) {
+    if (Object.values(MODAL_NAMES).includes(name)) {
+        return await buildHTMLFromTemplate(`modals.${name}`)
+    } else {
+        console.warn(`Unresolved modal name - ${name}`)
+    }
+}
+
+/**
+ * Initializes modals per target conversation id (if not provided - for main client)
+ * @param parentID: id of the parent to attach element to
+ */
+async function initModals(parentID = null) {
+    if (parentID) {
+        const parentElem = document.getElementById(parentID);
+        if (!parentElem) {
+            console.warn('No element detected with provided parentID=', parentID)
+            return -1;
+        }
+        for (const modalName of [
+                MODAL_NAMES.LOGIN,
+                MODAL_NAMES.LOGOUT,
+                MODAL_NAMES.SIGN_UP,
+                MODAL_NAMES.USER_SETTINGS
+            ]) {
+            const modalHTML = await addModal(modalName);
+            parentElem.insertAdjacentHTML('beforeend', modalHTML);
+        }
+    }
+    initModalElements();
+    logoutConfirm.addEventListener('click', (e) => {
+        e.preventDefault();
+        logoutUser().catch(err => console.error('Error while logging out user: ', err));
+    });
+    toggleLogin.addEventListener('click', (e) => {
+        e.preventDefault();
+        signupModal.modal('hide');
+        loginModal.modal('show');
+    });
+    loginButton.addEventListener('click', (e) => {
+        e.preventDefault();
+        loginUser().catch(err => console.error('Error while logging in user: ', err));
+    });
+    toggleSignup.addEventListener('click', (e) => {
+        e.preventDefault();
+        loginModal.modal('hide');
+        signupModal.modal('show');
+    });
+    signupButton.addEventListener('click', (e) => {
+        e.preventDefault();
+        createUser().catch(err => console.error('Error while creating a user: ', err));
+    });
+    const modalsLoaded = new CustomEvent('modalsLoaded');
+    document.dispatchEvent(modalsLoaded);
+}
+
+/**
+ * Gets user data from chat client URL
+ * @param userID: id of desired user (current user if null)
+ * @returns {Promise<{}>} promise resolving obtaining of user data
+ */
+async function getUserData(userID = null) {
+    let userData = {}
+    let query_url = `users_api/`;
+    if (userID) {
+        query_url += '?user_id=' + userID;
+    }
+    await fetchServer(query_url)
+        .then(response => response.ok ? response.json() : {
+            'data': {}
+        })
+        .then(data => {
+            userData = data['data'];
+            const oldToken = getSessionToken();
+            if (data['token'] !== oldToken && !userID) {
+                setSessionToken(data['token']);
+            }
+        });
+    return userData;
+}
+
+/**
+ * Method that handles fetching provided user data with valid login credentials
+ * @returns {Promise<void>} promise resolving validity of user-entered data
+ */
+async function loginUser() {
+    const loginModalBody = document.getElementById('loginModalBody');
+    const query_url = `auth/login/`;
+    const formData = new FormData();
+    const inputValues = [loginUsername.value, loginPassword.value];
+    if (inputValues.includes("") || inputValues.includes(null)) {
+        displayAlert(loginModalBody, 'Required fields are blank', 'danger');
+    } else {
+        formData.append('username', loginUsername.value);
+        formData.append('password', loginPassword.value);
+        await fetchServer(query_url, REQUEST_METHODS.POST, formData)
+            .then(async response => {
+                return {
+                    'ok': response.ok,
+                    'data': await response.json()
+                };
+            })
+            .then(async responseData => {
+                if (responseData['ok']) {
+                    setSessionToken(responseData['data']['token']);
+                } else {
+                    displayAlert(loginModalBody, responseData['data']['msg'], 'danger', 'login-failed-alert');
+                    loginPassword.value = "";
+                }
+            }).catch(ex => {
+                console.warn(`Exception during loginUser -> ${ex}`);
+                displayAlert(loginModalBody);
+            });
+    }
+}
+
+/**
+ * Method that handles logging user out
+ * @returns {Promise<void>} promise resolving user logout
+ */
+async function logoutUser() {
+    const query_url = `auth/logout/`;
+    await fetchServer(query_url).then(async response => {
+        if (response.ok) {
+            const responseJson = await response.json();
+            setSessionToken(responseJson['token']);
+        }
+    });
+}
+
+/**
+ * Method that handles fetching provided user data with valid sign up credentials
+ * @returns {Promise<void>} promise resolving validity of new user creation
+ */
+async function createUser() {
+    const signupModalBody = document.getElementById('signupModalBody');
+    const query_url = `auth/signup/`;
+    const formData = new FormData();
+    const inputValues = [signupUsername.value, signupFirstName.value, signupLastName.value, signupPassword.value, repeatSignupPassword.value];
+    if (inputValues.includes("") || inputValues.includes(null)) {
+        displayAlert(signupModalBody, 'Required fields are blank', 'danger');
+    } else if (signupPassword.value !== repeatSignupPassword.value) {
+        displayAlert(signupModalBody, 'Passwords do not match', 'danger');
+    } else {
+        formData.append('nickname', signupUsername.value);
+        formData.append('first_name', signupFirstName.value);
+        formData.append('last_name', signupLastName.value);
+        formData.append('password', signupPassword.value);
+        await fetchServer(query_url, REQUEST_METHODS.POST, formData)
+            .then(async response => {
+                return {
+                    'ok': response.ok,
+                    'data': await response.json()
+                }
+            })
+            .then(async data => {
+                if (data['ok']) {
+                    setSessionToken(data['data']['token']);
+                } else {
+                    let errorMessage = 'Failed to create an account';
+                    if (data['data'].hasOwnProperty('msg')) {
+                        errorMessage = data['data']['msg'];
+                    }
+                    displayAlert(signupModalBody, errorMessage, 'danger');
+                }
+            });
+    }
+}
+
+/**
+ * Helper method for updating navbar based on current user property
+ * @param forceUpdate to force updating of navbar (defaults to false)
+ */
+function updateNavbar(forceUpdate = false) {
+    if (currentUser || forceUpdate) {
+        let innerText = shrinkToFit(currentUser['nickname'], 10);
+        let targetElems = [currentUserNavDisplay];
+        if (configData.client === CLIENTS.MAIN) {
+            if (currentUser['is_tmp']) {
+                // Leaving only "guest" without suffix
+                innerText = innerText.split('_')[0]
+                innerText += ', Login';
+            } else {
+                innerText += ', Logout';
+            }
+        } else if (configData.client === CLIENTS.NANO) {
+            if (currentUser['is_tmp']) {
+                // Leaving only "guest" without suffix
+                innerText = innerText.split('_')[0]
+                innerText += ' <i class="fa-solid fa-right-to-bracket"></i>';
+            } else {
+                innerText += ' <i class="fa-solid fa-right-from-bracket"></i>';
+            }
+            targetElems = Array.from(document.getElementsByClassName('account-link'))
+        }
+        if (targetElems.length > 0 && targetElems[0]) {
+            targetElems.forEach(elem => {
+                elem.innerHTML = `<a class="nav-link" href="#" style="color: #fff" data-toggle="tooltip" title="Authorized as ${currentUser['nickname']}">
+${innerText}
+</a>`;
+            });
+        }
+    }
+}
+
+/**
+ * Custom Event fired on current user loaded
+ * @type {CustomEvent<string>}
+ */
+const currentUserLoaded = new CustomEvent("currentUserLoaded", {
+    "detail": "Event that is fired when current user is loaded"
+});
+
+/**
+ * Convenience method encapsulating refreshing page view based on current user
+ * @param refreshChats: to refresh the chats (defaults to false)
+ * @param conversationContainer: DOM Element representing conversation container
+ */
+async function refreshCurrentUser(refreshChats = false, conversationContainer = null) {
+    await getUserData().then(data => {
+        currentUser = data;
+        console.log(`Loaded current user = ${JSON.stringify(currentUser)}`);
+        setTimeout(() => updateNavbar(), 500);
+        if (refreshChats) {
+            refreshChatView(conversationContainer);
+        }
+        console.log('current user loaded');
+        document.dispatchEvent(currentUserLoaded);
+        return data;
+    });
+}
+
+
+
+document.addEventListener('DOMContentLoaded', async (e) => {
+    if (configData['client'] === CLIENTS.MAIN) {
+        await initModals();
+        currentUserNavDisplay.addEventListener('click', (e) => {
+            e.preventDefault();
+            currentUser['is_tmp'] ? loginModal.modal('show') : logoutModal.modal('show');
+        });
+    }
+});
+/**
+ * Gets time object from provided UNIX timestamp
+ * @param timestampCreated: UNIX timestamp (in seconds)
+ * @returns {string} string time (hours:minutes)
+ */
+function getTimeFromTimestamp(timestampCreated = 0) {
+    if (!timestampCreated) {
+        return ''
+    }
+    let date = new Date(timestampCreated * 1000);
+    let year = date.getFullYear().toString();
+    let month = date.getMonth() + 1;
+    month = month >= 10 ? month.toString() : '0' + month.toString();
+    let day = date.getDate();
+
+    day = day >= 10 ? day.toString() : '0' + day.toString();
+    const hours = date.getHours().toString();
+    let minutes = date.getMinutes();
+    minutes = minutes >= 10 ? minutes.toString() : '0' + minutes.toString();
+    return strFmtDate(year, month, day, hours, minutes, null);
+}
+
+/**
+ * Composes date based on input params
+ * @param year: desired year
+ * @param month: desired month
+ * @param day: desired day
+ * @param hours: num of hours
+ * @param minutes: minutes
+ * @param seconds: seconds
+ * @return date string
+ */
+function strFmtDate(year, month, day, hours, minutes, seconds) {
+    let finalDate = "";
+    if (year && month && day) {
+        finalDate += `${year}-${month}-${day}`
+    }
+    if (hours && minutes) {
+        finalDate += ` ${hours}:${minutes}`
+        if (seconds) {
+            finalDate += `:${seconds}`
+        }
+    }
+    return finalDate;
+}
+/**
+ * Downloads desired content
+ * @param content: content to download
+ * @param filename: name of the file to download
+ * @param contentType: type of the content
+ */
+function download(content, filename, contentType = 'application/octet-stream') {
+    if (content) {
+        const a = document.createElement('a');
+        const blob = new Blob([content], {
+            'type': contentType
+        });
+        a.href = window.URL.createObjectURL(blob);
+        a.target = 'blank';
+        a.download = filename;
+        a.click();
+        window.URL.revokeObjectURL(content);
+    } else {
+        console.warn('Skipping downloading as content is invalid')
+    }
+}
+
+/**
+ * Handles error while loading the image data
+ * @param image: target image Node
+ */
+function handleImgError(image) {
+    image.parentElement.insertAdjacentHTML('afterbegin', `<p>${image.getAttribute('alt')}</p>`);
+    image.parentElement.removeChild(image);
+}
+const myAccountLink = document.getElementById('myAccountLink');
+
+/**
+ * Shows modal associated with profile
+ * @param nick: nickname to fetch
+ * @param edit: to open modal in edit mode
+ *
+ * @return true if modal shown successfully, false otherwise
+ */
+async function showProfileModal(userID = null, edit = '0') {
+    let fetchURL = `${configData['currentURLBase']}/components/profile?`
+    let modalId;
+    let avatarId;
+    if (edit === '1') {
+        modalId = `${currentUser['_id']}EditModal`;
+        // avatarId = `${currentUser['nickname']}EditAvatar`;
+        fetchURL += `edit=1`;
+    } else {
+        modalId = `${userID}Modal`;
+        // avatarId = `${nick}Avatar`;
+        fetchURL += `user_id=${userID}`;
+    }
+    const profileModalHTML = await fetch(fetchURL, {
+        headers: new Headers({
+            'Authorization': getSessionToken()
+        })
+    }).then(async (response) => {
+        if (response.ok) {
+            return await response.text();
+        }
+        throw `unreachable (HTTP STATUS:${response.status}: ${response.statusText})`
+    }).catch(err => {
+        console.warn(err);
+        return null;
+    });
+    if (profileModalHTML) {
+        const existingModal = document.getElementById(modalId);
+        deleteElement(existingModal);
+        const main = document.getElementById('main');
+        main.insertAdjacentHTML('afterbegin', profileModalHTML);
+        const existingModalJQuery = $(`#${modalId}`);
+        existingModalJQuery.modal('show');
+        return true
+    }
+    return false;
+}
+
+/**
+ * Convenience wrapper to show modal in the edit mode
+ */
+async function showProfileEditModal() {
+    return await showProfileModal(null, '1');
+}
+
+/**
+ * Previews uploaded image
+ * @param nickname: target nickname
+ */
+const previewFile = (nickname) => {
+    const userNewAvatar = document.getElementById(`${nickname}NewAvatar`);
+    const userEditAvatar = document.getElementById(`${nickname}EditAvatar`);
+    if (userNewAvatar?.files.length > 0) {
+        const objectURL = window.URL.createObjectURL(userNewAvatar.files[0]);
+        try {
+            URL.revokeObjectURL(userEditAvatar.src);
+        } catch (e) {
+            console.debug('Its initial URL');
+        }
+        userEditAvatar.src = objectURL;
+    }
+}
+
+async function initProfileEditModal() {
+    const nickname = currentUser['nickname'];
+    if (currentUser?.is_tmp) {
+        loginModal.modal('show');
+        return
+    }
+    const modalShown = await showProfileEditModal().catch(err => {
+        console.warn(`Failed to show edit profile modal - ${err}`);
+        return false;
+    });
+    if (!modalShown) return;
+    const editProfileSubmitButton = document.getElementById(`${nickname}EditSubmit`);
+    const userNewAvatar = document.getElementById(`${nickname}NewAvatar`);
+    const userEditAvatar = document.getElementById(`${nickname}EditAvatar`);
+    const logoutButton = document.getElementById('logoutButton');
+
+    editProfileSubmitButton.addEventListener('click', async (e) => {
+        e.preventDefault();
+        const nick = currentUser['nickname'];
+        const nickname = document.getElementById(`${nick}EditNickname`);
+        const firstName = document.getElementById(`${nick}EditFirstName`);
+        const lastName = document.getElementById(`${nick}EditLastName`);
+        const bio = document.getElementById(`${nick}EditBio`);
+        const password = document.getElementById(`${nick}EditPassword`);
+        const repeatPassword = document.getElementById(`${nick}RepeatEditPassword`);
+
+        const formData = new FormData();
+
+        if (userNewAvatar?.files.length > 0) {
+            formData.append('avatar', userNewAvatar.files[0]);
+        }
+        formData.append('user_id', currentUser['_id']);
+        formData.append('nickname', nickname.value);
+        formData.append('first_name', firstName.value);
+        formData.append('last_name', lastName.value);
+        formData.append('bio', bio.value);
+        formData.append('password', password.value);
+        formData.append('repeat_password', repeatPassword.value);
+
+        const query_url = `users_api/update`;
+        await fetchServer(query_url, REQUEST_METHODS.POST, formData).then(async response => {
+            const responseJson = await response.json();
+            if (response.ok) {
+                location.reload();
+            } else {
+                password.value = "";
+                repeatPassword.value = '';
+                displayAlert(document.getElementById(`${nick}EditBody`),
+                    `${responseJson['msg']}`,
+                    'danger');
+            }
+        });
+    });
+
+    userEditAvatar.addEventListener('click', (e) => {
+        e.preventDefault();
+        userNewAvatar.click();
+    });
+
+    logoutButton.addEventListener('click', (e) => {
+        $(`#${currentUser['nickname']}EditModal`).modal('hide');
+        logoutModal.modal('show');
+    });
+}
+
+
+/**
+ * Attaches invoker for current profile edit modal
+ * @param elem: target DOM element
+ */
+function attachEditModalInvoker(elem) {
+    elem.addEventListener('click', async (e) => {
+        e.preventDefault();
+        await initProfileEditModal();
+    });
+}
+
+
+document.addEventListener('DOMContentLoaded', (e) => {
+
+    if (configData.client === CLIENTS.MAIN) {
+        attachEditModalInvoker(myAccountLink);
+    }
+});
+/**
+ * Displays modal bounded to the provided conversation id
+ * @param modalElem: modal to display
+ * @param cid: conversation id to consider
+ */
+function displayModalInCID(modalElem, cid) {
+    modalElem.modal('hide');
+    $('.modal-backdrop').appendTo(`#${cid}`);
+    modalElem.modal('show');
 }
 /**
  * Generic function to play base64 audio file (currently only .wav format is supported)
@@ -944,118 +1575,789 @@ async function addRecorder(conversationData) {
         };
     }
 }
+let userSettingsModal;
+let applyUserSettings;
+let minifyMessagesCheck;
+let settingsLink;
+
 /**
- * Renders suggestions HTML
+ * Displays relevant user settings section based on provided name
+ * @param name: name of the section to display
  */
-async function renderSuggestions() {
-    const displayedCids = Object.values(await retrieveItemsLayout(true)).join(',');
-    await fetchServer(`chat_api/get_popular_cids?limit=5&search_str=${conversationSearchInput.value}&exclude_items=${displayedCids}`).then(async response => {
-        const items = await response.json();
-        importConversationModalSuggestions.innerHTML = "";
-        for (const item of Array.from(items)) {
-            importConversationModalSuggestions.insertAdjacentHTML('afterbegin', await buildSuggestionHTML(item['_id'], item['conversation_name']));
-        }
-        Array.from(importConversationModalSuggestions.getElementsByClassName('suggestion-item')).forEach(item => {
-            const cid = item.getAttribute('data-cid');
-            if (cid) {
-                item.addEventListener('click', async (e) => {
-                    await displayConversation(cid);
-                    conversationSearchInput.value = "";
-                    importConversationModal.modal('hide');
-                    // importConversationModalSuggestions.innerHTML = "";
-                });
-                item.addEventListener('mouseover', (event) => {
-                    item.classList.add('selected')
-                });
-                item.addEventListener('mouseleave', (event) => {
-                    item.classList.remove('selected')
-                });
-            }
+const displaySection = (name) => {
+    Array.from(document.getElementsByClassName('user-settings-section')).forEach(elem => {
+        elem.hidden = true;
+    });
+    const elem = document.getElementById(`user-settings-${name}-section`);
+    elem.hidden = false;
+}
+
+/**
+ * Displays user settings based on received preferences
+ * @param preferences
+ */
+const displayUserSettings = (preferences) => {
+    if (preferences) {
+        minifyMessagesCheck.checked = preferences?.minify_messages === '1'
+    }
+}
+
+/**
+ * Initialises section of settings based on provided name
+ * @param sectionName: name of the section provided
+ */
+const initSettingsSection = async (sectionName) => {
+    await refreshCurrentUser(false)
+        .then(userData => displayUserSettings(userData?.preferences))
+        .then(_ => displaySection(sectionName));
+}
+
+/**
+ * Initialises User Settings Modal
+ */
+const initSettingsModal = async () => {
+    Array.from(document.getElementsByClassName('nav-user-settings')).forEach(navItem => {
+        navItem.addEventListener('click', async (e) => {
+            await initSettingsSection(navItem.getAttribute('data-section-name'));
         });
-        importConversationModalSuggestions.style.setProperty('display', 'inherit', 'important');
     });
 }
-const DATABASES = {
-    CHATS: 'chats'
+
+/**
+ * Applies new settings to current user
+ */
+const applyNewSettings = async () => {
+    const newUserSettings = {
+        'minify_messages': minifyMessagesCheck.checked ? '1' : '0'
+    };
+    const query_url = 'preferences/update'
+    await fetchServer(query_url, REQUEST_METHODS.POST, newUserSettings, true).then(async response => {
+        const responseJson = await response.json();
+        if (response.ok) {
+            location.reload();
+        } else {
+            displayAlert(document.getElementById(`userSettingsModalBody`),
+                `${responseJson['msg']}`,
+                'danger');
+        }
+    });
 }
-const DB_TABLES = {
-    CHAT_ALIGNMENT: 'chat_alignment',
-    MINIFY_SETTINGS: 'minify_settings',
-    CHAT_MESSAGES_PAGINATION: 'chat_messages_pagination'
+
+function initSettings(elem) {
+    elem.addEventListener('click', async (e) => {
+        await initSettingsModal();
+        userSettingsModal.modal('show');
+    });
 }
-const __db_instances = {}
-const __db_definitions = {
-    [DATABASES.CHATS]: {
-        [DB_TABLES.CHAT_ALIGNMENT]: `cid, added_on, skin`,
-        [DB_TABLES.CHAT_MESSAGES_PAGINATION]: `cid, oldest_created_on`
+
+/**
+ * Initialise user settings links based on the current client
+ */
+const initSettingsLinks = () => {
+    if (configData.client === CLIENTS.NANO) {
+        console.log('initialising settings link for ', Array.from(document.getElementsByClassName('settings-link')).length, ' elements')
+        Array.from(document.getElementsByClassName('settings-link')).forEach(elem => {
+            initSettings(elem);
+        });
+    } else {
+        initSettings(document.getElementById('settingsLink'));
+    }
+}
+
+document.addEventListener('DOMContentLoaded', (_) => {
+    if (configData.client === CLIENTS.MAIN) {
+        userSettingsModal = $('#userSettingsModal');
+        applyUserSettings = document.getElementById('applyUserSettings');
+        minifyMessagesCheck = document.getElementById('minifyMessages');
+        applyUserSettings.addEventListener('click', async (e) => await applyNewSettings());
+        settingsLink = document.getElementById('settingsLink');
+        settingsLink.addEventListener('click', async (e) => {
+            e.preventDefault();
+            await initSettingsModal();
+            userSettingsModal.modal('show');
+        });
+    } else {
+        document.addEventListener('modalsLoaded', (e) => {
+            userSettingsModal = $('#userSettingsModal');
+            applyUserSettings = document.getElementById('applyUserSettings');
+            minifyMessagesCheck = document.getElementById('minifyMessages');
+            applyUserSettings.addEventListener('click', async (e) => await applyNewSettings());
+            if (configData.client === CLIENTS.MAIN) {
+                initSettingsLinks();
+            }
+        });
+
+        document.addEventListener('nanoChatsLoaded', (e) => {
+            setTimeout(() => initSettingsLinks(), 1000);
+        })
+    }
+});
+/**
+ * Object representing loaded HTML components mapping:
+ * - key: component name,
+ * - value: HTML template that should be populated with actual data)
+ * @type Object
+ */
+let loadedComponents = {}
+
+/**
+ * Fetches template context into provided html template
+ * @param html: HTML template
+ * @param templateContext: object containing context to fetch
+ * @return {string} HTML with fetched context
+ */
+function fetchTemplateContext(html, templateContext) {
+    for (const [key, value] of Object.entries(templateContext)) {
+        html = html.replaceAll('{' + key + '}', value);
+    }
+    return html;
+}
+
+/**
+ * Builds HTML from passed params and template name
+ * @param templateName: name of the template to fetch
+ * @param templateContext: properties from template to fetch
+ * @param requestArgs: request string arguments (optional)
+ * @returns built template string
+ */
+async function buildHTMLFromTemplate(templateName, templateContext = {}, requestArgs = '') {
+    if (!configData['DISABLE_CACHING'] && loadedComponents.hasOwnProperty(templateName) && !requestArgs) {
+        const html = loadedComponents[templateName];
+        return fetchTemplateContext(html, templateContext);
+    } else {
+        return await fetch(`${configData['currentURLBase']}/components/${templateName}?${requestArgs}`)
+            .then((response) => {
+                if (response.ok) {
+                    return response.text();
+                }
+                throw `template unreachable (HTTP STATUS:${response.status}: ${response.statusText})`
+            })
+            .then((html) => {
+                if (!(configData['DISABLE_CACHING'] || loadedComponents.hasOwnProperty(templateName) || requestArgs)) {
+                    loadedComponents[templateName] = html;
+                }
+                return fetchTemplateContext(html, templateContext);
+            }).catch(err => console.warn(`Failed to fetch template for ${templateName}: ${err}`));
+    }
+}
+
+
+/**
+ * Get Node id based on language key
+ * @param cid: desired conversation id
+ * @param key: language key (e.g. 'en')
+ * @param inputType: type of the language input to apply (incoming or outcoming)
+ * @return {string} ID of Node
+ */
+function getLangOptionID(cid, key, inputType = 'incoming') {
+    return `language-option-${cid}-${inputType}-${key}`;
+}
+
+/**
+ * Build language selection HTML based on provided params
+ * @param cid: desired conversation id
+ * @param key: language key (e.g 'en')
+ * @param name: name of the language (e.g. English)
+ * @param icon: language icon (refers to flag-icon specs)
+ * @param inputType: type of the language input to apply (incoming or outcoming)
+ * @return {string} formatted langSelectPattern
+ */
+async function buildLangOptionHTML(cid, key, name, icon, inputType) {
+    return await buildHTMLFromTemplate('lang_option', {
+        'itemId': getLangOptionID(cid, key, inputType),
+        'key': key,
+        'name': name,
+        'icon': icon
+    })
+}
+
+/**
+ * Builds user message HTML
+ * @param userData: data of message sender
+ * @param cid: conversation id of target message
+ * @param messageID: id of user message
+ * @param messageText: text of user message
+ * @param timeCreated: date of creation
+ * @param isMine: if message was emitted by current user
+ * @param isAudio: if message is audio message (defaults to '0')
+ * @param isAnnouncement: is message if announcement (defaults to '0')
+ * @returns {string}: constructed HTML out of input params
+ */
+async function buildUserMessageHTML(userData, cid, messageID, messageText, timeCreated, isMine, isAudio = '0', isAnnouncement = '0') {
+    const messageTime = getTimeFromTimestamp(timeCreated);
+    let imageComponent;
+    let shortedNick = `${userData['nickname'][0]}${userData['nickname'][userData['nickname'].length - 1]}`;
+    if (userData.hasOwnProperty('avatar') && userData['avatar']) {
+        imageComponent = `<img alt="${shortedNick}" onerror="handleImgError(this);" src="${configData["CHAT_SERVER_URL_BASE"]}/files/avatar/${userData['_id']}" loading="lazy">`
+    } else {
+        imageComponent = `<p>${shortedNick}</p>`;
+    }
+    const messageClass = isAnnouncement === '1' ? 'announcement' : isMine ? 'in' : 'out';
+    const messageOrientation = isMine ? 'right' : 'left';
+    let minificationEnabled = currentUser?.preferences?.minify_messages === '1' || await getCurrentSkin(cid) === CONVERSATION_SKINS.PROMPTS;
+    let templateSuffix = minificationEnabled ? '_minified' : '';
+    const templateName = isAudio === '1' ? `user_message_audio${templateSuffix}` : `user_message${templateSuffix}`;
+    if (isAudio === '0') {
+        messageText = messageText.replaceAll('\n', '<br>');
+    }
+    let statusIconHTML = '';
+    let userTooltip = userData['nickname'];
+    if (userData?.is_bot === '1') {
+        statusIconHTML = ' <span class="fa fa-robot"></span>'
+        userTooltip = `bot ${userTooltip}`
+    }
+    return await buildHTMLFromTemplate(templateName, {
+        'message_class': messageClass,
+        'is_announcement': isAnnouncement,
+        'image_component': imageComponent,
+        'message_id': messageID,
+        'user_tooltip': userTooltip,
+        'nickname': userData['nickname'],
+        'nickname_shrunk': shrinkToFit(userData['nickname'], 15, '..'),
+        'status_icon': statusIconHTML,
+        'message_text': messageText,
+        'message_orientation': messageOrientation,
+        'audio_url': `${configData["CHAT_SERVER_URL_BASE"]}/files/audio/${messageID}`,
+        'message_time': messageTime
+    });
+}
+
+/**
+ *
+ * @param nick: nickname to shorten
+ * @return {string} - shortened nickname
+ */
+const shrinkNickname = (nick) => {
+    return `${nick[0]}${nick[nick.length - 1]}`;
+}
+
+
+/**
+ * Builds Prompt Skin HTML for submind responses
+ * @param promptID: target prompt id
+ * @param submindID: user id of submind
+ * @param submindUserData: user data of submind
+ * @param submindResponse: Responding data of submind to incoming prompt
+ * @param submindOpinion: Discussion data of submind to incoming prompt
+ * @param submindVote: Vote data of submind in prompt
+ * @return {Promise<string|void>} - Submind Data HTML populated with provided data
+ */
+async function buildSubmindHTML(promptID, submindID, submindUserData, submindResponse, submindOpinion, submindVote) {
+    const userNickname = shrinkNickname(submindUserData['nickname']);
+    let tooltip = submindUserData['nickname'];
+    if (submindUserData['is_bot']) {
+        tooltip = `bot ${tooltip}`;
+    }
+    const phaseDataObjectMapping = {
+        'response': submindResponse,
+        'opinion': submindOpinion,
+        'vote': submindVote
+    }
+    let templateData = {
+        'prompt_id': promptID,
+        'user_id': submindID,
+        'user_first_name': submindUserData['first_name'],
+        'user_last_name': submindUserData['last_name'],
+        'user_nickname': submindUserData['nickname'],
+        'user_nickname_shrunk': userNickname,
+        'user_avatar': `${configData["CHAT_SERVER_URL_BASE"]}/files/avatar/${submindID}`,
+        'tooltip': tooltip
+    }
+    const submindPromptData = {}
+    for (const [k, v] of Object.entries(phaseDataObjectMapping)) {
+        submindPromptData[k] = v.message_text
+        submindPromptData[`${k}_message_id`] = v?.message_id
+        const dateCreated = getTimeFromTimestamp(v?.created_on);
+        submindPromptData[`${k}_created_on`] = v?.created_on;
+        submindPromptData[`${k}_created_on_tooltip`] = dateCreated ? `shouted on: ${dateCreated}` : `no ${k} from ${userNickname} in this prompt`;
+    }
+    return await buildHTMLFromTemplate("prompt_participant", Object.assign(templateData, submindPromptData));
+}
+
+
+/**
+ * Gets winner text based on the provided winner data
+ * @param winner: provided winner
+ * @return {string} generated winner text
+ */
+const getPromptWinnerText = (winner) => {
+    let res;
+    if (winner) {
+        res = `Selected winner "${winner}"`;
+    } else {
+        res = 'Consensus not reached';
+    }
+    return res;
+}
+
+
+/**
+ * Builds prompt HTML from received prompt data
+ * @param prompt: prompt object
+ * @return Prompt HTML
+ */
+async function buildPromptHTML(prompt) {
+    let submindsHTML = "";
+    const promptData = prompt['data'];
+    if (prompt['is_completed'] === '0') {
+        promptData['winner'] = `Prompt in progress
+<div class="spinner-border spinner-border-sm text-dark" role="status">
+<span class="sr-only">Loading...</span>
+</div>`
+    } else {
+        promptData['winner'] = getPromptWinnerText(promptData['winner']);
+    }
+    const emptyAnswer = `<h4>-</h4>`;
+    for (const submindID of Array.from(setDefault(promptData, 'participating_subminds', []))) {
+        let submindUserData;
+        try {
+            const searchedKeys = ['proposed_responses', 'submind_opinions', 'votes'];
+            let isLegacy = false;
+            try {
+                submindUserData = prompt['user_mapping'][submindID][0];
+            } catch (e) {
+                console.warn('Detected legacy prompt structure');
+                submindUserData = {
+                    'nickname': submindID,
+                    'first_name': 'Klat',
+                    'last_name': 'User',
+                    'is_bot': '0'
+                }
+                isLegacy = true
+            }
+            const data = {}
+            searchedKeys.forEach(key => {
+                try {
+                    const messageId = promptData[key][submindID];
+                    let value = null;
+                    if (!isLegacy) {
+                        value = prompt['message_mapping'][messageId][0];
+                        value['message_id'] = messageId;
+                    }
+                    if (!value) {
+                        value = {
+                            'message_text': emptyAnswer
+                        }
+                    }
+                    data[key] = value;
+                } catch (e) {
+                    data[key] = {
+                        'message_text': emptyAnswer
+                    };
+                }
+            });
+            submindsHTML += await buildSubmindHTML(prompt['_id'], submindID, submindUserData,
+                data.proposed_responses, data.submind_opinions, data.votes);
+        } catch (e) {
+            console.log(`Malformed data for ${submindID} (prompt_id=${prompt['_id']}) ex=${e}`);
+        }
+    }
+    return await buildHTMLFromTemplate("prompt_table", {
+        'prompt_text': promptData['prompt_text'],
+        'selected_winner': promptData['winner'],
+        'prompt_participants_data': submindsHTML,
+        'prompt_id': prompt['_id'],
+        'cid': prompt['cid'],
+        'message_time': prompt['created_on']
+    });
+}
+
+/**
+ * Gets user message HTML from received message data object
+ * @param message: Message Object received
+ * @param skin: conversation skin
+ * @return {Promise<string>} HTML by the provided message data
+ */
+async function messageHTMLFromData(message, skin = CONVERSATION_SKINS.BASE) {
+    if (skin === CONVERSATION_SKINS.PROMPTS && message['message_type'] === 'prompt') {
+        return buildPromptHTML(message);
+    } else {
+        const isMine = currentUser && message['user_nickname'] === currentUser['nickname'];
+        return buildUserMessageHTML({
+                'avatar': message['user_avatar'],
+                'nickname': message['user_nickname'],
+                'is_bot': message['user_is_bot'],
+                '_id': message['user_id']
+            },
+            message['cid'],
+            message['message_id'],
+            message['message_text'],
+            message['created_on'],
+            isMine,
+            message?.is_audio,
+            message?.is_announcement);
     }
 }
 
 /**
- * Gets database and table from name
- * @param db: database name to get
- * @param table: table name to get
- * @return {Table} Dexie database object under specified table
+ * Builds HTML for received conversation data
+ * @param conversationData: JS Object containing conversation data of type:
+ * {
+ *     '_id': 'id of conversation',
+ *     'conversation_name': 'title of the conversation',
+ *     'chat_flow': [{
+ *         'user_nickname': 'nickname of sender',
+ *         'user_avatar': 'avatar of sender',
+ *         'message_id': 'id of the message',
+ *         'message_text': 'text of the message',
+ *         'created_on': 'creation time of the message'
+ *     }, ... (num of user messages returned)]
+ * }
+ * @param skin: conversation skin to build
+ * @returns {string} conversation HTML based on provided data
  */
-const getDb = (db, table) => {
-    let _instance;
-    if (!Object.keys(__db_instances).includes(db)) {
-        _instance = new Dexie(name);
-        if (Object.keys(__db_definitions).includes(db)) {
-            _instance.version(1).stores(__db_definitions[db]);
+async function buildConversationHTML(conversationData = {}, skin = CONVERSATION_SKINS.BASE) {
+    const cid = conversationData['_id'];
+    const conversation_name = conversationData['conversation_name'];
+    let chatFlowHTML = "";
+    if (conversationData.hasOwnProperty('chat_flow')) {
+        for (const message of Array.from(conversationData['chat_flow'])) {
+            message['cid'] = cid;
+            chatFlowHTML += await messageHTMLFromData(message, skin);
+            // if (skin === CONVERSATION_SKINS.BASE) {
+            addConversationParticipant(cid, message['user_nickname']);
+            // }
         }
-        __db_instances[db] = _instance;
     } else {
-        _instance = __db_instances[db];
+        chatFlowHTML += `<div class="blank_chat">No messages in this chat yet...</div>`;
     }
-    return _instance[table];
+    const conversationNameShrunk = shrinkToFit(conversation_name, 6);
+    let nanoHeaderHTML = '';
+    if (configData.client === CLIENTS.NANO) {
+        nanoHeaderHTML = await buildHTMLFromTemplate('nano_header', {
+            'cid': cid
+        })
+    }
+    return await buildHTMLFromTemplate('conversation', {
+        'cid': cid,
+        'nano_header': nanoHeaderHTML,
+        'conversation_name': conversation_name,
+        'conversation_name_shrunk': conversationNameShrunk,
+        'chat_flow': chatFlowHTML
+    }, `skin=${skin}`);
+}
+
+/**
+ * Builds suggestion HTML
+ * @param cid: target conversation id
+ * @param name: target conversation name
+ * @return {Promise<string|void>} HTML with fetched data
+ */
+const buildSuggestionHTML = async (cid, name) => {
+    return await buildHTMLFromTemplate('suggestion', {
+        'cid': cid,
+        'conversation_name': name
+    })
+};
+const REQUEST_METHODS = {
+    GET: 'GET',
+    PUT: 'PUT',
+    DELETE: 'DELETE',
+    POST: 'POST'
 }
 
 
-class DBGateway {
-    constructor(db, table) {
-        this.db = db;
-        this.table = table;
+const getSessionToken = () => {
+    return localStorage.getItem('session') || '';
+}
 
-        this._db_instance = getDb(this.db, this.table);
-        this._db_columns_definitions = __db_definitions[this.db][this.table]
-        this._db_key = this._db_columns_definitions.split(',')[0]
+const setSessionToken = (val) => {
+    const currentValue = getSessionToken();
+    localStorage.setItem('session', val);
+    if (currentValue && currentValue !== val) {
+        location.reload();
     }
+}
 
-    async getItem(key = "") {
-        return await this._db_instance.where({
-            [this._db_key]: key
-        }).first();
+const fetchServer = async (urlSuffix, method = REQUEST_METHODS.GET, body = null, json = false) => {
+    const options = {
+        method: method,
+        headers: new Headers({
+            'Authorization': getSessionToken()
+        })
     }
-
-    async listItems(orderBy = "") {
-        let expression = this._db_instance;
-        if (orderBy !== "") {
-            expression = expression.orderBy(orderBy)
+    if (body) {
+        options['body'] = body;
+    }
+    // TODO: there is an issue validating FormData on backend, so JSON property should eventually become true
+    if (json) {
+        options['headers'].append('Content-Type', 'application/json');
+        if (options['body']) {
+            options['body'] &&= JSON.stringify(options['body'])
         }
-        return await expression.toArray();
     }
-
-    async putItem(data = {}) {
-        return await this._db_instance.put(data, [data[this._db_key]])
-    }
-
-    updateItem(data = {}) {
-        const key = data[this._db_key]
-        delete data[this._db_key]
-        return this._db_instance.update(key, data);
-    }
-
-    async deleteItem(key = "") {
-        return await this._db_instance.where({
-            [this._db_key]: key
-        }).delete();
-    }
-
-    static getInstance(table) {
-        return new DBGateway(DATABASES.CHATS, table);
+    return fetch(`${configData["CHAT_SERVER_URL_BASE"]}/${urlSuffix}`, options).then(async response => {
+        if (response.status === 401) {
+            const responseJson = await response.json();
+            if (responseJson['msg'] === 'Session Expired') {
+                localStorage.removeItem('session');
+                location.reload();
+            }
+        }
+        return response;
+    });
+}
+/**
+ * Adds speaking callback for the message
+ * @param cid: id of the conversation
+ * @param messageID: id of the message
+ */
+function addTTSCallback(cid, messageID) {
+    const speakingButton = document.getElementById(`${messageID}_speak`);
+    if (speakingButton) {
+        speakingButton.addEventListener('click', (e) => {
+            e.preventDefault();
+            getTTS(cid, messageID, getPreferredLanguage(cid));
+            setChatState(cid, 'updating', `Fetching TTS...`)
+        });
     }
 }
+
+/**
+ * Adds speaking callback for the message
+ * @param cid: id of the conversation
+ * @param messageID: id of the message
+ */
+function addSTTCallback(cid, messageID) {
+    const sttButton = document.getElementById(`${messageID}_text`);
+    if (sttButton) {
+        sttButton.addEventListener('click', (e) => {
+            e.preventDefault();
+            const sttContent = document.getElementById(`${messageID}-stt`);
+            if (sttContent) {
+                sttContent.innerHTML = `<div class="text-center">
+Waiting for STT...  <div class="spinner-border spinner-border-sm" role="status">
+<span class="sr-only">Loading...</span>
+</div>
+</div>`;
+                sttContent.style.setProperty('display', 'block', 'important');
+                getSTT(cid, messageID, getPreferredLanguage(cid));
+            }
+        });
+    }
+}
+
+/**
+ * Attaches STT capabilities for audio messages and TTS capabilities for text messages
+ * @param cid: parent conversation id
+ * @param messageID: target message id
+ * @param isAudio: if its an audio message (defaults to '0')
+ */
+function addMessageTransformCallback(cid, messageID, isAudio = '0') {
+    if (isAudio === '1') {
+        addSTTCallback(cid, messageID);
+    } else {
+        addTTSCallback(cid, messageID);
+    }
+}
+
+
+/**
+ * Attaches STT capabilities for audio messages and TTS capabilities for text messages
+ * @param conversationData: conversation data object
+ */
+function addCommunicationChannelTransformCallback(conversationData) {
+    if (conversationData.hasOwnProperty('chat_flow')) {
+        getUserMessages(conversationData).forEach(message => {
+            addMessageTransformCallback(conversationData['_id'], message['message_id'], message?.is_audio);
+        });
+    }
+}
+/**
+ * Enum of possible Alert Behaviours:
+ * - DEFAULT: static alert message appeared with no expiration time
+ * - AUTO_EXPIRE: alert message will be expired after some amount of time (defaults to 3 seconds)
+ */
+const alertBehaviors = {
+    STATIC: 'static',
+    AUTO_EXPIRE: 'auto_expire'
+}
+
+/**
+ * Adds Bootstrap alert HTML to specified element's id
+ * @param parentElem: DOM Element in which to display alert
+ * @param text: Text of alert (defaults 'Error Occurred')
+ * @param alertType: Type of alert from bootstrap-supported alert types (defaults to 'danger')
+ * @param alertID: Id of alert to display (defaults to 'alert')
+ * @param alertBehaviorProperties: optional properties associated with alert message behavior
+ */
+function displayAlert(parentElem, text = 'Error Occurred', alertType = 'danger', alertID = 'alert',
+    alertBehaviorProperties = null) {
+    if (!parentElem) {
+        console.warn('Alert is not displayed as parentElem is not defined');
+        return
+    }
+    if (typeof parentElem === 'string') {
+        parentElem = document.getElementById(parentElem);
+    }
+    if (!['info', 'success', 'warning', 'danger', 'primary', 'secondary', 'dark'].includes(alertType)) {
+        alertType = 'danger'; //default
+    }
+    let alert = document.getElementById(alertID);
+    if (alert) {
+        alert.remove();
+    }
+
+    if (text) {
+        parentElem.insertAdjacentHTML('afterbegin',
+            `<div class="alert alert-${alertType} alert-dismissible" role="alert" id="${alertID}">
+<b>${text}</b>
+<button type="button" class="close" data-dismiss="alert" aria-label="Close">
+<span aria-hidden="true">&times;</span>
+</button>
+</div>`);
+        if (alertBehaviorProperties) {
+            setDefault(alertBehaviorProperties, 'type', alertBehaviors.STATIC);
+            if (alertBehaviorProperties['type'] === alertBehaviors.AUTO_EXPIRE) {
+                const expirationTime = setDefault(alertBehaviorProperties, 'expiration', 3000);
+                const slideLength = setDefault(alertBehaviorProperties, 'fadeLength', 500);
+                setTimeout(function() {
+                    $(`#${alertID}`).slideUp(slideLength, () => {
+                        $(this).remove();
+                    });
+                }, expirationTime);
+            }
+        }
+    }
+}
+
+/**
+ * Generates UUID hex
+ * @param length: length of UUID (defaults to 8)
+ * @param strPattern: pattern to follow for UUID (optional)
+ * @returns {string} Generated UUID hex
+ */
+function generateUUID(length = 8, strPattern = '00-0-4-1-000') {
+    const a = crypto.getRandomValues(new Uint16Array(length));
+    let i = 0;
+    return strPattern.replace(/[^-]/g,
+        s => (a[i++] + s * 0x10000 >> s).toString(16).padStart(4, '0')
+    );
+}
+
+/**
+ * Shrinks text to fit into desired length
+ * @param text: Text to shrink
+ * @param maxLength: max length of text to save
+ * @param suffix: suffix to apply after shrunk string
+ * @returns {string} Shrunk text, fitting into "maxLength"
+ */
+function shrinkToFit(text, maxLength, suffix = '...') {
+    if (text.length > maxLength) {
+        text = text.substring(0, maxLength) + suffix;
+    }
+    return text;
+}
+
+
+/**
+ * Converts file to base64
+ * @param file: desired file
+ * @return {Promise}
+ */
+const toBase64 = file => new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = error => reject(error);
+});
+
+/**
+ * Extracts filename from path
+ * @param path: path to extract from
+ */
+function getFilenameFromPath(path) {
+    return path.replace(/.*[\/\\]/, '');
+}
+
+/**
+ * Fetches URL with no-cors mode
+ * @param url: URL to fetch
+ * @param properties: request properties
+ * @return {Promise<Response>}: Promise of fetching
+ */
+function fetchNoCors(url, properties = {}) {
+    properties['mode'] = 'no-cors';
+    return fetch(url, properties)
+}
+
+/**
+ * Checks if element is in current viewport
+ * @param element: DOM element to check
+ * @return {boolean} True if element in current viewport False otherwise
+ */
+function isInViewport(element) {
+    const rect = element.getBoundingClientRect();
+    return (
+        rect.top >= 0 &&
+        rect.left >= 0 &&
+        rect.bottom <= (window.innerHeight || document.documentElement.clientHeight) &&
+        rect.right <= (window.innerWidth || document.documentElement.clientWidth)
+    );
+}
+
+/**
+ * Sets default value to the object under the specified key
+ * @param obj: object to consider
+ * @param key: object key to set
+ * @param val: default value to set
+ */
+function setDefault(obj, key, val) {
+    if (obj) {
+        obj[key] ??= val;
+    }
+    return obj[key];
+}
+
+/**
+ * Aggregates provided array by the key of its elements
+ * @param arr: array to aggregate
+ * @param key: aggregation key
+ */
+function aggregateByKey(arr, key) {
+    const result = {}
+    arr.forEach(item => {
+        try {
+            const keyValue = item[key];
+            delete item[key];
+            if (keyValue && !result[keyValue]) {
+                result[keyValue] = item;
+            }
+        } catch (e) {
+            console.warn(`item=${item} has no key ${key}`)
+        }
+    });
+    return result;
+}
+
+/**
+ * Deletes provided element from DOM
+ * @param elem: DOM Object to delete
+ */
+function deleteElement(elem) {
+    if (elem && elem?.parentElement) return elem.parentElement.removeChild(elem);
+}
+
+const MIMES = [
+    ["xml", "application/xml"],
+    ["bin", "application/vnd.ms-excel.sheet.binary.macroEnabled.main"],
+    ["vml", "application/vnd.openxmlformats-officedocument.vmlDrawing"],
+    ["data", "application/vnd.openxmlformats-officedocument.model+data"],
+    ["bmp", "image/bmp"],
+    ["png", "image/png"],
+    ["gif", "image/gif"],
+    ["emf", "image/x-emf"],
+    ["wmf", "image/x-wmf"],
+    ["jpg", "image/jpeg"],
+    ["jpeg", "image/jpeg"],
+    ["tif", "image/tiff"],
+    ["tiff", "image/tiff"],
+    ["jfif", "image/jfif"],
+    ["pdf", "application/pdf"],
+    ["rels", "application/vnd.openxmlformats-package.relationships+xml"]
+];
+
+const IMAGE_EXTENSIONS = MIMES.filter(item => item[1].startsWith('image/')).map(item => item[0]);
 /**
  * Returns DOM container for message elements under specific conversation id
  * @param cid: conversation id to consider
@@ -1448,422 +2750,6 @@ function emitUserMessage(textInputElem, cid, repliedMessageID = null, attachment
             textInputElem.value = "";
         }
     }
-}
-/**
- * Object representing loaded HTML components mapping:
- * - key: component name,
- * - value: HTML template that should be populated with actual data)
- * @type Object
- */
-let loadedComponents = {}
-
-/**
- * Fetches template context into provided html template
- * @param html: HTML template
- * @param templateContext: object containing context to fetch
- * @return {string} HTML with fetched context
- */
-function fetchTemplateContext(html, templateContext) {
-    for (const [key, value] of Object.entries(templateContext)) {
-        html = html.replaceAll('{' + key + '}', value);
-    }
-    return html;
-}
-
-/**
- * Builds HTML from passed params and template name
- * @param templateName: name of the template to fetch
- * @param templateContext: properties from template to fetch
- * @param requestArgs: request string arguments (optional)
- * @returns built template string
- */
-async function buildHTMLFromTemplate(templateName, templateContext = {}, requestArgs = '') {
-    if (!configData['DISABLE_CACHING'] && loadedComponents.hasOwnProperty(templateName) && !requestArgs) {
-        const html = loadedComponents[templateName];
-        return fetchTemplateContext(html, templateContext);
-    } else {
-        return await fetch(`${configData['currentURLBase']}/components/${templateName}?${requestArgs}`)
-            .then((response) => {
-                if (response.ok) {
-                    return response.text();
-                }
-                throw `template unreachable (HTTP STATUS:${response.status}: ${response.statusText})`
-            })
-            .then((html) => {
-                if (!(configData['DISABLE_CACHING'] || loadedComponents.hasOwnProperty(templateName) || requestArgs)) {
-                    loadedComponents[templateName] = html;
-                }
-                return fetchTemplateContext(html, templateContext);
-            }).catch(err => console.warn(`Failed to fetch template for ${templateName}: ${err}`));
-    }
-}
-
-
-/**
- * Get Node id based on language key
- * @param cid: desired conversation id
- * @param key: language key (e.g. 'en')
- * @param inputType: type of the language input to apply (incoming or outcoming)
- * @return {string} ID of Node
- */
-function getLangOptionID(cid, key, inputType = 'incoming') {
-    return `language-option-${cid}-${inputType}-${key}`;
-}
-
-/**
- * Build language selection HTML based on provided params
- * @param cid: desired conversation id
- * @param key: language key (e.g 'en')
- * @param name: name of the language (e.g. English)
- * @param icon: language icon (refers to flag-icon specs)
- * @param inputType: type of the language input to apply (incoming or outcoming)
- * @return {string} formatted langSelectPattern
- */
-async function buildLangOptionHTML(cid, key, name, icon, inputType) {
-    return await buildHTMLFromTemplate('lang_option', {
-        'itemId': getLangOptionID(cid, key, inputType),
-        'key': key,
-        'name': name,
-        'icon': icon
-    })
-}
-
-/**
- * Builds user message HTML
- * @param userData: data of message sender
- * @param cid: conversation id of target message
- * @param messageID: id of user message
- * @param messageText: text of user message
- * @param timeCreated: date of creation
- * @param isMine: if message was emitted by current user
- * @param isAudio: if message is audio message (defaults to '0')
- * @param isAnnouncement: is message if announcement (defaults to '0')
- * @returns {string}: constructed HTML out of input params
- */
-async function buildUserMessageHTML(userData, cid, messageID, messageText, timeCreated, isMine, isAudio = '0', isAnnouncement = '0') {
-    const messageTime = getTimeFromTimestamp(timeCreated);
-    let imageComponent;
-    let shortedNick = `${userData['nickname'][0]}${userData['nickname'][userData['nickname'].length - 1]}`;
-    if (userData.hasOwnProperty('avatar') && userData['avatar']) {
-        imageComponent = `<img alt="${shortedNick}" onerror="handleImgError(this);" src="${configData["CHAT_SERVER_URL_BASE"]}/files/avatar/${userData['_id']}" loading="lazy">`
-    } else {
-        imageComponent = `<p>${shortedNick}</p>`;
-    }
-    const messageClass = isAnnouncement === '1' ? 'announcement' : isMine ? 'in' : 'out';
-    const messageOrientation = isMine ? 'right' : 'left';
-    let minificationEnabled = currentUser?.preferences?.minify_messages === '1' || await getCurrentSkin(cid) === CONVERSATION_SKINS.PROMPTS;
-    let templateSuffix = minificationEnabled ? '_minified' : '';
-    const templateName = isAudio === '1' ? `user_message_audio${templateSuffix}` : `user_message${templateSuffix}`;
-    if (isAudio === '0') {
-        messageText = messageText.replaceAll('\n', '<br>');
-    }
-    let statusIconHTML = '';
-    let userTooltip = userData['nickname'];
-    if (userData?.is_bot === '1') {
-        statusIconHTML = ' <span class="fa fa-robot"></span>'
-        userTooltip = `bot ${userTooltip}`
-    }
-    return await buildHTMLFromTemplate(templateName, {
-        'message_class': messageClass,
-        'is_announcement': isAnnouncement,
-        'image_component': imageComponent,
-        'message_id': messageID,
-        'user_tooltip': userTooltip,
-        'nickname': userData['nickname'],
-        'nickname_shrunk': shrinkToFit(userData['nickname'], 15, '..'),
-        'status_icon': statusIconHTML,
-        'message_text': messageText,
-        'message_orientation': messageOrientation,
-        'audio_url': `${configData["CHAT_SERVER_URL_BASE"]}/files/audio/${messageID}`,
-        'message_time': messageTime
-    });
-}
-
-/**
- *
- * @param nick: nickname to shorten
- * @return {string} - shortened nickname
- */
-const shrinkNickname = (nick) => {
-    return `${nick[0]}${nick[nick.length - 1]}`;
-}
-
-
-/**
- * Builds Prompt Skin HTML for submind responses
- * @param promptID: target prompt id
- * @param submindID: user id of submind
- * @param submindUserData: user data of submind
- * @param submindResponse: Responding data of submind to incoming prompt
- * @param submindOpinion: Discussion data of submind to incoming prompt
- * @param submindVote: Vote data of submind in prompt
- * @return {Promise<string|void>} - Submind Data HTML populated with provided data
- */
-async function buildSubmindHTML(promptID, submindID, submindUserData, submindResponse, submindOpinion, submindVote) {
-    const userNickname = shrinkNickname(submindUserData['nickname']);
-    let tooltip = submindUserData['nickname'];
-    if (submindUserData['is_bot']) {
-        tooltip = `bot ${tooltip}`;
-    }
-    const phaseDataObjectMapping = {
-        'response': submindResponse,
-        'opinion': submindOpinion,
-        'vote': submindVote
-    }
-    let templateData = {
-        'prompt_id': promptID,
-        'user_id': submindID,
-        'user_first_name': submindUserData['first_name'],
-        'user_last_name': submindUserData['last_name'],
-        'user_nickname': submindUserData['nickname'],
-        'user_nickname_shrunk': userNickname,
-        'user_avatar': `${configData["CHAT_SERVER_URL_BASE"]}/files/avatar/${submindID}`,
-        'tooltip': tooltip
-    }
-    const submindPromptData = {}
-    for (const [k, v] of Object.entries(phaseDataObjectMapping)) {
-        submindPromptData[k] = v.message_text
-        submindPromptData[`${k}_message_id`] = v?.message_id
-        const dateCreated = getTimeFromTimestamp(v?.created_on);
-        submindPromptData[`${k}_created_on`] = v?.created_on;
-        submindPromptData[`${k}_created_on_tooltip`] = dateCreated ? `shouted on: ${dateCreated}` : `no ${k} from ${userNickname} in this prompt`;
-    }
-    return await buildHTMLFromTemplate("prompt_participant", Object.assign(templateData, submindPromptData));
-}
-
-
-/**
- * Gets winner text based on the provided winner data
- * @param winner: provided winner
- * @return {string} generated winner text
- */
-const getPromptWinnerText = (winner) => {
-    let res;
-    if (winner) {
-        res = `Selected winner "${winner}"`;
-    } else {
-        res = 'Consensus not reached';
-    }
-    return res;
-}
-
-
-/**
- * Builds prompt HTML from received prompt data
- * @param prompt: prompt object
- * @return Prompt HTML
- */
-async function buildPromptHTML(prompt) {
-    let submindsHTML = "";
-    const promptData = prompt['data'];
-    if (prompt['is_completed'] === '0') {
-        promptData['winner'] = `Prompt in progress
-<div class="spinner-border spinner-border-sm text-dark" role="status">
-<span class="sr-only">Loading...</span>
-</div>`
-    } else {
-        promptData['winner'] = getPromptWinnerText(promptData['winner']);
-    }
-    const emptyAnswer = `<h4>-</h4>`;
-    for (const submindID of Array.from(setDefault(promptData, 'participating_subminds', []))) {
-        let submindUserData;
-        try {
-            const searchedKeys = ['proposed_responses', 'submind_opinions', 'votes'];
-            let isLegacy = false;
-            try {
-                submindUserData = prompt['user_mapping'][submindID][0];
-            } catch (e) {
-                console.warn('Detected legacy prompt structure');
-                submindUserData = {
-                    'nickname': submindID,
-                    'first_name': 'Klat',
-                    'last_name': 'User',
-                    'is_bot': '0'
-                }
-                isLegacy = true
-            }
-            const data = {}
-            searchedKeys.forEach(key => {
-                try {
-                    const messageId = promptData[key][submindID];
-                    let value = null;
-                    if (!isLegacy) {
-                        value = prompt['message_mapping'][messageId][0];
-                        value['message_id'] = messageId;
-                    }
-                    if (!value) {
-                        value = {
-                            'message_text': emptyAnswer
-                        }
-                    }
-                    data[key] = value;
-                } catch (e) {
-                    data[key] = {
-                        'message_text': emptyAnswer
-                    };
-                }
-            });
-            submindsHTML += await buildSubmindHTML(prompt['_id'], submindID, submindUserData,
-                data.proposed_responses, data.submind_opinions, data.votes);
-        } catch (e) {
-            console.log(`Malformed data for ${submindID} (prompt_id=${prompt['_id']}) ex=${e}`);
-        }
-    }
-    return await buildHTMLFromTemplate("prompt_table", {
-        'prompt_text': promptData['prompt_text'],
-        'selected_winner': promptData['winner'],
-        'prompt_participants_data': submindsHTML,
-        'prompt_id': prompt['_id'],
-        'cid': prompt['cid'],
-        'message_time': prompt['created_on']
-    });
-}
-
-/**
- * Gets user message HTML from received message data object
- * @param message: Message Object received
- * @param skin: conversation skin
- * @return {Promise<string>} HTML by the provided message data
- */
-async function messageHTMLFromData(message, skin = CONVERSATION_SKINS.BASE) {
-    if (skin === CONVERSATION_SKINS.PROMPTS && message['message_type'] === 'prompt') {
-        return buildPromptHTML(message);
-    } else {
-        const isMine = currentUser && message['user_nickname'] === currentUser['nickname'];
-        return buildUserMessageHTML({
-                'avatar': message['user_avatar'],
-                'nickname': message['user_nickname'],
-                'is_bot': message['user_is_bot'],
-                '_id': message['user_id']
-            },
-            message['cid'],
-            message['message_id'],
-            message['message_text'],
-            message['created_on'],
-            isMine,
-            message?.is_audio,
-            message?.is_announcement);
-    }
-}
-
-/**
- * Builds HTML for received conversation data
- * @param conversationData: JS Object containing conversation data of type:
- * {
- *     '_id': 'id of conversation',
- *     'conversation_name': 'title of the conversation',
- *     'chat_flow': [{
- *         'user_nickname': 'nickname of sender',
- *         'user_avatar': 'avatar of sender',
- *         'message_id': 'id of the message',
- *         'message_text': 'text of the message',
- *         'created_on': 'creation time of the message'
- *     }, ... (num of user messages returned)]
- * }
- * @param skin: conversation skin to build
- * @returns {string} conversation HTML based on provided data
- */
-async function buildConversationHTML(conversationData = {}, skin = CONVERSATION_SKINS.BASE) {
-    const cid = conversationData['_id'];
-    const conversation_name = conversationData['conversation_name'];
-    let chatFlowHTML = "";
-    if (conversationData.hasOwnProperty('chat_flow')) {
-        for (const message of Array.from(conversationData['chat_flow'])) {
-            message['cid'] = cid;
-            chatFlowHTML += await messageHTMLFromData(message, skin);
-            // if (skin === CONVERSATION_SKINS.BASE) {
-            addConversationParticipant(cid, message['user_nickname']);
-            // }
-        }
-    } else {
-        chatFlowHTML += `<div class="blank_chat">No messages in this chat yet...</div>`;
-    }
-    const conversationNameShrunk = shrinkToFit(conversation_name, 6);
-    let nanoHeaderHTML = '';
-    if (configData.client === CLIENTS.NANO) {
-        nanoHeaderHTML = await buildHTMLFromTemplate('nano_header', {
-            'cid': cid
-        })
-    }
-    return await buildHTMLFromTemplate('conversation', {
-        'cid': cid,
-        'nano_header': nanoHeaderHTML,
-        'conversation_name': conversation_name,
-        'conversation_name_shrunk': conversationNameShrunk,
-        'chat_flow': chatFlowHTML
-    }, `skin=${skin}`);
-}
-
-/**
- * Builds suggestion HTML
- * @param cid: target conversation id
- * @param name: target conversation name
- * @return {Promise<string|void>} HTML with fetched data
- */
-const buildSuggestionHTML = async (cid, name) => {
-    return await buildHTMLFromTemplate('suggestion', {
-        'cid': cid,
-        'conversation_name': name
-    })
-};
-/**
- * Resolves user reply on message
- * @param replyID: id of user reply
- * @param repliedID id of replied message
- */
-function resolveUserReply(replyID, repliedID) {
-    if (repliedID) {
-        const repliedElem = document.getElementById(repliedID);
-        if (repliedElem) {
-            let repliedText = repliedElem.getElementsByClassName('message-text')[0].innerText;
-            repliedText = shrinkToFit(repliedText, 15);
-            const replyHTML = `<i class="reply-text" data-replied-id="${repliedID}">
-${repliedText}
-</i>`;
-            const replyPlaceholder = document.getElementById(replyID).getElementsByClassName('reply-placeholder')[0];
-            replyPlaceholder.insertAdjacentHTML('afterbegin', replyHTML);
-            attachReplyHighlighting(replyPlaceholder.getElementsByClassName('reply-text')[0]);
-        }
-    }
-}
-
-/**
- * Attaches reply highlighting for reply item
- * @param replyItem reply item element
- */
-function attachReplyHighlighting(replyItem) {
-    replyItem.addEventListener('click', (e) => {
-        const repliedItem = document.getElementById(replyItem.getAttribute('data-replied-id'));
-        const backgroundParent = repliedItem.parentElement.parentElement;
-        repliedItem.scrollIntoView();
-        backgroundParent.classList.remove('message-selected');
-        setTimeout(() => backgroundParent.classList.add('message-selected'), 500);
-    });
-}
-
-/**
- * Attaches message replies to initialized conversation
- * @param conversationData: conversation data object
- */
-function attachReplies(conversationData) {
-    if (conversationData.hasOwnProperty('chat_flow')) {
-        getUserMessages(conversationData).forEach(message => {
-            resolveUserReply(message['message_id'], message?.replied_message);
-        });
-        Array.from(document.getElementsByClassName('reply-text')).forEach(replyItem => {
-            attachReplyHighlighting(replyItem);
-        });
-    }
-}
-/**
- * Displays modal bounded to the provided conversation id
- * @param modalElem: modal to display
- * @param cid: conversation id to consider
- */
-function displayModalInCID(modalElem, cid) {
-    modalElem.modal('hide');
-    $('.modal-backdrop').appendTo(`#${cid}`);
-    modalElem.modal('show');
 }
 const importConversationModal = $('#importConversationModal');
 const importConversationOpener = document.getElementById('importConversationOpener');
@@ -2688,892 +3574,6 @@ document.addEventListener('DOMContentLoaded', (e) => {
         });
     }
 });
-const myAccountLink = document.getElementById('myAccountLink');
-
-/**
- * Shows modal associated with profile
- * @param nick: nickname to fetch
- * @param edit: to open modal in edit mode
- *
- * @return true if modal shown successfully, false otherwise
- */
-async function showProfileModal(userID = null, edit = '0') {
-    let fetchURL = `${configData['currentURLBase']}/components/profile?`
-    let modalId;
-    let avatarId;
-    if (edit === '1') {
-        modalId = `${currentUser['_id']}EditModal`;
-        // avatarId = `${currentUser['nickname']}EditAvatar`;
-        fetchURL += `edit=1`;
-    } else {
-        modalId = `${userID}Modal`;
-        // avatarId = `${nick}Avatar`;
-        fetchURL += `user_id=${userID}`;
-    }
-    const profileModalHTML = await fetch(fetchURL, {
-        headers: new Headers({
-            'Authorization': getSessionToken()
-        })
-    }).then(async (response) => {
-        if (response.ok) {
-            return await response.text();
-        }
-        throw `unreachable (HTTP STATUS:${response.status}: ${response.statusText})`
-    }).catch(err => {
-        console.warn(err);
-        return null;
-    });
-    if (profileModalHTML) {
-        const existingModal = document.getElementById(modalId);
-        deleteElement(existingModal);
-        const main = document.getElementById('main');
-        main.insertAdjacentHTML('afterbegin', profileModalHTML);
-        const existingModalJQuery = $(`#${modalId}`);
-        existingModalJQuery.modal('show');
-        return true
-    }
-    return false;
-}
-
-/**
- * Convenience wrapper to show modal in the edit mode
- */
-async function showProfileEditModal() {
-    return await showProfileModal(null, '1');
-}
-
-/**
- * Previews uploaded image
- * @param nickname: target nickname
- */
-const previewFile = (nickname) => {
-    const userNewAvatar = document.getElementById(`${nickname}NewAvatar`);
-    const userEditAvatar = document.getElementById(`${nickname}EditAvatar`);
-    if (userNewAvatar?.files.length > 0) {
-        const objectURL = window.URL.createObjectURL(userNewAvatar.files[0]);
-        try {
-            URL.revokeObjectURL(userEditAvatar.src);
-        } catch (e) {
-            console.debug('Its initial URL');
-        }
-        userEditAvatar.src = objectURL;
-    }
-}
-
-async function initProfileEditModal() {
-    const nickname = currentUser['nickname'];
-    if (currentUser?.is_tmp) {
-        loginModal.modal('show');
-        return
-    }
-    const modalShown = await showProfileEditModal().catch(err => {
-        console.warn(`Failed to show edit profile modal - ${err}`);
-        return false;
-    });
-    if (!modalShown) return;
-    const editProfileSubmitButton = document.getElementById(`${nickname}EditSubmit`);
-    const userNewAvatar = document.getElementById(`${nickname}NewAvatar`);
-    const userEditAvatar = document.getElementById(`${nickname}EditAvatar`);
-    const logoutButton = document.getElementById('logoutButton');
-
-    editProfileSubmitButton.addEventListener('click', async (e) => {
-        e.preventDefault();
-        const nick = currentUser['nickname'];
-        const nickname = document.getElementById(`${nick}EditNickname`);
-        const firstName = document.getElementById(`${nick}EditFirstName`);
-        const lastName = document.getElementById(`${nick}EditLastName`);
-        const bio = document.getElementById(`${nick}EditBio`);
-        const password = document.getElementById(`${nick}EditPassword`);
-        const repeatPassword = document.getElementById(`${nick}RepeatEditPassword`);
-
-        const formData = new FormData();
-
-        if (userNewAvatar?.files.length > 0) {
-            formData.append('avatar', userNewAvatar.files[0]);
-        }
-        formData.append('user_id', currentUser['_id']);
-        formData.append('nickname', nickname.value);
-        formData.append('first_name', firstName.value);
-        formData.append('last_name', lastName.value);
-        formData.append('bio', bio.value);
-        formData.append('password', password.value);
-        formData.append('repeat_password', repeatPassword.value);
-
-        const query_url = `users_api/update`;
-        await fetchServer(query_url, REQUEST_METHODS.POST, formData).then(async response => {
-            const responseJson = await response.json();
-            if (response.ok) {
-                location.reload();
-            } else {
-                password.value = "";
-                repeatPassword.value = '';
-                displayAlert(document.getElementById(`${nick}EditBody`),
-                    `${responseJson['msg']}`,
-                    'danger');
-            }
-        });
-    });
-
-    userEditAvatar.addEventListener('click', (e) => {
-        e.preventDefault();
-        userNewAvatar.click();
-    });
-
-    logoutButton.addEventListener('click', (e) => {
-        $(`#${currentUser['nickname']}EditModal`).modal('hide');
-        logoutModal.modal('show');
-    });
-}
-
-
-/**
- * Attaches invoker for current profile edit modal
- * @param elem: target DOM element
- */
-function attachEditModalInvoker(elem) {
-    elem.addEventListener('click', async (e) => {
-        e.preventDefault();
-        await initProfileEditModal();
-    });
-}
-
-
-document.addEventListener('DOMContentLoaded', (e) => {
-
-    if (configData.client === CLIENTS.MAIN) {
-        attachEditModalInvoker(myAccountLink);
-    }
-});
-let currentUserNavDisplay = document.getElementById('currentUserNavDisplay');
-/* Login items */
-let loginModal;
-let loginButton;
-let loginUsername;
-let loginPassword;
-let toggleSignup;
-/* Logout Items */
-let logoutModal;
-let logoutConfirm;
-/* Signup items */
-let signupModal;
-let signupButton;
-let signupUsername;
-let signupFirstName;
-let signupLastName;
-let signupPassword;
-let repeatSignupPassword;
-let toggleLogin;
-
-let currentUser = null;
-
-
-function initModalElements() {
-    currentUserNavDisplay = document.getElementById('currentUserNavDisplay');
-    logoutModal = $('#logoutModal');
-    logoutConfirm = document.getElementById('logoutConfirm');
-    loginModal = $('#loginModal');
-    loginButton = document.getElementById('loginButton');
-    loginUsername = document.getElementById('loginUsername');
-    loginPassword = document.getElementById('loginPassword');
-    toggleSignup = document.getElementById('toggleSignup');
-    signupModal = $('#signupModal');
-    signupButton = document.getElementById('signupButton');
-    signupUsername = document.getElementById('signupUsername');
-    signupFirstName = document.getElementById('signupFirstName');
-    signupLastName = document.getElementById('signupLastName');
-    signupPassword = document.getElementById('signupPassword');
-    repeatSignupPassword = document.getElementById('repeatSignupPassword');
-    toggleLogin = document.getElementById('toggleLogin');
-}
-
-
-const MODAL_NAMES = {
-    LOGIN: 'login',
-    LOGOUT: 'logout',
-    SIGN_UP: 'signup',
-    USER_SETTINGS: 'user_settings'
-}
-
-
-/**
- * Adds new modal under specific conversation id
- * @param name: name of the modal from MODAL_NAMES to add
- */
-async function addModal(name) {
-    if (Object.values(MODAL_NAMES).includes(name)) {
-        return await buildHTMLFromTemplate(`modals.${name}`)
-    } else {
-        console.warn(`Unresolved modal name - ${name}`)
-    }
-}
-
-/**
- * Initializes modals per target conversation id (if not provided - for main client)
- * @param parentID: id of the parent to attach element to
- */
-async function initModals(parentID = null) {
-    if (parentID) {
-        const parentElem = document.getElementById(parentID);
-        if (!parentElem) {
-            console.warn('No element detected with provided parentID=', parentID)
-            return -1;
-        }
-        for (const modalName of [
-                MODAL_NAMES.LOGIN,
-                MODAL_NAMES.LOGOUT,
-                MODAL_NAMES.SIGN_UP,
-                MODAL_NAMES.USER_SETTINGS
-            ]) {
-            const modalHTML = await addModal(modalName);
-            parentElem.insertAdjacentHTML('beforeend', modalHTML);
-        }
-    }
-    initModalElements();
-    logoutConfirm.addEventListener('click', (e) => {
-        e.preventDefault();
-        logoutUser().catch(err => console.error('Error while logging out user: ', err));
-    });
-    toggleLogin.addEventListener('click', (e) => {
-        e.preventDefault();
-        signupModal.modal('hide');
-        loginModal.modal('show');
-    });
-    loginButton.addEventListener('click', (e) => {
-        e.preventDefault();
-        loginUser().catch(err => console.error('Error while logging in user: ', err));
-    });
-    toggleSignup.addEventListener('click', (e) => {
-        e.preventDefault();
-        loginModal.modal('hide');
-        signupModal.modal('show');
-    });
-    signupButton.addEventListener('click', (e) => {
-        e.preventDefault();
-        createUser().catch(err => console.error('Error while creating a user: ', err));
-    });
-    const modalsLoaded = new CustomEvent('modalsLoaded');
-    document.dispatchEvent(modalsLoaded);
-}
-
-/**
- * Gets user data from chat client URL
- * @param userID: id of desired user (current user if null)
- * @returns {Promise<{}>} promise resolving obtaining of user data
- */
-async function getUserData(userID = null) {
-    let userData = {}
-    let query_url = `users_api/`;
-    if (userID) {
-        query_url += '?user_id=' + userID;
-    }
-    await fetchServer(query_url)
-        .then(response => response.ok ? response.json() : {
-            'data': {}
-        })
-        .then(data => {
-            userData = data['data'];
-            const oldToken = getSessionToken();
-            if (data['token'] !== oldToken && !userID) {
-                setSessionToken(data['token']);
-            }
-        });
-    return userData;
-}
-
-/**
- * Method that handles fetching provided user data with valid login credentials
- * @returns {Promise<void>} promise resolving validity of user-entered data
- */
-async function loginUser() {
-    const loginModalBody = document.getElementById('loginModalBody');
-    const query_url = `auth/login/`;
-    const formData = new FormData();
-    const inputValues = [loginUsername.value, loginPassword.value];
-    if (inputValues.includes("") || inputValues.includes(null)) {
-        displayAlert(loginModalBody, 'Required fields are blank', 'danger');
-    } else {
-        formData.append('username', loginUsername.value);
-        formData.append('password', loginPassword.value);
-        await fetchServer(query_url, REQUEST_METHODS.POST, formData)
-            .then(async response => {
-                return {
-                    'ok': response.ok,
-                    'data': await response.json()
-                };
-            })
-            .then(async responseData => {
-                if (responseData['ok']) {
-                    setSessionToken(responseData['data']['token']);
-                } else {
-                    displayAlert(loginModalBody, responseData['data']['msg'], 'danger', 'login-failed-alert');
-                    loginPassword.value = "";
-                }
-            }).catch(ex => {
-                console.warn(`Exception during loginUser -> ${ex}`);
-                displayAlert(loginModalBody);
-            });
-    }
-}
-
-/**
- * Method that handles logging user out
- * @returns {Promise<void>} promise resolving user logout
- */
-async function logoutUser() {
-    const query_url = `auth/logout/`;
-    await fetchServer(query_url).then(async response => {
-        if (response.ok) {
-            const responseJson = await response.json();
-            setSessionToken(responseJson['token']);
-        }
-    });
-}
-
-/**
- * Method that handles fetching provided user data with valid sign up credentials
- * @returns {Promise<void>} promise resolving validity of new user creation
- */
-async function createUser() {
-    const signupModalBody = document.getElementById('signupModalBody');
-    const query_url = `auth/signup/`;
-    const formData = new FormData();
-    const inputValues = [signupUsername.value, signupFirstName.value, signupLastName.value, signupPassword.value, repeatSignupPassword.value];
-    if (inputValues.includes("") || inputValues.includes(null)) {
-        displayAlert(signupModalBody, 'Required fields are blank', 'danger');
-    } else if (signupPassword.value !== repeatSignupPassword.value) {
-        displayAlert(signupModalBody, 'Passwords do not match', 'danger');
-    } else {
-        formData.append('nickname', signupUsername.value);
-        formData.append('first_name', signupFirstName.value);
-        formData.append('last_name', signupLastName.value);
-        formData.append('password', signupPassword.value);
-        await fetchServer(query_url, REQUEST_METHODS.POST, formData)
-            .then(async response => {
-                return {
-                    'ok': response.ok,
-                    'data': await response.json()
-                }
-            })
-            .then(async data => {
-                if (data['ok']) {
-                    setSessionToken(data['data']['token']);
-                } else {
-                    let errorMessage = 'Failed to create an account';
-                    if (data['data'].hasOwnProperty('msg')) {
-                        errorMessage = data['data']['msg'];
-                    }
-                    displayAlert(signupModalBody, errorMessage, 'danger');
-                }
-            });
-    }
-}
-
-/**
- * Helper method for updating navbar based on current user property
- * @param forceUpdate to force updating of navbar (defaults to false)
- */
-function updateNavbar(forceUpdate = false) {
-    if (currentUser || forceUpdate) {
-        let innerText = shrinkToFit(currentUser['nickname'], 10);
-        let targetElems = [currentUserNavDisplay];
-        if (configData.client === CLIENTS.MAIN) {
-            if (currentUser['is_tmp']) {
-                // Leaving only "guest" without suffix
-                innerText = innerText.split('_')[0]
-                innerText += ', Login';
-            } else {
-                innerText += ', Logout';
-            }
-        } else if (configData.client === CLIENTS.NANO) {
-            if (currentUser['is_tmp']) {
-                // Leaving only "guest" without suffix
-                innerText = innerText.split('_')[0]
-                innerText += ' <i class="fa-solid fa-right-to-bracket"></i>';
-            } else {
-                innerText += ' <i class="fa-solid fa-right-from-bracket"></i>';
-            }
-            targetElems = Array.from(document.getElementsByClassName('account-link'))
-        }
-        if (targetElems.length > 0 && targetElems[0]) {
-            targetElems.forEach(elem => {
-                elem.innerHTML = `<a class="nav-link" href="#" style="color: #fff" data-toggle="tooltip" title="Authorized as ${currentUser['nickname']}">
-${innerText}
-</a>`;
-            });
-        }
-    }
-}
-
-/**
- * Custom Event fired on current user loaded
- * @type {CustomEvent<string>}
- */
-const currentUserLoaded = new CustomEvent("currentUserLoaded", {
-    "detail": "Event that is fired when current user is loaded"
-});
-
-/**
- * Convenience method encapsulating refreshing page view based on current user
- * @param refreshChats: to refresh the chats (defaults to false)
- * @param conversationContainer: DOM Element representing conversation container
- */
-async function refreshCurrentUser(refreshChats = false, conversationContainer = null) {
-    await getUserData().then(data => {
-        currentUser = data;
-        console.log(`Loaded current user = ${JSON.stringify(currentUser)}`);
-        setTimeout(() => updateNavbar(), 500);
-        if (refreshChats) {
-            refreshChatView(conversationContainer);
-        }
-        console.log('current user loaded');
-        document.dispatchEvent(currentUserLoaded);
-        return data;
-    });
-}
-
-
-
-document.addEventListener('DOMContentLoaded', async (e) => {
-    if (configData['client'] === CLIENTS.MAIN) {
-        await initModals();
-        currentUserNavDisplay.addEventListener('click', (e) => {
-            e.preventDefault();
-            currentUser['is_tmp'] ? loginModal.modal('show') : logoutModal.modal('show');
-        });
-    }
-});
-const MessageScrollPosition = {
-    START: 'START',
-    END: 'END',
-    MIDDLE: 'MIDDLE',
-};
-
-/**
- * Gets current message list scroller position based on first and last n-items visibility
- * @param messageList: Container of messages
- * @param numElements: number of first and last elements to check for visibility
- * @param assertOnly: check only for one of the scroll position (preventing ambiguity if its a start or the end)
- * @return {string} MessageScrollPosition from Enum
- */
-function getMessageScrollPosition(messageList, numElements = 3, assertOnly = null) {
-    numElements = Math.min(messageList.children.length, numElements);
-    if (numElements > 0) {
-        for (let i = 1; i <= numElements; i++) {
-            if (!(assertOnly === MessageScrollPosition.START) &&
-                isInViewport(messageList.children[messageList.children.length - i])) {
-                return MessageScrollPosition.END;
-            }
-            if (!(assertOnly === MessageScrollPosition.END) && isInViewport(messageList.children[i - 1])) {
-                return MessageScrollPosition.START;
-            }
-        }
-    }
-    return MessageScrollPosition.MIDDLE;
-}
-
-/**
- * Decides whether scrolling on new message is required based on the current viewport
- * @param messageList: message list DOM element
- * @param lastNElements: number of last elements to consider a live following
- */
-function scrollOnNewMessage(messageList, lastNElements = 3) {
-    // If we see last element of the chat - we are following it
-    if (getMessageScrollPosition(messageList, lastNElements, MessageScrollPosition.END) === MessageScrollPosition.END) {
-        messageList.lastChild.scrollIntoView();
-    }
-}
-let __inputFileList = {};
-
-/**
- * Gets uploaded files from specified conversation id
- * @param cid specified conversation id
- * @return {*} list of files from specified cid if any
- */
-function getUploadedFiles(cid) {
-    if (__inputFileList.hasOwnProperty(cid)) {
-        return __inputFileList[cid];
-    }
-    return [];
-}
-
-/**
- * Cleans uploaded files per conversation
- */
-function cleanUploadedFiles(cid) {
-    if (__inputFileList.hasOwnProperty(cid)) {
-        delete __inputFileList[cid];
-    }
-    const attachmentsButton = document.getElementById('file-input-' + cid);
-    attachmentsButton.value = "";
-    const fileContainer = document.getElementById('filename-container-' + cid);
-    fileContainer.innerHTML = "";
-}
-
-/**
- * Adds File upload to specified cid
- * @param cid: mentioned cid
- * @param file: File object
- */
-function addUpload(cid, file) {
-    if (!__inputFileList.hasOwnProperty(cid)) {
-        __inputFileList[cid] = [];
-    }
-    __inputFileList[cid].push(file);
-}
-
-/**
- * Adds download request on attachment item click
- * @param attachmentItem: desired attachment item
- * @param cid: current conversation id
- * @param messageID: current message id
- */
-async function downloadAttachment(attachmentItem, cid, messageID) {
-    if (attachmentItem) {
-        const fileName = attachmentItem.getAttribute('data-file-name');
-        const mime = attachmentItem.getAttribute('data-mime');
-        const getFileURL = `files/${messageID}/get_attachment/${fileName}`;
-        await fetchServer(getFileURL).then(async response => {
-            response.ok ?
-                download(await response.blob(), fileName, mime) :
-                console.error(`No file data received for path,
-cid=${cid};\n
-message_id=${messageID};\n
-file_name=${fileName}`)
-        }).catch(err => console.error(`Failed to fetch: ${getFileURL}: ${err}`));
-    }
-}
-
-/**
- * Attaches message replies to initialized conversation
- * @param conversationData: conversation data object
- */
-function addAttachments(conversationData) {
-    if (conversationData.hasOwnProperty('chat_flow')) {
-        getUserMessages(conversationData).forEach(message => {
-            resolveMessageAttachments(conversationData['_id'], message['message_id'], message?.attachments);
-        });
-    }
-}
-
-/**
- * Activates attachments event listeners for message attachments in specified conversation
- * @param cid: desired conversation id
- * @param elem: parent element for attachment (defaults to document)
- */
-function activateAttachments(cid, elem = null) {
-    if (!elem) {
-        elem = document;
-    }
-    Array.from(elem.getElementsByClassName('attachment-item')).forEach(attachmentItem => {
-        attachmentItem.addEventListener('click', async (e) => {
-            e.preventDefault();
-            const attachmentName = attachmentItem.getAttribute('data-file-name');
-            try {
-                setChatState(cid, 'updating', `Downloading attachment file`);
-                await downloadAttachment(attachmentItem, cid, attachmentItem.parentNode.parentNode.id);
-            } catch (e) {
-                console.warn(`Failed to download attachment file - ${attachmentName} (${e})`)
-            } finally {
-                setChatState(cid, 'active');
-            }
-        });
-    });
-}
-
-
-/**
- * Returns DOM element to include as file resolver based on its name
- * @param filename: name of file to fetch
- * @return {string}: resulting DOM element
- */
-function attachmentHTMLBasedOnFilename(filename) {
-
-    let fSplitted = filename.split('.');
-    if (fSplitted.length > 1) {
-        const extension = fSplitted.pop();
-        const shrinkedName = shrinkToFit(filename, 12, `...${extension}`);
-        if (IMAGE_EXTENSIONS.includes(extension)) {
-            return `<i class="fa fa-file-image"></i> ${shrinkedName}`;
-        } else {
-            return shrinkedName;
-        }
-    }
-    return shrinkToFit(filename, 12);
-}
-
-/**
- * Resolves attachments to the message
- * @param cid: id of conversation
- * @param messageID: id of user message
- * @param attachments list of attachments received
- */
-function resolveMessageAttachments(cid, messageID, attachments = []) {
-    if (messageID) {
-        const messageElem = document.getElementById(messageID);
-        if (messageElem) {
-            const attachmentToggle = messageElem.getElementsByClassName('attachment-toggle')[0];
-            if (attachments.length > 0) {
-                if (messageElem) {
-                    const attachmentPlaceholder = messageElem.getElementsByClassName('attachments-placeholder')[0];
-                    attachments.forEach(attachment => {
-                        const attachmentHTML = `<span class="attachment-item" data-file-name="${attachment['name']}" data-mime="${attachment['mime']}" data-size="${attachment['size']}">
-${attachmentHTMLBasedOnFilename(attachment['name'])}
-</span><br>`;
-                        attachmentPlaceholder.insertAdjacentHTML('afterbegin', attachmentHTML);
-                    });
-                    attachmentToggle.addEventListener('click', (e) => {
-                        attachmentPlaceholder.style.display = attachmentPlaceholder.style.display === "none" ? "" : "none";
-                    });
-                    activateAttachments(cid, attachmentPlaceholder);
-                    attachmentToggle.style.display = "";
-                    // attachmentPlaceholder.style.display = "";
-                }
-            } else {
-                attachmentToggle.style.display = "none";
-            }
-        }
-    }
-}
-/**
- * Gets time object from provided UNIX timestamp
- * @param timestampCreated: UNIX timestamp (in seconds)
- * @returns {string} string time (hours:minutes)
- */
-function getTimeFromTimestamp(timestampCreated = 0) {
-    if (!timestampCreated) {
-        return ''
-    }
-    let date = new Date(timestampCreated * 1000);
-    let year = date.getFullYear().toString();
-    let month = date.getMonth() + 1;
-    month = month >= 10 ? month.toString() : '0' + month.toString();
-    let day = date.getDate();
-
-    day = day >= 10 ? day.toString() : '0' + day.toString();
-    const hours = date.getHours().toString();
-    let minutes = date.getMinutes();
-    minutes = minutes >= 10 ? minutes.toString() : '0' + minutes.toString();
-    return strFmtDate(year, month, day, hours, minutes, null);
-}
-
-/**
- * Composes date based on input params
- * @param year: desired year
- * @param month: desired month
- * @param day: desired day
- * @param hours: num of hours
- * @param minutes: minutes
- * @param seconds: seconds
- * @return date string
- */
-function strFmtDate(year, month, day, hours, minutes, seconds) {
-    let finalDate = "";
-    if (year && month && day) {
-        finalDate += `${year}-${month}-${day}`
-    }
-    if (hours && minutes) {
-        finalDate += ` ${hours}:${minutes}`
-        if (seconds) {
-            finalDate += `:${seconds}`
-        }
-    }
-    return finalDate;
-}
-/**
- * Enum of possible Alert Behaviours:
- * - DEFAULT: static alert message appeared with no expiration time
- * - AUTO_EXPIRE: alert message will be expired after some amount of time (defaults to 3 seconds)
- */
-const alertBehaviors = {
-    STATIC: 'static',
-    AUTO_EXPIRE: 'auto_expire'
-}
-
-/**
- * Adds Bootstrap alert HTML to specified element's id
- * @param parentElem: DOM Element in which to display alert
- * @param text: Text of alert (defaults 'Error Occurred')
- * @param alertType: Type of alert from bootstrap-supported alert types (defaults to 'danger')
- * @param alertID: Id of alert to display (defaults to 'alert')
- * @param alertBehaviorProperties: optional properties associated with alert message behavior
- */
-function displayAlert(parentElem, text = 'Error Occurred', alertType = 'danger', alertID = 'alert',
-    alertBehaviorProperties = null) {
-    if (!parentElem) {
-        console.warn('Alert is not displayed as parentElem is not defined');
-        return
-    }
-    if (typeof parentElem === 'string') {
-        parentElem = document.getElementById(parentElem);
-    }
-    if (!['info', 'success', 'warning', 'danger', 'primary', 'secondary', 'dark'].includes(alertType)) {
-        alertType = 'danger'; //default
-    }
-    let alert = document.getElementById(alertID);
-    if (alert) {
-        alert.remove();
-    }
-
-    if (text) {
-        parentElem.insertAdjacentHTML('afterbegin',
-            `<div class="alert alert-${alertType} alert-dismissible" role="alert" id="${alertID}">
-<b>${text}</b>
-<button type="button" class="close" data-dismiss="alert" aria-label="Close">
-<span aria-hidden="true">&times;</span>
-</button>
-</div>`);
-        if (alertBehaviorProperties) {
-            setDefault(alertBehaviorProperties, 'type', alertBehaviors.STATIC);
-            if (alertBehaviorProperties['type'] === alertBehaviors.AUTO_EXPIRE) {
-                const expirationTime = setDefault(alertBehaviorProperties, 'expiration', 3000);
-                const slideLength = setDefault(alertBehaviorProperties, 'fadeLength', 500);
-                setTimeout(function() {
-                    $(`#${alertID}`).slideUp(slideLength, () => {
-                        $(this).remove();
-                    });
-                }, expirationTime);
-            }
-        }
-    }
-}
-
-/**
- * Generates UUID hex
- * @param length: length of UUID (defaults to 8)
- * @param strPattern: pattern to follow for UUID (optional)
- * @returns {string} Generated UUID hex
- */
-function generateUUID(length = 8, strPattern = '00-0-4-1-000') {
-    const a = crypto.getRandomValues(new Uint16Array(length));
-    let i = 0;
-    return strPattern.replace(/[^-]/g,
-        s => (a[i++] + s * 0x10000 >> s).toString(16).padStart(4, '0')
-    );
-}
-
-/**
- * Shrinks text to fit into desired length
- * @param text: Text to shrink
- * @param maxLength: max length of text to save
- * @param suffix: suffix to apply after shrunk string
- * @returns {string} Shrunk text, fitting into "maxLength"
- */
-function shrinkToFit(text, maxLength, suffix = '...') {
-    if (text.length > maxLength) {
-        text = text.substring(0, maxLength) + suffix;
-    }
-    return text;
-}
-
-
-/**
- * Converts file to base64
- * @param file: desired file
- * @return {Promise}
- */
-const toBase64 = file => new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = error => reject(error);
-});
-
-/**
- * Extracts filename from path
- * @param path: path to extract from
- */
-function getFilenameFromPath(path) {
-    return path.replace(/.*[\/\\]/, '');
-}
-
-/**
- * Fetches URL with no-cors mode
- * @param url: URL to fetch
- * @param properties: request properties
- * @return {Promise<Response>}: Promise of fetching
- */
-function fetchNoCors(url, properties = {}) {
-    properties['mode'] = 'no-cors';
-    return fetch(url, properties)
-}
-
-/**
- * Checks if element is in current viewport
- * @param element: DOM element to check
- * @return {boolean} True if element in current viewport False otherwise
- */
-function isInViewport(element) {
-    const rect = element.getBoundingClientRect();
-    return (
-        rect.top >= 0 &&
-        rect.left >= 0 &&
-        rect.bottom <= (window.innerHeight || document.documentElement.clientHeight) &&
-        rect.right <= (window.innerWidth || document.documentElement.clientWidth)
-    );
-}
-
-/**
- * Sets default value to the object under the specified key
- * @param obj: object to consider
- * @param key: object key to set
- * @param val: default value to set
- */
-function setDefault(obj, key, val) {
-    if (obj) {
-        obj[key] ??= val;
-    }
-    return obj[key];
-}
-
-/**
- * Aggregates provided array by the key of its elements
- * @param arr: array to aggregate
- * @param key: aggregation key
- */
-function aggregateByKey(arr, key) {
-    const result = {}
-    arr.forEach(item => {
-        try {
-            const keyValue = item[key];
-            delete item[key];
-            if (keyValue && !result[keyValue]) {
-                result[keyValue] = item;
-            }
-        } catch (e) {
-            console.warn(`item=${item} has no key ${key}`)
-        }
-    });
-    return result;
-}
-
-/**
- * Deletes provided element from DOM
- * @param elem: DOM Object to delete
- */
-function deleteElement(elem) {
-    if (elem && elem?.parentElement) return elem.parentElement.removeChild(elem);
-}
-
-const MIMES = [
-    ["xml", "application/xml"],
-    ["bin", "application/vnd.ms-excel.sheet.binary.macroEnabled.main"],
-    ["vml", "application/vnd.openxmlformats-officedocument.vmlDrawing"],
-    ["data", "application/vnd.openxmlformats-officedocument.model+data"],
-    ["bmp", "image/bmp"],
-    ["png", "image/png"],
-    ["gif", "image/gif"],
-    ["emf", "image/x-emf"],
-    ["wmf", "image/x-wmf"],
-    ["jpg", "image/jpeg"],
-    ["jpeg", "image/jpeg"],
-    ["tif", "image/tiff"],
-    ["tiff", "image/tiff"],
-    ["jfif", "image/jfif"],
-    ["pdf", "application/pdf"],
-    ["rels", "application/vnd.openxmlformats-package.relationships+xml"]
-];
-
-const IMAGE_EXTENSIONS = MIMES.filter(item => item[1].startsWith('image/')).map(item => item[0]);
 const configNanoLoadedEvent = new CustomEvent("configNanoLoaded", {
     "detail": "Event that is fired when nano configs are loaded"
 });
