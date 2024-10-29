@@ -1,5 +1,5 @@
 cachetools==5.3.3
-neon_utils==1.11.1a5
+neon_utils[sentry]==1.11.1a5
 pre-commit==3.7.0
 pydantic==2.7.0
 python-socketio==5.11.2
