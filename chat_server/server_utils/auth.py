@@ -196,6 +196,8 @@ def get_current_user_data(
                                 session = refresh_session(payload=payload)
                                 LOG.info("Session was refreshed")
                             user_data = UserData(user=user, session=session)
+            except jwt.DecodeError as ex:
+                LOG.info(f"Invalid session token: {ex}")
             except BaseException as ex:
                 LOG.exception(
                     f"Problem resolving current user: {ex}\n"
