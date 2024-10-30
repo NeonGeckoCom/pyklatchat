@@ -60,7 +60,7 @@ class ChatObserver(MQConnector):
     """Observer of conversations states"""
 
     recipient_prefixes = {
-        Recipients.NEON: ["neon", "@neon"],
+        Recipients.NEON: ["neon"],
         Recipients.UNRESOLVED: ["undefined"],
     }
 
@@ -340,15 +340,6 @@ class ChatObserver(MQConnector):
         )
         self.register_sio_handlers()
 
-    def reconnect_sio(self):
-        """
-        Method for reconnecting to the Socket IO server
-        """
-        if self._sio is not None:
-            self._sio.disconnect()
-        self.connect_sio()
-        return self._sio
-
     @property
     def sio(self):
         """
@@ -356,7 +347,7 @@ class ChatObserver(MQConnector):
 
         :return: connected async socket io instance
         """
-        if not self._sio:
+        if not (self._sio or self._sio.connected):
             self.connect_sio()
         return self._sio
 
@@ -364,8 +355,11 @@ class ChatObserver(MQConnector):
         handler = data["handler"]
         status = data["status"]
         error = data["body"]
-        LOG.error(
-            f"({status}) Failed to authorize response for {handler=!r}, {error=!r}"
+        LOG.info(
+            "Failed to authorize response for klat server",
+            status=status,
+            handler=handler,
+            error=error,
         )
         self._login_to_klat_server()
 
@@ -844,7 +838,6 @@ class ChatObserver(MQConnector):
         )
         if response.ok:
             self._klat_session_token = response.json()["token"]
-            self.reconnect_sio()
         else:
             LOG.error(
                 f"Klat API authorization error: [{response.status_code}] {response.text}"
