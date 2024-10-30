@@ -356,10 +356,7 @@ class ChatObserver(MQConnector):
         status = data["status"]
         error = data["body"]
         LOG.info(
-            "Failed to authorize response for klat server",
-            status=status,
-            handler=handler,
-            error=error,
+            f"({status}) Failed to authorize response for {handler=!r}, {error=!r}"
         )
         self._login_to_klat_server()
 
