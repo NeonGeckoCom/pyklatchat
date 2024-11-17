@@ -25,14 +25,15 @@
 # LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-import warnings
-
 from time import time
 
 import ovos_utils.log
 from fastapi import APIRouter, Form, Depends
 from fastapi.responses import JSONResponse
 
+from chat_server.server_utils.api_dependencies.models.chats import (
+    GetLiveConversationModel,
+)
 from chat_server.server_utils.api_dependencies.validators.users import (
     get_authorized_user,
 )
@@ -41,6 +42,7 @@ from chat_server.server_utils.api_dependencies.extractors import CurrentUserData
 from chat_server.server_utils.api_dependencies.models import GetConversationModel
 from chat_server.services.popularity_counter import PopularityCounter
 from utils.common import generate_uuid
+from utils.constants import LIVE_CONVERSATION_NAME_PATTERN
 from utils.database_utils.mongo_utils import MongoFilter, MongoLogicalOperators
 from utils.database_utils.mongo_utils.queries.mongo_queries import fetch_message_data
 from utils.database_utils.mongo_utils.queries.wrapper import MongoDocumentsAPI
@@ -131,6 +133,53 @@ async def get_matching_conversation(
             conversation_data=conversation_data,
             limit=model.limit_chat_history,
             creation_time_filter=query_filter,
+        )
+        or []
+    )
+    conversation_data["chat_flow"] = [
+        build_message_json(raw_message=message_data[i], skin=model.skin)
+        for i in range(len(message_data))
+    ]
+
+    return conversation_data
+
+
+@router.get("/live")
+async def get_live_conversation(
+    current_user: CurrentUserData, model: GetLiveConversationModel = Depends()
+):
+    """
+    Gets live conversation data
+
+    :param current_user: current user data
+    :param model: request data model described in GetConversationModel
+
+    :returns conversation data if found, 401 error-code otherwise
+    """
+    conversation_data = MongoDocumentsAPI.CHATS.get_chat(
+        search_str=LIVE_CONVERSATION_NAME_PATTERN,
+        column_identifiers=["conversation_name"],
+        allow_regex_search=True,
+        requested_user_id=current_user.user_id,
+        ordering_expression={"created_on": -1},
+    )
+
+    if not conversation_data:
+        LOG.warning("No live conversation data found, fetching `Global` conversation")
+
+        conversation_data = MongoDocumentsAPI.CHATS.get_chat(
+            search_str="1",
+            column_identifiers=["_id"],
+            requested_user_id=current_user.user_id,
+        )
+        if not conversation_data:
+            return respond(f"Live conversation is missing", 404)
+
+    message_data = (
+        fetch_message_data(
+            skin=model.skin,
+            conversation_data=conversation_data,
+            limit=model.limit_chat_history,
         )
         or []
     )

@@ -491,17 +491,48 @@ function updateCIDStoreProperty(cid, property, value){
 }
 
 /**
- * Custom Event fired on supported languages init
- * @type {CustomEvent<string>}
+ * Boolean function that checks whether live chats must be displayed based on page meta properties
+ * @returns {boolean} true if live chat should be displayed, false otherwise
  */
-const chatAlignmentRestoredEvent = new CustomEvent("chatAlignmentRestored", { "detail": "Event that is fired when chat alignment is restored" });
+const shouldDisplayLiveChat = () => {
+    const liveMetaElem = document.querySelector("meta[name='live']");
+    if (liveMetaElem){
+        return liveMetaElem.getAttribute("content") === "1"
+    }
+    return false
+}
+
+const displayLiveChat = async () => {
+    return await fetchServer('chat_api/live')
+        .then(response => {
+            if(response.ok){
+                return response.json();
+            }else{
+                throw response.statusText;
+            }
+        })
+        .then(data => {
+            if (getUserMessages(data, null).length === 0){
+                console.debug('All of the messages are already displayed');
+                setDefault(setDefault(conversationState, data['_id'], {}), 'all_messages_displayed', true);
+            }
+            return data;
+        })
+        .then(
+            async data => {
+                await buildConversation(data, data.skin, true);
+                return data;
+            }
+        )
+        .catch(async err=> {
+            console.warn('Failed to display live chat:',err);
+        });
+}
 
 /**
- * Restores chats alignment from the local storage
- *
- * @param keyName: name of the local storage key
-**/
-async function restoreChatAlignment(keyName=conversationAlignmentKey){
+ * Restores chat alignment based on the page cache
+ */
+const restoreChatAlignmentFromCache = async () => {
     let cachedItems = await retrieveItemsLayout();
     if (cachedItems.length === 0){
         cachedItems = [{'cid': '1', 'added_on': getCurrentTimestamp(), 'skin': CONVERSATION_SKINS.BASE}]
@@ -518,6 +549,23 @@ async function restoreChatAlignment(keyName=conversationAlignmentKey){
                 await removeConversation(item.cid);
             }
         });
+    }
+}
+
+/**
+ * Custom Event fired on supported languages init
+ * @type {CustomEvent<string>}
+ */
+const chatAlignmentRestoredEvent = new CustomEvent("chatAlignmentRestored", { "detail": "Event that is fired when chat alignment is restored" });
+
+/**
+ * Restores chats alignment from the local storage
+**/
+async function restoreChatAlignment(){
+    if (shouldDisplayLiveChat()){
+        await displayLiveChat();
+    } else {
+        await restoreChatAlignmentFromCache();
     }
     console.log('Chat Alignment Restored');
     document.dispatchEvent(chatAlignmentRestoredEvent);
