@@ -502,6 +502,10 @@ const shouldDisplayLiveChat = () => {
     return false
 }
 
+/**
+ * Fetches latest live conversation from the klat server API and builds its HTML
+ * @returns {Promise<*>} fetched conversation data
+ */
 const displayLiveChat = async () => {
     return await fetchServer('chat_api/live')
         .then(response => {
