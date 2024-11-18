@@ -28,4 +28,3 @@
 import os
 
 KLAT_ENV = os.environ.get("KLAT_ENV", "DEV")
-LIVE_CONVERSATION_NAME_PATTERN = "CCAI"

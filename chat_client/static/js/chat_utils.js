@@ -741,12 +741,13 @@ async function displayConversation(searchStr, skin=CONVERSATION_SKINS.BASE, aler
 
 /**
  * Handles requests on creation new conversation by the user
- * @param conversationName: New Conversation Name
- * @param isPrivate: if conversation should be private (defaults to false)
- * @param conversationID: New Conversation ID (optional)
- * @param boundServiceID: id of the service to bind to conversation (optional)
+ * @param conversationName - New Conversation Name
+ * @param isPrivate - if conversation should be private (defaults to false)
+ * @param conversationID - New Conversation ID (optional)
+ * @param boundServiceID - id of the service to bind to conversation (optional)
+ * @param createLiveConversation - if conversation should be treated as live conversation (defaults to false)
  */
-async function createNewConversation(conversationName, isPrivate=false, conversationID=null, boundServiceID=null) {
+async function createNewConversation(conversationName, isPrivate=false, conversationID=null, boundServiceID=null, createLiveConversation=false) {
 
     let formData = new FormData();
 
@@ -754,6 +755,7 @@ async function createNewConversation(conversationName, isPrivate=false, conversa
     formData.append('conversation_id', conversationID);
     formData.append('is_private', isPrivate? '1': '0')
     formData.append('bound_service', boundServiceID?boundServiceID: '');
+    formData.append('is_live_conversation', createLiveConversation? '1': '0')
 
     await fetchServer(`chat_api/new`,  REQUEST_METHODS.POST, formData).then(async response => {
         const responseJson = await response.json();
@@ -795,7 +797,9 @@ document.addEventListener('DOMContentLoaded', (e)=>{
             const newConversationID = document.getElementById('conversationID');
             const newConversationName = document.getElementById('conversationName');
             const isPrivate = document.getElementById('isPrivate');
+            const createLiveConversation = document.getElementById("createLiveConversation");
             let boundServiceID = bindServiceSelect.value;
+
             if (boundServiceID){
                 const targetItem = document.getElementById(boundServiceID);
                 if (targetItem.value) {
@@ -809,7 +813,8 @@ document.addEventListener('DOMContentLoaded', (e)=>{
                     return -1;
                 }
             }
-            createNewConversation(newConversationName.value, isPrivate.checked, newConversationID ? newConversationID.value : null, boundServiceID).then(responseOk=>{
+
+            createNewConversation(newConversationName.value, isPrivate.checked, newConversationID ? newConversationID.value : null, boundServiceID, createLiveConversation.checked).then(responseOk=>{
                 newConversationName.value = "";
                 newConversationID.value = "";
                 isPrivate.checked = false;

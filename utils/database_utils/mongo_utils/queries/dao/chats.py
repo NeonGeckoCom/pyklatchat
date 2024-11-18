@@ -80,6 +80,7 @@ class ChatsDAO(MongoDocumentDAO):
         :param limit: limit found conversations
         :param allow_regex_search: to allow search for matching entries that CONTAIN :param search_str
         :param requested_user_id: id of the requested user (defaults to None) - used to find owned private conversations
+        :param ordering_expression: result items ordering expression (optional)
         """
         filters = self._create_matching_chat_filters(
             lst_search_substr=search_str,

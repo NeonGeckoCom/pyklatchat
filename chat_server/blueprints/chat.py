@@ -36,13 +36,13 @@ from chat_server.server_utils.api_dependencies.models.chats import (
 )
 from chat_server.server_utils.api_dependencies.validators.users import (
     get_authorized_user,
+    has_admin_role,
 )
 from chat_server.server_utils.conversation_utils import build_message_json
 from chat_server.server_utils.api_dependencies.extractors import CurrentUserData
 from chat_server.server_utils.api_dependencies.models import GetConversationModel
 from chat_server.services.popularity_counter import PopularityCounter
 from utils.common import generate_uuid
-from utils.constants import LIVE_CONVERSATION_NAME_PATTERN
 from utils.database_utils.mongo_utils import MongoFilter, MongoLogicalOperators
 from utils.database_utils.mongo_utils.queries.mongo_queries import fetch_message_data
 from utils.database_utils.mongo_utils.queries.wrapper import MongoDocumentsAPI
@@ -62,6 +62,7 @@ async def new_conversation(
     conversation_name: str = Form(...),
     is_private: str = Form(False),
     bound_service: str = Form(""),
+    is_live_conversation: str = Form(False),
 ):
     """
     Creates new conversation from provided conversation data
@@ -71,6 +72,7 @@ async def new_conversation(
     :param conversation_name: new conversation name (optional)
     :param is_private: if new conversation should be private (defaults to False)
     :param bound_service: name of the bound service (ignored if empty value)
+    :param is_live_conversation: if conversation is live (defaults to False)
 
     :returns JSON response with new conversation data if added, 401 error message otherwise
     """
@@ -83,11 +85,17 @@ async def new_conversation(
     )
     if conversation_data:
         return respond(f'Conversation "{conversation_name}" already exists', 400)
+
+    is_live_conversation = True if is_live_conversation == "1" else False
+    if is_live_conversation and not has_admin_role(current_user=current_user):
+        return respond("User is not authorized to create live conversations", 400)
+
     cid = generate_uuid()
     request_data_dict = {
         "_id": cid,
         "conversation_name": conversation_name,
         "is_private": True if is_private == "1" else False,
+        "is_live_conversation": is_live_conversation,
         "bound_service": bound_service,
         "creator": current_user.user_id,
         "created_on": int(time()),
@@ -156,12 +164,22 @@ async def get_live_conversation(
 
     :returns conversation data if found, 401 error-code otherwise
     """
-    conversation_data = MongoDocumentsAPI.CHATS.get_chat(
-        search_str=LIVE_CONVERSATION_NAME_PATTERN,
-        column_identifiers=["conversation_name"],
-        allow_regex_search=True,
-        requested_user_id=current_user.user_id,
+    conversation_data = MongoDocumentsAPI.CHATS.list_items(
+        filters=(
+            MongoFilter(
+                key="is_private",
+                logical_operator=MongoLogicalOperators.EQ,
+                value=False,
+            ),
+            MongoFilter(
+                key="is_live_conversation",
+                logical_operator=MongoLogicalOperators.EQ,
+                value=True,
+            ),
+        ),
+        limit=1,
         ordering_expression={"created_on": -1},
+        result_as_cursor=False,
     )
 
     if not conversation_data:
@@ -174,6 +192,8 @@ async def get_live_conversation(
         )
         if not conversation_data:
             return respond(f"Live conversation is missing", 404)
+    else:
+        conversation_data = conversation_data[0]
 
     message_data = (
         fetch_message_data(
