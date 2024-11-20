@@ -25,16 +25,18 @@
 # LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-import warnings
-
 from time import time
 
 import ovos_utils.log
 from fastapi import APIRouter, Form, Depends
 from fastapi.responses import JSONResponse
 
+from chat_server.server_utils.api_dependencies.models.chats import (
+    GetLiveConversationModel,
+)
 from chat_server.server_utils.api_dependencies.validators.users import (
     get_authorized_user,
+    has_admin_role,
 )
 from chat_server.server_utils.conversation_utils import build_message_json
 from chat_server.server_utils.api_dependencies.extractors import CurrentUserData
@@ -60,6 +62,7 @@ async def new_conversation(
     conversation_name: str = Form(...),
     is_private: str = Form(False),
     bound_service: str = Form(""),
+    is_live_conversation: str = Form(False),
 ):
     """
     Creates new conversation from provided conversation data
@@ -69,6 +72,7 @@ async def new_conversation(
     :param conversation_name: new conversation name (optional)
     :param is_private: if new conversation should be private (defaults to False)
     :param bound_service: name of the bound service (ignored if empty value)
+    :param is_live_conversation: if conversation is live (defaults to False)
 
     :returns JSON response with new conversation data if added, 401 error message otherwise
     """
@@ -81,11 +85,17 @@ async def new_conversation(
     )
     if conversation_data:
         return respond(f'Conversation "{conversation_name}" already exists', 400)
+
+    is_live_conversation = True if is_live_conversation == "1" else False
+    if is_live_conversation and not has_admin_role(current_user=current_user):
+        return respond("User is not authorized to create live conversations", 400)
+
     cid = generate_uuid()
     request_data_dict = {
         "_id": cid,
         "conversation_name": conversation_name,
         "is_private": True if is_private == "1" else False,
+        "is_live_conversation": is_live_conversation,
         "bound_service": bound_service,
         "creator": current_user.user_id,
         "created_on": int(time()),
@@ -131,6 +141,65 @@ async def get_matching_conversation(
             conversation_data=conversation_data,
             limit=model.limit_chat_history,
             creation_time_filter=query_filter,
+        )
+        or []
+    )
+    conversation_data["chat_flow"] = [
+        build_message_json(raw_message=message_data[i], skin=model.skin)
+        for i in range(len(message_data))
+    ]
+
+    return conversation_data
+
+
+@router.get("/live")
+async def get_live_conversation(
+    current_user: CurrentUserData, model: GetLiveConversationModel = Depends()
+):
+    """
+    Gets live conversation data
+
+    :param current_user: current user data
+    :param model: request data model described in GetConversationModel
+
+    :returns conversation data if found, 401 error-code otherwise
+    """
+    conversation_data = MongoDocumentsAPI.CHATS.list_items(
+        filters=(
+            MongoFilter(
+                key="is_private",
+                logical_operator=MongoLogicalOperators.EQ,
+                value=False,
+            ),
+            MongoFilter(
+                key="is_live_conversation",
+                logical_operator=MongoLogicalOperators.EQ,
+                value=True,
+            ),
+        ),
+        limit=1,
+        ordering_expression={"created_on": -1},
+        result_as_cursor=False,
+    )
+
+    if not conversation_data:
+        LOG.warning("No live conversation data found, fetching `Global` conversation")
+
+        conversation_data = MongoDocumentsAPI.CHATS.get_chat(
+            search_str="1",
+            column_identifiers=["_id"],
+            requested_user_id=current_user.user_id,
+        )
+        if not conversation_data:
+            return respond(f"Live conversation is missing", 404)
+    else:
+        conversation_data = conversation_data[0]
+
+    message_data = (
+        fetch_message_data(
+            skin=model.skin,
+            conversation_data=conversation_data,
+            limit=model.limit_chat_history,
         )
         or []
     )

@@ -13,10 +13,6 @@
             <input type="text" class="form-control" id="conversationName" placeholder="Enter conversation name">
         </div>
         <div class="form-group">
-            <label for="conversationID">Conversation ID</label>
-            <input type="text" class="form-control" id="conversationID" placeholder="Set id for the conversation">
-        </div>
-        <div class="form-group">
             <label data-toggle="tooltip" title="Conversation will be pointed to particular service"> Bind to service
                     <select class="custom-select" id="bind-service-select">
                         <option value="" selected>Not Selected</option>
@@ -34,7 +30,11 @@
                 <option value="neon.duckduckgo">DuckDuckGo</option>
             </select>
         </div>
-        <div class="form-check">
+        <div class="form-check mt-2" id="createLiveConversationWrapper" style="display: none">
+            <input type="checkbox" class="form-check-input" id="createLiveConversation">
+            <label class="form-check-label" for="createLiveConversation">Live</label>
+        </div>
+        <div class="form-check mt-2">
             <input type="checkbox" class="form-check-input" id="isPrivate">
             <label class="form-check-label" for="isPrivate">Private</label>
         </div>
