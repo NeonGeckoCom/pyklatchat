@@ -1129,6 +1129,24 @@ ${innerText}
     }
 }
 
+
+/**
+ * Refreshes HTML components appearance based on the current user
+ * NOTE: this must have only visual impact, the actual validation is done on the backend
+ */
+const refreshComponentsAppearance = () => {
+    const currentUserRoles = currentUser?.roles ?? [];
+    const isAdmin = currentUserRoles.includes("admin");
+
+    const createLiveConversationWrapper = document.getElementById("createLiveConversationWrapper");
+
+    if (isAdmin) {
+        createLiveConversationWrapper.style.display = "";
+    } else {
+        createLiveConversationWrapper.style.display = "none";
+    }
+}
+
 /**
  * Custom Event fired on current user loaded
  * @type {CustomEvent<string>}
@@ -1150,6 +1168,7 @@ async function refreshCurrentUser(refreshChats = false, conversationContainer = 
         if (refreshChats) {
             refreshChatView(conversationContainer);
         }
+        refreshComponentsAppearance()
         console.log('current user loaded');
         document.dispatchEvent(currentUserLoaded);
         return data;
@@ -2089,7 +2108,7 @@ const fetchServer = async (urlSuffix, method = REQUEST_METHODS.GET, body = null,
     return fetch(`${configData["CHAT_SERVER_URL_BASE"]}/${urlSuffix}`, options).then(async response => {
         if (response.status === 401) {
             const responseJson = await response.json();
-            if (responseJson['msg'] === 'Session Expired') {
+            if (responseJson['msg'] === 'Requested user is not authorized to perform this action') {
                 localStorage.removeItem('session');
                 location.reload();
             }
@@ -3273,19 +3292,52 @@ function updateCIDStoreProperty(cid, property, value) {
 }
 
 /**
- * Custom Event fired on supported languages init
- * @type {CustomEvent<string>}
+ * Boolean function that checks whether live chats must be displayed based on page meta properties
+ * @returns {boolean} true if live chat should be displayed, false otherwise
  */
-const chatAlignmentRestoredEvent = new CustomEvent("chatAlignmentRestored", {
-    "detail": "Event that is fired when chat alignment is restored"
-});
+const shouldDisplayLiveChat = () => {
+    const liveMetaElem = document.querySelector("meta[name='live']");
+    if (liveMetaElem) {
+        return liveMetaElem.getAttribute("content") === "1"
+    }
+    return false
+}
 
 /**
- * Restores chats alignment from the local storage
- *
- * @param keyName: name of the local storage key
- **/
-async function restoreChatAlignment(keyName = conversationAlignmentKey) {
+ * Fetches latest live conversation from the klat server API and builds its HTML
+ * @returns {Promise<*>} fetched conversation data
+ */
+const displayLiveChat = async () => {
+    return await fetchServer('chat_api/live')
+        .then(response => {
+            if (response.ok) {
+                return response.json();
+            } else {
+                throw response.statusText;
+            }
+        })
+        .then(data => {
+            if (getUserMessages(data, null).length === 0) {
+                console.debug('All of the messages are already displayed');
+                setDefault(setDefault(conversationState, data['_id'], {}), 'all_messages_displayed', true);
+            }
+            return data;
+        })
+        .then(
+            async data => {
+                await buildConversation(data, data.skin, true);
+                return data;
+            }
+        )
+        .catch(async err => {
+            console.warn('Failed to display live chat:', err);
+        });
+}
+
+/**
+ * Restores chat alignment based on the page cache
+ */
+const restoreChatAlignmentFromCache = async () => {
     let cachedItems = await retrieveItemsLayout();
     if (cachedItems.length === 0) {
         cachedItems = [{
@@ -3308,6 +3360,25 @@ async function restoreChatAlignment(keyName = conversationAlignmentKey) {
                 await removeConversation(item.cid);
             }
         });
+    }
+}
+
+/**
+ * Custom Event fired on supported languages init
+ * @type {CustomEvent<string>}
+ */
+const chatAlignmentRestoredEvent = new CustomEvent("chatAlignmentRestored", {
+    "detail": "Event that is fired when chat alignment is restored"
+});
+
+/**
+ * Restores chats alignment from the local storage
+ **/
+async function restoreChatAlignment() {
+    if (shouldDisplayLiveChat()) {
+        await displayLiveChat();
+    } else {
+        await restoreChatAlignmentFromCache();
     }
     console.log('Chat Alignment Restored');
     document.dispatchEvent(chatAlignmentRestoredEvent);
@@ -3479,12 +3550,13 @@ async function displayConversation(searchStr, skin = CONVERSATION_SKINS.BASE, al
 
 /**
  * Handles requests on creation new conversation by the user
- * @param conversationName: New Conversation Name
- * @param isPrivate: if conversation should be private (defaults to false)
- * @param conversationID: New Conversation ID (optional)
- * @param boundServiceID: id of the service to bind to conversation (optional)
+ * @param conversationName - New Conversation Name
+ * @param isPrivate - if conversation should be private (defaults to false)
+ * @param conversationID - New Conversation ID (optional)
+ * @param boundServiceID - id of the service to bind to conversation (optional)
+ * @param createLiveConversation - if conversation should be treated as live conversation (defaults to false)
  */
-async function createNewConversation(conversationName, isPrivate = false, conversationID = null, boundServiceID = null) {
+async function createNewConversation(conversationName, isPrivate = false, conversationID = null, boundServiceID = null, createLiveConversation = false) {
 
     let formData = new FormData();
 
@@ -3492,6 +3564,7 @@ async function createNewConversation(conversationName, isPrivate = false, conver
     formData.append('conversation_id', conversationID);
     formData.append('is_private', isPrivate ? '1' : '0')
     formData.append('bound_service', boundServiceID ? boundServiceID : '');
+    formData.append('is_live_conversation', createLiveConversation ? '1' : '0')
 
     await fetchServer(`chat_api/new`, REQUEST_METHODS.POST, formData).then(async response => {
         const responseJson = await response.json();
@@ -3535,7 +3608,9 @@ document.addEventListener('DOMContentLoaded', (e) => {
             const newConversationID = document.getElementById('conversationID');
             const newConversationName = document.getElementById('conversationName');
             const isPrivate = document.getElementById('isPrivate');
+            const createLiveConversation = document.getElementById("createLiveConversation");
             let boundServiceID = bindServiceSelect.value;
+
             if (boundServiceID) {
                 const targetItem = document.getElementById(boundServiceID);
                 if (targetItem.value) {
@@ -3549,7 +3624,8 @@ document.addEventListener('DOMContentLoaded', (e) => {
                     return -1;
                 }
             }
-            createNewConversation(newConversationName.value, isPrivate.checked, newConversationID ? newConversationID.value : null, boundServiceID).then(responseOk => {
+
+            createNewConversation(newConversationName.value, isPrivate.checked, newConversationID ? newConversationID.value : null, boundServiceID, createLiveConversation.checked).then(responseOk => {
                 newConversationName.value = "";
                 newConversationID.value = "";
                 isPrivate.checked = false;
