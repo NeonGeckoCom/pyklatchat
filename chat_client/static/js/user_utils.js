@@ -249,6 +249,24 @@ function updateNavbar(forceUpdate=false){
     }
 }
 
+
+/**
+ * Refreshes HTML components appearance based on the current user
+ * NOTE: this must have only visual impact, the actual validation is done on the backend
+ */
+const refreshComponentsAppearance = () => {
+    const currentUserRoles = currentUser?.roles ?? [];
+    const isAdmin = currentUserRoles.includes("admin");
+
+    const createLiveConversationWrapper = document.getElementById("createLiveConversationWrapper");
+
+    if (isAdmin){
+        createLiveConversationWrapper.style.display = "";
+    }else{
+        createLiveConversationWrapper.style.display = "none";
+    }
+}
+
 /**
  * Custom Event fired on current user loaded
  * @type {CustomEvent<string>}
@@ -268,6 +286,7 @@ async function refreshCurrentUser(refreshChats=false, conversationContainer=null
         if(refreshChats) {
             refreshChatView(conversationContainer);
         }
+        refreshComponentsAppearance()
         console.log('current user loaded');
         document.dispatchEvent(currentUserLoaded);
         return data;

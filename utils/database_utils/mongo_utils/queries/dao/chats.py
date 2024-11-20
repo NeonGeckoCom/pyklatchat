@@ -51,13 +51,15 @@ class ChatsDAO(MongoDocumentDAO):
         column_identifiers: List[str] = None,
         allow_regex_search: bool = False,
         requested_user_id: str = None,
+        ordering_expression: dict[str, int] | None = None,
     ) -> dict | None:
         chats = self.get_chats(
             search_str=search_str,
+            limit=1,
             column_identifiers=column_identifiers,
             allow_regex_search=allow_regex_search,
             requested_user_id=requested_user_id,
-            limit=1,
+            ordering_expression=ordering_expression,
         )
         if chats:
             return chats[0]
@@ -69,6 +71,7 @@ class ChatsDAO(MongoDocumentDAO):
         column_identifiers: List[str] = None,
         allow_regex_search: bool = False,
         requested_user_id: str = None,
+        ordering_expression: dict[str, int] | None = None,
     ) -> Union[None, dict]:
         """
         Gets matching conversation data
@@ -77,6 +80,7 @@ class ChatsDAO(MongoDocumentDAO):
         :param limit: limit found conversations
         :param allow_regex_search: to allow search for matching entries that CONTAIN :param search_str
         :param requested_user_id: id of the requested user (defaults to None) - used to find owned private conversations
+        :param ordering_expression: result items ordering expression (optional)
         """
         filters = self._create_matching_chat_filters(
             lst_search_substr=search_str,
@@ -89,6 +93,7 @@ class ChatsDAO(MongoDocumentDAO):
         chats = self.list_items(
             filters=filters,
             limit=limit,
+            ordering_expression=ordering_expression,
             result_as_cursor=False,
         )
         for chat in chats:
