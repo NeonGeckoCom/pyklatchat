@@ -100,7 +100,7 @@ class ChatObserver(MQConnector):
         self._klat_session_token = None
         self.klat_auth_credentials = config.get("KLAT_AUTH_CREDENTIALS", {})
         self.default_persona_llms = dict()
-        self.connect_sio()
+
         self.register_consumer(
             name="neon_response",
             vhost=self.get_vhost("neon_api"),
@@ -349,7 +349,7 @@ class ChatObserver(MQConnector):
 
         :return: connected async socket io instance
         """
-        if not (self._sio or self._sio.connected):
+        if not (self._sio and self._sio.connected):
             self.connect_sio()
         return self._sio
 
@@ -837,6 +837,8 @@ class ChatObserver(MQConnector):
         )
         if response.ok:
             self._klat_session_token = response.json()["token"]
+            self.sio.disconnect()
+            self.sio.connected = False
         else:
             LOG.error(
                 f"Klat API authorization error: [{response.status_code}] {response.text}"
