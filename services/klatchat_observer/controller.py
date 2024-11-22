@@ -59,6 +59,8 @@ class Recipients(Enum):
 class ChatObserver(MQConnector):
     """Observer of conversations states"""
 
+    async_consumers_enabled = True
+
     recipient_prefixes = {
         Recipients.NEON: ["neon"],
         Recipients.UNRESOLVED: ["undefined"],
