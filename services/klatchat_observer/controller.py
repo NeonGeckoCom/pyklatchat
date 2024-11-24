@@ -37,7 +37,6 @@ import socketio
 
 from enum import Enum
 
-from neon_mq_connector.utils import retry
 from neon_mq_connector.utils.rabbit_utils import create_mq_callback
 from neon_mq_connector.connector import MQConnector
 from requests import Response
@@ -58,8 +57,6 @@ class Recipients(Enum):
 
 class ChatObserver(MQConnector):
     """Observer of conversations states"""
-
-    async_consumers_enabled = True
 
     recipient_prefixes = {
         Recipients.NEON: ["neon"],
@@ -100,6 +97,8 @@ class ChatObserver(MQConnector):
         self._klat_session_token = None
         self.klat_auth_credentials = config.get("KLAT_AUTH_CREDENTIALS", {})
         self.default_persona_llms = dict()
+
+        self.sio_connected = False
 
         self.register_consumer(
             name="neon_response",
@@ -345,12 +344,20 @@ class ChatObserver(MQConnector):
     @property
     def sio(self):
         """
-        Creates socket io client if none is present
+        Returns Socket IO client instance.
+        Establishes connection with Socket IO server if no existing connection or its disconnected
 
         :return: connected async socket io instance
         """
-        if not (self._sio and self._sio.connected):
-            self.connect_sio()
+        if not (self._sio and self.sio_connected):
+            try:
+                # Assuming that Socket IO is connected unless Exception is raised during the connection
+                # This is done to prevent parallel invocation of this method from consumers
+                self.sio_connected = True
+                self.connect_sio()
+            except Exception as ex:
+                LOG.error(f"Failed to connect to sio: {ex}")
+                self.sio_connected = False
         return self._sio
 
     def _handle_auth_expired(self, data: dict):
@@ -838,7 +845,7 @@ class ChatObserver(MQConnector):
         if response.ok:
             self._klat_session_token = response.json()["token"]
             self.sio.disconnect()
-            self.sio.connected = False
+            self.sio_connected = False
         else:
             LOG.error(
                 f"Klat API authorization error: [{response.status_code}] {response.text}"

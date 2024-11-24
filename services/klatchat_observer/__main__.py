@@ -25,7 +25,6 @@
 # LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-import asyncio
 import os
 import sys
 
@@ -35,15 +34,15 @@ from utils.logging_utils import LOG
 from .controller import ChatObserver
 
 
-async def main():
+def main():
     connector = ChatObserver(config=observer_config)
-    await connector.run(run_sync=False)
+    connector.run(run_sync=False)
 
 
 if __name__ == "__main__":
     LOG.info(f"Starting Chat Observer Listener (pid: {os.getpid()})...")
     try:
-        asyncio.run(main())
+        main()
     except Exception as ex:
         LOG.info(
             f"Chat Observer Execution Interrupted (pid: {os.getpid()}) due to exception: {ex}"
