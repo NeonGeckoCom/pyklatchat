@@ -27,6 +27,7 @@
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 import json
 
+from typing import List, Optional
 from fastapi import APIRouter
 from starlette.responses import JSONResponse
 
@@ -115,7 +116,7 @@ async def add_persona(
     if existing_model:
         raise DuplicatedItemException
     MongoDocumentsAPI.PERSONAS.add_item(data=request_model.model_dump())
-    await _notify_personas_changed()
+    await _notify_personas_changed(request_model.supported_llms)
     return KlatAPIResponse.OK
 
 
@@ -135,7 +136,7 @@ async def set_persona(
     MongoDocumentsAPI.PERSONAS.update_item(
         filters=mongo_filter, data=request_model.model_dump()
     )
-    await _notify_personas_changed()
+    await _notify_personas_changed(request_model.supported_llms)
     return KlatAPIResponse.OK
 
 
@@ -167,9 +168,28 @@ async def toggle_persona_state(
     return KlatAPIResponse.OK
 
 
-async def _notify_personas_changed():
-    response = await list_personas(CurrentUserModel(_id="", nickname="",
-                                                    first_name="", last_name=""),
-                                   ListPersonasQueryModel(only_enabled=True))
-    enabled_personas = json.loads(response.body.decode())
-    sio.emit("configured_personas_changed", enabled_personas)
+async def _notify_personas_changed(supported_llms: Optional[List[str]] = None):
+    """
+    Emit an SIO event for each LLM affected by a persona change. This sends a
+    complete set of personas rather than only the changed one to prevent sync
+    conflicts and simplify client-side logic.
+    :param supported_llms: List of LLM names affected by a transaction. If None,
+        then updates all LLMs listed in database configuration
+    """
+    resp = await list_personas(CurrentUserModel(_id="", nickname="",
+                                                first_name="", last_name=""),
+                               ListPersonasQueryModel(only_enabled=True))
+    enabled_personas = json.loads(resp.body.decode())
+    valid_personas = {}
+    if supported_llms:
+        # Only broadcast updates for LLMs affected by an insert/change request
+        for llm in supported_llms:
+            valid_personas[llm] = [per for per in enabled_personas["items"] if
+                                   llm in per["supported_llms"]]
+    else:
+        # Delete request does not have LLM context, update everything
+        for persona in enabled_personas["items"]:
+            for llm in persona["supported_llms"]:
+                valid_personas.setdefault(llm, [])
+                valid_personas[llm].append(persona)
+    sio.emit("configured_personas_changed", {"personas": valid_personas})

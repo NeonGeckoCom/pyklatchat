@@ -910,12 +910,13 @@ class ChatObserver(MQConnector):
         MQ message to allow any connected listeners to maintain a set of known
         personas.
         """
-        self.send_message(
-            request_data=data,
-            vhost=self.get_vhost("llm"),
-            queue="configured_personas_changed",
-            expiration=5000,
-        )
+        for llm, personas in data["personas"].items():
+            self.send_message(
+                request_data={"items": personas},
+                vhost=self.get_vhost("llm"),
+                queue=f"{llm}_personas_input",
+                expiration=5000,
+            )
 
     def _refresh_default_persona_llms(self, data):
         for item in data["items"]:
