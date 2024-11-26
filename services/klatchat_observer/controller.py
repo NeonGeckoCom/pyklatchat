@@ -325,7 +325,7 @@ class ChatObserver(MQConnector):
         LOG.info("Joining sync consumer")
         sync_consumer.join()
         if not self.neon_service_event.is_set():
-            LOG.warning(f"Failed to get neon response in {wait_timeout} seconds")
+            LOG.warning(f"Failed to get neon_service in {wait_timeout} seconds")
             self.__neon_service_id = ""
 
     def register_sio_handlers(self):
@@ -439,7 +439,6 @@ class ChatObserver(MQConnector):
         if requested_skill == "tts":
             utterance = msg_data.pop("utterance", "") or msg_data.pop("text", "")
             request_dict = {
-                "msg_type": "neon.get_tts",
                 "data": {
                     "utterance": utterance,
                     "text": utterance,
@@ -448,14 +447,12 @@ class ChatObserver(MQConnector):
             }
         elif requested_skill == "stt":
             request_dict = {
-                "msg_type": "neon.get_stt",
                 "data": {
                     "audio_data": msg_data.pop("audio_data", msg_data["message_body"]),
                 }
             }
         else:
             request_dict = {
-                "msg_type": "recognizer_loop:utterance",
                 "data": {
                     "utterances": [msg_data["message_body"]],
                 },
@@ -473,9 +470,8 @@ class ChatObserver(MQConnector):
         recipient_data.setdefault("context", {})
         pattern = re.compile("Neon", re.IGNORECASE)
         msg_data["message_body"] = (
-            pattern.sub("", msg_data["message_body"], 1).strip("<>@,.:|- \n")
+            pattern.sub("", msg_data["message_body"], 1).strip("<>@,.:|- ").capitalize()
         )
-        # This is really referencing an MQ endpoint (i.e. stt, tts), not a skill
         msg_data.setdefault(
             "requested_skill", recipient_data["context"].pop("service", "recognizer")
         )
@@ -849,7 +845,9 @@ class ChatObserver(MQConnector):
 
     @create_mq_callback()
     def on_get_configured_personas(self, body: dict):
-        # Handles request to get all defined personas
+        """
+        Handles requests to get all defined personas for a specific LLM service
+        """
         response_data = self._fetch_persona_api(user_id=body.get("user_id"))
         response_data["items"] = [
             item
