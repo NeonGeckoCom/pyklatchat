@@ -30,6 +30,8 @@ import re
 import time
 from queue import Queue
 
+from typing import Optional
+
 import cachetools.func
 
 from threading import Event, Timer
@@ -323,7 +325,7 @@ class ChatObserver(MQConnector):
         LOG.info("Joining sync consumer")
         sync_consumer.join()
         if not self.neon_service_event.is_set():
-            LOG.warning(f"Failed to get neon_service in {wait_timeout} seconds")
+            LOG.warning(f"Failed to get neon response in {wait_timeout} seconds")
             self.__neon_service_id = ""
 
     def register_sio_handlers(self):
@@ -351,6 +353,8 @@ class ChatObserver(MQConnector):
         )
         self._sio.on("prompts_data_updated", handler=self.forward_prompts_data_update)
         self._sio.on("auth_expired", handler=self._handle_auth_expired)
+        self._sio.on("configured_personas_changed",
+                     handler=self._handle_personas_changed)
 
     def connect_sio(self):
         """
@@ -435,6 +439,7 @@ class ChatObserver(MQConnector):
         if requested_skill == "tts":
             utterance = msg_data.pop("utterance", "") or msg_data.pop("text", "")
             request_dict = {
+                "msg_type": "neon.get_tts",
                 "data": {
                     "utterance": utterance,
                     "text": utterance,
@@ -443,12 +448,14 @@ class ChatObserver(MQConnector):
             }
         elif requested_skill == "stt":
             request_dict = {
+                "msg_type": "neon.get_stt",
                 "data": {
                     "audio_data": msg_data.pop("audio_data", msg_data["message_body"]),
                 }
             }
         else:
             request_dict = {
+                "msg_type": "recognizer_loop:utterance",
                 "data": {
                     "utterances": [msg_data["message_body"]],
                 },
@@ -458,13 +465,17 @@ class ChatObserver(MQConnector):
         return request_dict
 
     def _handle_neon_recipient(self, recipient_data: dict, msg_data: dict):
+        """
+        Handle a chat message intended for Neon.
+        """
         msg_data.setdefault("message_body", msg_data.pop("messageText", ""))
         msg_data.setdefault("message_id", msg_data.pop("messageID", ""))
         recipient_data.setdefault("context", {})
         pattern = re.compile("Neon", re.IGNORECASE)
         msg_data["message_body"] = (
-            pattern.sub("", msg_data["message_body"], 1).strip("<>@,.:|- ").capitalize()
+            pattern.sub("", msg_data["message_body"], 1).strip("<>@,.:|- \n")
         )
+        # This is really referencing an MQ endpoint (i.e. stt, tts), not a skill
         msg_data.setdefault(
             "requested_skill", recipient_data["context"].pop("service", "recognizer")
         )
@@ -838,6 +849,7 @@ class ChatObserver(MQConnector):
 
     @create_mq_callback()
     def on_get_configured_personas(self, body: dict):
+        # Handles request to get all defined personas
         response_data = self._fetch_persona_api(user_id=body.get("user_id"))
         response_data["items"] = [
             item
@@ -880,7 +892,7 @@ class ChatObserver(MQConnector):
             LOG.error(f"Failed to fetch prompts from {url}: {ex}")
 
     @cachetools.func.ttl_cache(ttl=15)
-    def _fetch_persona_api(self, user_id: str) -> dict:
+    def _fetch_persona_api(self, user_id: Optional[str]) -> dict:
         query_string = self._build_persona_api_query(user_id=user_id)
         url = f"{self.server_url}/personas/list?{query_string}"
         try:
@@ -892,12 +904,25 @@ class ChatObserver(MQConnector):
             data = {"items": []}
         return data
 
+    def _handle_personas_changed(self, data: dict):
+        """
+        SIO handler called when configured personas are modified. This emits an
+        MQ message to allow any connected listeners to maintain a set of known
+        personas.
+        """
+        self.send_message(
+            request_data=data,
+            vhost=self.get_vhost("llm"),
+            queue="configured_personas_changed",
+            expiration=5000,
+        )
+
     def _refresh_default_persona_llms(self, data):
         for item in data["items"]:
             if default_llm := item.get("default_llm"):
                 self.default_persona_llms[item["id"]] = item["id"] + "_" + default_llm
 
-    def _build_persona_api_query(self, user_id: str) -> str:
+    def _build_persona_api_query(self, user_id: Optional[str]) -> str:
         url_query_params = f"only_enabled=true"
         if user_id:
             url_query_params += f"&user_id={user_id}"

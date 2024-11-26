@@ -25,9 +25,12 @@
 # LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+import json
+
 from fastapi import APIRouter
 from starlette.responses import JSONResponse
 
+from chat_server.server_utils.api_dependencies import CurrentUserModel
 from chat_server.server_utils.enums import RequestModelType, UserRoles
 from chat_server.server_utils.http_exceptions import (
     ItemNotFoundException,
@@ -47,7 +50,7 @@ from chat_server.server_utils.api_dependencies.extractors import (
     PersonaData,
 )
 from chat_server.server_utils.api_dependencies.validators import permitted_access
-
+from chat_server.sio.server import sio
 from utils.database_utils.mongo_utils import MongoFilter, MongoLogicalOperators
 from utils.database_utils.mongo_utils.queries.wrapper import MongoDocumentsAPI
 
@@ -61,7 +64,7 @@ router = APIRouter(
 async def list_personas(
     current_user: CurrentUserData,
     request_model: ListPersonasQueryModel = permitted_access(ListPersonasQueryModel),
-):
+) -> JSONResponse:
     """Lists personas matching query params"""
     filters = []
     if request_model.llms:
@@ -112,6 +115,7 @@ async def add_persona(
     if existing_model:
         raise DuplicatedItemException
     MongoDocumentsAPI.PERSONAS.add_item(data=request_model.model_dump())
+    await _notify_personas_changed()
     return KlatAPIResponse.OK
 
 
@@ -131,6 +135,7 @@ async def set_persona(
     MongoDocumentsAPI.PERSONAS.update_item(
         filters=mongo_filter, data=request_model.model_dump()
     )
+    await _notify_personas_changed()
     return KlatAPIResponse.OK
 
 
@@ -140,6 +145,7 @@ async def delete_persona(
 ):
     """Deletes persona"""
     MongoDocumentsAPI.PERSONAS.delete_item(item_id=request_model.persona_id)
+    await _notify_personas_changed()
     return KlatAPIResponse.OK
 
 
@@ -157,4 +163,13 @@ async def toggle_persona_state(
     )
     if updated_data.matched_count == 0:
         raise ItemNotFoundException
+    await _notify_personas_changed()
     return KlatAPIResponse.OK
+
+
+async def _notify_personas_changed():
+    response = await list_personas(CurrentUserModel(_id="", nickname="",
+                                                    first_name="", last_name=""),
+                                   ListPersonasQueryModel(only_enabled=True))
+    enabled_personas = json.loads(response.body.decode())
+    sio.emit("configured_personas_changed", enabled_personas)
