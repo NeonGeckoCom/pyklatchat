@@ -25,13 +25,10 @@
 # LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-import json
 
-from typing import List, Optional
 from fastapi import APIRouter
 from starlette.responses import JSONResponse
 
-from chat_server.server_utils.api_dependencies import CurrentUserModel
 from chat_server.server_utils.enums import RequestModelType, UserRoles
 from chat_server.server_utils.http_exceptions import (
     ItemNotFoundException,
@@ -51,7 +48,7 @@ from chat_server.server_utils.api_dependencies.extractors import (
     PersonaData,
 )
 from chat_server.server_utils.api_dependencies.validators import permitted_access
-from chat_server.sio.server import sio
+from chat_server.server_utils.socketio_utils import notify_personas_changed
 from utils.database_utils.mongo_utils import MongoFilter, MongoLogicalOperators
 from utils.database_utils.mongo_utils.queries.wrapper import MongoDocumentsAPI
 
@@ -116,7 +113,7 @@ async def add_persona(
     if existing_model:
         raise DuplicatedItemException
     MongoDocumentsAPI.PERSONAS.add_item(data=request_model.model_dump())
-    await _notify_personas_changed(request_model.supported_llms)
+    await notify_personas_changed(request_model.supported_llms)
     return KlatAPIResponse.OK
 
 
@@ -136,7 +133,7 @@ async def set_persona(
     MongoDocumentsAPI.PERSONAS.update_item(
         filters=mongo_filter, data=request_model.model_dump()
     )
-    await _notify_personas_changed(request_model.supported_llms)
+    await notify_personas_changed(request_model.supported_llms)
     return KlatAPIResponse.OK
 
 
@@ -146,7 +143,7 @@ async def delete_persona(
 ):
     """Deletes persona"""
     MongoDocumentsAPI.PERSONAS.delete_item(item_id=request_model.persona_id)
-    await _notify_personas_changed()
+    await notify_personas_changed()
     return KlatAPIResponse.OK
 
 
@@ -164,32 +161,8 @@ async def toggle_persona_state(
     )
     if updated_data.matched_count == 0:
         raise ItemNotFoundException
-    await _notify_personas_changed()
+    await notify_personas_changed()
     return KlatAPIResponse.OK
 
 
-async def _notify_personas_changed(supported_llms: Optional[List[str]] = None):
-    """
-    Emit an SIO event for each LLM affected by a persona change. This sends a
-    complete set of personas rather than only the changed one to prevent sync
-    conflicts and simplify client-side logic.
-    :param supported_llms: List of LLM names affected by a transaction. If None,
-        then updates all LLMs listed in database configuration
-    """
-    resp = await list_personas(CurrentUserModel(_id="", nickname="",
-                                                first_name="", last_name=""),
-                               ListPersonasQueryModel(only_enabled=True))
-    enabled_personas = json.loads(resp.body.decode())
-    valid_personas = {}
-    if supported_llms:
-        # Only broadcast updates for LLMs affected by an insert/change request
-        for llm in supported_llms:
-            valid_personas[llm] = [per for per in enabled_personas["items"] if
-                                   llm in per["supported_llms"]]
-    else:
-        # Delete request does not have LLM context, update everything
-        for persona in enabled_personas["items"]:
-            for llm in persona["supported_llms"]:
-                valid_personas.setdefault(llm, [])
-                valid_personas[llm].append(persona)
-    sio.emit("configured_personas_changed", {"personas": valid_personas})
+
