@@ -26,6 +26,7 @@
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 import copy
+import datetime
 from decimal import Decimal
 
 from pymongo import ReplaceOne
@@ -101,7 +102,7 @@ def migrate_users(
                 "nickname": record["nick"],
                 "password": record["pass"],
                 "about_me": record["about_me"],
-                "date_created": int(record["login"]),
+                "date_created": datetime.datetime.fromtimestamp(int(record["login"]), datetime.UTC),
                 "email": record["mail"],
                 "phone": record["phone"],
             },
