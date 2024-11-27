@@ -67,13 +67,14 @@ async def get_user(
     session_token = ""
     if user_id:
         user = MongoDocumentsAPI.USERS.get_user(user_id=user_id)
-        user.pop("password", None)
-        user.pop("date_created", None)
-        user.pop("tokens", None)
-        if session_data.user.user_id != user_id:
-            user.pop("roles", None)
-            user.pop("preferences", None)
-        LOG.info(f"Fetched user data (id={user_id}): {user}")
+        if user:
+            user.pop("password", None)
+            user.pop("date_created", None)
+            user.pop("tokens", None)
+            if session_data.user.user_id != user_id:
+                user.pop("roles", None)
+                user.pop("preferences", None)
+            LOG.info(f"Fetched user data (id={user_id}): {user}")
     else:
         user = session_data.user
         session_token = session_data.session

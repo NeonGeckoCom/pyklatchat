@@ -61,12 +61,20 @@ async def get_profile_modal(request: Request, user_id: str = "", edit: str = "0"
             f'{client_config["SERVER_URL"]}/users_api?user_id={user_id}',
             headers=headers,
         )
-        if resp.ok:
-            if not (user := resp.json().get("data")):
-                return respond(f"User with {user_id=} not found", 404)
+        if resp.status_code == 404 or (resp.ok and not (user := resp.json().get("data"))):
+            template_name = "removed_profile_modal"
+            context = {
+                "server_url": client_config["SERVER_URL"],
+                "user_id": user_id,
+            }
+            return callback_template(
+                request=request, template_name=template_name, context=context
+            )
+        elif resp.ok:
+            template_name = "profile_modal"
         else:
             return respond("Server was not able to process the request", 422)
-        template_name = "profile_modal"
+
     context = {
         "server_url": client_config["SERVER_URL"],
         "user_id": user["_id"],
