@@ -58,6 +58,8 @@ class Recipients(Enum):
 class ChatObserver(MQConnector):
     """Observer of conversations states"""
 
+    async_consumers_enabled = True
+
     recipient_prefixes = {
         Recipients.NEON: ["neon"],
         Recipients.UNRESOLVED: ["undefined"],
@@ -509,9 +511,7 @@ class ChatObserver(MQConnector):
                 or Recipients.UNRESOLVED
             )
             handler_method = self.recipient_to_handler_method.get(recipient)
-            if not handler_method:
-                LOG.warning(f"Failed to get handler message for recipient={recipient}")
-            else:
+            if handler_method:
                 handler_method(recipient_data=recipient_data, msg_data=data)
         else:
             raise TypeError(f"Malformed data received: {data}")
@@ -569,7 +569,7 @@ class ChatObserver(MQConnector):
         if request_id and self.__translation_requests.pop(request_id, None):
             self.sio.emit("get_neon_translations", data=data)
         else:
-            LOG.warning(
+            LOG.debug(
                 f"Neon translation response was not sent, "
                 f"as request_id={request_id} was not found among translation requests"
             )
