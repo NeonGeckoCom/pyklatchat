@@ -27,12 +27,17 @@
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import json
+from time import time
 
 from typing import Optional, List
+from asyncio import Lock
 
 from chat_server.server_utils.api_dependencies import (CurrentUserModel,
                                                        ListPersonasQueryModel)
 from chat_server.sio.server import sio
+
+
+_LOCK = Lock()
 
 
 async def notify_personas_changed(supported_llms: Optional[List[str]] = None):
@@ -44,20 +49,23 @@ async def notify_personas_changed(supported_llms: Optional[List[str]] = None):
         then updates all LLMs listed in database configuration
     """
     from chat_server.blueprints.personas import list_personas
-    resp = await list_personas(CurrentUserModel(_id="", nickname="",
-                                                first_name="", last_name=""),
-                               ListPersonasQueryModel(only_enabled=True))
-    enabled_personas = json.loads(resp.body.decode())
-    valid_personas = {}
-    if supported_llms:
-        # Only broadcast updates for LLMs affected by an insert/change request
-        for llm in supported_llms:
-            valid_personas[llm] = [per for per in enabled_personas["items"] if
-                                   llm in per["supported_llms"]]
-    else:
-        # Delete request does not have LLM context, update everything
-        for persona in enabled_personas["items"]:
-            for llm in persona["supported_llms"]:
-                valid_personas.setdefault(llm, [])
-                valid_personas[llm].append(persona)
-    sio.emit("configured_personas_changed", {"personas": valid_personas})
+    async with _LOCK:
+        resp = await list_personas(CurrentUserModel(_id="", nickname="",
+                                                    first_name="", last_name=""),
+                                   ListPersonasQueryModel(only_enabled=True))
+        update_time = time()
+        enabled_personas = json.loads(resp.body.decode())
+        valid_personas = {}
+        if supported_llms:
+            # Only broadcast updates for LLMs affected by an insert/change request
+            for llm in supported_llms:
+                valid_personas[llm] = [per for per in enabled_personas["items"] if
+                                       llm in per["supported_llms"]]
+        else:
+            # Delete request does not have LLM context, update everything
+            for persona in enabled_personas["items"]:
+                for llm in persona["supported_llms"]:
+                    valid_personas.setdefault(llm, [])
+                    valid_personas[llm].append(persona)
+        sio.emit("configured_personas_changed", {"personas": valid_personas,
+                                                 "update_time": update_time})

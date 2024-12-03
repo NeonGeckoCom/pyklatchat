@@ -896,6 +896,7 @@ class ChatObserver(MQConnector):
         try:
             response = self._fetch_klat_server(url=url)
             data = response.json()
+            data['update_time'] = time.time()
             self._refresh_default_persona_llms(data=data)
         except KlatAPIAuthorizationError:
             LOG.error(f"Failed to fetch personas from {url = }")
@@ -910,7 +911,9 @@ class ChatObserver(MQConnector):
         """
         for llm, personas in data["personas"].items():
             self.send_message(
-                request_data={"items": personas},
+                request_data={
+                    "items": personas,
+                    "update_time": data.get("update_time") or time.time()},
                 vhost=self.get_vhost("llm"),
                 queue=f"{llm}_personas_input",
                 expiration=5000,
