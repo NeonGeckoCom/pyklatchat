@@ -109,7 +109,8 @@ async def user_message(sid, data):
         if is_announcement != "1":
             is_announcement = "0"
 
-        lang = data.get("lang", "en")
+        lang = data.setdefault("lang", "en")
+
         data["prompt_id"] = data.pop("promptID", "")
 
         new_shout_data = {
