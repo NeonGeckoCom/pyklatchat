@@ -10,11 +10,10 @@
     {% endif %}
     <title>{% if title is defined %}{{ title }}{% else %}Klatchat{% endif %}</title>
     {% block css_imports %}
-        <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css"
-          integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T"
+        <link rel="stylesheet" href="{{ url_for('css', path='libs/bootstrap.min.css') }}"
           crossorigin="anonymous">
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flag-icon-css/3.2.1/css/flag-icon.min.css">
-        <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.2.0/css/all.min.css" rel="stylesheet">
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.2.0/css/all.min.css">
     {% endblock %}
 </head>
 <body>
@@ -37,11 +36,11 @@
             {% include 'base_footer.html' %}
         {% endblock %}
     </footer>
-    <script type="text/javascript" src="https://cdn.jsdelivr.net/gh/afarkas/lazysizes/lazysizes.min.js" async></script>
-    <script type="text/javascript" src="https://code.jquery.com/jquery-3.6.1.min.js" integrity="sha256-o88AwQnZB+VDvE9tvIXrMQaPlFFSUTR+nldQm1LuPXQ=" crossorigin="anonymous"></script>
-    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js" integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1" crossorigin="anonymous"></script>
-    <script type="text/javascript" src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js" integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM" crossorigin="anonymous"></script>
-    <script type="text/javascript" src="https://unpkg.com/dexie/dist/dexie.js"></script>
+    <script type="text/javascript" src="{{ url_for('js', path="libs/lazysizes.min.js") }}" async></script>
+    <script type="text/javascript" src="{{ url_for('js', path="libs/jquery.min.js") }}" crossorigin="anonymous"></script>
+    <script type="text/javascript" src="{{ url_for('js', path="libs/popper.min.js") }}" crossorigin="anonymous"></script>
+    <script type="text/javascript" src="{{ url_for('js', path="libs/bootstrap.min.js") }}" crossorigin="anonymous"></script>
+    <script type="text/javascript" src="{{ url_for('js', path="libs/dexie.min.js") }}"></script>
     {% block js_imports %}
         {% for js_module in ['db.js',
                              'meta.js',
@@ -59,7 +58,7 @@
             <script type="text/javascript" src="{{ url_for('js', path=js_module) }}"></script>
         {% endfor %}
         {% if add_sio is defined and add_sio %}
-            <script src="https://cdn.socket.io/4.1.1/socket.io.min.js"></script>
+            <script  src="{{ url_for('js', path="libs/socket.io.min.js") }}"></script>
             <script type="text/javascript" src="{{ url_for('js', path='sio.js') }}"></script>
         {% endif %}
     {% endblock %}
