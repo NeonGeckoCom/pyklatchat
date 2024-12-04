@@ -691,14 +691,14 @@ function initSIO() {
             console.debug('Skipping prompt-related message')
             return
         }
-        console.debug('received new_message -> ', data)
+        // console.debug('received new_message -> ', data)
         const preferredLang = getPreferredLanguage(data['cid']);
         if (data?.lang !== preferredLang) {
-            await requestTranslation(data['cid'], data['messageID']);
+            requestTranslation(data['cid'], data['messageID']).catch(err => console.error(`Failed to request translation of cid=${data['cid']} messageID=${data['messageID']}: ${err}`));
         }
-        await addNewMessage(data['cid'], data['userID'], data['messageID'], data['messageText'], data['timeCreated'], data['repliedMessage'], data['attachments'], data?.isAudio, data?.isAnnouncement)
+        addNewMessage(data['cid'], data['userID'], data['messageID'], data['messageText'], data['timeCreated'], data['repliedMessage'], data['attachments'], data?.isAudio, data?.isAnnouncement)
+            .then(_ => addMessageTransformCallback(data['cid'], data['messageID'], data?.isAudio))
             .catch(err => console.error('Error occurred while adding new message: ', err));
-        addMessageTransformCallback(data['cid'], data['messageID'], data?.isAudio);
     });
 
     socket.on('new_prompt_message', async (message) => {
@@ -723,12 +723,12 @@ function initSIO() {
         await applyTranslations(data);
     });
 
-    socket.on('incoming_tts', async (data) => {
+    socket.on('incoming_tts', (data) => {
         console.log('received incoming stt audio');
         playTTS(data['cid'], data['lang'], data['audio_data']);
     });
 
-    socket.on('incoming_stt', async (data) => {
+    socket.on('incoming_stt', (data) => {
         console.log('received incoming stt response');
         showSTT(data['message_id'], data['lang'], data['message_text']);
     });
@@ -980,15 +980,36 @@ async function initModals(parentID = null) {
     document.dispatchEvent(modalsLoaded);
 }
 
+
+const USER_DATA_CACHE = {}
+const USER_DATA_CACHE_EXPIRY_SECONDS = 3600;
+
+/**
+ * Gets user data from local cache
+ * @param userID - id of the user to look-up (lookups authorized user if null)
+ * @returns {Promise<{}>} promise resolving obtaining of user data
+ */
+const getUserDataFromCache = (userID) => {
+    if (USER_DATA_CACHE?.[userID]?.data) {
+        if (getCurrentTimestamp() - USER_DATA_CACHE[userID].ts < USER_DATA_CACHE_EXPIRY_SECONDS) {
+            return USER_DATA_CACHE[userID].data;
+        }
+    }
+}
+
 /**
  * Gets user data from chat client URL
- * @param userID: id of desired user (current user if null)
+ * @param userID - id of the user to look-up (lookups authorized user if null)
  * @returns {Promise<{}>} promise resolving obtaining of user data
  */
 async function getUserData(userID = null) {
     let userData = {}
     let query_url = `users_api/`;
     if (userID) {
+        const cachedUserData = getUserDataFromCache(userID);
+        if (cachedUserData) {
+            return cachedUserData;
+        }
         query_url += '?user_id=' + userID;
     }
     await fetchServer(query_url)
@@ -1000,6 +1021,10 @@ async function getUserData(userID = null) {
             const oldToken = getSessionToken();
             if (data['token'] !== oldToken && !userID) {
                 setSessionToken(data['token']);
+            }
+            USER_DATA_CACHE[userID] = {
+                data: userData,
+                ts: getCurrentTimestamp()
             }
         });
     return userData;
@@ -3588,8 +3613,7 @@ document.addEventListener('DOMContentLoaded', (e) => {
             await refreshCurrentUser(false)
                 .then(async _ => await restoreChatAlignment())
                 .then(async _ => await refreshCurrentUser(true))
-                .then(async _ => await requestChatsLanguageRefresh())
-                .then(async _ => renderSuggestions());
+                .then(async _ => await requestChatsLanguageRefresh());
         });
         addBySearch.addEventListener('click', async (e) => {
             e.preventDefault();
