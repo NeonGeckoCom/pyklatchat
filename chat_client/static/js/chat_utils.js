@@ -779,8 +779,7 @@ document.addEventListener('DOMContentLoaded', (e)=>{
             await refreshCurrentUser(false)
             .then(async _ => await restoreChatAlignment())
             .then(async _=>await refreshCurrentUser(true))
-            .then(async _=> await requestChatsLanguageRefresh())
-            .then(async _=> renderSuggestions());
+            .then(async _=> await requestChatsLanguageRefresh());
         });
         addBySearch.addEventListener('click', async (e) => {
             e.preventDefault();
