@@ -637,7 +637,7 @@ let socket;
 const sioTriggeringEvents = ['configLoaded', 'configNanoLoaded'];
 
 sioTriggeringEvents.forEach(event => {
-    document.addEventListener(event, (e) => {
+    document.addEventListener(event, _ => {
         socket = initSIO();
     });
 });
@@ -648,12 +648,15 @@ sioTriggeringEvents.forEach(event => {
  */
 function initSIO() {
 
-    const sioServerURL = configData['CHAT_SERVER_URL_BASE'].replace("http", 'ws');
-    const socket = io(sioServerURL, {
-        extraHeaders: {
-            "session": getSessionToken()
+    const sioServerURL = configData['CHAT_SERVER_URL_BASE'];
+
+    const socket = io(
+        sioServerURL, {
+            extraHeaders: {
+                "session": getSessionToken()
+            }
         }
-    });
+    );
 
     socket.__proto__.emitAuthorized = (event, data) => {
         socket.io.opts.extraHeaders.session = getSessionToken();
