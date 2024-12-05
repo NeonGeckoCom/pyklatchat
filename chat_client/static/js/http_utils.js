@@ -34,7 +34,7 @@ const fetchServer = async (urlSuffix, method=REQUEST_METHODS.GET, body=null, jso
         }
     }
     return fetch(`${configData["CHAT_SERVER_URL_BASE"]}/${urlSuffix}`, options).then(async response => {
-        if (response.status === 401){
+        if (response.status === 403){
             const responseJson = await response.json();
             if (responseJson['msg'] === 'Requested user is not authorized to perform this action'){
                 localStorage.removeItem('session');
