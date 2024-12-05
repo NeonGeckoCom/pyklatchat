@@ -34,7 +34,10 @@ from time import time
 from fastapi import Request
 
 from chat_server.server_utils.enums import UserRoles
-from chat_server.server_utils.http_exceptions import UserUnauthorizedException
+from chat_server.server_utils.http_exceptions import (
+    UserUnauthorizedException,
+    InvalidSessionTokenException,
+)
 from utils.database_utils.mongo_utils import MongoFilter, MongoLogicalOperators
 from utils.database_utils.mongo_utils.queries.wrapper import MongoDocumentsAPI
 from utils.logging_utils import LOG
@@ -269,6 +272,6 @@ def validate_session(
             return "OK", 200
         else:
             LOG.warning("Session expired")
-            raise UserUnauthorizedException()
+            raise InvalidSessionTokenException()
     LOG.warning("Session header missing")
-    raise UserUnauthorizedException()
+    raise InvalidSessionTokenException()
