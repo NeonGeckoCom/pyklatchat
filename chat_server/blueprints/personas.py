@@ -163,6 +163,3 @@ async def toggle_persona_state(
         raise ItemNotFoundException
     await notify_personas_changed()
     return KlatAPIResponse.OK
-
-
-
