@@ -93,14 +93,17 @@ class ChatObserver(MQConnector):
             Recipients.NEON: self.__handle_neon_recipient,
             Recipients.CHATBOT_CONTROLLER: self.__handle_chatbot_recipient,
         }
-        self._sio: socketio.Client = None
         self.sio_url = config["SIO_URL"]
+
+        self._sio: socketio.Client = socketio.Client()
+        self.sio_connected = False
+        self.register_sio_handlers()
+
         self.server_url = self.sio_url
         self._klat_session_token = None
         self.klat_auth_credentials = config.get("KLAT_AUTH_CREDENTIALS", {})
-        self.default_persona_llms = dict()
 
-        self.sio_connected = False
+        self.default_persona_llms = dict()
 
         self.register_consumer(
             name="neon_response",
@@ -334,14 +337,12 @@ class ChatObserver(MQConnector):
         """
         Method for establishing connection with Socket IO server
         """
-        self._sio = socketio.Client()
         self._sio.connect(
             url=self.sio_url,
             namespaces=["/"],
             retry=True,
             headers={"session": self._klat_session_token},
         )
-        self.register_sio_handlers()
 
     @property
     def sio(self):
@@ -351,7 +352,7 @@ class ChatObserver(MQConnector):
 
         :return: connected async socket io instance
         """
-        if not (self._sio and self.sio_connected):
+        if not self.sio_connected:
             try:
                 # Assuming that Socket IO is connected unless Exception is raised during the connection
                 # This is done to prevent parallel invocation of this method from consumers
@@ -844,7 +845,7 @@ class ChatObserver(MQConnector):
         )
         if response.ok:
             self._klat_session_token = response.json()["token"]
-            self.sio.disconnect()
+            self._sio.disconnect()
             self.sio_connected = False
         else:
             LOG.error(
