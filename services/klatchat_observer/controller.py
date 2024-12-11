@@ -25,6 +25,7 @@
 # LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+import http
 import json
 import re
 import time
@@ -829,7 +830,7 @@ class ChatObserver(MQConnector):
             response = self._send_get_request_to_klat(url=url)
             if response.ok:
                 return response
-            elif response.status_code != 403:
+            elif response.status_code != http.HTTPStatus.UNAUTHORIZED.value:
                 raise KlatAPIAuthorizationError("Klat API unavailable")
         self._login_to_klat_server()
         return self._send_get_request_to_klat(url=url)
