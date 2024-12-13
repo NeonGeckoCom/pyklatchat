@@ -103,6 +103,7 @@ class ChatObserver(MQConnector):
         self.server_url = self.sio_url
         self._klat_session_token = None
         self.klat_auth_credentials = config.get("KLAT_AUTH_CREDENTIALS", {})
+        self._klat_nano_token = config.get("KLAT_NANO_TOKEN", {})
 
         self.default_persona_llms = dict()
 
@@ -342,7 +343,10 @@ class ChatObserver(MQConnector):
             url=self.sio_url,
             namespaces=["/"],
             retry=True,
-            headers={"session": self._klat_session_token},
+            headers={
+                "session": self._klat_session_token,
+                "nano_session": self._klat_nano_token,
+            },
         )
 
     @property
@@ -826,7 +830,7 @@ class ChatObserver(MQConnector):
 
     def _fetch_klat_server(self, url: str) -> Response:
         # only getter method is supported, for POST/PUT/DELETE operations using Socket IO is preferable channel
-        if self._klat_session_token:
+        if self._klat_session_token or self._klat_nano_token:
             response = self._send_get_request_to_klat(url=url)
             if response.ok:
                 return response
@@ -837,7 +841,11 @@ class ChatObserver(MQConnector):
 
     def _send_get_request_to_klat(self, url: str) -> Response:
         return requests.get(
-            url=url, headers={"Authorization": self._klat_session_token}
+            url=url,
+            headers={
+                "Authorization": self._klat_session_token,
+                "NanoAuthorization": self._klat_nano_token,
+            },
         )
 
     def _login_to_klat_server(self):
