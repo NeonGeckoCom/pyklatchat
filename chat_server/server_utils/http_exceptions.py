@@ -72,3 +72,8 @@ class MissingAttributeException(KlatAPIException):
 class InvalidInputData(KlatAPIException):
     HTTP_CODE = http.HTTPStatus.BAD_REQUEST
     MESSAGE = "Wrong input data provided"
+
+
+class PermissionDenied(KlatAPIException):
+    HTTP_CODE = http.HTTPStatus.FORBIDDEN
+    MESSAGE = "User has no permission to access this resource"
