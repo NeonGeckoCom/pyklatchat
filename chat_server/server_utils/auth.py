@@ -26,7 +26,7 @@
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 from dataclasses import dataclass
-from typing import Optional, Union
+from typing import Optional
 
 import jwt
 
@@ -54,7 +54,7 @@ class UserData:
     """Dataclass wrapping user data"""
 
     user: dict
-    session: str
+    session: str | None = None
 
 
 def check_password_strength(password: str) -> str:
@@ -84,21 +84,18 @@ def get_cookie_from_request(request: Request, cookie_name: str) -> Optional[str]
 
 
 def get_header_from_request(
-    request: Union[Request, str], header_name: str, sio_request: bool = False
+    request: Request,
+    header_name: str,
 ) -> Optional[str]:
     """
     Gets header value from response by its name
 
     :param request: Starlet request object
     :param header_name: name of the desired cookie
-    :param sio_request: is request from Socket IO service endpoint (defaults to False)
 
     :returns value of cookie if present
     """
-    if sio_request:
-        return request
-    else:
-        return request.headers.get(header_name)
+    return request.headers.get(header_name)
 
 
 def generate_session_token(user_id) -> str:
@@ -158,13 +155,12 @@ def get_current_user_data(
                 header_name=NANO_AUTHORIZATION_HEADER,
             )
         if nano_token:
-            user = MongoDocumentsAPI.USERS.get_user_by_nano_token(
+            nano_user = MongoDocumentsAPI.USERS.get_user_by_nano_token(
                 nano_token=nano_token,
             )
-            if not user:
-                LOG.info("Creating new user for nano agent")
-                user_data = create_unauthorized_user(
-                    nano_token=nano_token, authorize=False
+            if nano_user:
+                user_data = UserData(
+                    user=nano_user,
                 )
         else:
             try:
