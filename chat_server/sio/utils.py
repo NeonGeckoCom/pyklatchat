@@ -29,13 +29,19 @@
 
 import os
 from functools import wraps
-from typing import Optional, List
+from typing import Optional, List, Tuple
 
+from utils.database_utils.mongo_utils.queries.wrapper import MongoDocumentsAPI
 from utils.logging_utils import LOG
 from .server import sio
-from ..server_utils.auth import validate_session
+from ..server_utils.auth import decode_jwt_token, session_token_expired
 from ..server_utils.enums import UserRoles
-from ..server_utils.http_exceptions import KlatAPIException, ItemNotFoundException
+from ..server_utils.http_exceptions import (
+    KlatAPIException,
+    ItemNotFoundException,
+    UserUnauthorizedException,
+    InvalidSessionTokenException,
+)
 
 
 def list_current_headers(sid: str) -> list:
@@ -68,18 +74,30 @@ def login_required(min_required_role=UserRoles.GUEST, *outer_args, **outer_kwarg
         @wraps(func)
         async def wrapper(sid, *args, **kwargs):
             if os.environ.get("DISABLE_AUTH_CHECK", "0") != "1":
-                auth_token = get_header(sid, "session")
+                user = None
+
+                nano_token = get_header(sid, "nano_session")
+                session_token = get_header(sid, "session")
+
                 try:
-                    if auth_token:
-                        validate_session(
-                            auth_token,
-                            min_required_role=min_required_role,
-                            sio_request=True,
+                    if nano_token:
+                        user = MongoDocumentsAPI.USERS.get_user_by_nano_token(
+                            nano_token=nano_token
                         )
-                    else:
-                        raise ItemNotFoundException(
-                            message="Missing session header in SIO request"
-                        )
+                    if not user:
+                        if session_token:
+                            user = _get_user_from_session_token(
+                                session_token=session_token
+                            )
+                        else:
+                            raise ItemNotFoundException(
+                                message="Missing session header in SIO request"
+                            )
+
+                    if not _user_has_min_required_role(
+                        user=user, min_required_role=min_required_role
+                    ):
+                        raise UserUnauthorizedException()
                 except KlatAPIException as ex:
                     http_response_data = ex.to_http_response()
                     return await sio.emit(
@@ -99,6 +117,30 @@ def login_required(min_required_role=UserRoles.GUEST, *outer_args, **outer_kwarg
         return outer(func)
     else:
         return outer
+
+
+def _get_user_from_session_token(
+    session_token: str,
+) -> Tuple[str, int]:
+    """
+    Check if session token contained in request is valid
+    :returns retrieved user instance
+    """
+    payload = decode_jwt_token(jwt_session_token=session_token)
+
+    if session_token_expired(jwt_payload=payload):
+        LOG.debug("Session expired")
+        raise InvalidSessionTokenException()
+    return MongoDocumentsAPI.USERS.get_user(user_id=payload["sub"])
+
+
+def _user_has_min_required_role(user, min_required_role: UserRoles) -> bool:
+    return min_required_role == UserRoles.GUEST or (
+        any(
+            getattr(UserRoles, user_role.upper(), UserRoles.GUEST) >= min_required_role
+            for user_role in user.get("roles", [])
+        )
+    )
 
 
 async def emit_error(
