@@ -25,8 +25,7 @@
 # LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-
+import http
 import os
 from functools import wraps
 from typing import Optional, List, Tuple
@@ -39,8 +38,8 @@ from ..server_utils.enums import UserRoles
 from ..server_utils.http_exceptions import (
     KlatAPIException,
     ItemNotFoundException,
-    UserUnauthorizedException,
     InvalidSessionTokenException,
+    PermissionDenied,
 )
 
 
@@ -97,18 +96,22 @@ def login_required(min_required_role=UserRoles.GUEST, *outer_args, **outer_kwarg
                     if not _user_has_min_required_role(
                         user=user, min_required_role=min_required_role
                     ):
-                        raise UserUnauthorizedException()
+                        raise PermissionDenied()
                 except KlatAPIException as ex:
                     http_response_data = ex.to_http_response()
-                    return await sio.emit(
-                        "auth_expired",
-                        data={
-                            "body": http_response_data.body.decode(),
-                            "status": http_response_data.status_code,
-                            "handler": func.__name__,
-                        },
-                        to=sid,
-                    )
+                    if (
+                        http_response_data.status_code
+                        != http.HTTPStatus.FORBIDDEN.value
+                    ):
+                        return await sio.emit(
+                            "auth_expired",
+                            data={
+                                "body": http_response_data.body.decode(),
+                                "status": http_response_data.status_code,
+                                "handler": func.__name__,
+                            },
+                            to=sid,
+                        )
             return await func(sid, *args, **kwargs)
 
         return wrapper
