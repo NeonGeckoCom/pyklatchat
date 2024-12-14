@@ -824,22 +824,24 @@ function extractURLBase() {
 
 /**
  * Extracts json data from provided URL path
- * @param urlPath: file path string
+ * @param urlPath - file path string
+ * @param onError - callback on extraction failure
  * @returns {Promise<* | {}>} promise that resolves data obtained from file path
  */
-async function extractJsonData(urlPath = "") {
+async function extractJsonData(urlPath = "",
+    onError = (e) => console.error(`failed to extractJsonData - ${e}`)) {
     return fetch(urlPath).then(response => {
         if (response.ok) {
             return response.json();
         }
         return {};
-    });
+    }).catch(onError);
 }
 
 
 document.addEventListener('DOMContentLoaded', async (e) => {
     if (configData['client'] === CLIENTS.MAIN) {
-        configData = Object.assign(configData, await extractJsonData(`${configData['currentURLBase']}/base/runtime_config`));
+        configData = Object.assign(configData, await extractJsonData(`${configData['currentURLBase']}/base/runtime_config`), (e) => location.reload());
         document.dispatchEvent(configFullLoadedEvent);
     }
 });
@@ -1832,13 +1834,11 @@ async function buildLangOptionHTML(cid, key, name, icon, inputType) {
  */
 async function buildUserMessageHTML(userData, cid, messageID, messageText, timeCreated, isMine, isAudio = '0', isAnnouncement = '0') {
     const messageTime = getTimeFromTimestamp(timeCreated);
-    let imageComponent;
     let shortedNick = `${userData['nickname'][0]}${userData['nickname'][userData['nickname'].length - 1]}`;
-    if (userData.hasOwnProperty('avatar') && userData['avatar']) {
-        imageComponent = `<img alt="${shortedNick}" onerror="handleImgError(this);" src="${configData["CHAT_SERVER_URL_BASE"]}/files/avatar/${userData['_id']}" loading="lazy">`
-    } else {
-        imageComponent = `<p>${shortedNick}</p>`;
-    }
+    let imageComponent = `<p>${shortedNick}</p>`;
+    // if (userData.hasOwnProperty('avatar') && userData['avatar']){
+    //     imageComponent = `<img alt="${shortedNick}" onerror="handleImgError(this);" src="${configData["CHAT_SERVER_URL_BASE"]}/files/avatar/${userData['_id']}" loading="lazy">`
+    // }
     const messageClass = isAnnouncement === '1' ? 'announcement' : isMine ? 'in' : 'out';
     const messageOrientation = isMine ? 'right' : 'left';
     let minificationEnabled = currentUser?.preferences?.minify_messages === '1' || await getCurrentSkin(cid) === CONVERSATION_SKINS.PROMPTS;
@@ -1907,7 +1907,7 @@ async function buildSubmindHTML(promptID, submindID, submindUserData, submindRes
         'user_last_name': submindUserData['last_name'],
         'user_nickname': submindUserData['nickname'],
         'user_nickname_shrunk': userNickname,
-        'user_avatar': `${configData["CHAT_SERVER_URL_BASE"]}/files/avatar/${submindID}`,
+        // 'user_avatar': `${configData["CHAT_SERVER_URL_BASE"]}/files/avatar/${submindID}`,
         'tooltip': tooltip
     }
     const submindPromptData = {}
@@ -2103,6 +2103,8 @@ const REQUEST_METHODS = {
     POST: 'POST'
 }
 
+const controllers = new Set();
+
 
 const getSessionToken = () => {
     return localStorage.getItem('session') || '';
@@ -2117,11 +2119,16 @@ const setSessionToken = (val) => {
 }
 
 const fetchServer = async (urlSuffix, method = REQUEST_METHODS.GET, body = null, json = false) => {
+    const controller = new AbortController();
+    controllers.add(controller);
+    const signal = controller.signal;
+
     const options = {
         method: method,
         headers: new Headers({
             'Authorization': getSessionToken()
-        })
+        }),
+        signal,
     }
     if (body) {
         options['body'] = body;
@@ -2142,8 +2149,17 @@ const fetchServer = async (urlSuffix, method = REQUEST_METHODS.GET, body = null,
             }
         }
         return response;
+    }).finally(() => {
+        controllers.delete(controller);
     });
 }
+
+
+document.addEventListener('beforeunload', () => {
+    for (const controller of controllers) {
+        controller.abort();
+    }
+});
 /**
  * Adds speaking callback for the message
  * @param cid: id of the conversation
