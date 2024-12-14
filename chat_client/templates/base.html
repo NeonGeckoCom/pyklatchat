@@ -37,9 +37,9 @@
         {% endblock %}
     </footer>
     <script type="text/javascript" src="{{ url_for('js', path="libs/lazysizes.min.js") }}" async></script>
-    <script type="text/javascript" src="{{ url_for('js', path="libs/jquery.min.js") }}" crossorigin="anonymous"></script>
-    <script type="text/javascript" src="{{ url_for('js', path="libs/popper.min.js") }}" crossorigin="anonymous"></script>
-    <script type="text/javascript" src="{{ url_for('js', path="libs/bootstrap.min.js") }}" crossorigin="anonymous"></script>
+    <script type="text/javascript" src="{{ url_for('js', path="libs/jquery.min.js") }}"></script>
+    <script type="text/javascript" src="{{ url_for('js', path="libs/popper.min.js") }}"></script>
+    <script type="text/javascript" src="{{ url_for('js', path="libs/bootstrap.min.js") }}"></script>
     <script type="text/javascript" src="{{ url_for('js', path="libs/dexie.min.js") }}"></script>
     {% block js_imports %}
         {% for js_module in ['db.js',

@@ -91,14 +91,11 @@ async function buildLangOptionHTML(cid, key, name, icon, inputType){
  */
 async function buildUserMessageHTML(userData, cid, messageID, messageText, timeCreated, isMine, isAudio = '0', isAnnouncement = '0'){
     const messageTime = getTimeFromTimestamp(timeCreated);
-    let imageComponent;
     let shortedNick = `${userData['nickname'][0]}${userData['nickname'][userData['nickname'].length - 1]}`;
-    if (userData.hasOwnProperty('avatar') && userData['avatar']){
-        imageComponent = `<img alt="${shortedNick}" onerror="handleImgError(this);" src="${configData["CHAT_SERVER_URL_BASE"]}/files/avatar/${userData['_id']}" loading="lazy">`
-    }
-    else{
-        imageComponent = `<p>${shortedNick}</p>`;
-    }
+    let imageComponent = `<p>${shortedNick}</p>`;
+    // if (userData.hasOwnProperty('avatar') && userData['avatar']){
+    //     imageComponent = `<img alt="${shortedNick}" onerror="handleImgError(this);" src="${configData["CHAT_SERVER_URL_BASE"]}/files/avatar/${userData['_id']}" loading="lazy">`
+    // }
     const messageClass = isAnnouncement === '1'?'announcement':isMine?'in':'out';
     const messageOrientation = isMine?'right': 'left';
     let minificationEnabled = currentUser?.preferences?.minify_messages === '1' || await getCurrentSkin(cid) === CONVERSATION_SKINS.PROMPTS;
@@ -166,7 +163,7 @@ async function buildSubmindHTML(promptID, submindID, submindUserData, submindRes
             'user_last_name': submindUserData['last_name'],
             'user_nickname': submindUserData['nickname'],
             'user_nickname_shrunk': userNickname,
-            'user_avatar': `${configData["CHAT_SERVER_URL_BASE"]}/files/avatar/${submindID}`,
+            // 'user_avatar': `${configData["CHAT_SERVER_URL_BASE"]}/files/avatar/${submindID}`,
             'tooltip': tooltip
     }
     const submindPromptData = {}
