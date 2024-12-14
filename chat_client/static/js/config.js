@@ -42,21 +42,23 @@ function extractURLBase(){
 
 /**
  * Extracts json data from provided URL path
- * @param urlPath: file path string
+ * @param urlPath - file path string
+ * @param onError - callback on extraction failure
  * @returns {Promise<* | {}>} promise that resolves data obtained from file path
  */
-async function extractJsonData(urlPath=""){
+async function extractJsonData(urlPath="",
+                               onError = (e) => console.error(`failed to extractJsonData - ${e}`)){
     return fetch(urlPath).then(response => {
         if (response.ok){
             return response.json();
         }return  {};
-    });
+    }).catch(onError);
 }
 
 
 document.addEventListener('DOMContentLoaded', async (e)=>{
     if (configData['client'] === CLIENTS.MAIN) {
-        configData = Object.assign(configData, await extractJsonData(`${configData['currentURLBase']}/base/runtime_config`));
+        configData = Object.assign(configData, await extractJsonData(`${configData['currentURLBase']}/base/runtime_config`), (e) => location.reload());
         document.dispatchEvent(configFullLoadedEvent);
     }
 });
