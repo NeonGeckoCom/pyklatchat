@@ -1,5 +1,11 @@
 {% extends 'base.html' %}
 
+{% block meta %}
+    {% if live is sameas true %}
+        <meta name="live" content="1" />
+    {% endif %}
+{% endblock %}
+
 {% block css_imports %}
     {{ super() }}
     <link rel="stylesheet" href="{{ url_for('css', path='chat.css') }}">

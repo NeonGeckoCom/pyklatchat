@@ -34,8 +34,8 @@ from utils.logging_utils import LOG
 from utils.database_utils.mongo_utils import (
     MongoCommands,
     MongoDocuments,
-    MongoQuery,
     MongoFilter,
+    MongoLogicalOperators,
 )
 from utils.database_utils.mongo_utils.queries.dao.abc import MongoDocumentDAO
 from utils.database_utils.mongo_utils.queries.constants import UserPatterns
@@ -204,3 +204,12 @@ class UsersDAO(MongoDocumentDAO):
         #  https://www.mongodb.com/docs/manual/core/index-ttl/
         self.add_item(data=new_user)
         return new_user
+
+    def get_user_by_nano_token(self, nano_token: str):
+        return self.get_item(
+            filters=MongoFilter(
+                key="tokens",
+                value=[nano_token],
+                logical_operator=MongoLogicalOperators.ALL,
+            )
+        )

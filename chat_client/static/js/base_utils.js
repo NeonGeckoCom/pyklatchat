@@ -33,6 +33,12 @@ function displayAlert(parentElem,text='Error Occurred',alertType='danger',alertI
         alert.remove();
     }
 
+    if(!alertBehaviorProperties){
+        alertBehaviorProperties = {
+            'type': alertBehaviors.AUTO_EXPIRE,
+        }
+    }
+
     if(text) {
         parentElem.insertAdjacentHTML('afterbegin',
             `<div class="alert alert-${alertType} alert-dismissible" role="alert" id="${alertID}">

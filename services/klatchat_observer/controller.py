@@ -25,9 +25,12 @@
 # LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+import http
 import json
 import re
 import time
+from queue import Queue
+
 import cachetools.func
 
 from threading import Event, Timer
@@ -35,9 +38,9 @@ from threading import Event, Timer
 import requests
 import socketio
 
+from socketio.exceptions import SocketIOError
 from enum import Enum
 
-from neon_mq_connector.utils import retry
 from neon_mq_connector.utils.rabbit_utils import create_mq_callback
 from neon_mq_connector.connector import MQConnector
 from requests import Response
@@ -59,8 +62,10 @@ class Recipients(Enum):
 class ChatObserver(MQConnector):
     """Observer of conversations states"""
 
+    async_consumers_enabled = True
+
     recipient_prefixes = {
-        Recipients.NEON: ["neon", "@neon"],
+        Recipients.NEON: ["neon"],
         Recipients.UNRESOLVED: ["undefined"],
     }
 
@@ -92,12 +97,21 @@ class ChatObserver(MQConnector):
             Recipients.NEON: self.__handle_neon_recipient,
             Recipients.CHATBOT_CONTROLLER: self.__handle_chatbot_recipient,
         }
-        self._sio: socketio.Client = None
         self.sio_url = config["SIO_URL"]
+
+        self._sio: socketio.Client = socketio.Client()
+        self.sio_connected = False
+        self.sio_connecting = False
+        self.sio_queued_messages = Queue(maxsize=256)
+        self.register_sio_handlers()
+
         self.server_url = self.sio_url
         self._klat_session_token = None
         self.klat_auth_credentials = config.get("KLAT_AUTH_CREDENTIALS", {})
+        self._klat_nano_token = config.get("KLAT_NANO_TOKEN", {})
+
         self.default_persona_llms = dict()
+
         self.connect_sio()
         self.register_consumer(
             name="neon_response",
@@ -331,40 +345,49 @@ class ChatObserver(MQConnector):
         """
         Method for establishing connection with Socket IO server
         """
-        self._sio = socketio.Client()
+        # This flag is needed to lock parallel attempts
+        self.sio_connecting = True
         self._sio.connect(
             url=self.sio_url,
             namespaces=["/"],
             retry=True,
-            headers={"session": self._klat_session_token},
+            headers={
+                "session": self._klat_session_token,
+                "nano_session": self._klat_nano_token,
+            },
         )
-        self.register_sio_handlers()
-
-    def reconnect_sio(self):
-        """
-        Method for reconnecting to the Socket IO server
-        """
-        if self._sio is not None:
-            self._sio.disconnect()
-        self.connect_sio()
-        return self._sio
+        time.sleep(1)
+        LOG.info("Socket IO connected")
+        self.sio_connecting = False
+        self.sio_connected = True
+        while not self.sio_queued_messages.empty():
+            self._sio_emit(**self.sio_queued_messages.get())
+            time.sleep(0.1)
 
     @property
     def sio(self):
         """
-        Creates socket io client if none is present
+        Returns Socket IO client instance.
+        Establishes connection with Socket IO server if no existing connection or its disconnected
 
         :return: connected async socket io instance
         """
-        if not self._sio:
-            self.connect_sio()
+        if not (self.sio_connected or self.sio_connecting):
+            try:
+                # Assuming that Socket IO is connected unless Exception is raised during the connection
+                # This is done to prevent parallel invocation of this method from consumers
+                self.connect_sio()
+            except Exception as ex:
+                LOG.error(f"Failed to connect to sio: {ex}")
+                self.sio_connecting = False
+                self.sio_connected = False
         return self._sio
 
     def _handle_auth_expired(self, data: dict):
         handler = data["handler"]
         status = data["status"]
         error = data["body"]
-        LOG.error(
+        LOG.info(
             f"({status}) Failed to authorize response for {handler=!r}, {error=!r}"
         )
         self._login_to_klat_server()
@@ -509,9 +532,7 @@ class ChatObserver(MQConnector):
                 or Recipients.UNRESOLVED
             )
             handler_method = self.recipient_to_handler_method.get(recipient)
-            if not handler_method:
-                LOG.warning(f"Failed to get handler message for recipient={recipient}")
-            else:
+            if handler_method:
                 handler_method(recipient_data=recipient_data, msg_data=data)
         else:
             raise TypeError(f"Malformed data received: {data}")
@@ -567,9 +588,9 @@ class ChatObserver(MQConnector):
         """
         request_id = data.get("request_id", None)
         if request_id and self.__translation_requests.pop(request_id, None):
-            self.sio.emit("get_neon_translations", data=data)
+            self._sio_emit("get_neon_translations", data=data)
         else:
-            LOG.warning(
+            LOG.debug(
                 f"Neon translation response was not sent, "
                 f"as request_id={request_id} was not found among translation requests"
             )
@@ -585,7 +606,7 @@ class ChatObserver(MQConnector):
         if not requested_nick:
             LOG.warning("Request from unknown sender, skipping")
             return -1
-        self.sio.emit("get_prompt_data", data=body)
+        self._sio_emit("get_prompt_data", data=body)
 
     @create_mq_callback()
     def handle_neon_sync(self, body: dict):
@@ -647,7 +668,7 @@ class ChatObserver(MQConnector):
                         LOG.error(
                             f"Failed to set messageTTS with language={language}, gender={gender} - {ex}"
                         )
-            self.sio.emit("user_message", data=send_data)
+            self._sio_emit("user_message", data=send_data)
         except Exception as ex:
             LOG.error(f"Failed to emit Neon Chat API response: {ex}")
 
@@ -679,7 +700,7 @@ class ChatObserver(MQConnector):
         if all(required_key in list(body) for required_key in response_required_keys):
             body.setdefault("timeCreated", int(time.time()))
             body.setdefault("source", "klat_observer")
-            self.sio.emit("user_message", data=body)
+            self._sio_emit("user_message", data=body)
             self.handle_message(data=body)
         else:
             error_msg = (
@@ -707,7 +728,7 @@ class ChatObserver(MQConnector):
             "prompt_text",
         )
         if all(required_key in list(body) for required_key in response_required_keys):
-            self.sio.emit("new_prompt", data=body)
+            self._sio_emit("new_prompt", data=body)
         else:
             error_msg = (
                 f"Skipping received data {body} as it lacks one of the required keys: "
@@ -739,7 +760,7 @@ class ChatObserver(MQConnector):
         )
 
         if all(required_key in list(body) for required_key in response_required_keys):
-            self.sio.emit("prompt_completed", data=body)
+            self._sio_emit("prompt_completed", data=body)
         else:
             error_msg = (
                 f"Skipping received data {body} as it lacks one of the required keys: "
@@ -757,20 +778,20 @@ class ChatObserver(MQConnector):
     def on_stt_response(self, body: dict):
         """Handles receiving STT response"""
         LOG.debug(f"Received STT Response: {body}")
-        self.sio.emit("stt_response", data=body)
+        self._sio_emit("stt_response", data=body)
 
     @create_mq_callback()
     def on_tts_response(self, body: dict):
         """Handles receiving TTS response"""
         LOG.debug(f"Received TTS Response: {body}")
-        self.sio.emit("tts_response", data=body)
+        self._sio_emit("tts_response", data=body)
 
     @create_mq_callback()
     def on_subminds_state(self, body: dict):
         """Handles receiving subminds state message"""
         LOG.debug(f"Received submind state: {body}")
         body["msg_type"] = "subminds_state"
-        self.sio.emit("broadcast", data=body)
+        self._sio_emit("broadcast", data=body)
 
     @create_mq_callback()
     def on_get_configured_personas(self, body: dict):
@@ -824,18 +845,22 @@ class ChatObserver(MQConnector):
 
     def _fetch_klat_server(self, url: str) -> Response:
         # only getter method is supported, for POST/PUT/DELETE operations using Socket IO is preferable channel
-        if self._klat_session_token:
+        if self._klat_session_token or self._klat_nano_token:
             response = self._send_get_request_to_klat(url=url)
             if response.ok:
                 return response
-            elif response.status_code != 403:
+            elif response.status_code != http.HTTPStatus.UNAUTHORIZED.value:
                 raise KlatAPIAuthorizationError("Klat API unavailable")
         self._login_to_klat_server()
         return self._send_get_request_to_klat(url=url)
 
     def _send_get_request_to_klat(self, url: str) -> Response:
         return requests.get(
-            url=url, headers={"Authorization": self._klat_session_token}
+            url=url,
+            headers={
+                "Authorization": self._klat_session_token,
+                "NanoAuthorization": self._klat_nano_token,
+            },
         )
 
     def _login_to_klat_server(self):
@@ -844,7 +869,8 @@ class ChatObserver(MQConnector):
         )
         if response.ok:
             self._klat_session_token = response.json()["token"]
-            self.reconnect_sio()
+            self._sio.disconnect()
+            self.sio_connected = False
         else:
             LOG.error(
                 f"Klat API authorization error: [{response.status_code}] {response.text}"
@@ -874,3 +900,15 @@ class ChatObserver(MQConnector):
             queue="revoke_submind_ban_from_conversation",
             expiration=3000,
         )
+
+    def _sio_emit(self, event: str, data: dict):
+        if self.sio_connected:
+            try:
+                self.sio.emit(event=event, data=data)
+            except SocketIOError as err:
+                LOG.error(
+                    f"Socket IO event={event} emit failed due to error: {err}, reconnecting"
+                )
+                self.sio_connected = False
+        if not self.sio_connected:
+            self.sio_queued_messages.put(item={"event": event, "data": data})

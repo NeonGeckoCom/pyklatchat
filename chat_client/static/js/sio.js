@@ -3,7 +3,7 @@ let socket;
 const sioTriggeringEvents = ['configLoaded', 'configNanoLoaded'];
 
 sioTriggeringEvents.forEach(event=>{
-   document.addEventListener(event,(e)=>{
+   document.addEventListener(event,_=>{
         socket = initSIO();
    });
 });
@@ -14,10 +14,16 @@ sioTriggeringEvents.forEach(event=>{
  */
 function initSIO(){
 
-    const sioServerURL = configData['CHAT_SERVER_URL_BASE'].replace("http", 'ws');
-    const socket = io(sioServerURL, {extraHeaders: {
-        "session": getSessionToken()
-    }});
+    const sioServerURL = configData['CHAT_SERVER_URL_BASE'];
+
+    const socket = io(
+        sioServerURL,
+        {
+            extraHeaders: {
+                "session": getSessionToken()
+            }
+        }
+    );
 
     socket.__proto__.emitAuthorized = (event, data) => {
         socket.io.opts.extraHeaders.session = getSessionToken();
@@ -55,14 +61,14 @@ function initSIO(){
             console.debug('Skipping prompt-related message')
             return
         }
-        console.debug('received new_message -> ', data)
+        // console.debug('received new_message -> ', data)
         const preferredLang = getPreferredLanguage(data['cid']);
         if (data?.lang !== preferredLang) {
-            await requestTranslation(data['cid'], data['messageID']);
+            requestTranslation(data['cid'], data['messageID']).catch(err => console.error(`Failed to request translation of cid=${data['cid']} messageID=${data['messageID']}: ${err}`));
         }
-        await addNewMessage(data['cid'], data['userID'], data['messageID'], data['messageText'], data['timeCreated'], data['repliedMessage'], data['attachments'], data?.isAudio, data?.isAnnouncement)
+        addNewMessage(data['cid'], data['userID'], data['messageID'], data['messageText'], data['timeCreated'], data['repliedMessage'], data['attachments'], data?.isAudio, data?.isAnnouncement)
+            .then(_=>addMessageTransformCallback(data['cid'], data['messageID'], data?.isAudio))
             .catch(err => console.error('Error occurred while adding new message: ', err));
-        addMessageTransformCallback(data['cid'], data['messageID'], data?.isAudio);
     });
 
     socket.on('new_prompt_message', async (message) => {
@@ -87,12 +93,12 @@ function initSIO(){
         await applyTranslations(data);
     });
 
-    socket.on('incoming_tts', async (data)=> {
+    socket.on('incoming_tts', (data)=> {
         console.log('received incoming stt audio');
         playTTS(data['cid'], data['lang'], data['audio_data']);
     });
 
-    socket.on('incoming_stt', async (data)=>{
+    socket.on('incoming_stt', (data)=>{
        console.log('received incoming stt response');
        showSTT(data['message_id'], data['lang'], data['message_text']);
     });

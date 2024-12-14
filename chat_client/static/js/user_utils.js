@@ -108,15 +108,36 @@ async function initModals(parentID=null){
     document.dispatchEvent(modalsLoaded);
 }
 
+
+const USER_DATA_CACHE = {}
+const USER_DATA_CACHE_EXPIRY_SECONDS = 3600;
+
+/**
+ * Gets user data from local cache
+ * @param userID - id of the user to look-up (lookups authorized user if null)
+ * @returns {Promise<{}>} promise resolving obtaining of user data
+ */
+const getUserDataFromCache = (userID) => {
+    if (USER_DATA_CACHE?.[userID]?.data){
+        if (getCurrentTimestamp() - USER_DATA_CACHE[userID].ts < USER_DATA_CACHE_EXPIRY_SECONDS) {
+            return USER_DATA_CACHE[userID].data;
+        }
+    }
+}
+
 /**
  * Gets user data from chat client URL
- * @param userID: id of desired user (current user if null)
+ * @param userID - id of the user to look-up (lookups authorized user if null)
  * @returns {Promise<{}>} promise resolving obtaining of user data
  */
 async function getUserData(userID=null){
     let userData = {}
     let query_url = `users_api/`;
     if(userID){
+        const cachedUserData = getUserDataFromCache(userID);
+        if (cachedUserData){
+            return cachedUserData;
+        }
         query_url+='?user_id='+userID;
     }
     await fetchServer(query_url)
@@ -126,6 +147,10 @@ async function getUserData(userID=null){
                 const oldToken = getSessionToken();
                 if (data['token'] !== oldToken && !userID){
                     setSessionToken(data['token']);
+                }
+                USER_DATA_CACHE[userID] = {
+                    data: userData,
+                    ts: getCurrentTimestamp()
                 }
             });
      return userData;
@@ -249,6 +274,24 @@ function updateNavbar(forceUpdate=false){
     }
 }
 
+
+/**
+ * Refreshes HTML components appearance based on the current user
+ * NOTE: this must have only visual impact, the actual validation is done on the backend
+ */
+const refreshComponentsAppearance = () => {
+    const currentUserRoles = currentUser?.roles ?? [];
+    const isAdmin = currentUserRoles.includes("admin");
+
+    const createLiveConversationWrapper = document.getElementById("createLiveConversationWrapper");
+
+    if (isAdmin){
+        createLiveConversationWrapper.style.display = "";
+    }else{
+        createLiveConversationWrapper.style.display = "none";
+    }
+}
+
 /**
  * Custom Event fired on current user loaded
  * @type {CustomEvent<string>}
@@ -268,6 +311,7 @@ async function refreshCurrentUser(refreshChats=false, conversationContainer=null
         if(refreshChats) {
             refreshChatView(conversationContainer);
         }
+        refreshComponentsAppearance()
         console.log('current user loaded');
         document.dispatchEvent(currentUserLoaded);
         return data;

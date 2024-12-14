@@ -45,8 +45,13 @@ class KlatAPIException(Exception):
 
 
 class UserUnauthorizedException(KlatAPIException):
-    HTTP_CODE = http.HTTPStatus.FORBIDDEN
+    HTTP_CODE = http.HTTPStatus.UNAUTHORIZED
     MESSAGE = "Requested user is not authorized to perform this action"
+
+
+class InvalidSessionTokenException(KlatAPIException):
+    HTTP_CODE = http.HTTPStatus.UNAUTHORIZED
+    MESSAGE = "Session token is invalid or expired"
 
 
 class ItemNotFoundException(KlatAPIException):
@@ -67,3 +72,8 @@ class MissingAttributeException(KlatAPIException):
 class InvalidInputData(KlatAPIException):
     HTTP_CODE = http.HTTPStatus.BAD_REQUEST
     MESSAGE = "Wrong input data provided"
+
+
+class PermissionDenied(KlatAPIException):
+    HTTP_CODE = http.HTTPStatus.FORBIDDEN
+    MESSAGE = "User has no permission to access this resource"

@@ -24,11 +24,11 @@ jobs:
     secrets:
       PYKLATCHAT_TESTING_CREDENTIALS_V2: ${{ secrets.PYKLATCHAT_TESTING_CREDENTIALS_V2 }}
       SERVER_ENV: ${{ secrets.SERVER_ENV }}
-  bump-version:
-    uses: ./.github/workflows/publish_version_change.yml
+  bump-dynamic-dependencies:
+    uses: ./.github/workflows/bump_dynamic_dependencies.yml
   publish-images:
     runs-on: ubuntu-latest
-    needs: [run-tests, bump-version]
+    needs: [run-tests, bump-dynamic-dependencies]
     steps:
     - uses: actions/checkout@v4
       with:

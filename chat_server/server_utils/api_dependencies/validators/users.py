@@ -99,19 +99,19 @@ def _check_is_authorized(
     if min_required_role > UserRoles.GUEST and current_user.is_tmp:
         return False
     if user_id := getattr(request_model, "user_id", None):
-        min_required_role, is_authorized = _is_authorized_by_model_user(
+        min_required_role, is_authorized = _is_authorized_by_model_attributes(
             user_id=user_id,
             min_required_role=min_required_role,
             current_user=current_user,
         )
     if not is_authorized:
-        is_authorized |= _is_authorized_by_admin_role(
+        is_authorized |= has_admin_role(
             current_user=current_user, min_required_role=min_required_role
         )
     return is_authorized
 
 
-def _is_authorized_by_model_user(
+def _is_authorized_by_model_attributes(
     user_id: str, current_user: CurrentUserData, min_required_role: UserRoles
 ) -> tuple[UserRoles, bool]:
     """
@@ -130,8 +130,8 @@ def _is_authorized_by_model_user(
     return min_required_role, is_authorized
 
 
-def _is_authorized_by_admin_role(
-    current_user: CurrentUserData, min_required_role: UserRoles
+def has_admin_role(
+    current_user: CurrentUserData, min_required_role: UserRoles = UserRoles.ADMIN
 ) -> bool:
     """
     Checks if current user model is authorized to request endpoint based on admin role

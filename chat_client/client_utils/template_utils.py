@@ -31,10 +31,48 @@ import os
 from starlette.requests import Request
 from starlette.templating import Jinja2Templates
 
+from chat_client.client_config import client_config
 
-component_templates = Jinja2Templates(
+
+jinja_templates_factory = Jinja2Templates(
     directory=os.environ.get("TEMPLATES_DIR", "chat_client/templates")
 )
+
+
+def render_conversation_page(request: Request, additional_context: dict | None = None):
+    return jinja_templates_factory.TemplateResponse(
+        "conversation/base.html",
+        {
+            "request": request,
+            "section": "Followed Conversations",
+            "add_sio": True,
+            "redirect_to_https": client_config.get("FORCE_HTTPS", False),
+            **(additional_context or {}),
+        },
+    )
+
+
+def render_nano_page(request: Request, additional_context: dict | None = None):
+    client_url = f'"{request.url.scheme}://{request.url.netloc}"'
+    server_url = f'"{client_config["SERVER_URL"]}"'
+    if client_config.get("FORCE_HTTPS", False):
+        client_url = client_url.replace("http://", "https://")
+        server_url = server_url.replace("http://", "https://")
+    client_url_unquoted = client_url.replace('"', "")
+    return jinja_templates_factory.TemplateResponse(
+        "sample_nano.html",
+        {
+            "request": request,
+            "title": "Nano Demonstration",
+            "description": "Klatchat Nano is injectable JS module, "
+            "allowing to render Klat conversations on any third-party pages, "
+            "supporting essential features.",
+            "server_url": server_url,
+            "client_url": client_url,
+            "client_url_unquoted": client_url_unquoted,
+            **(additional_context or {}),
+        },
+    )
 
 
 def callback_template(request: Request, template_name: str, context: dict = None):
@@ -49,6 +87,6 @@ def callback_template(request: Request, template_name: str, context: dict = None
     context["request"] = request
     # Preventing exiting to the source code files
     template_name = template_name.replace("../", "").replace(".", "/")
-    return component_templates.TemplateResponse(
+    return jinja_templates_factory.TemplateResponse(
         f"components/{template_name}.html", context
     )
