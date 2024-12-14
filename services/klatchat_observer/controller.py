@@ -112,6 +112,7 @@ class ChatObserver(MQConnector):
 
         self.default_persona_llms = dict()
 
+        self.connect_sio()
         self.register_consumer(
             name="neon_response",
             vhost=self.get_vhost("neon_api"),
@@ -356,7 +357,7 @@ class ChatObserver(MQConnector):
             },
         )
         time.sleep(1)
-        LOG.info("Socket IO reconnected")
+        LOG.info("Socket IO connected")
         self.sio_connecting = False
         self.sio_connected = True
         while not self.sio_queued_messages.empty():
@@ -371,7 +372,7 @@ class ChatObserver(MQConnector):
 
         :return: connected async socket io instance
         """
-        if not self.sio_connecting:
+        if not (self.sio_connected or self.sio_connecting):
             try:
                 # Assuming that Socket IO is connected unless Exception is raised during the connection
                 # This is done to prevent parallel invocation of this method from consumers
@@ -909,5 +910,5 @@ class ChatObserver(MQConnector):
                     f"Socket IO event={event} emit failed due to error: {err}, reconnecting"
                 )
                 self.sio_connected = False
-        else:
+        if not self.sio_connected:
             self.sio_queued_messages.put(item={"event": event, "data": data})
