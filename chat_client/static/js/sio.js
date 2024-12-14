@@ -91,22 +91,17 @@ function initSIO(){
     });
 
     socket.on('translation_response', async (data) => {
-        console.debug('translation_response: ', data)
+        console.log('translation_response: ', data)
         await applyTranslations(data);
     });
 
-    socket.on('subminds_state', async (data) => {
-        console.debug('subminds_state: ', data)
-        parseSubmindsState(data);
-    });
-
     socket.on('incoming_tts', (data)=> {
-        console.debug('received incoming stt audio');
+        console.log('received incoming stt audio');
         playTTS(data['cid'], data['lang'], data['audio_data']);
     });
 
     socket.on('incoming_stt', (data)=>{
-       console.debug('received incoming stt response');
+       console.log('received incoming stt response');
        showSTT(data['message_id'], data['lang'], data['message_text']);
     });
 
