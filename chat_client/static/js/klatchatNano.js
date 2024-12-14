@@ -2261,6 +2261,12 @@ function displayAlert(parentElem, text = 'Error Occurred', alertType = 'danger',
         alert.remove();
     }
 
+    if (!alertBehaviorProperties) {
+        alertBehaviorProperties = {
+            'type': alertBehaviors.AUTO_EXPIRE,
+        }
+    }
+
     if (text) {
         parentElem.insertAdjacentHTML('afterbegin',
             `<div class="alert alert-${alertType} alert-dismissible" role="alert" id="${alertID}">
@@ -3229,9 +3235,6 @@ async function getConversationDataByInput(input = "", skin = CONVERSATION_SKINS.
                 conversationData = data;
             }).catch(async err => {
                 console.warn('Failed to fulfill request due to error:', err);
-                if (input === '1') {
-                    await createNewConversation('Global', false, '1');
-                }
             });
     }
     return conversationData;
@@ -3596,16 +3599,14 @@ async function displayConversation(searchStr, skin = CONVERSATION_SKINS.BASE, al
  * Handles requests on creation new conversation by the user
  * @param conversationName - New Conversation Name
  * @param isPrivate - if conversation should be private (defaults to false)
- * @param conversationID - New Conversation ID (optional)
  * @param boundServiceID - id of the service to bind to conversation (optional)
  * @param createLiveConversation - if conversation should be treated as live conversation (defaults to false)
  */
-async function createNewConversation(conversationName, isPrivate = false, conversationID = null, boundServiceID = null, createLiveConversation = false) {
+async function createNewConversation(conversationName, isPrivate = false, boundServiceID = null, createLiveConversation = false) {
 
     let formData = new FormData();
 
     formData.append('conversation_name', conversationName);
-    formData.append('conversation_id', conversationID);
     formData.append('is_private', isPrivate ? '1' : '0')
     formData.append('bound_service', boundServiceID ? boundServiceID : '');
     formData.append('is_live_conversation', createLiveConversation ? '1' : '0')
@@ -3648,7 +3649,6 @@ document.addEventListener('DOMContentLoaded', (e) => {
         });
         addNewConversation.addEventListener('click', async (e) => {
             e.preventDefault();
-            const newConversationID = document.getElementById('conversationID');
             const newConversationName = document.getElementById('conversationName');
             const isPrivate = document.getElementById('isPrivate');
             const createLiveConversation = document.getElementById("createLiveConversation");
@@ -3668,9 +3668,8 @@ document.addEventListener('DOMContentLoaded', (e) => {
                 }
             }
 
-            createNewConversation(newConversationName.value, isPrivate.checked, newConversationID ? newConversationID.value : null, boundServiceID, createLiveConversation.checked).then(responseOk => {
+            createNewConversation(newConversationName.value, isPrivate.checked, boundServiceID, createLiveConversation.checked).then(responseOk => {
                 newConversationName.value = "";
-                newConversationID.value = "";
                 isPrivate.checked = false;
                 if (responseOk) {
                     newConversationModal.modal('hide');
