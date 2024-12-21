@@ -339,9 +339,9 @@ async function buildConversation(conversationData, skin, remember=true,conversat
            table.addEventListener("touchend", (_) => selectTable(table, exportToExcelBtn));
 
        });
-       exportToExcelBtn.addEventListener('click', async (e)=>{
+       exportToExcelBtn.addEventListener('click', (e)=>{
            const selectedTables = messageListContainer.getElementsByClassName('selected');
-           await exportTablesToExcel(selectedTables, `prompts_of_${cid}`, 'prompt_{id}');
+           exportTablesToExcel(selectedTables, `prompts_of_${cid}`, 'prompt_{id}');
            Array.from(selectedTables).forEach(selectedTable => {
                selectedTable.classList.remove('selected');
            });
