@@ -168,7 +168,7 @@ async function addOldMessages(cid, skin=CONVERSATION_SKINS.BASE) {
             const oldestMessageTS = await DBGateway.getInstance(DB_TABLES.CHAT_MESSAGES_PAGINATION).getItem(cid).then(res=> res?.oldest_created_on || null);
             if (oldestMessageTS) {
                 const numMessages = await getCurrentSkin(cid) === CONVERSATION_SKINS.PROMPTS? 30: 10;
-                await getConversationDataByInput( cid, skin, oldestMessageTS, numMessages, null ).then( async conversationData => {
+                await getConversationDataByInput( cid, skin, oldestMessageTS, numMessages ).then( async conversationData => {
                     if (messageContainer) {
                         const userMessageList = getUserMessages( conversationData, null );
                         userMessageList.sort( (a, b) => {
