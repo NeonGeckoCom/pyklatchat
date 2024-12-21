@@ -3,9 +3,16 @@
 {% block skin_body %}
     <div class="card non-selectable" id="{cid}">
         <div class="card-header"><span data-toggle="tooltip" title="{conversation_name}">{conversation_name_shrunk}</span>
-            <span class="ml-3" id="participants-list-{cid}" data-toggle="tooltip" title='Contributors of "{conversation_name}"'>
-                <i class="fa-solid fa-user" aria-hidden="true"></i> <span id="participants-count-{cid}">0</span>
-            </span>
+            <div class="dropdown ml-3" id="participants-list-{cid}" data-toggle="tooltip" title='Contributors of "{conversation_name}"' style="display: inline!important;">
+                <button class="btn btn-secondary dropdown-toggle" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                    <i class="fa-solid fa-user" aria-hidden="true"></i> <span id="participants-count-{cid}">0</span>
+                </button>
+                <div class="dropdown-menu dropdown-menu-right text-right" id="bot-list-{cid}" onclick="renderActiveSubminds({cid})">
+                    <a class="dropdown-item lang-dropdown-header" disabled>Select Bots</a>
+                    <div class="dropdown-divider"></div>
+                    <table class="table table-sm" id="{cid}-subminds-state-table"></table>
+                </div>
+            </div>
             <div class="dropdown language ml-2" data-toggle="tooltip" title="Language you Write" style="display: inline!important;">
                 <button class="btn btn-secondary dropdown-toggle" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" id="language-selected-{cid}-outcoming">
                     English <span class="flag-icon flag-icon-us" data-lang="en"></span>

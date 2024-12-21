@@ -93,6 +93,11 @@ function initSIO(){
         await applyTranslations(data);
     });
 
+    socket.on('subminds_state', async (data) => {
+        //console.log('subminds_state: ', data)
+        await parseSubmindsState(data);
+    });
+
     socket.on('incoming_tts', (data)=> {
         console.log('received incoming stt audio');
         playTTS(data['cid'], data['lang'], data['audio_data']);
