@@ -15,7 +15,7 @@ let conversationState = {};
 
 /**
  * Clears conversation state cache
- * @param cid: Conversation ID to clear
+ * @param cid - Conversation ID to clear
  */
 const clearStateCache = (cid) => {
     delete conversationState[cid];
@@ -23,7 +23,7 @@ const clearStateCache = (cid) => {
 
 /**
  * Gets participants data listed under conversation id
- * @param cid: target conversation id
+ * @param cid - target conversation id
  * @return {*} participants data object
  */
 const getParticipants = (cid) => {
@@ -32,7 +32,7 @@ const getParticipants = (cid) => {
 
 /**
  * Sets participants count for conversation view
- * @param cid: desired conversation id
+ * @param cid - desired conversation id
  */
 const displayParticipantsCount = (cid) => {
     const participantsCountNode = document.getElementById(`participants-count-${cid}`);
@@ -41,9 +41,9 @@ const displayParticipantsCount = (cid) => {
 
 /**
  * Adds new conversation participant
- * @param cid: conversation id
- * @param nickname: nickname to add
- * @param updateCount: to update participants count
+ * @param cid - target conversation id
+ * @param nickname - nickname to add
+ * @param updateCount - to update participants count
  */
 const addConversationParticipant = (cid, nickname, updateCount = false) => {
     const conversationParticipants = getParticipants(cid);
@@ -59,8 +59,8 @@ const addConversationParticipant = (cid, nickname, updateCount = false) => {
 
 /**
  * Saves attached files to the server
- * @param cid: target conversation id
- * @return attachments array or -1 if something went wrong
+ * @param cid - target conversation id
+ * @return attachments array or `-1` if something went wrong
  */
 const saveAttachedFiles = async (cid) => {
     const filesArr = getUploadedFiles(cid);
@@ -114,9 +114,9 @@ const CONVERSATION_SKINS = {
 }
 
 /**
- *
- * @param table
- * @param exportToExcelBtn
+ * Initiates selection of the table rows.
+ * @param table - target table to select
+ * @param exportToExcelBtn - DOM element of `Export to Excel` button
  */
 const startSelection = (table, exportToExcelBtn) => {
     table.classList.remove('selected');
@@ -130,8 +130,8 @@ const startSelection = (table, exportToExcelBtn) => {
 
 /**
  * Marks target table as selected
- * @param table: HTMLTable element
- * @param exportToExcelBtn: export to excel button (optional)
+ * @param table - HTMLTable element
+ * @param exportToExcelBtn - export to excel button (optional)
  */
 const selectTable = (table, exportToExcelBtn=null) => {
     const timePassed = stopTimer();
@@ -143,25 +143,33 @@ const selectTable = (table, exportToExcelBtn=null) => {
 }
 
 /**
- * Wraps provided array of HTMLTable elements into XLSX file and exports it to the invoked user
- * @param tables: array of HTMLTable elements to export
- * @param filePrefix: prefix of the file name to be imported
- * @param sheetPrefix: prefix to apply for each sheet generated per HTMLTable
- * @param appname: name of the application to export (defaults to Excel)
+ * Wraps the provided array of HTMLTable elements into XLSX file and exports it to the invoked user
+ * @param tables - array of HTMLTable elements to export
+ * @param filePrefix - prefix of the file name to be imported
+ * @param sheetPrefix - prefix to apply for each sheet generated per HTMLTable
+ * @param appname - name of the application to export (defaults to Excel)
  */
 const exportTablesToExcel = (function() {
-    let uri = 'data:application/vnd.ms-excel;base64,'
-    , tmplWorkbookXML = '<?xml version="1.0"?><?mso-application progid="Excel.Sheet"?><Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">'
-      + '<DocumentProperties xmlns="urn:schemas-microsoft-com:office:office"><Author>Axel Richter</Author><Created>{created}</Created></DocumentProperties>'
-      + '<Styles>'
-      + '<Style ss:ID="Currency"><NumberFormat ss:Format="Currency"></NumberFormat></Style>'
-      + '<Style ss:ID="Date"><NumberFormat ss:Format="Medium Date"></NumberFormat></Style>'
-      + '</Styles>'
-      + '{worksheets}</Workbook>'
-    , tmplWorksheetXML = '<Worksheet ss:Name="{nameWS}"><Table>{rows}</Table></Worksheet>'
-    , tmplCellXML = '<Cell{attributeStyleID}{attributeFormula}><Data ss:Type="{nameType}">{data}</Data></Cell>'
-    , base64 = function(s) { return window.btoa(unescape(encodeURIComponent(s))) }
-    , format = function(s, c) { return s.replace(/{(\w+)}/g, function(m, p) { return c[p]; }) }
+    const uri = 'data:application/vnd.ms-excel;base64,';
+    const tmplWorkbookXML = `
+        <?xml version="1.0"?>
+        <?mso-application progid="Excel.Sheet"?>
+        <Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
+            <DocumentProperties xmlns="urn:schemas-microsoft-com:office:office">
+                <Author>PyKlatchat Generator</Author>
+                <Created>{created}</Created>
+            </DocumentProperties>
+          <Styles>
+              <Style ss:ID="Currency"><NumberFormat ss:Format="Currency"></NumberFormat></Style>'
+              <Style ss:ID="Date"><NumberFormat ss:Format="Medium Date"></NumberFormat></Style>'
+          </Styles>
+          {worksheets}
+        </Workbook>
+    `
+    const tmplWorksheetXML = '<Worksheet ss:Name="{nameWS}"><Table>{rows}</Table></Worksheet>'
+    const tmplCellXML = '<Cell><Data ss:Type="String">{data}</Data></Cell>'
+    const base64 = function(s) { return window.btoa(unescape(encodeURIComponent(s))) }
+    const format = function(s, c) { return s.replace(/{(\w+)}/g, function(m, p) { return c[p]; }) }
     return function(tables, filePrefix, sheetPrefix='', appname='Excel') {
       let ctx = "";
       let workbookXML = "";
@@ -173,17 +181,16 @@ const exportTablesToExcel = (function() {
         for (let j = 0; j < tables[i].rows.length; j++) {
           rowsXML += '<Row>'
           for (let k = 0; k < tables[i].rows[j].cells.length; k++) {
-            let dataType = tables[i].rows[j].cells[k].getAttribute("data-type");
-            let dataStyle = tables[i].rows[j].cells[k].getAttribute("data-style");
-            let dataValue = tables[i].rows[j].cells[k].getAttribute("data-value");
-            dataValue = (dataValue)?dataValue:tables[i].rows[j].cells[k].innerHTML;
-            let dataFormula = tables[i].rows[j].cells[k].getAttribute("data-formula");
-            dataFormula = (dataFormula)?dataFormula:(appname=='Calc' && dataType=='DateTime')?dataValue:null;
-            ctx = {  attributeStyleID: (dataStyle=='Currency' || dataStyle=='Date')?' ss:StyleID="'+dataStyle+'"':''
-                   , nameType: (dataType=='Number' || dataType=='DateTime' || dataType=='Boolean' || dataType=='Error')?dataType:'String'
-                   , data: (dataFormula)?'':dataValue
-                   , attributeFormula: (dataFormula)?' ss:Formula="'+dataFormula+'"':''
-                  };
+            let data = tables[i].rows[j].cells[k].innerHTML
+            if (k === 0){
+                const chatImgElem = tables[i].rows[j].cells[k].getElementsByClassName("chat-img")[0]
+                if (chatImgElem){
+                    data = chatImgElem.getAttribute("title");
+                }
+            }
+            ctx = {
+                data: data,
+            };
             rowsXML += format(tmplCellXML, ctx);
           }
           rowsXML += '</Row>'
@@ -194,10 +201,8 @@ const exportTablesToExcel = (function() {
         rowsXML = "";
       }
 
-      ctx = {created: (new Date()).getTime(), worksheets: worksheetsXML};
+      ctx = {created: getCurrentTimestamp()*1000, worksheets: worksheetsXML};
       workbookXML = format(tmplWorkbookXML, ctx);
-
-     console.log(workbookXML);
 
       let link = document.createElement("A");
       link.href = uri + base64(workbookXML);
@@ -212,12 +217,12 @@ const exportTablesToExcel = (function() {
 
 
 /**
- * Sends message based on input
- * @param inputElem: input DOM element
- * @param cid: conversation id
- * @param repliedMessageId: replied message id
- * @param isAudio: is message audio
- * @param isAnnouncement: is message an announcement
+ * Sends the message based on input
+ * @param inputElem - input DOM element
+ * @param cid - target conversation id
+ * @param repliedMessageId - replied message id (optional)
+ * @param isAudio - `1` if the message is audio-message (defaults to `0`)
+ * @param isAnnouncement - `1` if the message is an announcement (defaults to `0`)
  */
 const sendMessage = async (inputElem, cid, repliedMessageId=null, isAudio='0', isAnnouncement='0') => {
     const attachments = await saveAttachedFiles(cid);
@@ -229,7 +234,7 @@ const sendMessage = async (inputElem, cid, repliedMessageId=null, isAudio='0', i
 
 /**
  * Builds new conversation HTML from provided data and attaches it to the list of displayed conversations
- * @param conversationData: JS Object containing conversation data of type:
+ * @param conversationData - JS Object containing conversation data of type:
  * {
  *     '_id': 'id of conversation',
  *     'conversation_name': 'title of the conversation',
@@ -243,13 +248,12 @@ const sendMessage = async (inputElem, cid, repliedMessageId=null, isAudio='0', i
  *         'created_on': 'creation time of the message'
  *     }, ... (num of user messages returned)]
  * }
- * @param conversationParentID: ID of conversation parent
- * @param remember: to store this conversation into localStorage (defaults to true)
- * @param skin: Conversation skin to build
- *
+ * @param skin - Conversation skin to build
+ * @param remember - to store this conversation into localStorage (defaults to true)*
+ * @param conversationParentID - ID of conversation parent
  * @return id of the built conversation
  */
-async function buildConversation(conversationData={}, skin = CONVERSATION_SKINS.BASE, remember=true,conversationParentID = 'conversationsBody'){
+async function buildConversation(conversationData, skin, remember=true,conversationParentID = 'conversationsBody'){
     const idField = '_id';
     const cid = conversationData[idField];
     if (!cid){
@@ -345,7 +349,7 @@ async function buildConversation(conversationData={}, skin = CONVERSATION_SKINS.
     }
 
     if (chatCloseButton.hasAttribute('data-target-cid')) {
-       chatCloseButton.addEventListener('click', async (e) => {
+       chatCloseButton.addEventListener('click', async (_) => {
            conversationHolder.removeChild(conversationParent);
            await removeConversation(cid);
            clearStateCache(cid);
@@ -362,14 +366,13 @@ async function buildConversation(conversationData={}, skin = CONVERSATION_SKINS.
 
 /**
  * Gets conversation data based on input string
- * @param input: input string text
- * @param oldestMessageTS: creation timestamp of the oldest displayed message
- * @param skin: resolves by server for which data to return
- * @param maxResults: max number of messages to fetch
- * @param alertParent: parent of error alert (optional)
+ * @param input - input string text
+ * @param oldestMessageTS - creation timestamp of the oldest displayed message
+ * @param skin - resolves by server for which data to return
+ * @param maxResults - max number of messages to fetch
  * @returns {Promise<{}>} promise resolving conversation data returned
  */
-async function getConversationDataByInput(input="", skin=CONVERSATION_SKINS.BASE, oldestMessageTS=null, maxResults=20, alertParent=null){
+async function getConversationDataByInput(input, skin, oldestMessageTS=null, maxResults=10){
     let conversationData = {};
     if(input){
         let query_url = `chat_api/search/${input.toString()}?limit_chat_history=${maxResults}&skin=${skin}`;
@@ -397,7 +400,6 @@ async function getConversationDataByInput(input="", skin=CONVERSATION_SKINS.BASE
     return conversationData;
 }
 
-
 /**
  * Returns table representing chat alignment
  * @return {Table}
@@ -405,6 +407,7 @@ async function getConversationDataByInput(input="", skin=CONVERSATION_SKINS.BASE
 const getChatAlignmentTable = () => {
     return getDb(DATABASES.CHATS, DB_TABLES.CHAT_ALIGNMENT);
 }
+
 /**
  * Retrieves conversation layout from local storage
  * @returns {Array} collection of database-stored elements
@@ -417,19 +420,11 @@ async function retrieveItemsLayout(idOnly=false){
     return layout;
 }
 
-/**
- * Returns table representing minify settings
- * @return {Table}
- */
-const getMinifySettingsTable = () => {
-    return getDb(DATABASES.CHATS, DB_TABLES.MINIFY_SETTINGS);
-}
-
 
 /**
  * Adds new conversation id to local storage
- * @param cid: conversation id to add
- * @param skin: conversation skin to add
+ * @param cid - conversation id to add
+ * @param skin - conversation skin to add
  */
 async function addNewCID(cid, skin){
     return await getChatAlignmentTable().put({'cid': cid, 'skin': skin, 'added_on': getCurrentTimestamp()}, [cid]);
@@ -437,7 +432,7 @@ async function addNewCID(cid, skin){
 
 /**
  * Removed conversation id from local storage
- * @param cid: conversation id to remove
+ * @param cid - conversation id to remove
  */
 async function removeConversation(cid){
     return await Promise.all([DBGateway.getInstance(DB_TABLES.CHAT_ALIGNMENT).deleteItem(cid),
@@ -446,7 +441,8 @@ async function removeConversation(cid){
 
 /**
  * Checks if conversation is displayed
- * @param cid: target conversation id
+ * @param cid - target conversation id
+ *
  * @return true if cid is stored in client db, false otherwise
  */
 function isDisplayed(cid) {
@@ -456,7 +452,8 @@ function isDisplayed(cid) {
 
 /**
  * Gets value of desired property in stored conversation
- * @param cid: target conversation id
+ * @param cid - target conversation id
+ *
  * @return true if cid is displayed, false otherwise
  */
 async function getStoredConversationData(cid){
@@ -465,7 +462,8 @@ async function getStoredConversationData(cid){
 
 /**
  * Returns current skin of provided conversation id
- * @param cid: target conversation id
+ * @param cid - target conversation id
+ *
  * @return {string} skin from CONVERSATION_SKINS
  */
 async function getCurrentSkin(cid){
@@ -473,18 +471,6 @@ async function getCurrentSkin(cid){
     if(storedCID) {
         return storedCID['skin'];
     }return null;
-}
-
-/**
- * Sets new skin value to the selected conversation
- * @param cid: target conversation id
- * @param property: key of stored conversation
- * @param value: value to set
- */
-function updateCIDStoreProperty(cid, property, value){
-    const updateObj = {}
-    updateObj[property] = value;
-    return getChatAlignmentTable().update(cid, updateObj);
 }
 
 /**
@@ -536,8 +522,8 @@ const displayLiveChat = async () => {
 const restoreChatAlignmentFromCache = async () => {
     let cachedItems = await retrieveItemsLayout();
     if (cachedItems.length === 0){
-        cachedItems = [{'cid': '1', 'added_on': getCurrentTimestamp(), 'skin': CONVERSATION_SKINS.BASE}]
-        await addNewCID('1', CONVERSATION_SKINS.BASE);
+        cachedItems = [{'cid': '1', 'added_on': getCurrentTimestamp(), 'skin': CONVERSATION_SKINS.PROMPTS}]
+        await addNewCID('1', CONVERSATION_SKINS.PROMPTS);
     }
     for (const item of cachedItems) {
         await getConversationDataByInput(item.cid, item.skin).then(async conversationData=>{
@@ -568,7 +554,7 @@ async function restoreChatAlignment(){
     } else {
         await restoreChatAlignmentFromCache();
     }
-    console.log('Chat Alignment Restored');
+    console.debug('Chat Alignment Restored');
     document.dispatchEvent(chatAlignmentRestoredEvent);
 }
 
@@ -587,10 +573,11 @@ const MESSAGE_REFER_TYPE = {
 
 /**
  * Gets array of messages for provided conversation id
- * @param cid: target conversation id
- * @param messageReferType: message refer type to consider from MESSAGE_REFER_TYPE
- * @param idOnly: to return id only (defaults to false)
- * @param forceType: to get only certain type of messages (optional)
+ * @param cid - target conversation id
+ * @param messageReferType - message refer type to consider from `MESSAGE_REFER_TYPE`
+ * @param idOnly - to return id only (defaults to false)
+ * @param forceType - to get only the certain type of messages (optional)
+ *
  * @return array of message DOM objects under given conversation
  */
 function getMessagesOfCID(cid, messageReferType=MESSAGE_REFER_TYPE.ALL, forceType=null, idOnly=false){
@@ -601,7 +588,6 @@ function getMessagesOfCID(cid, messageReferType=MESSAGE_REFER_TYPE.ALL, forceTyp
         Array.from(listItems).forEach(li=>{
            try {
                const messageNode = getMessageNode(li, forceType);
-               // console.debug(`pushing shout_id=${messageNode.id}`);
                if (messageNode) {
                    if (messageReferType === MESSAGE_REFER_TYPE.ALL ||
                        (messageReferType === MESSAGE_REFER_TYPE.MINE && messageNode.getAttribute( 'data-sender' ) === currentUser['nickname']) ||
@@ -622,7 +608,7 @@ function getMessagesOfCID(cid, messageReferType=MESSAGE_REFER_TYPE.ALL, forceTyp
 }
 
 /**
- * Refreshes chat view (e.g. when user session gets updated)
+ * Refreshes chat view (for instance when user session gets updated)
  */
 function refreshChatView(conversationContainer=null){
     if (!conversationContainer){
@@ -646,18 +632,6 @@ function refreshChatView(conversationContainer=null){
 }
 
 /**
- * Gets all opened chats
- * @return {[]} list of displayed chat ids
- */
-function getOpenedChats(){
-    let cids = [];
-    Array.from(conversationBody.getElementsByClassName('conversationContainer')).forEach(conversationContainer=>{
-        cids.push(conversationContainer.getElementsByClassName('card')[0].id);
-    });
-    return cids;
-}
-
-/**
  * Enum of possible displayed chat states
  * "active" - ready to be used by user
  * "updating" - in processes of applying changes, temporary unavailable
@@ -669,11 +643,11 @@ const CHAT_STATES = {
 
 /**
  * Sets state to the desired cid
- * @param cid: desired conversation id
- * @param state: desired state
- * @param state_msg: message following state transition (e.g. why chat is updating)
+ * @param cid - target conversation id
+ * @param state - the new chat state from `CHAT_STATES`
+ * @param state_msg - reason for state transitioning (optional)
  */
-function setChatState(cid, state='active', state_msg = ''){
+function setChatState(cid, state=CHAT_STATES.ACTIVE, state_msg = ''){
     // TODO: refactor this method to handle when there are multiple messages on a stack
     // console.log(`cid=${cid}, state=${state}, state_msg=${state_msg}`)
     const cidNode = document.getElementById(cid);
@@ -696,15 +670,15 @@ function setChatState(cid, state='active', state_msg = ''){
 
 /**
  * Displays first conversation matching search string
- * @param searchStr: Search string to find matching conversation
- * @param skin: target conversation skin to display
- * @param alertParentID: id of the element to display alert in
- * @param conversationParentID: parent Node ID of the conversation
+ * @param searchStr - Search string to find matching conversation
+ * @param skin - target conversation skin to display
+ * @param alertParentID - id of the element to display alert in
+ * @param conversationParentID - parent Node ID of the conversation
  */
-async function displayConversation(searchStr, skin=CONVERSATION_SKINS.BASE, alertParentID = null, conversationParentID='conversationsBody'){
+async function displayConversation(searchStr, skin=CONVERSATION_SKINS.PROMPTS, alertParentID = null, conversationParentID='conversationsBody'){
     if (searchStr !== "") {
-        const alertParent = document.getElementById(alertParentID);
-        await getConversationDataByInput(searchStr, skin, null, 20, alertParent).then(async conversationData => {
+        const alertParent = document.getElementById(alertParentID || conversationParentID);
+        await getConversationDataByInput(searchStr, skin, null, 10).then(async conversationData => {
             let responseOk = false;
             if (!conversationData || Object.keys(conversationData).length === 0){
                 displayAlert(
@@ -756,7 +730,7 @@ async function createNewConversation(conversationName, isPrivate=false,boundServ
         const responseJson = await response.json();
         let responseOk = false;
         if (response.ok) {
-            await buildConversation(responseJson);
+            await buildConversation(responseJson, CONVERSATION_SKINS.PROMPTS);
             responseOk = true;
         } else {
             displayAlert('newConversationModalBody',
@@ -767,10 +741,10 @@ async function createNewConversation(conversationName, isPrivate=false,boundServ
     });
 }
 
-document.addEventListener('DOMContentLoaded', (e)=>{
+document.addEventListener('DOMContentLoaded', (_)=>{
 
     if (configData['client'] === CLIENTS.MAIN) {
-        document.addEventListener('supportedLanguagesLoaded', async (e)=>{
+        document.addEventListener('supportedLanguagesLoaded', async (_)=>{
             await refreshCurrentUser(false)
             .then(async _ => await restoreChatAlignment())
             .then(async _=>await refreshCurrentUser(true))
@@ -778,14 +752,14 @@ document.addEventListener('DOMContentLoaded', (e)=>{
         });
         addBySearch.addEventListener('click', async (e) => {
             e.preventDefault();
-            displayConversation(conversationSearchInput.value, CONVERSATION_SKINS.BASE, 'importConversationModalBody').then(responseOk=> {
+            displayConversation(conversationSearchInput.value, CONVERSATION_SKINS.PROMPTS, 'importConversationModalBody').then(responseOk=> {
                 conversationSearchInput.value = "";
                 if(responseOk) {
                     importConversationModal.modal('hide');
                 }
             });
         });
-        conversationSearchInput.addEventListener('input', async (e)=>{ await renderSuggestions();});
+        conversationSearchInput.addEventListener('input', async (_)=>{ await renderSuggestions();});
         addNewConversation.addEventListener('click', async (e) => {
             e.preventDefault();
             const newConversationName = document.getElementById('conversationName');
