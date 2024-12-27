@@ -94,7 +94,7 @@ function initSIO(){
     });
 
     socket.on('subminds_state', async (data) => {
-        //console.log('subminds_state: ', data)
+        console.log('subminds_state: ', data)
         await parseSubmindsState(data);
     });
 
