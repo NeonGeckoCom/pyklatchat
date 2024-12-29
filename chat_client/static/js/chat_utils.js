@@ -21,41 +21,16 @@ const clearStateCache = (cid) => {
     delete conversationState[cid];
 }
 
-/**
- * Gets participants data listed under conversation id
- * @param cid - target conversation id
- * @return {*} participants data object
- */
-const getParticipants = (cid) => {
-    return setDefault(setDefault(conversationState, cid, {}), 'participants', {});
-}
 
 /**
  * Sets participants count for conversation view
  * @param cid - desired conversation id
  */
-const displayParticipantsCount = (cid) => {
+const refreshSubmindsCount = (cid) => {
     const participantsCountNode = document.getElementById(`participants-count-${cid}`);
-    participantsCountNode.innerText = Object.keys(getParticipants(cid)).length;
+    if (participantsCountNode && submindsPerCid) participantsCountNode.innerText = submindsPerCid[cid].length;
 }
 
-/**
- * Adds new conversation participant
- * @param cid - target conversation id
- * @param nickname - nickname to add
- * @param updateCount - to update participants count
- */
-const addConversationParticipant = (cid, nickname, updateCount = false) => {
-    const conversationParticipants = getParticipants(cid);
-    if(!conversationParticipants.hasOwnProperty(nickname)){
-        conversationParticipants[nickname] = {'num_messages': 1};
-    }else{
-        conversationParticipants[nickname]['num_messages']++;
-    }
-    if(updateCount){
-        displayParticipantsCount(cid);
-    }
-}
 
 /**
  * Saves attached files to the server
@@ -306,7 +281,7 @@ async function buildConversation(conversationData, skin, remember=true,conversat
        }
     });
     await addRecorder(conversationData);
-    displayParticipantsCount(conversationData['_id']);
+    refreshSubmindsCount(conversationData['_id']);
     await initLanguageSelectors(conversationData['_id']);
 
     if (skin === CONVERSATION_SKINS.BASE) {
