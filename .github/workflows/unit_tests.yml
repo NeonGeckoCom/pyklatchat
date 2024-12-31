@@ -21,8 +21,6 @@ jobs:
       KLAT_ENV: ${{ secrets.SERVER_ENV }}
     steps:
       - uses: actions/checkout@v4
-      - name: echo Testing Creds
-        run: echo '$PYKLATCHAT_TESTING_CREDENTIALS' | jq '. | fromjson'
       - name: Set up python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
         with:
@@ -33,10 +31,11 @@ jobs:
           pip install -r requirements/requirements.txt
           pip install -r requirements/test_requirements.txt
           pip install -r requirements/legacy_migration_requirements.txt
-      - name: Get Credential
+      - name: Get Test Config
         run: |
           mkdir -p ~/.local/share/neon
           echo $PYKLATCHAT_TESTING_CREDENTIALS > ~/.local/share/neon/credentials.json
+          jq '.CHAT_SERVER' ~/.local/share/neon/credentials.json
       - name: Test DB Utils
         run: |
           pytest tests/test_db_utils.py --doctest-modules --junitxml=tests/db-utils-test-results.xml
