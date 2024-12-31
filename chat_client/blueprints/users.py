@@ -29,8 +29,7 @@
 
 import requests
 
-from utils.logging_utils import LOG
-
+from neon_utils.logger import LOG
 from typing import Optional
 from fastapi import Response, Request, status, APIRouter, Form, UploadFile, File
 from fastapi.exceptions import HTTPException

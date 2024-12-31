@@ -27,7 +27,7 @@
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 from chat_server.constants.conversations import ConversationSkins
-from utils.logging_utils import LOG
+from neon_utils.logger import LOG
 
 
 def build_message_json(

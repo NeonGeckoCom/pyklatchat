@@ -26,10 +26,9 @@
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+from os import environ
 from neon_sftp import NeonSFTPConnector
-
-from utils.constants import KLAT_ENV
-from utils.exceptions import MalformedConfigurationException
+from pyklatchat_utils.exceptions import MalformedConfigurationException
 
 
 def init_sftp_connector(config):
@@ -41,5 +40,7 @@ def init_sftp_connector(config):
         username=config.get("USERNAME", "root"),
         passphrase=config.get("PASSWORD", ""),
         port=int(config.get("PORT", 22)),
-        root_path=config.get("ROOT_PATH", "/").format(env=KLAT_ENV.lower()),
+        root_path=config.get("ROOT_PATH",
+                             "/").format(env=environ.get("KLAT_ENV",
+                                                         "DEV").lower()),
     )

@@ -29,7 +29,7 @@ import os
 import sys
 
 from .service_utils.observer_config import observer_config
-from utils.logging_utils import LOG
+from neon_utils.logger import LOG
 
 from .controller import ChatObserver
 

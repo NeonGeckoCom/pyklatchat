@@ -30,13 +30,13 @@ import os
 import json
 import uuid
 
-from config import Configuration
+from migration_scripts.server_config import KlatServerConfig
 from migration_scripts.constants import MigrationFiles
 from migration_scripts.conversations import migrate_conversations
 from migration_scripts.shouts import migrate_shouts
 from migration_scripts.utils import setup_db_connectors
 from migration_scripts import migrate_users
-from utils.logging_utils import LOG
+from neon_utils.logger import LOG
 
 
 def main(migration_id: str = None, dump_dir=os.getcwd(), time_since: int = 1677829600):
@@ -58,12 +58,12 @@ def main(migration_id: str = None, dump_dir=os.getcwd(), time_since: int = 16778
 
     LOG.info(f"Considered time since: {time_since}")
 
-    config_source_files = [
-        os.environ.get("CONFIG_PATH", "config.json"),
-        os.environ.get("SSH_CONFIG", None),
-    ]
+    # config_source_files = [
+    #     os.environ.get("CONFIG_PATH", "config.json"),
+    #     os.environ.get("SSH_CONFIG", None),
+    # ]
 
-    configuration = Configuration(from_files=config_source_files)
+    configuration = KlatServerConfig()
 
     mysql_connector, mongo_connector = setup_db_connectors(
         configuration=configuration,

@@ -34,15 +34,12 @@ import time
 
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
-
 from starlette import status
 from starlette.middleware.cors import CORSMiddleware
 from starlette.requests import Request
 from starlette.responses import RedirectResponse, Response
 from starlette.exceptions import HTTPException as StarletteHTTPException
-
-from utils.common import get_version
-from utils.logging_utils import LOG
+from neon_utils.logger import LOG
 
 sys.path.append(os.path.pardir)
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -58,15 +55,16 @@ def create_app() -> FastAPI:
     """
     Application factory for the Klatchat Client
     """
-    app_version = get_version("version.py")
-    LOG.name = os.environ.get("LOG_NAME", "client_err")
-    LOG.base_path = os.environ.get("LOG_BASE_PATH", ".")
-    LOG.init(
-        config={
-            "level": os.environ.get("LOG_LEVEL", "INFO"),
-            "path": os.environ.get("LOG_PATH", os.getcwd()),
-        }
-    )
+    # app_version = get_version("version.py")
+    # LOG.name = os.environ.get("LOG_NAME", "client_err")
+    # LOG.base_path = os.environ.get("LOG_BASE_PATH", ".")
+    # LOG.init(
+    #     config={
+    #         "level": os.environ.get("LOG_LEVEL", "INFO"),
+    #         "path": os.environ.get("LOG_PATH", os.getcwd()),
+    #     }
+    # )
+    from .version import __version__ as app_version
     logger = LOG.create_logger("chat_client")
     logger.addHandler(logging.StreamHandler())
     LOG.info(f"Starting Klatchat Client v{app_version}")

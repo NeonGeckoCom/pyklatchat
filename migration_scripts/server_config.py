@@ -26,6 +26,8 @@
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+# TODO: This file is duplicated from `chat_server`. Refactor to make this importable
+
 from neon_sftp import NeonSFTPConnector
 from kubernetes import client, config
 from pyklatchat_utils.configuration import KlatConfigurationBase

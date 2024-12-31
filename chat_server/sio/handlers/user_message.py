@@ -27,10 +27,10 @@
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 from time import time
 
-from utils.common import generate_uuid
-from utils.database_utils.mongo_utils.queries import mongo_queries
-from utils.database_utils.mongo_utils.queries.wrapper import MongoDocumentsAPI
-from utils.logging_utils import LOG
+from pyklatchat_utils.common import generate_uuid
+from pyklatchat_utils.database_utils.mongo_utils.queries import mongo_queries
+from pyklatchat_utils.database_utils.mongo_utils.queries.wrapper import MongoDocumentsAPI
+from neon_utils.logger import LOG
 from ..server import sio
 from ..utils import emit_error, login_required
 from ...server_config import server_config

@@ -28,10 +28,10 @@
 
 from cachetools import LRUCache
 
-from utils.common import generate_uuid, deep_merge
-from utils.database_utils.mongo_utils.queries import mongo_queries
-from utils.database_utils.mongo_utils.queries.wrapper import MongoDocumentsAPI
-from utils.logging_utils import LOG
+from pyklatchat_utils.common import generate_uuid, deep_merge
+from pyklatchat_utils.database_utils.mongo_utils.queries import mongo_queries
+from pyklatchat_utils.database_utils.mongo_utils.queries.wrapper import MongoDocumentsAPI
+from neon_utils.logger import LOG
 from ..server import sio
 from ...server_utils.cache_utils import CacheFactory
 

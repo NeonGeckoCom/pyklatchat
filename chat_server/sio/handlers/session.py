@@ -26,7 +26,7 @@
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from utils.logging_utils import LOG
+from neon_utils.logger import LOG
 from ..server import sio
 
 

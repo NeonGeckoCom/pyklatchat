@@ -34,11 +34,10 @@ from typing import Union
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from starlette.middleware.cors import CORSMiddleware
+from neon_utils.logger import LOG
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from utils.common import get_version
-from utils.logging_utils import LOG
 from chat_server.server_utils.middleware import SUPPORTED_MIDDLEWARE
 
 
@@ -51,7 +50,8 @@ def create_app(
     :param testing_mode: to run application in testing mode (defaults to False)
     :param sio_server: socket io server instance (optional)
     """
-    app_version = get_version("version.py")
+    from .version import __version__ as app_version
+    # app_version = get_version("version.py")
     chat_app = FastAPI(title="Klatchat Server API", version=app_version)
 
     _init_middleware(app=chat_app)

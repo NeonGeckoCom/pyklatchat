@@ -33,7 +33,7 @@ from migration_scripts.utils.conversation_utils import (
     clean_conversation_name,
     index_nicks,
 )
-from utils.logging_utils import LOG
+from neon_utils.logger import LOG
 
 
 def migrate_conversations(

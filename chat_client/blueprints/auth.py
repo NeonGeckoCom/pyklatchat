@@ -31,7 +31,7 @@ from fastapi import APIRouter, Form
 from fastapi.responses import JSONResponse
 
 from chat_client.client_config import client_config
-from utils.logging_utils import LOG
+from neon_utils.logger import LOG
 
 router = APIRouter(
     prefix="/auth",

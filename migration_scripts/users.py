@@ -30,8 +30,8 @@ from decimal import Decimal
 
 from pymongo import ReplaceOne
 
-from utils.database_utils.mongo_utils.user_utils import get_existing_nicks_to_id
-from utils.logging_utils import LOG
+from pyklatchat_utils.database_utils.mongo_utils.user_utils import get_existing_nicks_to_id
+from neon_utils.logger import LOG
 
 
 def migrate_users(

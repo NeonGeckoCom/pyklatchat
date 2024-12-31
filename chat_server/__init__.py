@@ -25,3 +25,14 @@
 # LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+from os import environ
+from neon_utils.log_utils import init_log
+
+_log_config = {"log_level": environ.get("LOG_LEVEL", "INFO"),
+               "logs": {
+                   "name": environ.get("LOG_NAME", "pyklatchat"),
+                   "path": environ.get("LOG_BASE_PATH"),
+                   "level_overrides": {"error": ["combo_lock"]}
+               }}
+init_log(_log_config)

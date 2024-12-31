@@ -32,7 +32,7 @@ import os
 import requests
 from bidict import bidict
 
-from utils.logging_utils import LOG
+from neon_utils.logger import LOG
 from chat_server.server_config import server_config
 
 

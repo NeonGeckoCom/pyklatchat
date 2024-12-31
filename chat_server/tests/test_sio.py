@@ -38,8 +38,8 @@ from uvicorn import Config
 from chat_server.constants.users import ChatPatterns
 from chat_server.tests.beans.server import ASGITestServer
 from chat_server.server_config import server_config
-from utils.logging_utils import LOG
-from utils.common import generate_uuid
+from neon_utils.logger import LOG
+from pyklatchat_utils.common import generate_uuid
 
 SERVER_ADDRESS = "http://127.0.0.1:8888"
 TEST_CID = "-1"

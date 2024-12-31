@@ -33,8 +33,8 @@ import jwt
 from time import time
 from fastapi import Request
 
-from utils.database_utils.mongo_utils.queries.wrapper import MongoDocumentsAPI
-from utils.logging_utils import LOG
+from pyklatchat_utils.database_utils.mongo_utils.queries.wrapper import MongoDocumentsAPI
+from neon_utils.logger import LOG
 
 from chat_server.server_config import server_config
 

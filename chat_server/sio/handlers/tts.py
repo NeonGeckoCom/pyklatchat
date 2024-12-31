@@ -26,9 +26,9 @@
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from utils.common import buffer_to_base64
-from utils.database_utils.mongo_utils.queries.wrapper import MongoDocumentsAPI
-from utils.logging_utils import LOG
+from pyklatchat_utils.common import buffer_to_base64
+from pyklatchat_utils.database_utils.mongo_utils.queries.wrapper import MongoDocumentsAPI
+from neon_utils.logger import LOG
 from ..server import sio
 from ..utils import emit_error
 from ...server_config import server_config

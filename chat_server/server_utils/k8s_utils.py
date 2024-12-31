@@ -31,7 +31,7 @@ import datetime
 from kubernetes.client.rest import ApiException
 
 from chat_server.server_config import server_config
-from utils.logging_utils import LOG
+from neon_utils.logger import LOG
 
 
 def restart_deployment(deployment_name: str, namespace: str = None):
