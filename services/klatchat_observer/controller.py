@@ -94,8 +94,8 @@ class ChatObserver(MQConnector):
         self.neon_service_refresh_interval = 60  # seconds
         self.mention_separator = ","
         self.recipient_to_handler_method = {
-            Recipients.NEON: self.__handle_neon_recipient,
-            Recipients.CHATBOT_CONTROLLER: self.__handle_chatbot_recipient,
+            Recipients.NEON: self._handle_neon_recipient,
+            Recipients.CHATBOT_CONTROLLER: self._handle_chatbot_recipient,
         }
         self.sio_url = config["SIO_URL"]
 
@@ -444,7 +444,7 @@ class ChatObserver(MQConnector):
         # TODO: any specific structure per wolfram/duckduckgo, etc...
         return request_dict
 
-    def __handle_neon_recipient(self, recipient_data: dict, msg_data: dict):
+    def _handle_neon_recipient(self, recipient_data: dict, msg_data: dict):
         msg_data.setdefault("message_body", msg_data.pop("messageText", ""))
         msg_data.setdefault("message_id", msg_data.pop("messageID", ""))
         recipient_data.setdefault("context", {})
@@ -484,22 +484,24 @@ class ChatObserver(MQConnector):
             queue=input_queue,
         )
 
-    def __handle_chatbot_recipient(self, recipient_data: dict, msg_data: dict):
+    def _handle_chatbot_recipient(self, recipient_data: dict, msg_data: dict):
         LOG.info(f"Emitting message to Chatbot Controller: {recipient_data}")
         queue = "external_shout"
-        msg_data["requested_participants"] = json.dumps(
-            list(
-                recipient_data.setdefault("context", {}).setdefault(
-                    "requested_participants", []
-                )
+        if requested_participants := recipient_data.get("context", {}).get(
+            "requested_participants"
+        ):
+            msg_data["requested_participants"] = json.dumps(requested_participants)
+            self.send_message(
+                request_data=msg_data,
+                vhost=self.get_vhost("chatbots"),
+                queue=queue,
+                expiration=3000,
             )
-        )
-        self.send_message(
-            request_data=msg_data,
-            vhost=self.get_vhost("chatbots"),
-            queue=queue,
-            expiration=3000,
-        )
+        else:
+            LOG.warning(
+                f"Failed to emit message to chatbot controller - no requested participants detected. "
+                f"{recipient_data=}"
+            )
 
     def handle_get_stt(self, data):
         """Handler for get STT request from Socket IO channel"""
@@ -530,7 +532,7 @@ class ChatObserver(MQConnector):
                 )
                 data["recipient"] = recipient_data.pop("recipient", None)
 
-            recipient = data.get("recipient") or Recipients.UNRESOLVED
+            recipient = data.pop("recipient", None) or Recipients.UNRESOLVED
 
             data = self._preprocess_message_data(data)
 
@@ -548,7 +550,7 @@ class ChatObserver(MQConnector):
         :return: True if recipient detection should be skipped, False otherwise
         """
         # Skipping recipient detection for bot shouts to prevent recursive scenarios
-        return data.get("recipient") or bool(data.get("is_bot"))
+        return data.get("recipient") or data.get("is_bot") == "1"
 
     @staticmethod
     def _preprocess_message_data(data: dict) -> dict:
@@ -561,6 +563,8 @@ class ChatObserver(MQConnector):
             data["messageText"] = re.sub(
                 r"^\s*(@[\w-]+[^\w@]*)+", "", data["messageText"]
             ).strip()
+            if not data["messageText"]:
+                data["messageText"] = "hello"
         return data
 
     def forward_prompt_data(self, data: dict):
