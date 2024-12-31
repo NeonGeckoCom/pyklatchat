@@ -227,14 +227,13 @@ class ChatObserver(MQConnector):
 
         :param message: user's message
         :returns extracted recipient
-
-        Example:
-        >>> assert self.get_recipient_from_body('@Proctor hello dsfdsfsfds @Prompter') == {'recipient': Recipients.CHATBOT_CONTROLLER, 'context': {'requested_participants': {'proctor', 'prompter'}}
         """
-        message = " " + message
-        bot_mentioning_regexp = r"[\s]+@[a-zA-Z]+[\w]+"
-        bots = re.findall(bot_mentioning_regexp, message)
-        bots = set([bot.strip().replace("@", "").lower() for bot in bots])
+        bots = set(
+            [
+                bot.strip().replace("@", "").lower()
+                for bot in re.findall(r"@[\w-]+", message)
+            ]
+        )
         if len(bots) > 0:
             recipient = Recipients.CHATBOT_CONTROLLER
         else:
@@ -505,41 +504,64 @@ class ChatObserver(MQConnector):
     def handle_get_stt(self, data):
         """Handler for get STT request from Socket IO channel"""
         data["recipient"] = Recipients.NEON
-        data["skip_recipient_detection"] = True
         data["requested_skill"] = "stt"
         self.handle_message(data=data)
 
     def handle_get_tts(self, data):
         """Handler for get TTS request from Socket IO channel"""
         data["recipient"] = Recipients.NEON
-        data["skip_recipient_detection"] = True
         data["requested_skill"] = "tts"
         self.handle_message(data=data)
 
     def handle_message(self, data: dict):
         """
-        Handles input requests from MQ to Neon API
+        Handles input requests from Klatchat Server to External MQ Services
 
-        :param data: Received user data
+        :param data: Received message data
         """
         if data and isinstance(data, dict):
             recipient_data = {}
-            if not data.get("skip_recipient_detection"):
+
+            if not self._should_skip_recipient_detection(data=data):
                 recipient_data = self.get_recipient_from_bound_service(
                     data.get("bound_service", "")
                 ) or self.get_recipient_from_message(
-                    message=data.get("messageText", data.get("message_body"))
+                    message=data.get("messageText") or data.get("message_body")
                 )
-            recipient = (
-                recipient_data.get("recipient")
-                or data.get("recipient")
-                or Recipients.UNRESOLVED
-            )
+                data["recipient"] = recipient_data.pop("recipient", None)
+
+            recipient = data.get("recipient") or Recipients.UNRESOLVED
+
+            data = self._preprocess_message_data(data)
+
             handler_method = self.recipient_to_handler_method.get(recipient)
             if handler_method:
                 handler_method(recipient_data=recipient_data, msg_data=data)
         else:
             raise TypeError(f"Malformed data received: {data}")
+
+    @staticmethod
+    def _should_skip_recipient_detection(data: dict) -> bool:
+        """
+        Checks if recipient detection should be skipped based on incoming data
+        :param data: the incoming data object to check
+        :return: True if recipient detection should be skipped, False otherwise
+        """
+        # Skipping recipient detection for bot shouts to prevent recursive scenarios
+        return data.get("recipient") or bool(data.get("is_bot"))
+
+    @staticmethod
+    def _preprocess_message_data(data: dict) -> dict:
+        """
+        Preprocess message data received from the klat chat
+        :param data: data object to preprocess
+        :return: updated data object
+        """
+        if "messageText" in data:
+            data["messageText"] = re.sub(
+                r"^\s*(@[\w-]+[^\w@]*)+", "", data["messageText"]
+            ).strip()
+        return data
 
     def forward_prompt_data(self, data: dict):
         """Forwards received prompt data to the destination observer"""
