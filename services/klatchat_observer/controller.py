@@ -526,7 +526,7 @@ class ChatObserver(MQConnector):
                 recipient_data = self.get_recipient_from_bound_service(
                     data.get("bound_service", "")
                 ) or self.get_recipient_from_message(
-                    message=data.get("messageText", data.get("message_body"))
+                    message=data.get("messageText") or data.get("message_body")
                 )
                 data["recipient"] = recipient_data.pop("recipient", None)
 
@@ -557,9 +557,10 @@ class ChatObserver(MQConnector):
         :param data: data object to preprocess
         :return: updated data object
         """
-        data["messageText"] = re.sub(
-            r"^\s*(@[\w-]+[^\w@]*)+", "", data["messageText"]
-        ).strip()
+        if "messageText" in data:
+            data["messageText"] = re.sub(
+                r"^\s*(@[\w-]+[^\w@]*)+", "", data["messageText"]
+            ).strip()
         return data
 
     def forward_prompt_data(self, data: dict):
