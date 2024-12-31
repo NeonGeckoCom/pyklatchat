@@ -22,7 +22,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: echo Testing Creds
-        run: echo $PYKLATCHAT_TESTING_CREDENTIALS
+        run: echo '$PYKLATCHAT_TESTING_CREDENTIALS' | jq '. | fromjson'
       - name: Set up python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
         with:
