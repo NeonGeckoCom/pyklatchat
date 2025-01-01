@@ -35,7 +35,6 @@ jobs:
         run: |
           mkdir -p ~/.local/share/neon
           echo $PYKLATCHAT_TESTING_CREDENTIALS > ~/.local/share/neon/credentials.json
-          jq '.CHAT_SERVER' ~/.local/share/neon/credentials.json
       - name: Test DB Utils
         run: |
           pytest tests/test_db_utils.py --doctest-modules --junitxml=tests/db-utils-test-results.xml
