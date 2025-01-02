@@ -1,4 +1,4 @@
-from pyklatchat_utils.configuration import KlatConfigurationBase
+from klatchat_utils.configuration import KlatConfigurationBase
 
 
 class KlatObserverConfig(KlatConfigurationBase):

@@ -30,7 +30,7 @@ from decimal import Decimal
 
 from pymongo import ReplaceOne
 
-from pyklatchat_utils.database_utils.mongo_utils.user_utils import get_existing_nicks_to_id
+from klatchat_utils.database_utils.mongo_utils.user_utils import get_existing_nicks_to_id
 from neon_utils.logger import LOG
 
 

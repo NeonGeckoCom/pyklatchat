@@ -28,10 +28,10 @@
 
 from neon_sftp import NeonSFTPConnector
 from kubernetes import client, config
-from pyklatchat_utils.configuration import KlatConfigurationBase
-from pyklatchat_utils.exceptions import MalformedConfigurationException
-from pyklatchat_utils.database_utils import DatabaseController
-from pyklatchat_utils.database_utils.mongo_utils.queries.wrapper import MongoDocumentsAPI
+from klatchat_utils.configuration import KlatConfigurationBase
+from klatchat_utils.exceptions import MalformedConfigurationException
+from klatchat_utils.database_utils import DatabaseController
+from klatchat_utils.database_utils.mongo_utils.queries.wrapper import MongoDocumentsAPI
 
 from chat_server.server_utils.sftp_utils import init_sftp_connector
 from chat_server.server_utils.rmq_utils import RabbitMQAPI

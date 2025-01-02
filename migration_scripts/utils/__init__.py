@@ -27,7 +27,7 @@
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 from migration_scripts.server_config import KlatServerConfig
-from pyklatchat_utils.connection_utils import create_ssh_tunnel
+from klatchat_utils.connection_utils import create_ssh_tunnel
 
 
 def setup_db_connectors(configuration: KlatServerConfig, old_db_key: str, new_db_key: str):

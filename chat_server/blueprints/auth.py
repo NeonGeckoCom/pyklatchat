@@ -31,14 +31,14 @@ from time import time
 from fastapi import APIRouter, Form, Request
 from fastapi.responses import JSONResponse
 
-from pyklatchat_utils.common import get_hash, generate_uuid
+from klatchat_utils.common import get_hash, generate_uuid
 from chat_server.server_utils.auth import (
     check_password_strength,
     generate_session_token,
     create_unauthorized_user,
 )
-from pyklatchat_utils.database_utils.mongo_utils.queries.wrapper import MongoDocumentsAPI
-from pyklatchat_utils.http_utils import respond
+from klatchat_utils.database_utils.mongo_utils.queries.wrapper import MongoDocumentsAPI
+from klatchat_utils.http_utils import respond
 
 router = APIRouter(
     prefix="/auth",

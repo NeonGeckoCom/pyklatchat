@@ -32,7 +32,7 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse
 
 from chat_client.client_config import client_config
-from pyklatchat_utils.http_utils import respond
+from klatchat_utils.http_utils import respond
 
 
 def call_server(

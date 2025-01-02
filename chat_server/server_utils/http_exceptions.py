@@ -26,12 +26,12 @@
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from pyklatchat_utils.exceptions import (KlatAPIException,
-                                         UserUnauthorizedException,
-                                         InvalidSessionTokenException,
-                                         ItemNotFoundException,
-                                         DuplicatedItemException,
-                                         MissingAttributeException,
-                                         InvalidInputData,
-                                         PermissionDenied)
+from klatchat_utils.exceptions import (KlatAPIException,
+                                       UserUnauthorizedException,
+                                       InvalidSessionTokenException,
+                                       ItemNotFoundException,
+                                       DuplicatedItemException,
+                                       MissingAttributeException,
+                                       InvalidInputData,
+                                       PermissionDenied)
 # TODO: Imports left for backwards-compat. Mark for deprecation

@@ -36,7 +36,7 @@ from chat_server.server_utils.http_exceptions import (
 )
 from chat_server.server_utils.http_utils import KlatAPIResponse
 from chat_server.server_utils.api_dependencies.models import SetConfigModel, ConfigModel
-from pyklatchat_utils.database_utils.mongo_utils.queries.wrapper import MongoDocumentsAPI
+from klatchat_utils.database_utils.mongo_utils.queries.wrapper import MongoDocumentsAPI
 
 router = APIRouter(
     prefix="/configs",

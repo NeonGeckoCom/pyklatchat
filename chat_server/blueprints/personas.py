@@ -48,8 +48,8 @@ from chat_server.server_utils.api_dependencies.extractors import (
 )
 from chat_server.server_utils.api_dependencies.validators import permitted_access
 
-from pyklatchat_utils.database_utils.mongo_utils import MongoFilter, MongoLogicalOperators
-from pyklatchat_utils.database_utils.mongo_utils.queries.wrapper import MongoDocumentsAPI
+from klatchat_utils.database_utils.mongo_utils import MongoFilter, MongoLogicalOperators
+from klatchat_utils.database_utils.mongo_utils.queries.wrapper import MongoDocumentsAPI
 
 router = APIRouter(
     prefix="/personas",

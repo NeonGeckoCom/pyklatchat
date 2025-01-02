@@ -34,8 +34,8 @@ from chat_server.server_utils.api_dependencies.validators.users import (
     get_authorized_user,
 )
 from chat_server.server_utils.http_utils import get_file_response, save_file
-from pyklatchat_utils.database_utils.mongo_utils.queries.wrapper import MongoDocumentsAPI
-from pyklatchat_utils.http_utils import respond
+from klatchat_utils.database_utils.mongo_utils.queries.wrapper import MongoDocumentsAPI
+from klatchat_utils.http_utils import respond
 from neon_utils.logger import LOG
 
 router = APIRouter(

@@ -28,8 +28,8 @@
 
 from time import time
 
-from pyklatchat_utils.database_utils.mongo_utils.queries import mongo_queries
-from pyklatchat_utils.database_utils.mongo_utils.queries.wrapper import MongoDocumentsAPI
+from klatchat_utils.database_utils.mongo_utils.queries import mongo_queries
+from klatchat_utils.database_utils.mongo_utils.queries.wrapper import MongoDocumentsAPI
 from neon_utils.logger import LOG
 from ..server import sio
 

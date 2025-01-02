@@ -28,7 +28,7 @@
 
 from os import environ
 from neon_sftp import NeonSFTPConnector
-from pyklatchat_utils.exceptions import MalformedConfigurationException
+from klatchat_utils.exceptions import MalformedConfigurationException
 
 
 def init_sftp_connector(config):

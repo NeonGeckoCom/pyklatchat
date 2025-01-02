@@ -31,11 +31,11 @@ from time import time
 from typing import List
 
 
-from pyklatchat_utils.database_utils.mongo_utils import (
+from klatchat_utils.database_utils.mongo_utils import (
     MongoFilter,
     MongoLogicalOperators,
 )
-from pyklatchat_utils.database_utils.mongo_utils.queries.wrapper import MongoDocumentsAPI
+from klatchat_utils.database_utils.mongo_utils.queries.wrapper import MongoDocumentsAPI
 from neon_utils.logger import LOG
 
 

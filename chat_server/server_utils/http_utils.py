@@ -35,8 +35,8 @@ from starlette.responses import FileResponse, StreamingResponse
 
 from chat_server.server_config import server_config
 from chat_server.server_utils.enums import DataSources
-from pyklatchat_utils.common import generate_uuid
-from pyklatchat_utils.http_utils import respond
+from klatchat_utils.common import generate_uuid
+from klatchat_utils.http_utils import respond
 from neon_utils.logger import LOG
 
 

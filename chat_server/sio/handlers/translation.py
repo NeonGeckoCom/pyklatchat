@@ -28,9 +28,9 @@
 
 from cachetools import LRUCache
 
-from pyklatchat_utils.common import generate_uuid, deep_merge
-from pyklatchat_utils.database_utils.mongo_utils.queries import mongo_queries
-from pyklatchat_utils.database_utils.mongo_utils.queries.wrapper import MongoDocumentsAPI
+from klatchat_utils.common import generate_uuid, deep_merge
+from klatchat_utils.database_utils.mongo_utils.queries import mongo_queries
+from klatchat_utils.database_utils.mongo_utils.queries.wrapper import MongoDocumentsAPI
 from neon_utils.logger import LOG
 from ..server import sio
 from ...server_utils.cache_utils import CacheFactory

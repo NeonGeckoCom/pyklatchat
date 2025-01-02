@@ -37,8 +37,8 @@ sys.path.append(
     )
 )
 from chat_server.server_config import server_config
-from pyklatchat_utils.connection_utils import create_ssh_tunnel
-from pyklatchat_utils.database_utils.mongo_utils import *
+from klatchat_utils.connection_utils import create_ssh_tunnel
+from klatchat_utils.database_utils.mongo_utils import *
 from neon_utils.logger import LOG
 
 
