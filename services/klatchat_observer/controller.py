@@ -212,6 +212,7 @@ class ChatObserver(MQConnector):
             )
         ):
             callback["recipient"] = Recipients.CHATBOT_CONTROLLER
+            callback["context"] = dict(requested_participants=["automator"])
         else:
             for recipient, recipient_prefixes in cls.recipient_prefixes.items():
                 if any(
