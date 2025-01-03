@@ -1,14 +1,7 @@
-let submindsPerCid;
-
-// submindsPerCid = {
-//         1: [
-//             {submind_id: "wiz-1bbbd8af178a455eb65c669e72c89490", status: "active"},
-//             {submind_id: "wolfram-b5003bfc25d7461e9888cfc344c04a85", status: "active"},
-//         ]
-//     }
+let subminds_state;
 
 function renderActiveSubminds(cid) {
-    if (!submindsPerCid) {
+    if (!subminds_state) {
         console.log(`Subminds for CID ${cid} not yet loaded.`);
         return;
     }
@@ -26,58 +19,90 @@ function renderActiveSubminds(cid) {
     const table = document.getElementById(`${cid}-subminds-state-table`);
     const entriesContainer = document.getElementById(`${cid}-subminds-state-entries`);
     const buttonsContainer = document.getElementById(`${cid}-subminds-buttons`);
-    const resetButton = document.getElementById(`${cid}-reset-button`);
+    buttonsContainer.style.display = 'none';
+    const cancelButton = document.getElementById(`${cid}-reset-button`);
     const submitButton = document.getElementById(`${cid}-submit-button`);
 
-    let initialState = (submindsPerCid?.[cid] || []).map(submind => ({
-        id: submind.submind_id,
-        active: submind.status === 'active',
-    }));
+    const active_subminds = subminds_state["subminds_per_cid"]?.[cid]?.filter(submind => submind.status === 'active') || [];
+    const activeSubmindIds = new Set(active_subminds.map(submind => submind.submind_id));
 
-    let currentState = structuredClone(initialState);
+    const banned_subminds = subminds_state["subminds_per_cid"]?.[cid]?.filter(submind => submind.status === 'banned') || [];
+    const bannedSubmindIds = new Set(banned_subminds.map(submind => submind.submind_id));
+
+    const initialSubmindsState = Object.entries(subminds_state?.["connected_subminds"] || {})
+        .filter(([submind_id, submind]) => {
+        return submind["bot_type"] === "submind" && !bannedSubmindIds.has(submind_id);
+        })
+        .map(([submind_id, submind]) => ({
+        id: submind_id,
+        is_active: activeSubmindIds.has(submind_id),
+        }))
+        .sort((a, b) => {
+        return b.is_active - a.is_active;
+        });
+
+    let currentState = structuredClone(initialSubmindsState);
 
     const updateButtonVisibility = () => {
-        const hasChanges = initialState.some((submind, index) => submind.active !== currentState[index].active);
+        const hasChanges = initialSubmindsState.some((submind, index) => submind.is_active !== currentState[index].is_active);
         buttonsContainer.style.display = hasChanges ? 'block' : 'none';
     };
 
     table.style.display = '';
     entriesContainer.innerHTML = '';
 
-    (submindsPerCid?.[cid] || []).forEach((submind, index) => {
+    initialSubmindsState.forEach((submind, index) => {
         const row = document.createElement('tr');
         row.innerHTML = `
-            <td>${submind.submind_id.slice(0, submind.submind_id.lastIndexOf('-'))}</td>
+            <td>${submind.id.slice(0, submind.id.lastIndexOf('-'))}</td>
             <td class="text-center">
                 <div class="custom-control custom-switch">
-                    <input type="checkbox" class="custom-control-input" id="toggle-${cid}-${submind.submind_id}" ${submind.status === 'active' ? 'checked' : ''}>
-                    <label class="custom-control-label" for="toggle-${cid}-${submind.submind_id}"></label>
+                    <input type="checkbox" class="custom-control-input" id="toggle-${cid}-${submind.id}" ${submind.is_active === true ? 'checked' : ''}>
+                    <label class="custom-control-label" for="toggle-${cid}-${submind.id}"></label>
                 </div>
             </td>
         `;
 
-        const checkbox = row.querySelector(`#toggle-${cid}-${submind.submind_id}`);
+        const checkbox = row.querySelector(`#toggle-${cid}-${submind.id}`);
         checkbox.addEventListener('change', () => {
-            currentState[index].active = checkbox.checked;
+            currentState[index].is_active = checkbox.checked;
             updateButtonVisibility();
         });
         entriesContainer.appendChild(row);
     });
 
-    resetButton.onclick = () => {
-        currentState = structuredClone(initialState);
+    cancelButton.onclick = () => {
+        currentState = structuredClone(initialSubmindsState);
         currentState.forEach((submind, index) => {
             const checkbox = document.getElementById(`toggle-${cid}-${submind.id}`);
-            if (checkbox) checkbox.checked = submind.active;
+            checkbox.checked = (submind.is_active)? "checked" : '';
         });
         updateButtonVisibility();
     };
 
     submitButton.onclick = () => {
+        const modifiedSubminds = currentState.filter((current, index) => {
+            return current.is_active !== initialSubmindsState[index].is_active;
+        });
 
-        // function to apply changes for chat
+        let subminds_to_remove = modifiedSubminds.filter(submind => !submind.is_active).map(submind => submind.id);
+        let subminds_to_add = modifiedSubminds.filter(submind => submind.is_active).map(submind => submind.id);
 
-        socket.emit('update_subminds', {cid: currentState});
+        if (subminds_to_add.length !== 0){
+            socket.emit('broadcast', {
+                msg_type: "invite_subminds",
+                "cid": cid,
+                "requested_participants": subminds_to_add,
+            });
+        }
+
+        if (subminds_to_remove.length !== 0) {
+            socket.emit('broadcast', {
+                msg_type: "remove_subminds",
+                "cid": cid,
+                "requested_participants": subminds_to_remove,
+            });
+        }
 
         const dropdownToggle = document.getElementById(`dropdownToggle-${cid}`);
         if (dropdownToggle) dropdownToggle.click();
@@ -88,10 +113,15 @@ function renderActiveSubminds(cid) {
 
 
 async function parseSubmindsState(data){
-    submindsPerCid = data['subminds_per_cid'];
+    subminds_state = data;
 
-    for (const cid of Object.keys(submindsPerCid)){
-        refreshSubmindsCount(cid);
+    const cids = Object.keys(subminds_state["subminds_per_cid"])
+    if (cids.length === 0){
+        setAllCountersToZero();
+    } else {
+        for (const cid of cids){
+            refreshSubmindsCount(cid);
+        }
     }
 }
 

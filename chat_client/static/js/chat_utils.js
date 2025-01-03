@@ -20,6 +20,13 @@ let conversationState = {};
 const clearStateCache = (cid) => {
     delete conversationState[cid];
 }
+/**
+ * Sets all participants counters to zero
+ */
+const setAllCountersToZero = () => {
+    const countNodes = document.querySelectorAll('[id^="participants-count-"]');
+    countNodes.forEach(node => node.innerText = 0);
+}
 
 
 /**
@@ -28,7 +35,7 @@ const clearStateCache = (cid) => {
  */
 const refreshSubmindsCount = (cid) => {
     const participantsCountNode = document.getElementById(`participants-count-${cid}`);
-    if (participantsCountNode && submindsPerCid) participantsCountNode.innerText = submindsPerCid[cid].length;
+    if (participantsCountNode && subminds_state) participantsCountNode.innerText = subminds_state["subminds_per_cid"][cid].length;
 }
 
 

@@ -338,6 +338,8 @@ class ChatObserver(MQConnector):
             "revoke_submind_ban_from_conversation",
             handler=self.request_revoke_submind_ban_from_conversation,
         )
+        self._sio.on("invite_subminds", handler=self.request_invite_subminds)
+        self._sio.on("remove_subminds", handler=self.request_remove_subminds)
         self._sio.on("auth_expired", handler=self._handle_auth_expired)
 
     def connect_sio(self):
@@ -929,6 +931,26 @@ class ChatObserver(MQConnector):
             vhost=self.get_vhost("chatbots"),
             queue="revoke_submind_ban_from_conversation",
             expiration=3000,
+        )
+
+    def request_invite_subminds(self, data: dict):
+        LOG.info(f"Inviting subminds: {data}")
+        self.send_message(
+            request_data=data,
+            vhost=self.get_vhost("chatbots"),
+            exchange="invitation",
+            exchange_type='fanout',
+            expiration=3000,
+        )
+
+    def request_remove_subminds(self, data: dict):
+        LOG.info(f"Removing subminds: {data}")
+        self.send_message(
+            request_data=data,
+            vhost=self.get_vhost("chatbots"),
+            exchange="elimination",
+            expiration=3000,
+            exchange_type='fanout',
         )
 
     def _sio_emit(self, event: str, data: dict):
