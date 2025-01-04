@@ -37,6 +37,7 @@ from threading import Event, Timer
 
 import requests
 import socketio
+from pika.exchange_type import ExchangeType
 
 from socketio.exceptions import SocketIOError
 from enum import Enum
@@ -338,6 +339,10 @@ class ChatObserver(MQConnector):
             "revoke_submind_ban_from_conversation",
             handler=self.request_revoke_submind_ban_from_conversation,
         )
+        self._sio.on(
+            "update_participating_subminds",
+            handler=self.request_update_participating_subminds,
+        )
         self._sio.on("auth_expired", handler=self._handle_auth_expired)
 
     def connect_sio(self):
@@ -486,12 +491,12 @@ class ChatObserver(MQConnector):
         )
 
     def _handle_chatbot_recipient(self, recipient_data: dict, msg_data: dict):
-        LOG.info(f"Emitting message to Chatbot Controller: {recipient_data}")
-        queue = "external_shout"
+        LOG.debug(f"Emitting message to Chatbot Controller: {recipient_data}")
+        queue = "klat_shout"
         if requested_participants := recipient_data.get("context", {}).get(
             "requested_participants"
         ):
-            msg_data["requested_participants"] = json.dumps(requested_participants)
+            msg_data["requested_participants"] = requested_participants
             self.send_message(
                 request_data=msg_data,
                 vhost=self.get_vhost("chatbots"),
@@ -929,6 +934,15 @@ class ChatObserver(MQConnector):
             vhost=self.get_vhost("chatbots"),
             queue="revoke_submind_ban_from_conversation",
             expiration=3000,
+        )
+
+    def request_update_participating_subminds(self, data: dict):
+        LOG.info(f"Updating participating subminds: {data}")
+        self.send_message(
+            request_data=data,
+            vhost=self.get_vhost("chatbots"),
+            exchange="update_participating_subminds",
+            exchange_type=ExchangeType.fanout.value,
         )
 
     def _sio_emit(self, event: str, data: dict):
