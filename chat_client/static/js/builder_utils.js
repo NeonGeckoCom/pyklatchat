@@ -313,7 +313,6 @@ async function buildConversationHTML(conversationData = {}, skin = CONVERSATION_
             message['cid'] = cid;
             chatFlowHTML += await messageHTMLFromData(message, skin);
             // if (skin === CONVERSATION_SKINS.BASE) {
-            addConversationParticipant(cid, message['user_nickname']);
             // }
         }
     }else{
