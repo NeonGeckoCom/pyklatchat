@@ -35,7 +35,7 @@ const setAllCountersToZero = () => {
  */
 const refreshSubmindsCount = (cid) => {
     const participantsCountNode = document.getElementById(`participants-count-${cid}`);
-    if (participantsCountNode && subminds_state) participantsCountNode.innerText = subminds_state["subminds_per_cid"][cid].length;
+    if (participantsCountNode && !isEmpty(submindsState)) participantsCountNode.innerText = submindsState["subminds_per_cid"][cid].length;
 }
 
 
@@ -288,7 +288,6 @@ async function buildConversation(conversationData, skin, remember=true,conversat
        }
     });
     await addRecorder(conversationData);
-    refreshSubmindsCount(conversationData['_id']);
     await initLanguageSelectors(conversationData['_id']);
 
     if (skin === CONVERSATION_SKINS.BASE) {

@@ -1,7 +1,7 @@
-let subminds_state;
+let submindsState;
 
 function renderActiveSubminds(cid) {
-    if (!subminds_state) {
+    if (!submindsState) {
         console.log(`Subminds for CID ${cid} not yet loaded.`);
         return;
     }
@@ -23,23 +23,32 @@ function renderActiveSubminds(cid) {
     const cancelButton = document.getElementById(`${cid}-reset-button`);
     const submitButton = document.getElementById(`${cid}-submit-button`);
 
-    const active_subminds = subminds_state["subminds_per_cid"]?.[cid]?.filter(submind => submind.status === 'active') || [];
-    const activeSubmindIds = new Set(active_subminds.map(submind => submind.submind_id));
+    const { subminds_per_cid: submindsPerCID, connected_subminds: connectedSubminds } = submindsState;
 
-    const banned_subminds = subminds_state["subminds_per_cid"]?.[cid]?.filter(submind => submind.status === 'banned') || [];
+    const activeSubminds = submindsPerCID?.[cid]?.filter(submind => submind.status === 'active') || [];
+    const activeSubmindServices = new Set(activeSubminds.map(submind => submind.submind_id.slice(0, submind.submind_id.lastIndexOf('-'))))
+
+    const banned_subminds = submindsPerCID?.[cid]?.filter(submind => submind.status === 'banned') || [];
     const bannedSubmindIds = new Set(banned_subminds.map(submind => submind.submind_id));
 
-    const initialSubmindsState = Object.entries(subminds_state?.["connected_subminds"] || {})
-        .filter(([submind_id, submind]) => {
-        return submind["bot_type"] === "submind" && !bannedSubmindIds.has(submind_id);
-        })
-        .map(([submind_id, submind]) => ({
-        id: submind_id,
-        is_active: activeSubmindIds.has(submind_id),
-        }))
-        .sort((a, b) => {
+    const initialSubmindsState = [];
+    const processedServiceNames = [];
+    for (let [submindID, submindData] of Object.entries(connectedSubminds || {})){
+        const serviceName = submindData.service_name;
+        const botType = submindData.bot_type;
+        if (botType === "submind" && !bannedSubmindIds.has(submindID) && !processedServiceNames.includes(serviceName)){
+            processedServiceNames.push(serviceName)
+            initialSubmindsState.push(
+                {
+                    service_name: serviceName,
+                    is_active: activeSubmindServices.has(serviceName)
+                }
+            )
+        }
+    }
+    initialSubmindsState.sort((a, b) => {
         return b.is_active - a.is_active;
-        });
+    })
 
     let currentState = structuredClone(initialSubmindsState);
 
@@ -54,16 +63,16 @@ function renderActiveSubminds(cid) {
     initialSubmindsState.forEach((submind, index) => {
         const row = document.createElement('tr');
         row.innerHTML = `
-            <td>${submind.id.slice(0, submind.id.lastIndexOf('-'))}</td>
+            <td>${submind.service_name}</td>
             <td class="text-center">
                 <div class="custom-control custom-switch">
-                    <input type="checkbox" class="custom-control-input" id="toggle-${cid}-${submind.id}" ${submind.is_active === true ? 'checked' : ''}>
-                    <label class="custom-control-label" for="toggle-${cid}-${submind.id}"></label>
+                    <input type="checkbox" class="custom-control-input" id="toggle-${cid}-${submind.service_name}" ${submind.is_active === true ? 'checked' : ''}>
+                    <label class="custom-control-label" for="toggle-${cid}-${submind.service_name}"></label>
                 </div>
             </td>
         `;
 
-        const checkbox = row.querySelector(`#toggle-${cid}-${submind.id}`);
+        const checkbox = row.querySelector(`#toggle-${cid}-${submind.service_name}`);
         checkbox.addEventListener('change', () => {
             currentState[index].is_active = checkbox.checked;
             updateButtonVisibility();
@@ -74,7 +83,7 @@ function renderActiveSubminds(cid) {
     cancelButton.onclick = () => {
         currentState = structuredClone(initialSubmindsState);
         currentState.forEach((submind, index) => {
-            const checkbox = document.getElementById(`toggle-${cid}-${submind.id}`);
+            const checkbox = document.getElementById(`toggle-${cid}-${submind.service_name}`);
             checkbox.checked = (submind.is_active)? "checked" : '';
         });
         updateButtonVisibility();
@@ -85,22 +94,15 @@ function renderActiveSubminds(cid) {
             return current.is_active !== initialSubmindsState[index].is_active;
         });
 
-        let subminds_to_remove = modifiedSubminds.filter(submind => !submind.is_active).map(submind => submind.id);
-        let subminds_to_add = modifiedSubminds.filter(submind => submind.is_active).map(submind => submind.id);
+        let subminds_to_remove = modifiedSubminds.filter(submind => !submind.is_active).map(submind => submind.service_name);
+        let subminds_to_add = modifiedSubminds.filter(submind => submind.is_active).map(submind => submind.service_name);
 
-        if (subminds_to_add.length !== 0){
+        if (subminds_to_add.length !== 0 || subminds_to_remove.length !== 0){
             socket.emit('broadcast', {
-                msg_type: "invite_subminds",
+                msg_type: "update_participating_subminds",
                 "cid": cid,
-                "requested_participants": subminds_to_add,
-            });
-        }
-
-        if (subminds_to_remove.length !== 0) {
-            socket.emit('broadcast', {
-                msg_type: "remove_subminds",
-                "cid": cid,
-                "requested_participants": subminds_to_remove,
+                "subminds_to_invite": subminds_to_add,
+                "subminds_to_kick": subminds_to_remove,
             });
         }
 
@@ -112,10 +114,10 @@ function renderActiveSubminds(cid) {
 }
 
 
-async function parseSubmindsState(data){
-    subminds_state = data;
+function parseSubmindsState(data){
+    submindsState = data;
 
-    const cids = Object.keys(subminds_state["subminds_per_cid"])
+    const cids = Object.keys(submindsState["subminds_per_cid"])
     if (cids.length === 0){
         setAllCountersToZero();
     } else {
@@ -124,4 +126,3 @@ async function parseSubmindsState(data){
         }
     }
 }
-
