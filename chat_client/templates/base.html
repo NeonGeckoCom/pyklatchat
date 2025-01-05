@@ -10,10 +10,9 @@
     {% endif %}
     <title>{% if title is defined %}{{ title }}{% else %}Klatchat{% endif %}</title>
     {% block css_imports %}
-        <link rel="stylesheet" href="{{ url_for('css', path='libs/bootstrap.min.css') }}"
-          crossorigin="anonymous">
-        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flag-icon-css/3.2.1/css/flag-icon.min.css">
-        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.2.0/css/all.min.css">
+        <link rel="stylesheet" href="{{ url_for('css', path='libs/bootstrap.min.css') }}">
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flag-icon-css/3.5.0/css/flag-icon.min.css">
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
     {% endblock %}
 </head>
 <body>
@@ -36,7 +35,7 @@
             {% include 'base_footer.html' %}
         {% endblock %}
     </footer>
-    <script type="text/javascript" src="{{ url_for('js', path="libs/lazysizes.min.js") }}" async></script>
+{#    <script type="text/javascript" src="{{ url_for('js', path="libs/lazysizes.min.js") }}" async></script>#}
     <script type="text/javascript" src="{{ url_for('js', path="libs/jquery.min.js") }}"></script>
     <script type="text/javascript" src="{{ url_for('js', path="libs/popper.min.js") }}"></script>
     <script type="text/javascript" src="{{ url_for('js', path="libs/bootstrap.min.js") }}"></script>
