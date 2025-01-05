@@ -98,26 +98,33 @@ def fetch_message_data(
         limit=limit,
         creation_time_filter=creation_time_filter,
     )
+
     for message in message_data:
         message["message_type"] = "plain"
+
     if skin == ConversationSkins.PROMPTS:
-        detected_prompts = list(
-            set(item.get("prompt_id") for item in message_data if item.get("prompt_id"))
-        )
+        detected_prompts = {
+            item.get("prompt_id") for item in message_data if item.get("prompt_id")
+        }
+
         prompt_data = fetch_prompt_data(
-            cid=conversation_data["_id"], prompt_ids=detected_prompts
+            cid=conversation_data["_id"],
+            prompt_ids=list(detected_prompts),
         )
+
         if prompt_data:
-            detected_prompt_ids = []
+            detected_prompt_ids = set()
             for prompt in prompt_data:
                 prompt["message_type"] = "prompt"
-                detected_prompt_ids.append(prompt["_id"])
+                detected_prompt_ids.add(prompt["_id"])
+
             message_data = [
                 message
                 for message in message_data
                 if message.get("prompt_id") not in detected_prompt_ids
             ]
             message_data.extend(prompt_data)
+
     return sorted(message_data, key=lambda shout: int(shout["created_on"]))
 
 

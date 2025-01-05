@@ -35,7 +35,16 @@ const setAllCountersToZero = () => {
  */
 const refreshSubmindsCount = (cid) => {
     const participantsCountNode = document.getElementById(`participants-count-${cid}`);
-    if (participantsCountNode && !isEmpty(submindsState)) participantsCountNode.innerText = submindsState["subminds_per_cid"][cid].length;
+    if (participantsCountNode){
+        let submindsCount = 0
+        if (!isEmpty(submindsState)){
+            submindsCount = submindsState["subminds_per_cid"][cid].filter(submind => {
+                const connectedSubmind = submindsState.connected_subminds[submind.submind_id];
+                return connectedSubmind && connectedSubmind.bot_type === "submind" && submind.status === "active";
+            }).length;
+        }
+        participantsCountNode.innerText = submindsCount;
+    }
 }
 
 
