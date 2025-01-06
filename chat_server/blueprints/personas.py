@@ -48,7 +48,7 @@ from chat_server.server_utils.api_dependencies.extractors import (
     PersonaData,
 )
 from chat_server.server_utils.api_dependencies.validators import permitted_access
-from chat_server.server_utils.socketio_utils import notify_personas_changed
+from chat_server.server_utils.persona_utils import notify_personas_changed, list_personas as _list_personas
 from utils.database_utils.mongo_utils import MongoFilter, MongoLogicalOperators
 from utils.database_utils.mongo_utils.queries.wrapper import MongoDocumentsAPI
 
@@ -61,34 +61,10 @@ router = APIRouter(
 @router.get("/list")
 async def list_personas(
     current_user: CurrentUserData,
-    request_model: ListPersonasQueryModel = permitted_access(ListPersonasQueryModel),
+    request_model: ListPersonasQueryModel = permitted_access(ListPersonasQueryModel)
 ) -> JSONResponse:
     """Lists personas matching query params"""
-    filters = []
-    if request_model.llms:
-        filters.append(
-            MongoFilter(
-                key="supported_llms",
-                value=request_model.llms,
-                logical_operator=MongoLogicalOperators.ALL,
-            )
-        )
-    if request_model.user_id and request_model.user_id != "*":
-        filters.append(MongoFilter(key="user_id", value=request_model.user_id))
-    else:
-        user_filter = [{"user_id": None}, {"user_id": current_user.user_id}]
-        filters.append(
-            MongoFilter(value=user_filter, logical_operator=MongoLogicalOperators.OR)
-        )
-    if request_model.only_enabled:
-        filters.append(MongoFilter(key="enabled", value=True))
-    items = MongoDocumentsAPI.PERSONAS.list_items(
-        filters=filters, result_as_cursor=False
-    )
-    for item in items:
-        item["id"] = item.pop("_id")
-        item["enabled"] = item.get("enabled", False)
-    return JSONResponse(content={"items": items})
+    return await _list_personas(current_user, request_model)
 
 
 @router.get("/get/{persona_id}")
