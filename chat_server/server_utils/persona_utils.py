@@ -53,7 +53,7 @@ async def notify_personas_changed(supported_llms: Optional[List[str]] = None):
     async with _LOCK:
         resp = await list_personas(None,
                                    ListPersonasQueryModel(only_enabled=True))
-        update_time = time()
+        update_time = round(time())
         enabled_personas = json.loads(resp.body.decode())
         valid_personas = {}
         if supported_llms:
