@@ -113,6 +113,7 @@ async def add_persona(
     if existing_model:
         raise DuplicatedItemException
     MongoDocumentsAPI.PERSONAS.add_item(data=request_model.model_dump())
+    # TODO: This will not scale to multiple server instances
     await notify_personas_changed(request_model.supported_llms)
     return KlatAPIResponse.OK
 
@@ -133,6 +134,7 @@ async def set_persona(
     MongoDocumentsAPI.PERSONAS.update_item(
         filters=mongo_filter, data=request_model.model_dump()
     )
+    # TODO: This will not scale to multiple server instances
     await notify_personas_changed(request_model.supported_llms)
     return KlatAPIResponse.OK
 
@@ -143,6 +145,7 @@ async def delete_persona(
 ):
     """Deletes persona"""
     MongoDocumentsAPI.PERSONAS.delete_item(item_id=request_model.persona_id)
+    # TODO: This will not scale to multiple server instances
     await notify_personas_changed()
     return KlatAPIResponse.OK
 
@@ -161,5 +164,6 @@ async def toggle_persona_state(
     )
     if updated_data.matched_count == 0:
         raise ItemNotFoundException
+    # TODO: This will not scale to multiple server instances
     await notify_personas_changed()
     return KlatAPIResponse.OK
