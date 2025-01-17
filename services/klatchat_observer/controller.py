@@ -980,8 +980,8 @@ class ChatObserver(MQConnector):
         self.send_message(
             request_data=data,
             vhost=self.get_vhost("chatbots"),
-            queue="prompts_data_update",
-            expiration=3000,
+            exchange="prompts_data_update",
+            exchange_type=ExchangeType.fanout.value,
         )
 
     def _sio_emit(self, event: str, data: dict):
