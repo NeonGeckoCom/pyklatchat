@@ -188,6 +188,13 @@ class ChatObserver(MQConnector):
             callback=self.on_subminds_state,
             on_error=self.default_error_handler,
         )
+        self.register_consumer(
+            name="prompts_request_consumer",
+            vhost=self.get_vhost("chatbots"),
+            queue="prompts_data_request",
+            callback=self.handle_prompts_data_request,
+            on_error=self.default_error_handler,
+        )
 
     @classmethod
     def get_recipient_from_prefix(cls, message: str) -> dict:
@@ -343,6 +350,7 @@ class ChatObserver(MQConnector):
             "update_participating_subminds",
             handler=self.request_update_participating_subminds,
         )
+        self._sio.on("prompts_data_updated", handler=self.forward_prompts_data_update)
         self._sio.on("auth_expired", handler=self._handle_auth_expired)
 
     def connect_sio(self):
@@ -847,6 +855,28 @@ class ChatObserver(MQConnector):
             expiration=5000,
         )
 
+    @create_mq_callback()
+    def handle_prompts_data_request(self, body: dict):
+        url = f"{self.server_url}/configs/prompts"
+        try:
+            response = self._fetch_klat_server(url=url)
+            data = response.json()
+            if data:
+                LOG.info(f"Received prompts data: {data}")
+                prompts = data.get("records", [])
+                response_data = {
+                    "prompts": prompts,
+                    "context": {"mq": {"message_id": body["message_id"]}},
+                }
+                self.send_message(
+                    request_data=response_data,
+                    vhost=self.get_vhost("chatbots"),
+                    queue=body["routing_key"],
+                    expiration=5000,
+                )
+        except Exception as ex:
+            LOG.error(f"Failed to fetch prompts from {url}: {ex}")
+
     @cachetools.func.ttl_cache(ttl=15)
     def _fetch_persona_api(self, user_id: str) -> dict:
         query_string = self._build_persona_api_query(user_id=user_id)
@@ -943,6 +973,15 @@ class ChatObserver(MQConnector):
             vhost=self.get_vhost("chatbots"),
             exchange="update_participating_subminds",
             exchange_type=ExchangeType.fanout.value,
+        )
+
+    def forward_prompts_data_update(self, data: dict):
+        LOG.info(f"Forwarding prompts data update: {data}")
+        self.send_message(
+            request_data=data,
+            vhost=self.get_vhost("chatbots"),
+            queue="prompts_data_update",
+            expiration=3000,
         )
 
     def _sio_emit(self, event: str, data: dict):
