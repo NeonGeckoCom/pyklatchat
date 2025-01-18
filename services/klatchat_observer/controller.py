@@ -37,6 +37,7 @@ from threading import Event, Timer
 
 import requests
 import socketio
+from pika.exchange_type import ExchangeType
 
 from socketio.exceptions import SocketIOError
 from enum import Enum
@@ -94,8 +95,8 @@ class ChatObserver(MQConnector):
         self.neon_service_refresh_interval = 60  # seconds
         self.mention_separator = ","
         self.recipient_to_handler_method = {
-            Recipients.NEON: self.__handle_neon_recipient,
-            Recipients.CHATBOT_CONTROLLER: self.__handle_chatbot_recipient,
+            Recipients.NEON: self._handle_neon_recipient,
+            Recipients.CHATBOT_CONTROLLER: self._handle_chatbot_recipient,
         }
         self.sio_url = config["SIO_URL"]
 
@@ -212,6 +213,7 @@ class ChatObserver(MQConnector):
             )
         ):
             callback["recipient"] = Recipients.CHATBOT_CONTROLLER
+            callback["context"] = dict(requested_participants=["automator"])
         else:
             for recipient, recipient_prefixes in cls.recipient_prefixes.items():
                 if any(
@@ -227,14 +229,13 @@ class ChatObserver(MQConnector):
 
         :param message: user's message
         :returns extracted recipient
-
-        Example:
-        >>> assert self.get_recipient_from_body('@Proctor hello dsfdsfsfds @Prompter') == {'recipient': Recipients.CHATBOT_CONTROLLER, 'context': {'requested_participants': {'proctor', 'prompter'}}
         """
-        message = " " + message
-        bot_mentioning_regexp = r"[\s]+@[a-zA-Z]+[\w]+"
-        bots = re.findall(bot_mentioning_regexp, message)
-        bots = set([bot.strip().replace("@", "").lower() for bot in bots])
+        bots = set(
+            [
+                bot.strip().replace("@", "").lower()
+                for bot in re.findall(r"@[\w-]+", message)
+            ]
+        )
         if len(bots) > 0:
             recipient = Recipients.CHATBOT_CONTROLLER
         else:
@@ -337,6 +338,10 @@ class ChatObserver(MQConnector):
         self._sio.on(
             "revoke_submind_ban_from_conversation",
             handler=self.request_revoke_submind_ban_from_conversation,
+        )
+        self._sio.on(
+            "update_participating_subminds",
+            handler=self.request_update_participating_subminds,
         )
         self._sio.on("auth_expired", handler=self._handle_auth_expired)
 
@@ -445,7 +450,7 @@ class ChatObserver(MQConnector):
         # TODO: any specific structure per wolfram/duckduckgo, etc...
         return request_dict
 
-    def __handle_neon_recipient(self, recipient_data: dict, msg_data: dict):
+    def _handle_neon_recipient(self, recipient_data: dict, msg_data: dict):
         msg_data.setdefault("message_body", msg_data.pop("messageText", ""))
         msg_data.setdefault("message_id", msg_data.pop("messageID", ""))
         recipient_data.setdefault("context", {})
@@ -485,61 +490,88 @@ class ChatObserver(MQConnector):
             queue=input_queue,
         )
 
-    def __handle_chatbot_recipient(self, recipient_data: dict, msg_data: dict):
-        LOG.info(f"Emitting message to Chatbot Controller: {recipient_data}")
-        queue = "external_shout"
-        msg_data["requested_participants"] = json.dumps(
-            list(
-                recipient_data.setdefault("context", {}).setdefault(
-                    "requested_participants", []
-                )
+    def _handle_chatbot_recipient(self, recipient_data: dict, msg_data: dict):
+        LOG.debug(f"Emitting message to Chatbot Controller: {recipient_data}")
+        queue = "klat_shout"
+        if requested_participants := recipient_data.get("context", {}).get(
+            "requested_participants"
+        ):
+            msg_data["requested_participants"] = requested_participants
+            self.send_message(
+                request_data=msg_data,
+                vhost=self.get_vhost("chatbots"),
+                queue=queue,
+                expiration=3000,
             )
-        )
-        self.send_message(
-            request_data=msg_data,
-            vhost=self.get_vhost("chatbots"),
-            queue=queue,
-            expiration=3000,
-        )
+        else:
+            LOG.warning(
+                f"Failed to emit message to chatbot controller - no requested participants detected. "
+                f"{recipient_data=}"
+            )
 
     def handle_get_stt(self, data):
         """Handler for get STT request from Socket IO channel"""
         data["recipient"] = Recipients.NEON
-        data["skip_recipient_detection"] = True
         data["requested_skill"] = "stt"
         self.handle_message(data=data)
 
     def handle_get_tts(self, data):
         """Handler for get TTS request from Socket IO channel"""
         data["recipient"] = Recipients.NEON
-        data["skip_recipient_detection"] = True
         data["requested_skill"] = "tts"
         self.handle_message(data=data)
 
     def handle_message(self, data: dict):
         """
-        Handles input requests from MQ to Neon API
+        Handles input requests from Klatchat Server to External MQ Services
 
-        :param data: Received user data
+        :param data: Received message data
         """
         if data and isinstance(data, dict):
             recipient_data = {}
-            if not data.get("skip_recipient_detection"):
+
+            if not self._should_skip_recipient_detection(data=data):
                 recipient_data = self.get_recipient_from_bound_service(
                     data.get("bound_service", "")
                 ) or self.get_recipient_from_message(
-                    message=data.get("messageText", data.get("message_body"))
+                    message=data.get("messageText") or data.get("message_body")
                 )
-            recipient = (
-                recipient_data.get("recipient")
-                or data.get("recipient")
-                or Recipients.UNRESOLVED
-            )
+                data["recipient"] = recipient_data.pop("recipient", None)
+
+            recipient = data.pop("recipient", None) or Recipients.UNRESOLVED
+
+            data = self._preprocess_message_data(data)
+
             handler_method = self.recipient_to_handler_method.get(recipient)
             if handler_method:
                 handler_method(recipient_data=recipient_data, msg_data=data)
         else:
             raise TypeError(f"Malformed data received: {data}")
+
+    @staticmethod
+    def _should_skip_recipient_detection(data: dict) -> bool:
+        """
+        Checks if recipient detection should be skipped based on incoming data
+        :param data: the incoming data object to check
+        :return: True if recipient detection should be skipped, False otherwise
+        """
+        # Skipping recipient detection for bot shouts to prevent recursive scenarios
+        return data.get("recipient") or data.get("is_bot") == "1"
+
+    @staticmethod
+    def _preprocess_message_data(data: dict) -> dict:
+        """
+        Preprocess message data received from the klat chat
+        :param data: data object to preprocess
+        :return: updated data object
+        """
+        if "messageText" in data:
+            data["messageText"] = re.sub(
+                r"^\s*(@[\w-]+[^\w@]*)+", "", data["messageText"]
+            ).strip()
+            if not data["messageText"]:
+                data["messageText"] = "hello"
+        return data
 
     def forward_prompt_data(self, data: dict):
         """Forwards received prompt data to the destination observer"""
@@ -902,6 +934,15 @@ class ChatObserver(MQConnector):
             vhost=self.get_vhost("chatbots"),
             queue="revoke_submind_ban_from_conversation",
             expiration=3000,
+        )
+
+    def request_update_participating_subminds(self, data: dict):
+        LOG.info(f"Updating participating subminds: {data}")
+        self.send_message(
+            request_data=data,
+            vhost=self.get_vhost("chatbots"),
+            exchange="update_participating_subminds",
+            exchange_type=ExchangeType.fanout.value,
         )
 
     def _sio_emit(self, event: str, data: dict):
