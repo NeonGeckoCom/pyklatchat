@@ -3,9 +3,33 @@
 {% block skin_body %}
     <div class="card non-selectable" id="{cid}">
         <div class="card-header"><span data-toggle="tooltip" title="{conversation_name}">{conversation_name_shrunk}</span>
-            <span class="ml-3" id="participants-list-{cid}" data-toggle="tooltip" title='Contributors of "{conversation_name}"'>
-                <i class="fa-solid fa-user" aria-hidden="true"></i> <span id="participants-count-{cid}">0</span>
-            </span>
+            <div class="dropdown ml-3" id="participants-list-{cid}" data-toggle="tooltip" title='Subminds of "{conversation_name}"' style="display: inline!important;" >
+                <button class="btn btn-secondary dropdown-toggle" type="button" id="dropdownToggle-{cid}" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" onclick="renderActiveSubminds('{cid}')">
+                    <i class="fa-solid fa-robot" aria-hidden="true"></i> <span id="participants-count-{cid}">0</span>
+                </button>
+                <div class="dropdown-menu dropdown-menu-right text-right" id="bot-list-{cid}">
+                    <div class="d-flex justify-content-center align-items-center" style="height: 100px;" id="{cid}-subminds-state-loading">
+                        <div class="spinner-border spinner-border-sm text-info" role="status"></div>
+                        <span class="ml-2">Loading...</span>
+                    </div>
+                    <!-- Table displaying subminds -->
+                    <table class="table table-sm" id="{cid}-subminds-state-table" style="display: none;">
+                        <thead>
+                            <tr>
+                                <th scope="col">Name</th>
+                                <th scope="col" class="text-center">Connected</th>
+                            </tr>
+                        </thead>
+                        <tbody id="{cid}-subminds-state-entries">
+                            <!-- Dynamic rows will be added here -->
+                        </tbody>
+                    </table>
+                    <div id="{cid}-subminds-buttons" style="display: none; text-align: center;">
+                        <button class="btn btn-danger btn-sm" id="{cid}-reset-button">Cancel</button>
+                        <button class="btn btn-success btn-sm" id="{cid}-submit-button">Submit</button>
+                    </div>
+                </div>
+            </div>
             <div class="dropdown language ml-2" data-toggle="tooltip" title="Language you Write" style="display: inline!important;">
                 <button class="btn btn-secondary dropdown-toggle" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" id="language-selected-{cid}-outcoming">
                     English <span class="flag-icon flag-icon-us" data-lang="en"></span>
