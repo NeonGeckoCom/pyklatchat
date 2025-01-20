@@ -26,7 +26,6 @@
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 import http
-import json
 import re
 import time
 from queue import Queue
@@ -192,7 +191,7 @@ class ChatObserver(MQConnector):
             name="prompts_request_consumer",
             vhost=self.get_vhost("chatbots"),
             queue="prompts_data_request",
-            callback=self.handle_prompts_data_request,
+            callback=self.handle_get_prompts_data,
             on_error=self.default_error_handler,
         )
 
@@ -856,7 +855,10 @@ class ChatObserver(MQConnector):
         )
 
     @create_mq_callback()
-    def handle_prompts_data_request(self, body: dict):
+    def handle_get_prompts_data(self, body: dict):
+        """
+        Handle a client request to get configured Chatbotsforum prompts
+        """
         url = f"{self.server_url}/configs/prompts"
         try:
             response = self._fetch_klat_server(url=url)
@@ -976,6 +978,9 @@ class ChatObserver(MQConnector):
         )
 
     def forward_prompts_data_update(self, data: dict):
+        """
+        Forward a Chatbotsforum prompts update SIO event to MQ services
+        """
         LOG.info(f"Forwarding prompts data update: {data}")
         self.send_message(
             request_data=data,
