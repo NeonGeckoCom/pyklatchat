@@ -49,7 +49,7 @@ async def request_translate(sid, data):
         input_type = data.get("inputType", "incoming")
         user_id = data.get("user")
 
-        populated_translations, missing_translations = mongo_queries.get_translations(
+        populated_translations, missing_translations = await mongo_queries.get_translations(
             translation_mapping=data.get("chat_mapping", {}), requested_user_id=user_id
         )
         if populated_translations and not missing_translations:
@@ -102,7 +102,7 @@ async def get_neon_translations(sid, data):
                 return
             sid = cached_data.get("sid")
             input_type = cached_data.get("input_type")
-            updated_shouts = MongoDocumentsAPI.SHOUTS.save_translations(
+            updated_shouts = await MongoDocumentsAPI.SHOUTS.save_translations(
                 translation_mapping=data.get("translations", {})
             )
             populated_translations = deep_merge(

@@ -67,15 +67,15 @@ async def user_message(sid, data):
     try:
         data["is_bot"] = data.pop("bot", "0")
         if data["userID"].startswith("neon"):
-            neon_data = MongoDocumentsAPI.USERS.get_neon_data(skill_name="neon")
+            neon_data = await MongoDocumentsAPI.USERS.get_neon_data(skill_name="neon")
             data["userID"] = neon_data["_id"]
         elif data["is_bot"] == "1":
-            bot_data = MongoDocumentsAPI.USERS.get_bot_data(
+            bot_data = await MongoDocumentsAPI.USERS.get_bot_data(
                 user_id=data["userID"], context=data.get("context")
             )
             data["userID"] = bot_data["_id"]
 
-        cid_data = MongoDocumentsAPI.CHATS.get_chat(
+        cid_data = await MongoDocumentsAPI.CHATS.get_chat(
             search_str=data["cid"],
             column_identifiers=["_id"],
             requested_user_id=data["userID"],
@@ -134,9 +134,9 @@ async def user_message(sid, data):
         if lang != "en":
             new_shout_data["translations"][lang] = data["messageText"]
 
-        mongo_queries.add_shout(data=new_shout_data)
+        await mongo_queries.add_shout(data=new_shout_data)
         if is_announcement == "0" and data.get("prompt_id"):
-            is_ok = MongoDocumentsAPI.PROMPTS.add_shout_to_prompt(
+            is_ok = await MongoDocumentsAPI.PROMPTS.add_shout_to_prompt(
                 prompt_id=data["prompt_id"],
                 user_id=data["userID"],
                 message_id=data["message_id"],
@@ -157,7 +157,7 @@ async def user_message(sid, data):
         message_tts = data.get("messageTTS", {})
         for language, gender_mapping in message_tts.items():
             for gender, audio_data in gender_mapping.items():
-                MongoDocumentsAPI.SHOUTS.save_tts_response(
+                await MongoDocumentsAPI.SHOUTS.save_tts_response(
                     shout_id=data["message_id"],
                     audio_data=audio_data,
                     lang=language,
@@ -166,10 +166,10 @@ async def user_message(sid, data):
 
         data["bound_service"] = cid_data.get("bound_service", "")
         await sio.emit("new_message", data=data, skip_sid=[sid])
-        PopularityCounter.increment_cid_popularity(new_shout_data["cid"])
+        # await PopularityCounter.increment_cid_popularity(new_shout_data["cid"])
     except Exception as ex:
         LOG.exception(
-            f"Socket IO failed to process user message", data=data, exc_info=ex
+            f"Socket IO failed to process user message: {data}", exc_info=ex
         )
         await emit_error(
             sids=[sid],

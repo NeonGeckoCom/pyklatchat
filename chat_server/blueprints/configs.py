@@ -30,7 +30,7 @@ from fastapi import APIRouter, Depends
 from starlette.responses import JSONResponse
 
 from chat_server.server_utils.api_dependencies import permitted_access
-from chat_server.server_utils.enums import UserRoles, RequestModelType
+from chat_server.server_utils.enums import UserRoles
 from chat_server.server_utils.http_exceptions import (
     ItemNotFoundException,
 )
@@ -47,7 +47,7 @@ router = APIRouter(
 @router.get("/{config_property}")
 async def get_config_data(model: ConfigModel = Depends()) -> JSONResponse:
     """Retrieves configured data by name"""
-    items = MongoDocumentsAPI.CONFIGS.get_by_name(
+    items = await MongoDocumentsAPI.CONFIGS.get_by_name(
         config_name=model.config_property, version=model.version
     )
     return JSONResponse(content=items)
@@ -60,7 +60,7 @@ async def update_config(
     )
 ) -> JSONResponse:
     """Updates provided config by name"""
-    updated_data = MongoDocumentsAPI.CONFIGS.update_by_name(
+    updated_data = await MongoDocumentsAPI.CONFIGS.update_by_name(
         config_name=model.config_property, version=model.version, data=model.data
     )
     if updated_data.matched_count == 0:

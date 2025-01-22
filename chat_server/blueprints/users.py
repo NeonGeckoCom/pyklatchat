@@ -66,7 +66,7 @@ async def get_user(
     """
     session_token = ""
     if user_id:
-        user = MongoDocumentsAPI.USERS.get_user(user_id=user_id)
+        user = await MongoDocumentsAPI.USERS.get_user(user_id=user_id)
         user.pop("password", None)
         user.pop("date_created", None)
         user.pop("tokens", None)
@@ -127,7 +127,7 @@ async def update_profile(
     try:
         filter_expression = MongoFilter(key="_id", value=current_user.user_id)
         update_dict = {k: v for k, v in update_dict.items() if v}
-        MongoDocumentsAPI.USERS.update_item(
+        await MongoDocumentsAPI.USERS.update_item(
             filters=(filter_expression,), data=update_dict
         )
         return respond(msg="OK")

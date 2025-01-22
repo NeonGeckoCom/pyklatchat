@@ -87,7 +87,7 @@ async def chats_overview(
         ChatsOverviewRequestModel, min_required_role=UserRoles.ADMIN
     )
 ):
-    conversations_data = MongoDocumentsAPI.CHATS.get_chats(
+    conversations_data = await MongoDocumentsAPI.CHATS.get_chats(
         search_str=model.search_str,
         column_identifiers=["_id", "conversation_name"],
         limit=100,

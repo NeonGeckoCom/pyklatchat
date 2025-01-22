@@ -34,7 +34,7 @@ from .wrapper import MongoDocumentsAPI
 from utils.logging_utils import LOG
 
 
-def get_translations(
+async def get_translations(
     translation_mapping: dict, requested_user_id: str
 ) -> Tuple[dict, dict]:
     """
@@ -50,13 +50,13 @@ def get_translations(
     for cid, cid_data in translation_mapping.items():
         lang = cid_data.get("lang", "en")
         shout_ids = cid_data.get("shouts", [])
-        conversation_data = MongoDocumentsAPI.CHATS.get_chat(
+        conversation_data = await MongoDocumentsAPI.CHATS.get_chat(
             search_str=cid, requested_user_id=requested_user_id
         )
         if not conversation_data:
             LOG.error(f"Failed to fetch conversation data - {cid}")
             continue
-        shout_data = fetch_shout_data(
+        shout_data = await fetch_shout_data(
             conversation_data=conversation_data,
             shout_ids=shout_ids,
             fetch_senders=False,
@@ -84,7 +84,7 @@ def get_translations(
     return populated_translations, missing_translations
 
 
-def fetch_message_data(
+async def fetch_message_data(
     skin: ConversationSkins,
     conversation_data: dict,
     limit: int = 100,
@@ -92,7 +92,7 @@ def fetch_message_data(
     creation_time_filter: MongoFilter = None,
 ) -> list[dict]:
     """Fetches message data based on provided conversation skin"""
-    message_data = fetch_shout_data(
+    message_data = await fetch_shout_data(
         conversation_data=conversation_data,
         fetch_senders=fetch_senders,
         limit=limit,
@@ -107,7 +107,7 @@ def fetch_message_data(
             item.get("prompt_id") for item in message_data if item.get("prompt_id")
         }
 
-        prompt_data = fetch_prompt_data(
+        prompt_data = await fetch_prompt_data(
             cid=conversation_data["_id"],
             prompt_ids=list(detected_prompts),
         )
@@ -128,7 +128,7 @@ def fetch_message_data(
     return sorted(message_data, key=lambda shout: int(shout["created_on"]))
 
 
-def fetch_shout_data(
+async def fetch_shout_data(
     conversation_data: dict,
     limit: int = 100,
     fetch_senders: bool = True,
@@ -139,29 +139,28 @@ def fetch_shout_data(
     if creation_time_filter:
         query_filters.append(creation_time_filter)
     if shout_ids:
-        shouts = MongoDocumentsAPI.SHOUTS.list_contains(
+        shouts = await MongoDocumentsAPI.SHOUTS.list_contains(
             source_set=shout_ids,
             aggregate_result=False,
-            result_as_cursor=False,
             filters=query_filters,
             limit=limit,
             ordering_expression={"created_on": -1},
         )
     else:
-        shouts = MongoDocumentsAPI.SHOUTS.list_items(
+        shouts = await MongoDocumentsAPI.SHOUTS.list_items(
             filters=query_filters,
             limit=limit,
             ordering_expression={"created_on": -1},
             result_as_cursor=False,
         )
     if shouts and fetch_senders:
-        shouts = _attach_senders_data(shouts=shouts)
+        shouts = await _attach_senders_data(shouts=shouts)
     return sorted(shouts, key=lambda user_shout: int(user_shout["created_on"]))
 
 
-def _attach_senders_data(shouts: list[dict]):
+async def _attach_senders_data(shouts: list[dict]):
     result = list()
-    users_from_shouts = MongoDocumentsAPI.USERS.list_contains(
+    users_from_shouts = await MongoDocumentsAPI.USERS.list_contains(
         source_set=[shout["user_id"] for shout in shouts]
     )
     for shout in shouts:
@@ -180,7 +179,7 @@ def _attach_senders_data(shouts: list[dict]):
     return result
 
 
-def fetch_prompt_data(
+async def fetch_prompt_data(
     cid: str,
     limit: int = 100,
     id_from: str = None,
@@ -200,7 +199,7 @@ def fetch_prompt_data(
 
     :returns list of matching prompt data along with matching messages and users
     """
-    matching_prompts = MongoDocumentsAPI.PROMPTS.get_prompts(
+    matching_prompts = await MongoDocumentsAPI.PROMPTS.get_prompts(
         cid=cid,
         limit=limit,
         id_from=id_from,
@@ -208,8 +207,8 @@ def fetch_prompt_data(
         created_from=created_from,
     )
     for prompt in matching_prompts:
-        prompt["user_mapping"] = MongoDocumentsAPI.USERS.fetch_users_from_prompt(prompt)
-        prompt["message_mapping"] = MongoDocumentsAPI.SHOUTS.fetch_messages_from_prompt(
+        prompt["user_mapping"] = await MongoDocumentsAPI.USERS.fetch_users_from_prompt(prompt)
+        prompt["message_mapping"] = await MongoDocumentsAPI.SHOUTS.fetch_messages_from_prompt(
             prompt
         )
         if fetch_user_data:
@@ -241,10 +240,10 @@ def fetch_prompt_data(
     return sorted(matching_prompts, key=lambda _prompt: int(_prompt["created_on"]))
 
 
-def add_shout(data: dict):
+async def add_shout(data: dict):
     """Records shout data and pushes its id to the relevant conversation flow"""
-    MongoDocumentsAPI.SHOUTS.add_item(data=data)
-    MongoDocumentsAPI.CHATS.update_item(
+    await MongoDocumentsAPI.SHOUTS.add_item(data=data)
+    await MongoDocumentsAPI.CHATS.update_item(
         filters=MongoFilter(key="_id", value=data["cid"]),
         data={"last_shout_ts": int(time())},
     )

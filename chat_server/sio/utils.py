@@ -80,12 +80,12 @@ def login_required(min_required_role=UserRoles.GUEST, *outer_args, **outer_kwarg
 
                 try:
                     if nano_token:
-                        user = MongoDocumentsAPI.USERS.get_user_by_nano_token(
+                        user = await MongoDocumentsAPI.USERS.get_user_by_nano_token(
                             nano_token=nano_token
                         )
                     if not user:
                         if session_token:
-                            user = _get_user_from_session_token(
+                            user = await _get_user_from_session_token(
                                 session_token=session_token
                             )
                         else:
@@ -122,7 +122,7 @@ def login_required(min_required_role=UserRoles.GUEST, *outer_args, **outer_kwarg
         return outer
 
 
-def _get_user_from_session_token(
+async def _get_user_from_session_token(
     session_token: str,
 ) -> Tuple[str, int]:
     """
@@ -134,7 +134,7 @@ def _get_user_from_session_token(
     if session_token_expired(jwt_payload=payload):
         LOG.debug("Session expired")
         raise InvalidSessionTokenException()
-    return MongoDocumentsAPI.USERS.get_user(user_id=payload["sub"])
+    return await MongoDocumentsAPI.USERS.get_user(user_id=payload["sub"])
 
 
 def _user_has_min_required_role(user, min_required_role: UserRoles) -> bool:

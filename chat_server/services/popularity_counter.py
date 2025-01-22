@@ -56,23 +56,23 @@ class PopularityCounter:
     last_updated_ts = 0
 
     @classmethod
-    def get_data(cls):
+    async def get_data(cls):
         """Retrieves popularity data"""
         ts = int(time())
         if not cls.__DATA or ts - cls.last_updated_ts > cls.__EXPIRATION_PERIOD:
-            cls.init_data()
+            await cls.init_data()
         return cls.__DATA
 
     @classmethod
-    def add_new_chat(cls, cid, popularity: int = 0):
+    async def add_new_chat(cls, cid, popularity: int = 0):
         """Adds new chat to the tracked chat popularity records"""
-        name = MongoDocumentsAPI.CHATS.get_item(item_id=cid).get("conversation_name")
+        name = (await MongoDocumentsAPI.CHATS.get_item(item_id=cid)).get("conversation_name")
         cls.__DATA.append(
             ChatPopularityRecord(cid=cid, name=name, popularity=popularity)
         )
 
     @classmethod
-    def init_data(cls, actuality_days: int = 7):
+    async def init_data(cls, actuality_days: int = 7):
         """
         Initialise items popularity from DB
         Current implementation considers length of number of message container under given conversation
@@ -81,7 +81,7 @@ class PopularityCounter:
         """
         curr_time = int(time())
         oldest_timestamp = curr_time - 3600 * 24 * actuality_days
-        chats = MongoDocumentsAPI.CHATS.list_items(
+        chats = await MongoDocumentsAPI.CHATS.list_items(
             filters=[
                 MongoFilter(
                     key="last_shout_ts",
@@ -91,7 +91,7 @@ class PopularityCounter:
             ],
             result_as_cursor=False,
         )
-        relevant_shouts = MongoDocumentsAPI.SHOUTS.list_items(
+        relevant_shouts = await MongoDocumentsAPI.SHOUTS.list_items(
             filters=[
                 MongoFilter(
                     key="created_on",
@@ -103,10 +103,10 @@ class PopularityCounter:
                     value=[chat["_id"] for chat in chats],
                     logical_operator=MongoLogicalOperators.IN,
                 ),
-            ]
+            ],
         )
         cids_popularity_counter = Counter()
-        for shout in relevant_shouts:
+        async for shout in relevant_shouts:
             cids_popularity_counter[str(shout["cid"])] += 1
         formatted_chats = []
         for cid in cids_popularity_counter:
@@ -124,17 +124,20 @@ class PopularityCounter:
         cls.__DATA = sorted(formatted_chats, key=lambda x: x.popularity, reverse=True)
 
     @classmethod
-    def increment_cid_popularity(cls, cid):
+    async def increment_cid_popularity(cls, cid):
         """Increments popularity of specified conversation id"""
         try:
-            matching_item = [item for item in cls.get_data() if item.cid == cid][0]
-            matching_item.popularity += 1
+            conversation_data = await cls.get_data()
+            for idx, item in enumerate(conversation_data):
+                if item.cid == cid:
+                    cls.__DATA[idx] = item.popularity + 1
+                    break
         except IndexError:
             LOG.debug(f"No cid matching = {cid}")
-            cls.add_new_chat(cid=cid, popularity=1)
+            await cls.add_new_chat(cid=cid, popularity=1)
 
     @classmethod
-    def get_first_n_items(cls, search_str, exclude_items: list = None, limit: int = 10):
+    async def get_first_n_items(cls, search_str, exclude_items: list = None, limit: int = 10):
         """
         Returns first N items matching searched string
 
@@ -150,7 +153,7 @@ class PopularityCounter:
                 "conversation_name": item.name,
                 "popularity": item.popularity,
             }
-            for item in cls.get_data()
+            for item in await cls.get_data()
             if search_str.lower() in item.name.lower() and item.cid not in exclude_items
         ]
         return sorted(data, key=lambda item: item["popularity"], reverse=True)[:limit]
