@@ -692,7 +692,7 @@ function setChatState(cid, state=CHAT_STATES.ACTIVE, state_msg = ''){
  * @param conversationParentID - parent Node ID of the conversation
  */
 async function displayConversation(searchStr, skin=CONVERSATION_SKINS.PROMPTS, alertParentID = null, conversationParentID='conversationsBody'){
-    if (getOpenedChatIds() === configData.MAX_CONVERSATIONS_PER_PAGE){
+    if (getOpenedChatIds().length === configData.MAX_CONVERSATIONS_PER_PAGE){
         alert(`Up to ${configData.MAX_CONVERSATIONS_PER_PAGE} allowed per page`)
     }
     else if (searchStr !== "") {
