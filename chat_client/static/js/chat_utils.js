@@ -224,6 +224,26 @@ const sendMessage = async (inputElem, cid, repliedMessageId=null, isAudio='0', i
 }
 
 /**
+ * Gets all opened chat ids
+ * @return {[]} list of displayed chat ids
+ */
+function getOpenedChatIds(){
+    let cids = [];
+    Array.from(conversationBody.getElementsByClassName('conversationContainer')).forEach(conversationContainer=>{
+        cids.push(conversationContainer.getElementsByClassName('card')[0].id);
+    });
+    return cids;
+}
+
+const resizeConversationContainers = () => {
+    const openedChatIds = getOpenedChatIds();
+    const newWidth = `${100/openedChatIds.length}vw`;
+    openedChatIds.forEach(cid => {
+        document.getElementById(cid).style.width = newWidth;
+    })
+}
+
+/**
  * Builds new conversation HTML from provided data and attaches it to the list of displayed conversations
  * @param conversationData - JS Object containing conversation data of type:
  * {
@@ -257,7 +277,11 @@ async function buildConversation(conversationData, skin, remember=true,conversat
     const newConversationHTML = await buildConversationHTML(conversationData, skin);
     const conversationsBody = document.getElementById(conversationParentID);
     conversationsBody.insertAdjacentHTML('afterbegin', newConversationHTML);
-    await initMessages(conversationData, skin);
+
+    resizeConversationContainers()
+
+    setChatState(cid, CHAT_STATES.UPDATING, "Loading messages...")
+    initMessages(conversationData, skin).then(_ => setChatState(cid, CHAT_STATES.ACTIVE));
 
     const messageListContainer = getMessageListContainer(cid);
     const currentConversation = document.getElementById(cid);
@@ -343,6 +367,7 @@ async function buildConversation(conversationData, skin, remember=true,conversat
            conversationHolder.removeChild(conversationParent);
            await removeConversation(cid);
            clearStateCache(cid);
+           resizeConversationContainers()
        });
     }
     // Hide close button for Nano Frames
@@ -642,6 +667,7 @@ function setChatState(cid, state=CHAT_STATES.ACTIVE, state_msg = ''){
     // console.log(`cid=${cid}, state=${state}, state_msg=${state_msg}`)
     const cidNode = document.getElementById(cid);
     if (cidNode) {
+        setDefault(setDefault(conversationState, cid, {}))
         const spinner = document.getElementById( `${cid}-spinner` );
         const spinnerUpdateMsg = document.getElementById( `${cid}-update-msg` );
         if (state === 'updating') {
@@ -666,7 +692,10 @@ function setChatState(cid, state=CHAT_STATES.ACTIVE, state_msg = ''){
  * @param conversationParentID - parent Node ID of the conversation
  */
 async function displayConversation(searchStr, skin=CONVERSATION_SKINS.PROMPTS, alertParentID = null, conversationParentID='conversationsBody'){
-    if (searchStr !== "") {
+    if (getOpenedChatIds() === configData.MAX_CONVERSATIONS_PER_PAGE){
+        alert(`Up to ${configData.MAX_CONVERSATIONS_PER_PAGE} allowed per page`)
+    }
+    else if (searchStr !== "") {
         const alertParent = document.getElementById(alertParentID || conversationParentID);
         await getConversationDataByInput(searchStr, skin, null, 10).then(async conversationData => {
             let responseOk = false;

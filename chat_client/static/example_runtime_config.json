@@ -1,3 +1,4 @@
 {
-  "SOCKET_IO_SERVER_URL": "IP address Socket IO server"
+  "CHAT_SERVER_URL_BASE": "IP address Socket IO server",
+  "MAX_CONVERSATIONS_PER_PAGE": 4
 }
