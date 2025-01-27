@@ -184,6 +184,7 @@ async def broadcast(sid, data):
     msg_type = data.pop("msg_type", None)
     msg_receivers = data.pop("to", None)
     if msg_type:
+        LOG.info(f"received broadcast message - {msg_type}")
         await sio.emit(
             msg_type,
             data=data,

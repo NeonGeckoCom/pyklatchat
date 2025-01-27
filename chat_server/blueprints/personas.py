@@ -48,7 +48,6 @@ from chat_server.server_utils.api_dependencies.extractors import (
     PersonaData,
 )
 from chat_server.server_utils.api_dependencies.validators import permitted_access
-from chat_server.server_utils.persona_utils import notify_personas_changed, list_personas as _list_personas
 from utils.database_utils.mongo_utils import MongoFilter, MongoLogicalOperators
 from utils.database_utils.mongo_utils.queries.wrapper import MongoDocumentsAPI
 
@@ -64,7 +63,31 @@ async def list_personas(
     request_model: ListPersonasQueryModel = permitted_access(ListPersonasQueryModel)
 ) -> JSONResponse:
     """Lists personas matching query params"""
-    return await _list_personas(current_user, request_model)
+    filters = []
+    if request_model.llms:
+        filters.append(
+            MongoFilter(
+                key="supported_llms",
+                value=request_model.llms,
+                logical_operator=MongoLogicalOperators.ALL,
+            )
+        )
+    if request_model.user_id and request_model.user_id != "*":
+        filters.append(MongoFilter(key="user_id", value=request_model.user_id))
+    elif current_user:
+        user_filter = [{"user_id": None}, {"user_id": current_user.user_id}]
+        filters.append(
+            MongoFilter(value=user_filter, logical_operator=MongoLogicalOperators.OR)
+        )
+    if request_model.only_enabled:
+        filters.append(MongoFilter(key="enabled", value=True))
+    items = MongoDocumentsAPI.PERSONAS.list_items(
+        filters=filters, result_as_cursor=False
+    )
+    for item in items:
+        item["id"] = item.pop("_id")
+        item["enabled"] = item.get("enabled", False)
+    return JSONResponse(content={"items": items})
 
 
 @router.get("/get/{persona_id}")
@@ -89,8 +112,6 @@ async def add_persona(
     if existing_model:
         raise DuplicatedItemException
     MongoDocumentsAPI.PERSONAS.add_item(data=request_model.model_dump())
-    # TODO: This will not scale to multiple server instances
-    await notify_personas_changed(request_model.supported_llms)
     return KlatAPIResponse.OK
 
 
@@ -110,8 +131,6 @@ async def set_persona(
     MongoDocumentsAPI.PERSONAS.update_item(
         filters=mongo_filter, data=request_model.model_dump()
     )
-    # TODO: This will not scale to multiple server instances
-    await notify_personas_changed(request_model.supported_llms)
     return KlatAPIResponse.OK
 
 
@@ -121,8 +140,6 @@ async def delete_persona(
 ):
     """Deletes persona"""
     MongoDocumentsAPI.PERSONAS.delete_item(item_id=request_model.persona_id)
-    # TODO: This will not scale to multiple server instances
-    await notify_personas_changed()
     return KlatAPIResponse.OK
 
 
@@ -140,6 +157,4 @@ async def toggle_persona_state(
     )
     if updated_data.matched_count == 0:
         raise ItemNotFoundException
-    # TODO: This will not scale to multiple server instances
-    await notify_personas_changed()
     return KlatAPIResponse.OK

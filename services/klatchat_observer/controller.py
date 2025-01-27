@@ -353,8 +353,11 @@ class ChatObserver(MQConnector):
         )
         self._sio.on("prompts_data_updated", handler=self.forward_prompts_data_update)
         self._sio.on("auth_expired", handler=self._handle_auth_expired)
-        self._sio.on("configured_personas_changed",
-                     handler=self._handle_personas_changed)
+        # Persona update events
+        self._sio.on("persona_updated",
+                     handler=self._handle_persona_updated)
+        self._sio.on("persona_deleted",
+                     handler=self._handle_persona_deleted)
 
     def connect_sio(self):
         """
@@ -903,19 +906,47 @@ class ChatObserver(MQConnector):
             data = {"items": []}
         return data
 
-    def _handle_personas_changed(self, data: dict):
+    def _handle_persona_updated(self, data: dict):
         """
         SIO handler called when configured personas are modified. This emits an
         MQ message to allow any connected listeners to maintain a set of known
         personas.
+
+        If list of supported llms excludes personas from the previous configuration - emits "delete persona" event to those LLMs
         """
-        for llm, personas in data["personas"].items():
+        old_state = data.get('old_state', {})
+        new_state = data.get('new_state', {})
+
+        excluded_supported_llms = set(old_state['supported_llms']) - set(new_state['supported_llms'])
+
+        if excluded_supported_llms:
+            self._handle_persona_deleted(data={
+                "persona_name": old_state['persona_name'],
+                "user_id": old_state['user_id'],
+                "supported_llms": excluded_supported_llms,
+            })
+
+        for llm in new_state['supported_llms']:
             self.send_message(
-                request_data={
-                    "items": personas,
-                    "update_time": data.get("update_time") or time.time()},
+                request_data=new_state,
                 vhost=self.get_vhost("llm"),
-                queue=f"{llm}_personas_input",
+                exchange=f"{llm}_persona_updated",
+                exchange_type=ExchangeType.fanout,
+                expiration=5000,
+            )
+
+    def _handle_persona_deleted(self, data: dict):
+        """
+        SIO handler called when configured personas are deleted. This emits an
+        MQ message to allow any connected listeners to maintain a set of known
+        personas.
+        """
+        for llm in data.pop('supported_llms', []):
+            self.send_message(
+                request_data=data,
+                vhost=self.get_vhost("llm"),
+                exchange=f"{llm}_persona_deleted",
+                exchange_type=ExchangeType.fanout,
                 expiration=5000,
             )
 
