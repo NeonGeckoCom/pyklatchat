@@ -1,3 +1,4 @@
+
 document.addEventListener('configLoaded',async (_)=> {
     fetchServer(`configs/footer`)
         .then(response => response.json())
@@ -10,4 +11,4 @@ document.addEventListener('configLoaded',async (_)=> {
             }
         })
         .catch(error => console.error('Error fetching footer:', error));
-});
+} );
