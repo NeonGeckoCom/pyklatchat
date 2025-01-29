@@ -25,6 +25,7 @@
 # LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
 from fastapi import APIRouter
 from starlette.responses import JSONResponse
 
@@ -47,7 +48,6 @@ from chat_server.server_utils.api_dependencies.extractors import (
     PersonaData,
 )
 from chat_server.server_utils.api_dependencies.validators import permitted_access
-
 from utils.database_utils.mongo_utils import MongoFilter, MongoLogicalOperators
 from utils.database_utils.mongo_utils.queries.wrapper import MongoDocumentsAPI
 
@@ -60,8 +60,8 @@ router = APIRouter(
 @router.get("/list")
 async def list_personas(
     current_user: CurrentUserData,
-    request_model: ListPersonasQueryModel = permitted_access(ListPersonasQueryModel),
-):
+    request_model: ListPersonasQueryModel = permitted_access(ListPersonasQueryModel)
+) -> JSONResponse:
     """Lists personas matching query params"""
     filters = []
     if request_model.llms:
@@ -74,7 +74,7 @@ async def list_personas(
         )
     if request_model.user_id and request_model.user_id != "*":
         filters.append(MongoFilter(key="user_id", value=request_model.user_id))
-    else:
+    elif current_user:
         user_filter = [{"user_id": None}, {"user_id": current_user.user_id}]
         filters.append(
             MongoFilter(value=user_filter, logical_operator=MongoLogicalOperators.OR)
