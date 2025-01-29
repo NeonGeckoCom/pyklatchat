@@ -39,12 +39,12 @@ class GetConversationModel(BaseModel):
     limit_chat_history: int | None = Field(Query(default=100), examples=[100])
     creation_time_from: str | None = Field(Query(default=None), examples=[int(time())])
     skin: str = Field(
-        Query(default=ConversationSkins.BASE), examples=[ConversationSkins.BASE]
+        Query(default=ConversationSkins.PROMPTS), examples=[ConversationSkins.PROMPTS]
     )
 
 
 class GetLiveConversationModel(BaseModel):
     limit_chat_history: int | None = Field(Query(default=100), examples=[100])
     skin: str = Field(
-        Query(default=ConversationSkins.BASE), examples=[ConversationSkins.BASE]
+        Query(default=ConversationSkins.PROMPTS), examples=[ConversationSkins.PROMPTS]
     )

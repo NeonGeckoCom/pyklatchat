@@ -66,10 +66,11 @@ async def user_message(sid, data):
     LOG.info(f"Received user message data: {data}")
     try:
         data["is_bot"] = data.pop("bot", "0")
-        if data["userID"].startswith("neon"):
+        is_bot = data["is_bot"] == "1"
+        if data["userID"].startswith("neon") and not is_bot:
             neon_data = MongoDocumentsAPI.USERS.get_neon_data(skill_name="neon")
             data["userID"] = neon_data["_id"]
-        elif data["is_bot"] == "1":
+        elif is_bot:
             bot_data = MongoDocumentsAPI.USERS.get_bot_data(
                 user_id=data["userID"], context=data.get("context")
             )
