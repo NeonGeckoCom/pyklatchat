@@ -114,18 +114,18 @@ def generate_session_token(user_id) -> str:
     )
 
 
-def create_unauthorized_user(
+async def create_unauthorized_user(
     authorize: bool = True, nano_token: str = None
 ) -> UserData:
     """
-    Creates unauthorized user and sets its credentials to cookies
+    Creates the unauthorized user and sets its credentials to cookies
 
     :param authorize: to authorize new user
     :param nano_token: nano token to append to user on creation
 
     :returns: generated UserData
     """
-    new_user = MongoDocumentsAPI.USERS.create_guest(nano_token=nano_token)
+    new_user = await MongoDocumentsAPI.USERS.create_guest(nano_token=nano_token)
     token = ""
     if authorize:
         token = generate_session_token(user_id=new_user["_id"])
@@ -133,7 +133,7 @@ def create_unauthorized_user(
     return UserData(user=new_user, session=token)
 
 
-def get_current_user_data(
+async def get_current_user_data(
     request: Request,
     force_tmp: bool = False,
     nano_token: str = None,
@@ -143,7 +143,7 @@ def get_current_user_data(
 
     :param request: Starlet request object
     :param force_tmp: to force setting temporal credentials
-    :param nano_token: token from nano client (optional)
+    :param nano_token: token from the nano client (optional)
 
     :returns UserData based on received authorization header or sets temporal user credentials if not found
     """
@@ -155,7 +155,7 @@ def get_current_user_data(
                 header_name=NANO_AUTHORIZATION_HEADER,
             )
         if nano_token:
-            nano_user = MongoDocumentsAPI.USERS.get_user_by_nano_token(
+            nano_user = await MongoDocumentsAPI.USERS.get_user_by_nano_token(
                 nano_token=nano_token,
             )
             if nano_user:
@@ -172,7 +172,7 @@ def get_current_user_data(
                     payload = decode_jwt_token(jwt_session_token=session)
                     if not session_token_expired(jwt_payload=payload):
                         user_id = payload["sub"]
-                        user = MongoDocumentsAPI.USERS.get_user(user_id=user_id)
+                        user = await MongoDocumentsAPI.USERS.get_user(user_id=user_id)
                         LOG.info(f"Fetched user data for nickname = {user['nickname']}")
                         if not user:
                             LOG.info(
@@ -192,7 +192,7 @@ def get_current_user_data(
                 )
     if not user_data:
         LOG.debug("Creating temp user")
-        user_data = create_unauthorized_user()
+        user_data = await create_unauthorized_user()
     LOG.debug(f"Resolved user: {user_data}")
     user_data.user.pop("password", None)
     user_data.user.pop("date_created", None)
@@ -210,13 +210,14 @@ def refresh_token_expired(jwt_payload) -> bool:
     ) > session_refresh_rate
 
 
-def get_current_user(
+async def get_current_user(
     request: Request, force_tmp: bool = False, nano_token: str = None
 ) -> dict:
     """Backward compatibility method to support previous invocations"""
-    return get_current_user_data(
+    current_user_data = await get_current_user_data(
         request=request, force_tmp=force_tmp, nano_token=nano_token
-    ).user
+    )
+    return current_user_data.user
 
 
 def refresh_session(payload: dict):

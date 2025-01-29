@@ -49,7 +49,7 @@ class UsersDAO(MongoDocumentDAO):
     def document(self):
         return MongoDocuments.USERS
 
-    def get_user(self, user_id=None, nickname=None) -> Union[dict, None]:
+    async def get_user(self, user_id=None, nickname=None) -> Union[dict, None]:
         """
         Gets user data based on provided params
         :param user_id: target user id
@@ -63,19 +63,19 @@ class UsersDAO(MongoDocumentDAO):
             filter_data["_id"] = user_id
         if nickname:
             filter_data["nickname"] = nickname
-        user = self.get_item(filters=filter_data)
+        user = await self.get_item(filters=filter_data)
         if user and not user.get("preferences"):
             user["preferences"] = self._default_user_preferences
-            self.set_preferences(
+            await self.set_preferences(
                 user_id=user_id, preferences_mapping=user["preferences"]
             )
         return user
 
-    def fetch_users_from_prompt(self, prompt: dict) -> dict[str, list]:
+    async def fetch_users_from_prompt(self, prompt: dict) -> dict[str, list]:
         """Fetches user ids detected in provided prompt"""
         prompt_data = prompt["data"]
         user_ids = prompt_data.get("participating_subminds", [])
-        return self.list_contains(
+        return await self.list_contains(
             source_set=user_ids,
             project_fields=["_id", "nickname", "first_name", "last_name", "is_bot"],
         )
@@ -103,31 +103,30 @@ class UsersDAO(MongoDocumentDAO):
 
         return matching_data
 
-    def get_neon_data(self, skill_name: str = "neon") -> dict:
+    async def get_neon_data(self, skill_name: str = "neon") -> dict:
         """
         Gets a user profile for the user 'Neon' and adds it to the users db if not already present
 
-        :param db_controller: db controller instance
         :param skill_name: Neon Skill to consider (defaults to neon - Neon Assistant)
 
         :return Neon AI data
         """
-        neon_data = self.get_user(nickname=skill_name)
+        neon_data = await self.get_user(nickname=skill_name)
         if not neon_data:
-            neon_data = self._register_neon_skill_user(skill_name=skill_name)
+            neon_data = await self._register_neon_skill_user(skill_name=skill_name)
         return neon_data
 
-    def _register_neon_skill_user(self, skill_name: str):
+    async def _register_neon_skill_user(self, skill_name: str):
         last_name = "AI" if skill_name == "neon" else skill_name.capitalize()
         nickname = skill_name
         neon_data = self.create_from_pattern(
             source=UserPatterns.NEON,
             override_defaults={"last_name": last_name, "nickname": nickname},
         )
-        self.add_item(data=neon_data)
+        await self.add_item(data=neon_data)
         return neon_data
 
-    def get_bot_data(self, user_id: str, context: dict = None) -> dict:
+    async def get_bot_data(self, user_id: str, context: dict = None) -> dict:
         """
         Gets a user profile for the requested bot instance and adds it to the users db if not already present
 
@@ -139,18 +138,18 @@ class UsersDAO(MongoDocumentDAO):
         if not context:
             context = {}
         nickname = user_id.split("-")[0]
-        bot_data = self.get_user(nickname=nickname)
+        bot_data = await self.get_user(nickname=nickname)
         if not bot_data:
             bot_data = self._create_bot(nickname=nickname, context=context)
         elif not bot_data.get("is_bot") == "1":
-            self._execute_query(
+            await self._execute_query(
                 command=MongoCommands.UPDATE_MANY,
                 filters=MongoFilter("_id", bot_data["_id"]),
                 data={"is_bot": "1"},
             )
         return bot_data
 
-    def _create_bot(self, nickname: str, context: dict) -> dict:
+    async def _create_bot(self, nickname: str, context: dict) -> dict:
         bot_data = dict(
             _id=generate_uuid(length=20),
             first_name="Bot",
@@ -163,10 +162,10 @@ class UsersDAO(MongoDocumentDAO):
             date_created=int(time()),
             is_tmp=False,
         )
-        self.add_item(data=bot_data)
+        await self.add_item(data=bot_data)
         return bot_data
 
-    def set_preferences(self, user_id, preferences_mapping: dict):
+    async def set_preferences(self, user_id, preferences_mapping: dict):
         """Sets user preferences for specified user according to preferences mapping"""
         if user_id and preferences_mapping:
             try:
@@ -174,7 +173,7 @@ class UsersDAO(MongoDocumentDAO):
                     f"preferences.{key}": val
                     for key, val in preferences_mapping.items()
                 }
-                self._execute_query(
+                await self._execute_query(
                     command=MongoCommands.UPDATE_MANY,
                     filters=MongoFilter("_id", user_id),
                     data=update_mapping,
@@ -182,7 +181,7 @@ class UsersDAO(MongoDocumentDAO):
             except Exception as ex:
                 LOG.error(f"Failed to update preferences for user_id={user_id} - {ex}")
 
-    def create_guest(self, nano_token: str = None) -> dict:
+    async def create_guest(self, nano_token: str = None) -> dict:
         """
         Creates unauthorized user and sets its credentials to cookies
 
@@ -205,11 +204,11 @@ class UsersDAO(MongoDocumentDAO):
             )
         # TODO: consider adding partial TTL index for guest users
         #  https://www.mongodb.com/docs/manual/core/index-ttl/
-        self.add_item(data=new_user)
+        await self.add_item(data=new_user)
         return new_user
 
-    def get_user_by_nano_token(self, nano_token: str):
-        return self.get_item(
+    async def get_user_by_nano_token(self, nano_token: str):
+        return await self.get_item(
             filters=MongoFilter(
                 key="tokens",
                 value=[nano_token],

@@ -35,21 +35,21 @@ from ..models.users import CurrentUserModel, CurrentUserSessionModel
 from ...auth import get_current_user, get_current_user_data
 
 
-def _get_current_user_model(request: Request) -> CurrentUserModel:
+async def _get_current_user_model(request: Request) -> CurrentUserModel:
     """
     Get current user from request objects and returns it as a CurrentUserModel instance
     :param request: Starlette request object to process
     :return: CurrentUserModel instance
     :raises ValidationError: if pydantic validation failed for provided request
     """
-    current_user = get_current_user(request=request)
+    current_user = await get_current_user(request=request)
     return CurrentUserModel.model_validate(current_user, strict=True)
 
 
-def _get_current_user_session_model(
+async def _get_current_user_session_model(
     request: Request, nano_token: str = None
 ) -> CurrentUserSessionModel:
-    current_user = get_current_user_data(request=request, nano_token=nano_token)
+    current_user = await get_current_user_data(request=request, nano_token=nano_token)
     return CurrentUserSessionModel.model_validate(asdict(current_user), strict=True)
 
 

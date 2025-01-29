@@ -61,14 +61,14 @@ async def request_tts(sid, data):
         lang = data.get("lang", "en")
         message_id = data["message_id"]
         cid = data["cid"]
-        matching_message = MongoDocumentsAPI.SHOUTS.get_item(item_id=message_id)
+        matching_message = await MongoDocumentsAPI.SHOUTS.get_item(item_id=message_id)
         if not matching_message:
             LOG.error("Failed to request TTS - matching message not found")
         else:
             # TODO: support for multiple genders in TTS
             # Trying to get existing audio data
             # preferred_gender = (
-            #     MongoDocumentsAPI.USERS.get_preferences(user_id=user_id)
+            #     await MongoDocumentsAPI.USERS.get_preferences(user_id=user_id)
             #     .get("tts", {})
             #     .get(lang, {})
             #     .get("gender", "female")
@@ -125,7 +125,7 @@ async def tts_response(sid, data):
     sid = mq_context.get("sid")
     lang = LanguageSettings.to_system_lang(data.get("lang", "en-us"))
     lang_gender = data.get("gender", "undefined")
-    matching_shout = MongoDocumentsAPI.SHOUTS.get_item(item_id=message_id)
+    matching_shout = await MongoDocumentsAPI.SHOUTS.get_item(item_id=message_id)
     if not matching_shout:
         LOG.warning(
             f"Skipping TTS Response for message_id={message_id} - matching shout does not exist"
@@ -137,7 +137,7 @@ async def tts_response(sid, data):
                 f"Skipping TTS Response for message_id={message_id} - audio data is empty"
             )
         else:
-            is_ok = MongoDocumentsAPI.SHOUTS.save_tts_response(
+            is_ok = await MongoDocumentsAPI.SHOUTS.save_tts_response(
                 shout_id=message_id,
                 audio_data=audio_data,
                 lang=lang,

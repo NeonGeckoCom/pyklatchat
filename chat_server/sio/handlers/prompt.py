@@ -61,7 +61,7 @@ async def new_prompt(sid, data):
             "data": {"prompt_text": prompt_text},
             "created_on": created_on,
         }
-        MongoDocumentsAPI.PROMPTS.add_item(data=formatted_data)
+        await MongoDocumentsAPI.PROMPTS.add_item(data=formatted_data)
         await sio.emit("new_prompt_created", data=formatted_data)
     except Exception as ex:
         LOG.error(f'Prompt "{prompt_id}" was not created due to exception - {ex}')
@@ -78,7 +78,7 @@ async def prompt_completed(sid, data):
 
     LOG.info(f"setting {prompt_id = } as completed")
 
-    MongoDocumentsAPI.PROMPTS.set_completed(
+    await MongoDocumentsAPI.PROMPTS.set_completed(
         prompt_id=prompt_id, prompt_context=data["context"]
     )
     formatted_data = {
@@ -102,7 +102,7 @@ async def get_prompt_data(sid, data):
     ```
     """
     prompt_id = data.get("prompt_id")
-    _prompt_data = mongo_queries.fetch_prompt_data(
+    _prompt_data = await mongo_queries.fetch_prompt_data(
         cid=data["cid"],
         limit=data.get("limit", 5),
         prompt_ids=[prompt_id],

@@ -42,7 +42,7 @@ def restart_deployment(deployment_name: str, namespace: str = None):
     """
     if not namespace:
         namespace = server_config.k8s_default_namespace
-    now = datetime.datetime.utcnow()
+    now = datetime.datetime.now(datetime.UTC)
     now = str(now.isoformat() + "Z")
     body = {
         "spec": {

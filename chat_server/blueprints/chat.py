@@ -78,7 +78,7 @@ async def new_conversation(
     """
     if conversation_id:
         ovos_utils.log.log_deprecation("Param conversation id is no longer considered")
-    conversation_data = MongoDocumentsAPI.CHATS.get_chat(
+    conversation_data = await MongoDocumentsAPI.CHATS.get_chat(
         search_str=conversation_name,
         column_identifiers=["conversation_name"],
         requested_user_id=current_user.user_id,
@@ -100,8 +100,8 @@ async def new_conversation(
         "creator": current_user.user_id,
         "created_on": int(time()),
     }
-    MongoDocumentsAPI.CHATS.add_item(data=request_data_dict)
-    PopularityCounter.add_new_chat(cid=cid)
+    await MongoDocumentsAPI.CHATS.add_item(data=request_data_dict)
+    await PopularityCounter.add_new_chat(cid=cid)
     return JSONResponse(content=request_data_dict)
 
 
@@ -117,7 +117,7 @@ async def get_matching_conversation(
 
     :returns conversation data if found, 401 error code otherwise
     """
-    conversation_data = MongoDocumentsAPI.CHATS.get_chat(
+    conversation_data = await MongoDocumentsAPI.CHATS.get_chat(
         search_str=model.search_str,
         column_identifiers=["_id", "conversation_name"],
         requested_user_id=current_user.user_id,
@@ -135,15 +135,13 @@ async def get_matching_conversation(
     else:
         query_filter = None
 
-    message_data = (
-        fetch_message_data(
-            skin=model.skin,
-            conversation_data=conversation_data,
-            limit=model.limit_chat_history,
-            creation_time_filter=query_filter,
-        )
-        or []
+    message_data = await fetch_message_data(
+        skin=model.skin,
+        conversation_data=conversation_data,
+        limit=model.limit_chat_history,
+        creation_time_filter=query_filter,
     )
+
     conversation_data["chat_flow"] = [
         build_message_json(raw_message=message_data[i], skin=model.skin)
         for i in range(len(message_data))
@@ -164,7 +162,7 @@ async def get_live_conversation(
 
     :returns conversation data if found, 401 error-code otherwise
     """
-    conversation_data = MongoDocumentsAPI.CHATS.list_items(
+    conversation_data = await MongoDocumentsAPI.CHATS.list_items(
         filters=(
             MongoFilter(
                 key="is_private",
@@ -185,7 +183,7 @@ async def get_live_conversation(
     if not conversation_data:
         LOG.warning("No live conversation data found, fetching `Global` conversation")
 
-        conversation_data = MongoDocumentsAPI.CHATS.get_chat(
+        conversation_data = await MongoDocumentsAPI.CHATS.get_chat(
             search_str="1",
             column_identifiers=["_id"],
             requested_user_id=current_user.user_id,
@@ -196,7 +194,7 @@ async def get_live_conversation(
         conversation_data = conversation_data[0]
 
     message_data = (
-        fetch_message_data(
+        await fetch_message_data(
             skin=model.skin,
             conversation_data=conversation_data,
             limit=model.limit_chat_history,
@@ -223,7 +221,7 @@ async def get_popular_cids(search_str: str = "", exclude_items="", limit: int = 
     try:
         if exclude_items:
             exclude_items = exclude_items.split(",")
-        items = PopularityCounter.get_first_n_items(search_str, exclude_items, limit)
+        items = await PopularityCounter.get_first_n_items(search_str, exclude_items, limit)
     except Exception as ex:
         LOG.error(f"Failed to extract most popular items - {ex}")
         items = []

@@ -55,8 +55,8 @@ async def update_settings(
     :param model: SetPreferencesModel instance containing user settings to set
     :return: status 200 if OK, error code otherwise
     """
-    preferences_mapping = model.dict(exclude_unset=True)
-    MongoDocumentsAPI.USERS.set_preferences(
+    preferences_mapping = model.model_dump(exclude_unset=True)
+    await MongoDocumentsAPI.USERS.set_preferences(
         user_id=current_user.user_id, preferences_mapping=preferences_mapping
     )
     return respond(msg="OK")
@@ -70,7 +70,7 @@ async def update_language(
     current_user: CurrentUserData = get_authorized_user,
 ):
     """Updates preferred language of user in conversation"""
-    MongoDocumentsAPI.USERS.set_preferences(
+    await MongoDocumentsAPI.USERS.set_preferences(
         user_id=current_user.user_id,
         preferences_mapping={f"chat_language_mapping.{cid}.{input_type}": lang},
     )

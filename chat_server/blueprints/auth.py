@@ -28,7 +28,7 @@
 
 from time import time
 
-from fastapi import APIRouter, Form, Request
+from fastapi import APIRouter, Form
 from fastapi.responses import JSONResponse
 
 from utils.common import get_hash, generate_uuid
@@ -64,7 +64,7 @@ async def signup(
     :returns JSON response with status corresponding to the new user creation status,
              sets session cookies if creation is successful
     """
-    existing_user = MongoDocumentsAPI.USERS.get_user(nickname=nickname)
+    existing_user = await MongoDocumentsAPI.USERS.get_user(nickname=nickname)
     if existing_user:
         return respond("Nickname is already in use", 400)
     password_check = check_password_strength(password)
@@ -79,7 +79,7 @@ async def signup(
         date_created=int(time()),
         is_tmp=False,
     )
-    MongoDocumentsAPI.USERS.add_item(data=new_user_record)
+    await MongoDocumentsAPI.USERS.add_item(data=new_user_record)
 
     token = generate_session_token(user_id=new_user_record["_id"])
 
@@ -96,7 +96,7 @@ async def login(username: str = Form(...), password: str = Form(...)):
 
     :returns JSON response with status corresponding to authorization status, sets session cookie with response
     """
-    user = MongoDocumentsAPI.USERS.get_user(nickname=username)
+    user = await MongoDocumentsAPI.USERS.get_user(nickname=username)
     if not user or user.get("is_tmp", False):
         return respond("Invalid username or password", 400)
     db_password = user["password"]
@@ -115,6 +115,6 @@ async def logout():
     :returns response with temporal cookie
     """
     # TODO: store session tokens in runtime
-    user_data = create_unauthorized_user()
+    user_data = await create_unauthorized_user()
     response = JSONResponse(content=dict(token=user_data.session))
     return response

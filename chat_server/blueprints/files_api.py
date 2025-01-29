@@ -49,7 +49,7 @@ async def get_audio_message(
     message_id: str,
 ):
     """Gets file based on the name"""
-    matching_shout = MongoDocumentsAPI.SHOUTS.get_item(item_id=message_id)
+    matching_shout = await MongoDocumentsAPI.SHOUTS.get_item(item_id=message_id)
     if matching_shout and matching_shout.get("is_audio", "0") == "1":
         LOG.info(f"Fetching audio for message_id={message_id}")
         return get_file_response(
@@ -69,7 +69,7 @@ async def get_avatar(user_id: str):
     :param user_id: target user id
     """
     LOG.debug(f"Getting avatar of user id: {user_id}")
-    user_data = MongoDocumentsAPI.USERS.get_user(user_id=user_id) or {}
+    user_data = await MongoDocumentsAPI.USERS.get_user(user_id=user_id) or {}
     if user_data.get("avatar", None):
         num_attempts = 0
         try:
@@ -93,7 +93,7 @@ async def get_message_attachment(msg_id: str, filename: str):
     :param filename: name of the file to get
     """
     LOG.debug(f"{msg_id} - {filename}")
-    shout_data = MongoDocumentsAPI.SHOUTS.get_item(item_id=msg_id)
+    shout_data = await MongoDocumentsAPI.SHOUTS.get_item(item_id=msg_id)
     if shout_data:
         attachment_data = [
             attachment
@@ -116,6 +116,7 @@ async def save_attachments(_=get_authorized_user, files: List[UploadFile] = File
     """
     Stores received files in filesystem
 
+    :param _: requires user authorization to save attachments
     :param files: list of files to process
 
     :returns JSON-formatted response from server

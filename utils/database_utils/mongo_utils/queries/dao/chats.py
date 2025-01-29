@@ -45,7 +45,7 @@ class ChatsDAO(MongoDocumentDAO):
     def document(self):
         return MongoDocuments.CHATS
 
-    def get_chat(
+    async def get_chat(
         self,
         search_str: list | str,
         column_identifiers: List[str] = None,
@@ -53,7 +53,7 @@ class ChatsDAO(MongoDocumentDAO):
         requested_user_id: str = None,
         ordering_expression: dict[str, int] | None = None,
     ) -> dict | None:
-        chats = self.get_chats(
+        chats = await self.get_chats(
             search_str=search_str,
             limit=1,
             column_identifiers=column_identifiers,
@@ -64,7 +64,7 @@ class ChatsDAO(MongoDocumentDAO):
         if chats:
             return chats[0]
 
-    def get_chats(
+    async def get_chats(
         self,
         search_str: Union[list, str],
         limit: int,
@@ -72,7 +72,7 @@ class ChatsDAO(MongoDocumentDAO):
         allow_regex_search: bool = False,
         requested_user_id: str = None,
         ordering_expression: dict[str, int] | None = None,
-    ) -> Union[None, dict]:
+    ) -> list[dict]:
         """
         Gets matching conversation data
         :param search_str: search string to lookup
@@ -90,7 +90,7 @@ class ChatsDAO(MongoDocumentDAO):
         if requested_user_id:
             filters += self._create_privacy_filters(requested_user_id)
 
-        chats = self.list_items(
+        chats = await self.list_items(
             filters=filters,
             limit=limit,
             ordering_expression=ordering_expression,

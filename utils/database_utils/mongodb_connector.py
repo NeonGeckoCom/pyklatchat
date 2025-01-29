@@ -27,7 +27,8 @@
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 from typing import Optional, Union
-from pymongo import MongoClient
+from pymongo import AsyncMongoClient
+from pymongo.asynchronous.cursor import AsyncCursor
 
 from utils.database_utils.base_connector import DatabaseConnector, DatabaseTypes
 from utils.database_utils.mongo_utils.structures import MongoQuery, MongoCommands
@@ -45,12 +46,12 @@ class MongoDBConnector(DatabaseConnector):
 
     def create_connection(self):
         database = self.config_data.pop("database")
-        self._cnx = MongoClient(**self.config_data)[database]
+        self._cnx = AsyncMongoClient(**self.config_data)[database]
 
     def abort_connection(self):
         self._cnx.close()
 
-    def exec_raw_query(
+    async def exec_raw_query(
         self, query: Union[MongoQuery, dict], as_cursor: bool = True, *args, **kwargs
     ) -> Optional[dict]:
         """
@@ -80,6 +81,8 @@ class MongoDBConnector(DatabaseConnector):
             query["data"] = (query.get("data", {}),)
         try:
             query_output = db_command(*query.get("data"), *args, **kwargs)
+            if not isinstance(query_output, AsyncCursor):
+                query_output = await query_output
         except Exception as e:
             LOG.error(f"Query failed: {query}|args={args}|kwargs={kwargs}")
             raise e
@@ -89,6 +92,9 @@ class MongoDBConnector(DatabaseConnector):
             if filters:
                 for name, value in filters.items():
                     query_output = getattr(query_output, name)(value)
-        if not as_cursor:
-            query_output = list(query_output)
+        if not as_cursor and isinstance(query_output, AsyncCursor):
+            res = []
+            async for item in query_output:
+                res.append(item)
+            query_output = res
         return query_output

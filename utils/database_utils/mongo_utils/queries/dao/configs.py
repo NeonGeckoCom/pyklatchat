@@ -37,21 +37,21 @@ class ConfigsDAO(MongoDocumentDAO):
     def document(self):
         return MongoDocuments.CONFIGS
 
-    def get_by_name(self, config_name: str, version: str = "latest"):
+    async def get_by_name(self, config_name: str, version: str = "latest"):
         filters = [
             MongoFilter(key="name", value=config_name),
             MongoFilter(key="version", value=version),
         ]
-        item = self.get_item(filters=filters)
+        item = await self.get_item(filters=filters)
         if item:
             return item.get("value")
         else:
             LOG.error(f"Failed to get config by {config_name = }, {version = }")
             raise ItemNotFoundException
 
-    def update_by_name(self, config_name: str, data: dict, version: str = "latest"):
+    async def update_by_name(self, config_name: str, data: dict, version: str = "latest"):
         filters = [
             MongoFilter(key="name", value=config_name),
             MongoFilter(key="version", value=version),
         ]
-        return self.update_item(filters=filters, data={"value": data})
+        return await self.update_item(filters=filters, data={"value": data})

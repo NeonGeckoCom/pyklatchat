@@ -81,7 +81,7 @@ async def list_personas(
         )
     if request_model.only_enabled:
         filters.append(MongoFilter(key="enabled", value=True))
-    items = MongoDocumentsAPI.PERSONAS.list_items(
+    items = await MongoDocumentsAPI.PERSONAS.list_items(
         filters=filters, result_as_cursor=False
     )
     for item in items:
@@ -93,7 +93,7 @@ async def list_personas(
 @router.get("/get/{persona_id}")
 async def get_persona(request_model: PersonaData = permitted_access(PersonaData)):
     """Gets persona details for a given persona_id"""
-    item = MongoDocumentsAPI.PERSONAS.get_item(item_id=request_model.persona_id)
+    item = await MongoDocumentsAPI.PERSONAS.get_item(item_id=request_model.persona_id)
     if not item:
         raise ItemNotFoundException
     return JSONResponse(content=item)
@@ -106,12 +106,12 @@ async def add_persona(
     ),
 ):
     """Adds new persona"""
-    existing_model = MongoDocumentsAPI.PERSONAS.get_item(
+    existing_model = await MongoDocumentsAPI.PERSONAS.get_item(
         item_id=request_model.persona_id
     )
     if existing_model:
         raise DuplicatedItemException
-    MongoDocumentsAPI.PERSONAS.add_item(data=request_model.model_dump())
+    await MongoDocumentsAPI.PERSONAS.add_item(data=request_model.model_dump())
     return KlatAPIResponse.OK
 
 
@@ -122,13 +122,13 @@ async def set_persona(
     ),
 ):
     """Sets persona's data"""
-    existing_model = MongoDocumentsAPI.PERSONAS.get_item(
+    existing_model = await MongoDocumentsAPI.PERSONAS.get_item(
         item_id=request_model.persona_id
     )
     if not existing_model:
         raise ItemNotFoundException
     mongo_filter = MongoFilter(key="_id", value=request_model.persona_id)
-    MongoDocumentsAPI.PERSONAS.update_item(
+    await MongoDocumentsAPI.PERSONAS.update_item(
         filters=mongo_filter, data=request_model.model_dump()
     )
     return KlatAPIResponse.OK
@@ -139,7 +139,7 @@ async def delete_persona(
     request_model: DeletePersonaModel = permitted_access(DeletePersonaModel),
 ):
     """Deletes persona"""
-    MongoDocumentsAPI.PERSONAS.delete_item(item_id=request_model.persona_id)
+    await MongoDocumentsAPI.PERSONAS.delete_item(item_id=request_model.persona_id)
     return KlatAPIResponse.OK
 
 
@@ -151,7 +151,7 @@ async def toggle_persona_state(
         request_model_type=RequestModelType.DATA,
     ),
 ):
-    updated_data = MongoDocumentsAPI.PERSONAS.update_item(
+    updated_data = await MongoDocumentsAPI.PERSONAS.update_item(
         filters=MongoFilter(key="_id", value=request_model.persona_id),
         data={"enabled": request_model.enabled},
     )

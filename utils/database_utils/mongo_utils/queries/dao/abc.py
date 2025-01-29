@@ -54,7 +54,7 @@ class MongoDocumentDAO(ABC):
     def document(self):
         pass
 
-    def list_contains(
+    async def list_contains(
         self,
         key: str = "_id",
         source_set: list = None,
@@ -78,8 +78,11 @@ class MongoDocumentDAO(ABC):
         contains_filter = self._build_contains_filter(key=key, lookup_set=source_set)
         if contains_filter:
             filters = kwargs.pop("filters", []) + [contains_filter]
-            items = self.list_items(
-                filters=filters, project_fields=project_fields, *args, **kwargs
+            items = await self.list_items(
+                filters=filters,
+                project_fields=project_fields,
+                result_as_cursor=False,
+                *args, **kwargs
             )
             if aggregate_result:
                 items = self._aggregate_items_by_key(key=key, items=items)
@@ -99,7 +102,7 @@ class MongoDocumentDAO(ABC):
                 aggregated_data.setdefault(items_key, []).append(item)
         return aggregated_data
 
-    def list_items(
+    async def list_items(
         self,
         filters: list[MongoFilter] = None,
         limit: int = None,
@@ -131,7 +134,7 @@ class MongoDocumentDAO(ABC):
                     result_filters["sort"].append((attr, pymongo.ASCENDING))
         if project_fields:
             projection = {k: 1 for k in project_fields}
-        items = self._execute_query(
+        items = await self._execute_query(
             command=MongoCommands.FIND_ALL,
             filters=filters,
             result_filters=result_filters,
@@ -160,47 +163,47 @@ class MongoDocumentDAO(ABC):
             )
         return mongo_filter
 
-    def add_item(self, data: dict) -> bool:
+    async def add_item(self, data: dict) -> bool:
         """Inserts provided data into the object's document"""
-        return self._execute_query(command=MongoCommands.INSERT_ONE, data=data)
+        return await self._execute_query(command=MongoCommands.INSERT_ONE, data=data)
 
-    def update_item(
+    async def update_item(
         self, filters: list[dict | MongoFilter], data: dict, data_action: str = "set"
     ) -> bool:
         """Updates provided data into the object's document"""
-        return self._execute_query(
+        return await self._execute_query(
             command=MongoCommands.UPDATE_ONE,
             filters=filters,
             data=data,
             data_action=data_action,
         )
 
-    def update_items(
+    async def update_items(
         self, filters: list[dict | MongoFilter], data: dict, data_action: str = "set"
     ) -> bool:
         """Updates provided data into the object's documents"""
-        return self._execute_query(
+        return await self._execute_query(
             command=MongoCommands.UPDATE_MANY,
             filters=filters,
             data=data,
             data_action=data_action,
         )
 
-    def get_item(
+    async def get_item(
         self, item_id: str = None, filters: list[dict | MongoFilter] = None
     ) -> dict | None:
         filters = self._build_item_selection_filters(item_id=item_id, filters=filters)
         if not filters:
             return
-        return self._execute_query(command=MongoCommands.FIND_ONE, filters=filters)
+        return await self._execute_query(command=MongoCommands.FIND_ONE, filters=filters)
 
-    def delete_item(
+    async def delete_item(
         self, item_id: str = None, filters: list[dict | MongoFilter] = None
     ) -> None:
         filters = self._build_item_selection_filters(item_id=item_id, filters=filters)
         if not filters:
             raise
-        return self._execute_query(command=MongoCommands.DELETE_ONE, filters=filters)
+        return await self._execute_query(command=MongoCommands.DELETE_ONE, filters=filters)
 
     def _build_item_selection_filters(
         self, item_id: str = None, filters: list[dict | MongoFilter] = None
@@ -213,18 +216,18 @@ class MongoDocumentDAO(ABC):
             filters.append(MongoFilter(key="_id", value=item_id))
         return filters
 
-    def _execute_query(
+    async def _execute_query(
         self,
         command: MongoCommands,
         filters: list[MongoFilter] = None,
         data: dict = None,
         data_action: str = "set",
         result_filters: dict = None,
-        result_as_cursor: bool = True,
+        result_as_cursor: bool = False,
         *args,
         **kwargs
     ):
-        return self.db_controller.exec_query(
+        return await self.db_controller.exec_query(
             MongoQuery(
                 command=command,
                 document=self.document,

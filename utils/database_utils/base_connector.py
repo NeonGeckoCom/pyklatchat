@@ -63,7 +63,7 @@ class DatabaseConnector(ABC):
         pass
 
     @abstractmethod
-    def exec_raw_query(
+    async def exec_raw_query(
         self, query: Union[str, dict], *args, **kwargs
     ) -> Optional[Union[list, dict]]:
         """

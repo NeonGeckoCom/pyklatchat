@@ -84,9 +84,9 @@ class DatabaseController:
         else:
             self._connector = None
 
-    def exec_query(self, query, *args, **kwargs):
+    async def exec_query(self, query, *args, **kwargs):
         """Executes query on connector's database"""
-        return self.connector.exec_raw_query(query=query, *args, **kwargs)
+        return await self.connector.exec_raw_query(query=query, *args, **kwargs)
 
     def connect(self):
         """Connects attached connector"""

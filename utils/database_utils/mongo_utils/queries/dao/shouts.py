@@ -35,8 +35,6 @@ from utils.database_utils.mongo_utils import (
     MongoDocuments,
     MongoCommands,
     MongoFilter,
-    MongoLogicalOperators,
-    MongoQuery,
 )
 from utils.database_utils.mongo_utils.queries.dao.abc import MongoDocumentDAO
 
@@ -46,18 +44,18 @@ class ShoutsDAO(MongoDocumentDAO):
     def document(self):
         return MongoDocuments.SHOUTS
 
-    def fetch_shouts(self, shout_ids: List[str] = None) -> List[dict]:
+    async def fetch_shouts(self, shout_ids: List[str] = None) -> List[dict]:
         """
         Fetches shout data from provided shouts list
         :param shout_ids: list of shout ids to fetch
 
         :returns Data from requested shout ids along with matching user data
         """
-        return self.list_contains(
-            source_set=shout_ids, aggregate_result=False, result_as_cursor=False
+        return await self.list_contains(
+            source_set=shout_ids, aggregate_result=False,
         )
 
-    def fetch_messages_from_prompt(self, prompt: dict):
+    async def fetch_messages_from_prompt(self, prompt: dict):
         """Fetches message ids detected in provided prompt"""
         prompt_data = prompt["data"]
         message_ids = []
@@ -67,15 +65,15 @@ class ShoutsDAO(MongoDocumentDAO):
             "votes",
         ):
             message_ids.extend(list(prompt_data.get(column, {}).values()))
-        return self.list_contains(source_set=message_ids)
+        return await self.list_contains(source_set=message_ids)
 
-    def fetch_audio_data(self, message_id: str) -> str | None:
+    async def fetch_audio_data(self, message_id: str) -> str | None:
         """
         Fetches audio data from message
         :param message_id: message id to fetch
         :returns base64 encoded audio data if any
         """
-        shout_data = self.get_item(item_id=message_id)
+        shout_data = await self.get_item(item_id=message_id)
         if not shout_data:
             LOG.warning("Requested shout does not exist")
         elif shout_data.get("is_audio") != "1":
@@ -93,7 +91,7 @@ class ShoutsDAO(MongoDocumentDAO):
                 )
             return ""
 
-    def save_translations(self, translation_mapping: dict) -> Dict[str, List[str]]:
+    async def save_translations(self, translation_mapping: dict) -> Dict[str, List[str]]:
         """
         Saves translations in DB
         :param translation_mapping: mapping of cid to desired translation language
@@ -103,34 +101,10 @@ class ShoutsDAO(MongoDocumentDAO):
         for cid, shout_data in translation_mapping.items():
             translations = shout_data.get("shouts", {})
             bulk_update = []
-            shouts = self._execute_query(
-                command=MongoCommands.FIND_ALL,
-                filters=MongoFilter(
-                    "_id", list(translations), MongoLogicalOperators.IN
-                ),
-                result_as_cursor=False,
-            )
             for shout_id, translation in translations.items():
-                matching_instance = None
-                for shout in shouts:
-                    if shout["_id"] == shout_id:
-                        matching_instance = shout
-                        break
-                filter_expression = MongoFilter("_id", shout_id)
-                if not matching_instance.get("translations"):
-                    self._execute_query(
-                        command=MongoCommands.UPDATE_MANY,
-                        filters=filter_expression,
-                        data={"translations": {}},
-                    )
                 # English is the default language, so it is treated as message text
                 if shout_data.get("lang", "en") == "en":
                     updated_shouts.setdefault(cid, []).append(shout_id)
-                    self._execute_query(
-                        command=MongoCommands.UPDATE_MANY,
-                        filters=filter_expression,
-                        data={"message_lang": "en"},
-                    )
                     bulk_update_setter = {
                         "message_text": translation,
                         "message_lang": "en",
@@ -144,13 +118,13 @@ class ShoutsDAO(MongoDocumentDAO):
                     UpdateOne({"_id": shout_id}, {"$set": bulk_update_setter})
                 )
             if bulk_update:
-                self._execute_query(
+                await self._execute_query(
                     command=MongoCommands.BULK_WRITE,
                     data=bulk_update,
                 )
         return updated_shouts
 
-    def save_tts_response(
+    async def save_tts_response(
         self, shout_id, audio_data: str, lang: str = "en", gender: str = "female"
     ) -> bool:
         """
@@ -169,8 +143,7 @@ class ShoutsDAO(MongoDocumentDAO):
             self.sftp_connector.put_file_object(
                 file_object=audio_data, save_to=f"audio/{audio_file_name}"
             )
-            self._execute_query(
-                command=MongoCommands.UPDATE_MANY,
+            await self.update_item(
                 filters=MongoFilter("_id", shout_id),
                 data={f"audio.{lang}.{gender}": audio_file_name},
             )
@@ -180,7 +153,7 @@ class ShoutsDAO(MongoDocumentDAO):
             operation_success = False
         return operation_success
 
-    def save_stt_response(self, shout_id, message_text: str, lang: str = "en"):
+    async def save_stt_response(self, shout_id, message_text: str, lang: str = "en"):
         """
         Saves STT Response under corresponding shout id
 
@@ -189,8 +162,7 @@ class ShoutsDAO(MongoDocumentDAO):
         :param lang: language of speech (defaults to English)
         """
         try:
-            self._execute_query(
-                command=MongoCommands.UPDATE_MANY,
+            await self.update_item(
                 filters=MongoFilter("_id", shout_id),
                 data={f"transcripts.{lang}": message_text},
             )
