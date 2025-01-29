@@ -199,7 +199,7 @@ resize: both;
 overflow:auto;
 /*width: 40%;*/
 height: 75vh;
-width: 460px;
+width: 100vw;
 min-width: 460px;
 max-width: 90%;
 min-height: 300px!important;

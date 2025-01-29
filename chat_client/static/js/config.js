@@ -17,7 +17,8 @@ let configData = {
     'staticFolder': "../../static",
     'currentURLBase': extractURLBase(),
     'currentURLFull': window.location.href,
-    'client': typeof metaConfig !== 'undefined'? metaConfig?.client : CLIENTS.UNDEFINED
+    'client': typeof metaConfig !== 'undefined'? metaConfig?.client : CLIENTS.UNDEFINED,
+    "MAX_CONVERSATIONS_PER_PAGE": 4,
 };
 
 /**
