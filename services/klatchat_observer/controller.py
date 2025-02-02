@@ -25,27 +25,26 @@
 # LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+import cachetools.func
 import http
 import re
 import time
+
+from enum import Enum
 from queue import Queue
-
 from typing import Optional
-
-import cachetools.func
-
 from threading import Event, Timer
 
 import requests
 import socketio
-from pika.exchange_type import ExchangeType
 
+from pika.exchange_type import ExchangeType
+from requests import Response
 from socketio.exceptions import SocketIOError
-from enum import Enum
 
 from neon_mq_connector.utils.rabbit_utils import create_mq_callback
 from neon_mq_connector.connector import MQConnector
-from requests import Response
 
 from utils.exceptions import KlatAPIAuthorizationError
 from utils.logging_utils import LOG
