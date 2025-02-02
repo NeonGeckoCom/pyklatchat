@@ -29,6 +29,8 @@
 from abc import ABC, abstractmethod
 
 import pymongo
+import pymongo.results
+
 from neon_sftp import NeonSFTPConnector
 
 from utils.database_utils import DatabaseController
@@ -149,7 +151,8 @@ class MongoDocumentDAO(ABC):
             mongo_filters.append(contains_filter)
         return mongo_filters
 
-    def _build_contains_filter(self, key, lookup_set) -> MongoFilter | None:
+    @staticmethod
+    def _build_contains_filter(key, lookup_set) -> MongoFilter | None:
         mongo_filter = None
         if key and lookup_set:
             lookup_set = list(set(lookup_set))
@@ -160,13 +163,13 @@ class MongoDocumentDAO(ABC):
             )
         return mongo_filter
 
-    def add_item(self, data: dict) -> bool:
+    def add_item(self, data: dict) -> pymongo.results.InsertOneResult:
         """Inserts provided data into the object's document"""
         return self._execute_query(command=MongoCommands.INSERT_ONE, data=data)
 
     def update_item(
         self, filters: list[dict | MongoFilter], data: dict, data_action: str = "set"
-    ) -> bool:
+    ) -> pymongo.results.UpdateResult:
         """Updates provided data into the object's document"""
         return self._execute_query(
             command=MongoCommands.UPDATE_ONE,
@@ -177,7 +180,7 @@ class MongoDocumentDAO(ABC):
 
     def update_items(
         self, filters: list[dict | MongoFilter], data: dict, data_action: str = "set"
-    ) -> bool:
+    ) -> pymongo.results.UpdateResult:
         """Updates provided data into the object's documents"""
         return self._execute_query(
             command=MongoCommands.UPDATE_MANY,
@@ -196,7 +199,7 @@ class MongoDocumentDAO(ABC):
 
     def delete_item(
         self, item_id: str = None, filters: list[dict | MongoFilter] = None
-    ) -> None:
+    ) -> pymongo.results.DeleteResult:
         filters = self._build_item_selection_filters(item_id=item_id, filters=filters)
         if not filters:
             raise

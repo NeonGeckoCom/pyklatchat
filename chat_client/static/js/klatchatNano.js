@@ -3205,7 +3205,7 @@ const displayLiveChat = async () => {
         })
         .then(
             async data => {
-                await buildConversation(data, data.skin, true);
+                await buildConversation(data, CONVERSATION_SKINS.PROMPTS, true);
                 return data;
             }
         )

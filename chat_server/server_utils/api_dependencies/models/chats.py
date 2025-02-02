@@ -48,10 +48,3 @@ class GetLiveConversationModel(BaseModel):
     skin: str = Field(
         Query(default=ConversationSkins.PROMPTS), examples=[ConversationSkins.PROMPTS]
     )
-
-
-class GetLiveConversationModel(BaseModel):
-    limit_chat_history: int | None = Field(Query(default=100), examples=[100])
-    skin: str = Field(
-        Query(default=ConversationSkins.BASE), examples=[ConversationSkins.BASE]
-    )
