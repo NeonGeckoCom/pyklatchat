@@ -25,25 +25,26 @@
 # LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+import cachetools.func
 import http
 import re
 import time
+
+from enum import Enum
 from queue import Queue
-
-import cachetools.func
-
+from typing import Optional
 from threading import Event, Timer
 
 import requests
 import socketio
-from pika.exchange_type import ExchangeType
 
+from pika.exchange_type import ExchangeType
+from requests import Response
 from socketio.exceptions import SocketIOError
-from enum import Enum
 
 from neon_mq_connector.utils.rabbit_utils import create_mq_callback
 from neon_mq_connector.connector import MQConnector
-from requests import Response
 
 from utils.exceptions import KlatAPIAuthorizationError
 from utils.logging_utils import LOG
@@ -351,6 +352,11 @@ class ChatObserver(MQConnector):
         )
         self._sio.on("prompts_data_updated", handler=self.forward_prompts_data_update)
         self._sio.on("auth_expired", handler=self._handle_auth_expired)
+        # Persona update events
+        self._sio.on("persona_updated",
+                     handler=self._handle_persona_updated)
+        self._sio.on("persona_deleted",
+                     handler=self._handle_persona_deleted)
 
     def connect_sio(self):
         """
@@ -458,6 +464,9 @@ class ChatObserver(MQConnector):
         return request_dict
 
     def _handle_neon_recipient(self, recipient_data: dict, msg_data: dict):
+        """
+        Handle a chat message intended for Neon.
+        """
         msg_data.setdefault("message_body", msg_data.pop("messageText", ""))
         msg_data.setdefault("message_id", msg_data.pop("messageID", ""))
         recipient_data.setdefault("context", {})
@@ -838,6 +847,9 @@ class ChatObserver(MQConnector):
 
     @create_mq_callback()
     def on_get_configured_personas(self, body: dict):
+        """
+        Handles requests to get all defined personas for a specific LLM service
+        """
         response_data = self._fetch_persona_api(user_id=body.get("user_id"))
         response_data["items"] = [
             item
@@ -880,24 +892,69 @@ class ChatObserver(MQConnector):
             LOG.error(f"Failed to fetch prompts from {url}: {ex}")
 
     @cachetools.func.ttl_cache(ttl=15)
-    def _fetch_persona_api(self, user_id: str) -> dict:
+    def _fetch_persona_api(self, user_id: Optional[str]) -> dict:
         query_string = self._build_persona_api_query(user_id=user_id)
         url = f"{self.server_url}/personas/list?{query_string}"
         try:
             response = self._fetch_klat_server(url=url)
             data = response.json()
+            data['update_time'] = time.time()
             self._refresh_default_persona_llms(data=data)
         except KlatAPIAuthorizationError:
             LOG.error(f"Failed to fetch personas from {url = }")
             data = {"items": []}
         return data
 
+    def _handle_persona_updated(self, data: dict):
+        """
+        SIO handler called when configured personas are modified. This emits an
+        MQ message to allow any connected listeners to maintain a set of known
+        personas.
+
+        If list of supported llms excludes personas from the previous configuration - emits "delete persona" event to those LLMs
+        """
+        old_state = data.get('old_state', {})
+        new_state = data.get('new_state', {})
+
+        excluded_supported_llms = set(old_state['supported_llms']) - set(new_state['supported_llms'])
+
+        if excluded_supported_llms:
+            self._handle_persona_deleted(data={
+                "persona_name": old_state['persona_name'],
+                "user_id": old_state['user_id'],
+                "supported_llms": excluded_supported_llms,
+            })
+
+        for llm in new_state['supported_llms']:
+            self.send_message(
+                request_data=new_state,
+                vhost=self.get_vhost("llm"),
+                exchange=f"{llm}_persona_updated",
+                exchange_type=ExchangeType.fanout,
+                expiration=5000,
+            )
+
+    def _handle_persona_deleted(self, data: dict):
+        """
+        SIO handler called when configured personas are deleted. This emits an
+        MQ message to allow any connected listeners to maintain a set of known
+        personas.
+        """
+        for llm in data.pop('supported_llms', []):
+            self.send_message(
+                request_data=data,
+                vhost=self.get_vhost("llm"),
+                exchange=f"{llm}_persona_deleted",
+                exchange_type=ExchangeType.fanout,
+                expiration=5000,
+            )
+
     def _refresh_default_persona_llms(self, data):
         for item in data["items"]:
             if default_llm := item.get("default_llm"):
                 self.default_persona_llms[item["id"]] = item["id"] + "_" + default_llm
 
-    def _build_persona_api_query(self, user_id: str) -> str:
+    def _build_persona_api_query(self, user_id: Optional[str]) -> str:
         url_query_params = f"only_enabled=true"
         if user_id:
             url_query_params += f"&user_id={user_id}"
