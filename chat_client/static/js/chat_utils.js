@@ -375,6 +375,7 @@ async function buildConversation(conversationData, skin, remember=true,conversat
         chatCloseButton.hidden = true;
     }
     setTimeout(() => getMessageListContainer(conversationData['_id']).lastElementChild?.scrollIntoView(true), 0);
+    setTimeout(() => document.getElementById('klatchatHeader').scrollIntoView(true), 0);
     // $('#copyrightContainer').css('position', 'inherit');
     return cid;
 }
