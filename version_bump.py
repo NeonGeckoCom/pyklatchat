@@ -28,6 +28,7 @@
 
 import argparse
 import fileinput
+import time
 from os.path import join, dirname
 
 
@@ -111,6 +112,8 @@ def save_version(version: str):
     for line in fileinput.input(join(dirname(__file__), "version.py"), inplace=True):
         if line.startswith("__version__"):
             print(f'__version__ = "{version}"')
+        elif line.startswith("__version_ts__"):
+            print(f'__version_ts__ = {int(time.time())}')
         else:
             print(line.rstrip("\n"))
 

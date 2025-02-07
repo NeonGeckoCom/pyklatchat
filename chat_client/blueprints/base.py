@@ -27,6 +27,8 @@
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
+
+from version import __version__, __version_ts__
 from utils.logging_utils import LOG
 
 from chat_client.client_config import client_config
@@ -42,6 +44,8 @@ async def fetch_runtime_config():
     """Fetches runtime config from local JSON file in provided location"""
     try:
         runtime_configs = client_config.runtime_configs
+        runtime_configs["BUILD_VERSION"] = __version__
+        runtime_configs["BUILD_TS"] = __version_ts__
     except Exception as ex:
         LOG.error(f"Exception while fetching runtime configs: {ex}")
         runtime_configs = {}
