@@ -2292,6 +2292,14 @@ const buildSuggestionHTML = async (cid, name) => {
         'conversation_name': name
     })
 };
+document.addEventListener('configLoaded', async (_) => {
+
+    const buildVersion = configData?.["BUILD_VERSION"];
+    const buildTS = configData?.["BUILD_TS"];
+    if (buildVersion && buildTS) {
+        document.getElementById("app-version").innerText = `v${buildVersion} (${getTimeFromTimestamp(buildTS)})`;
+    }
+});
 /**
  * Displays modal bounded to the provided conversation id
  * @param modalElem: modal to display
@@ -3050,6 +3058,7 @@ async function buildConversation(conversationData, skin, remember = true, conver
         chatCloseButton.hidden = true;
     }
     setTimeout(() => getMessageListContainer(conversationData['_id']).lastElementChild?.scrollIntoView(true), 0);
+    setTimeout(() => document.getElementById('klatchatHeader').scrollIntoView(true), 0);
     // $('#copyrightContainer').css('position', 'inherit');
     return cid;
 }
@@ -3220,12 +3229,7 @@ const displayLiveChat = async () => {
 const restoreChatAlignmentFromCache = async () => {
     let cachedItems = await retrieveItemsLayout();
     if (cachedItems.length === 0) {
-        cachedItems = [{
-            'cid': '1',
-            'added_on': getCurrentTimestamp(),
-            'skin': CONVERSATION_SKINS.PROMPTS
-        }]
-        await addNewCID('1', CONVERSATION_SKINS.PROMPTS);
+        await displayLiveChat();
     }
     for (const item of cachedItems) {
         await getConversationDataByInput(item.cid, item.skin).then(async conversationData => {
