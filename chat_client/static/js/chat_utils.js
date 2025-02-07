@@ -375,6 +375,7 @@ async function buildConversation(conversationData, skin, remember=true,conversat
         chatCloseButton.hidden = true;
     }
     setTimeout(() => getMessageListContainer(conversationData['_id']).lastElementChild?.scrollIntoView(true), 0);
+    setTimeout(() => document.getElementById('klatchatHeader').scrollIntoView(true), 0);
     // $('#copyrightContainer').css('position', 'inherit');
     return cid;
 }
@@ -536,9 +537,8 @@ const displayLiveChat = async () => {
  */
 const restoreChatAlignmentFromCache = async () => {
     let cachedItems = await retrieveItemsLayout();
-    if (cachedItems.length === 0){
-        cachedItems = [{'cid': '1', 'added_on': getCurrentTimestamp(), 'skin': CONVERSATION_SKINS.PROMPTS}]
-        await addNewCID('1', CONVERSATION_SKINS.PROMPTS);
+    if (cachedItems.length === 0) {
+        await displayLiveChat();
     }
     for (const item of cachedItems) {
         await getConversationDataByInput(item.cid, item.skin).then(async conversationData=>{

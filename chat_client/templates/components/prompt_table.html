@@ -4,9 +4,6 @@
             <tr>
                 <th colspan="4">Prompt: "{prompt_text}"</th>
             </tr>
-            <tr>`
-                <th colspan="4" id="{prompt_id}_winner">{selected_winner}</th>
-            </tr>
             <tr>
                 <th data-rtc-resizable="subminds">Submind</th>
                 <th data-rtc-resizable="responses">Response</th>
@@ -17,5 +14,8 @@
         <tbody id="{prompt_id}_tbody">
             {prompt_participants_data}
         </tbody>
+        <tr>
+            <th colspan="4" id="{prompt_id}_winner">{selected_winner}</th>
+        </tr>
     </table>
 </li>
