@@ -42,12 +42,12 @@ from chat_server.server_utils.conversation_utils import build_message_json
 from chat_server.server_utils.api_dependencies.extractors import CurrentUserData
 from chat_server.server_utils.api_dependencies.models import GetConversationModel
 from chat_server.services.popularity_counter import PopularityCounter
-from utils.common import generate_uuid
-from utils.database_utils.mongo_utils import MongoFilter, MongoLogicalOperators
-from utils.database_utils.mongo_utils.queries.mongo_queries import fetch_message_data
-from utils.database_utils.mongo_utils.queries.wrapper import MongoDocumentsAPI
-from utils.http_utils import respond
-from utils.logging_utils import LOG
+from klatchat_utils.common import generate_uuid
+from klatchat_utils.database_utils.mongo_utils import MongoFilter, MongoLogicalOperators
+from klatchat_utils.database_utils.mongo_utils.queries.mongo_queries import fetch_message_data
+from klatchat_utils.database_utils.mongo_utils.queries.wrapper import MongoDocumentsAPI
+from klatchat_utils.http_utils import respond
+from klatchat_utils.logging_utils import LOG
 
 router = APIRouter(
     prefix="/chat_api",

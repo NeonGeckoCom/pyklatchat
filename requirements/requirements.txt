@@ -8,7 +8,7 @@ jsbeautifier==1.15.1
 kubernetes==29.0.0
 neon-mq-connector==0.7.2a8
 neon-sftp~=0.1
-neon_utils[sentry]==1.11.1a5
+neon-utils[sentry]==1.12
 pre-commit==3.7.0
 pydantic==2.7.0
 PyJWT==2.10.1
@@ -20,3 +20,4 @@ starlette==0.41.3
 uvicorn==0.32.1
 websocket-client==1.8.0
 websockets==14.1
+klatchat-utils@git+https://github.com/neongeckocom/pyklatchat-utils@FEAT_Packaging

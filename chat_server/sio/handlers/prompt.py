@@ -28,9 +28,9 @@
 
 from time import time
 
-from utils.database_utils.mongo_utils.queries import mongo_queries
-from utils.database_utils.mongo_utils.queries.wrapper import MongoDocumentsAPI
-from utils.logging_utils import LOG
+from klatchat_utils.database_utils.mongo_utils.queries import mongo_queries
+from klatchat_utils.database_utils.mongo_utils.queries.wrapper import MongoDocumentsAPI
+from klatchat_utils.logging_utils import LOG
 from ..server import sio
 
 

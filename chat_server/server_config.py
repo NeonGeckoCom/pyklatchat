@@ -31,9 +31,9 @@ from kubernetes import client, config
 from config import KlatConfigurationBase
 from chat_server.server_utils.sftp_utils import init_sftp_connector
 from chat_server.server_utils.rmq_utils import RabbitMQAPI
-from utils.exceptions import MalformedConfigurationException
-from utils.database_utils import DatabaseController
-from utils.database_utils.mongo_utils.queries.wrapper import MongoDocumentsAPI
+from klatchat_utils.exceptions import MalformedConfigurationException
+from klatchat_utils.database_utils import DatabaseController
+from klatchat_utils.database_utils.mongo_utils.queries.wrapper import MongoDocumentsAPI
 
 
 class KlatServerConfig(KlatConfigurationBase):

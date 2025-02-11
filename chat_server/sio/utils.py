@@ -30,8 +30,8 @@ import os
 from functools import wraps
 from typing import Optional, List, Tuple
 
-from utils.database_utils.mongo_utils.queries.wrapper import MongoDocumentsAPI
-from utils.logging_utils import LOG
+from klatchat_utils.database_utils.mongo_utils.queries.wrapper import MongoDocumentsAPI
+from klatchat_utils.logging_utils import LOG
 from .server import sio
 from ..server_utils.auth import decode_jwt_token, session_token_expired
 from ..server_utils.enums import UserRoles

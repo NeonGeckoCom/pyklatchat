@@ -28,7 +28,7 @@
 
 import http
 
-from utils.http_utils import respond
+from klatchat_utils.http_utils import respond
 
 
 class KlatAPIException(Exception):

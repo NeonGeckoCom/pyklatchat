@@ -41,8 +41,8 @@ from starlette.requests import Request
 from starlette.responses import RedirectResponse, Response
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from utils.common import get_version
-from utils.logging_utils import LOG
+from klatchat_utils.common import get_version
+from klatchat_utils.logging_utils import LOG
 
 sys.path.append(os.path.pardir)
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))

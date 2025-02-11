@@ -28,8 +28,8 @@
 
 from neon_sftp import NeonSFTPConnector
 
-from utils.constants import KLAT_ENV
-from utils.exceptions import MalformedConfigurationException
+from klatchat_utils.constants import KLAT_ENV
+from klatchat_utils.exceptions import MalformedConfigurationException
 
 
 def init_sftp_connector(config):
