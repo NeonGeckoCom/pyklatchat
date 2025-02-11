@@ -30,7 +30,7 @@ import os
 import json
 import uuid
 
-from config import Configuration
+from klatchat_utils.configuration import Configuration
 from migration_scripts.constants import MigrationFiles
 from migration_scripts.conversations import migrate_conversations
 from migration_scripts.shouts import migrate_shouts
