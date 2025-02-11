@@ -32,7 +32,7 @@ from abc import ABC, abstractmethod
 
 from os.path import isfile, join, dirname
 
-from klatchat_utils.logging_utils_aggregators import init_log_aggregators
+from neon_utils.log_aggregators import init_log_aggregators
 from ovos_config.config import Configuration as OVOSConfiguration
 
 from klatchat_utils.exceptions import MalformedConfigurationException
