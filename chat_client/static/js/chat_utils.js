@@ -374,9 +374,7 @@ async function buildConversation(conversationData, skin, remember=true,conversat
     if (configData.client === CLIENTS.NANO){
         chatCloseButton.hidden = true;
     }
-    setTimeout(() => getMessageListContainer(conversationData['_id']).lastElementChild?.scrollIntoView(true), 0);
-    setTimeout(() => document.getElementById('klatchatHeader').scrollIntoView(true), 0);
-    // $('#copyrightContainer').css('position', 'inherit');
+    document.getElementById('klatchatHeader').scrollIntoView(true);
     return cid;
 }
 
