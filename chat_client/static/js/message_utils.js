@@ -68,7 +68,6 @@ async function addNewMessage(cid, userID=null, messageID=null, messageText, time
         resolveMessageAttachments(cid, messageID, attachments);
         resolveUserReply(messageID, repliedMessageID);
         addProfileDisplay(userID, cid, messageID, 'plain');
-        scrollOnNewMessage(messageList);
         return messageID;
     }
 }

@@ -26,8 +26,9 @@
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Request, status
 from fastapi.templating import Jinja2Templates
+from starlette.responses import RedirectResponse
 
 from chat_client.client_utils.template_utils import (
     render_conversation_page,
@@ -47,11 +48,14 @@ async def chats(request: Request):
     """
     Renders chats page HTML as a response related to the input request
 
+    Currently, redirects any reference to the /chats/live page
+
     :param request: input Request object
 
     :returns chats template response
     """
-    return render_conversation_page(request=request)
+    redirect_url = request.url_for('live_chats')
+    return RedirectResponse(redirect_url, status_code=status.HTTP_303_SEE_OTHER)
 
 
 @router.get("/live")
