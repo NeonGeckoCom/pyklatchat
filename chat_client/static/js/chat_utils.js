@@ -744,19 +744,20 @@ async function createNewConversation(conversationName, isPrivate=false,boundServ
     formData.append('bound_service', boundServiceID?boundServiceID: '');
     formData.append('is_live_conversation', createLiveConversation? '1': '0')
 
-    await fetchServer(`chat_api/new`,  REQUEST_METHODS.POST, formData).then(async response => {
-        const responseJson = await response.json();
-        let responseOk = false;
-        if (response.ok) {
-            await buildConversation(responseJson, CONVERSATION_SKINS.PROMPTS);
-            responseOk = true;
-        } else {
-            displayAlert('newConversationModalBody',
-                `${responseJson['msg']}`,
-                'danger');
-        }
-        return responseOk;
-    });
+    return await fetchServer(`chat_api/new`,  REQUEST_METHODS.POST, formData)
+        .then(async response => {
+            const responseJson = await response.json();
+            let responseOk = false;
+            if (response.ok) {
+                await buildConversation(responseJson, CONVERSATION_SKINS.PROMPTS);
+                responseOk = true;
+            } else {
+                displayAlert('newConversationModalBody',
+                    `${responseJson['msg']}`,
+                    'danger');
+            }
+            return responseOk;
+        });
 }
 
 document.addEventListener('DOMContentLoaded', (_)=>{
