@@ -375,6 +375,7 @@ async function buildConversation(conversationData, skin, remember=true,conversat
         chatCloseButton.hidden = true;
     }
     document.getElementById('klatchatHeader').scrollIntoView(true);
+    scrollChatToLastMessage(cid);
     return cid;
 }
 
