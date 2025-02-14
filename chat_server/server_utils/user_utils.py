@@ -26,7 +26,7 @@
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 import copy
-from time import time
+import datetime
 
 from chat_server.constants.users import UserPatterns
 from utils.common import get_hash, generate_uuid
@@ -47,7 +47,7 @@ def create_from_pattern(source: UserPatterns, override_defaults: dict = None) ->
 
     matching_data.setdefault("_id", generate_uuid(length=20))
     matching_data.setdefault("password", get_hash(generate_uuid()))
-    matching_data.setdefault("date_created", int(time()))
+    matching_data.setdefault("date_created", datetime.datetime.now(datetime.UTC))
     matching_data.setdefault("is_tmp", True)
 
     return matching_data

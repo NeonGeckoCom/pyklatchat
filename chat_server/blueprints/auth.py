@@ -25,8 +25,7 @@
 # LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-from time import time
+import datetime
 
 from fastapi import APIRouter, Form, Request
 from fastapi.responses import JSONResponse
@@ -76,7 +75,7 @@ async def signup(
         last_name=last_name,
         password=get_hash(password),
         nickname=nickname,
-        date_created=int(time()),
+        date_created=datetime.datetime.now(datetime.UTC),
         is_tmp=False,
     )
     MongoDocumentsAPI.USERS.add_item(data=new_user_record)

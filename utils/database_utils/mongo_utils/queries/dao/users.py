@@ -26,7 +26,7 @@
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 import copy
-from time import time
+import datetime
 from typing import Union
 
 from utils.common import generate_uuid, get_hash
@@ -98,7 +98,7 @@ class UsersDAO(MongoDocumentDAO):
 
         matching_data.setdefault("_id", generate_uuid(length=20))
         matching_data.setdefault("password", get_hash(generate_uuid()))
-        matching_data.setdefault("date_created", int(time()))
+        matching_data.setdefault("date_created", datetime.datetime.now(datetime.UTC))
         matching_data.setdefault("is_tmp", True)
 
         return matching_data
@@ -160,7 +160,7 @@ class UsersDAO(MongoDocumentDAO):
             nickname=nickname,
             is_bot="1",
             full_nickname=nickname,  # we treat each bot instance with equal nickname as same instance
-            date_created=int(time()),
+            date_created=datetime.datetime.now(datetime.UTC),
             is_tmp=False,
         )
         self.add_item(data=bot_data)
