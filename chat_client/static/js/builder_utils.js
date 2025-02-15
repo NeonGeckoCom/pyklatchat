@@ -160,12 +160,8 @@ function generateDarkColorFromUsername(username) {
  * @return {Promise<string|void>} - Submind Data HTML populated with provided data
  */
 async function buildSubmindHTML(promptID, submindID, submindUserData, submindResponse, submindOpinion, submindVote) {
-    const userNickname = shrinkNickname(submindUserData['nickname']);
-    const backgroundColor = generateDarkColorFromUsername(submindUserData['nickname']);
-    let tooltip = submindUserData['nickname'];
-    if (submindUserData['is_bot']){
-        tooltip = `bot ${tooltip}`;
-    }
+    const userNickname = submindUserData['nickname'];
+    const participantIcon = await buildPromptParticipantIcon(submindUserData);
     const phaseDataObjectMapping = {
         'response': submindResponse,
         'opinion': submindOpinion,
@@ -176,11 +172,9 @@ async function buildSubmindHTML(promptID, submindID, submindUserData, submindRes
             'user_id': submindID,
             'user_first_name': submindUserData['first_name'],
             'user_last_name': submindUserData['last_name'],
-            'user_nickname': submindUserData['nickname'],
-            'user_nickname_shrunk': userNickname,
-            'background_color': backgroundColor,
+            'user_nickname': userNickname,
+            'participant_icon': participantIcon,
             // 'user_avatar': `${configData["CHAT_SERVER_URL_BASE"]}/files/avatar/${submindID}`,
-            'tooltip': tooltip
     }
     const submindPromptData = {}
     for (const [k,v] of Object.entries(phaseDataObjectMapping)){
@@ -195,18 +189,39 @@ async function buildSubmindHTML(promptID, submindID, submindUserData, submindRes
 
 
 /**
- * Gets winner text based on the provided winner data
- * @param winner: provided winner
- * @return {string} generated winner text
+ * Gets winner field HTML based on provided winner
+ * @return {string} built winner field HTML
+ * @param submindUserData - user data of the winner
  */
-const getPromptWinnerText = (winner) => {
-    let res;
-    if (winner){
-        res = `Selected winner "${winner}"`;
-    }else{
-        res = 'Consensus not reached';
+async function buildPromptWinnerHTML(submindUserData) {
+    return `
+    <div class="d-flex flex-column align-items-center justify-content-center">
+        <span class="mt-2">Selected winner</span>
+        ${await buildPromptParticipantIcon(submindUserData)}
+    </div>
+    `
+}
+
+/**
+ * Builds prompt participant icon HTML
+ * @param submindUserData data of the participant
+ * @returns prompt participant icon HTML
+ */
+async function buildPromptParticipantIcon(submindUserData) {
+    const backgroundColor = generateDarkColorFromUsername(submindUserData['nickname']);
+    const userNicknameShrunk = shrinkNickname(submindUserData['nickname']);
+    let tooltip = submindUserData['nickname'];
+    if (submindUserData['is_bot']) {
+        tooltip = `bot ${tooltip}`;
     }
-    return res;
+    const template_data = {
+        'user_nickname': submindUserData['nickname'],
+        'user_nickname_shrunk': userNicknameShrunk,
+        'background_color': backgroundColor,
+        'user_avatar': submindUserData['user_avatar'],
+        'tooltip': tooltip
+    }
+    return await buildHTMLFromTemplate("prompt_participant_icon", template_data)
 }
 
 
@@ -217,14 +232,13 @@ const getPromptWinnerText = (winner) => {
  */
 async function buildPromptHTML(prompt) {
     let submindsHTML = "";
+    let winnerFound = false;
     const promptData = prompt['data'];
     if (prompt['is_completed'] === '0'){
         promptData['winner'] = `Prompt in progress
         <div class="spinner-border spinner-border-sm text-dark" role="status">
             <span class="sr-only">Loading...</span>
         </div>`
-    }else {
-        promptData['winner'] = getPromptWinnerText(promptData['winner']);
     }
     const emptyAnswer = `<h4>-</h4>`;
     for (const submindID of Array.from(setDefault(promptData, 'participating_subminds', []))) {
@@ -261,11 +275,18 @@ async function buildPromptHTML(prompt) {
                     data[key] = {'message_text': emptyAnswer};
                 }
             });
+            if (promptData['winner'] === submindUserData['nickname']) {
+                winnerFound = true;
+                promptData['winner'] = await buildPromptWinnerHTML(submindUserData);
+            }
             submindsHTML += await buildSubmindHTML(prompt['_id'], submindID, submindUserData,
                                                    data.proposed_responses, data.submind_opinions, data.votes);
         }catch (e) {
             console.log(`Malformed data for ${submindID} (prompt_id=${prompt['_id']}) ex=${e}`);
         }
+    }
+    if (!winnerFound && prompt['is_completed'] === '1'){
+        promptData['winner'] = 'Consensus not reached.'
     }
     return await buildHTMLFromTemplate("prompt_table",
         {'prompt_text': promptData['prompt_text'],

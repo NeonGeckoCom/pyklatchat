@@ -82,7 +82,7 @@ function initSIO(){
         console.info(`setting prompt_id=${promptID} as completed`);
         if (promptElem){
             const promptWinner = document.getElementById(`${promptID}_winner`);
-            promptWinner.innerHTML = getPromptWinnerText(data['winner']);
+            promptWinner.innerHTML = buildPromptWinnerHTML(data['winner']);
         }else {
             console.warn(`Failed to get HTML element from prompt_id=${promptID}`);
         }
