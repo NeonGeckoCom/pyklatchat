@@ -131,9 +131,23 @@ async function buildUserMessageHTML(userData, cid, messageID, messageText, timeC
  * @return {string} - shortened nickname
  */
 const shrinkNickname = (nick) => {
-    return `${nick[0]}${nick[nick.length - 1]}`;
+    const index = nick.indexOf('_');
+    return (index !== -1 && index < 8) ? nick.substring(0, index) : nick.substring(0, 8);
 }
 
+/**
+ * Generates dark color based on username
+ * @param username
+ * @returns {string} - generated color in hsl format
+ */
+
+function generateDarkColorFromUsername(username) {
+    let hash = 0;
+    for (let i = 0; i < username.length; i++) {
+        hash = username.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    return `hsl(${hash % 360}, 70%, 30%)`;
+}
 
 /**
  * Builds Prompt Skin HTML for submind responses
@@ -147,6 +161,7 @@ const shrinkNickname = (nick) => {
  */
 async function buildSubmindHTML(promptID, submindID, submindUserData, submindResponse, submindOpinion, submindVote) {
     const userNickname = shrinkNickname(submindUserData['nickname']);
+    const backgroundColor = generateDarkColorFromUsername(submindUserData['nickname']);
     let tooltip = submindUserData['nickname'];
     if (submindUserData['is_bot']){
         tooltip = `bot ${tooltip}`;
@@ -163,6 +178,7 @@ async function buildSubmindHTML(promptID, submindID, submindUserData, submindRes
             'user_last_name': submindUserData['last_name'],
             'user_nickname': submindUserData['nickname'],
             'user_nickname_shrunk': userNickname,
+            'background_color': backgroundColor,
             // 'user_avatar': `${configData["CHAT_SERVER_URL_BASE"]}/files/avatar/${submindID}`,
             'tooltip': tooltip
     }
