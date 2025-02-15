@@ -164,7 +164,7 @@ function generateDarkColorFromUsername(username) {
  */
 async function buildSubmindHTML(promptID, submindID, submindUserData, submindResponse, submindOpinion, submindVote) {
     const userNickname = submindUserData['nickname'];
-    const participantIcon = await buildPromptParticipantIcon(submindUserData);
+    const participantIcon = await buildPromptParticipantIcon(userNickname);
     const phaseDataObjectMapping = {
         'response': submindResponse,
         'opinion': submindOpinion,
@@ -194,34 +194,32 @@ async function buildSubmindHTML(promptID, submindID, submindUserData, submindRes
 /**
  * Gets winner field HTML based on provided winner
  * @return {string} built winner field HTML
- * @param submindUserData - user data of the winner
+ * @param nickname of the winner
  */
-async function buildPromptWinnerHTML(submindUserData) {
+async function buildPromptWinnerHTML(nickname) {
     return `
     <div class="d-flex flex-column align-items-center justify-content-center">
         <span class="mt-2">Selected winner</span>
-        ${await buildPromptParticipantIcon(submindUserData)}
+        ${await buildPromptParticipantIcon(nickname)}
     </div>
     `
 }
 
 /**
  * Builds prompt participant icon HTML
- * @param submindUserData data of the participant
+ * @param nickname of the participant
  * @returns prompt participant icon HTML
  */
-async function buildPromptParticipantIcon(submindUserData) {
-    const backgroundColor = generateDarkColorFromUsername(submindUserData['nickname']);
-    const userNicknameShrunk = shrinkNickname(submindUserData['nickname']);
-    let tooltip = submindUserData['nickname'];
-    if (submindUserData['is_bot']) {
-        tooltip = `bot ${tooltip}`;
-    }
+async function buildPromptParticipantIcon(nickname) {
+    const backgroundColor = generateDarkColorFromUsername(nickname);
+    const userNicknameShrunk = shrinkNickname(nickname);
+    let tooltip = nickname;
+    /* if (submindUserData['is_bot'])  assuming only bots participate for now*/ tooltip = `bot ${tooltip}`;
     const template_data = {
-        'user_nickname': submindUserData['nickname'],
+        'user_nickname': nickname,
         'user_nickname_shrunk': userNicknameShrunk,
         'background_color': backgroundColor,
-        'user_avatar': submindUserData['user_avatar'],
+        // 'user_avatar': submindUserData['user_avatar'], not used for now
         'tooltip': tooltip
     }
     return await buildHTMLFromTemplate("prompt_participant_icon", template_data)
@@ -280,7 +278,7 @@ async function buildPromptHTML(prompt) {
             });
             if (promptData['winner'] === submindUserData['nickname']) {
                 winnerFound = true;
-                promptData['winner'] = await buildPromptWinnerHTML(submindUserData);
+                promptData['winner'] = await buildPromptWinnerHTML(submindUserData['nickname']);
             }
             submindsHTML += await buildSubmindHTML(prompt['_id'], submindID, submindUserData,
                                                    data.proposed_responses, data.submind_opinions, data.votes);

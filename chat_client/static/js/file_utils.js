@@ -25,6 +25,8 @@ function download(content, filename, contentType='application/octet-stream')
  */
 function handleImgError(image) {
     const backgroundColor = image.getAttribute("data-bgcolor") || "#512DA8";
-    image.parentElement.insertAdjacentHTML('afterbegin',`<p style="background: ${backgroundColor}">${image.getAttribute('alt')}</p>`);
+    image.parentElement.insertAdjacentHTML('afterbegin',
+        `<p style="background: ${backgroundColor}">${image.getAttribute('alt')}</p>`
+    );
     image.parentElement.removeChild(image);
 }
