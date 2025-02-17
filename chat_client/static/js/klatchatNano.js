@@ -26,7 +26,10 @@ function download(content, filename, contentType = 'application/octet-stream') {
  * @param image: target image Node
  */
 function handleImgError(image) {
-    image.parentElement.insertAdjacentHTML('afterbegin', `<p>${image.getAttribute('alt')}</p>`);
+    const backgroundColor = image.getAttribute("data-bgcolor") || "#512DA8";
+    image.parentElement.insertAdjacentHTML('afterbegin',
+        `<p style="background: ${backgroundColor}">${image.getAttribute('alt')}</p>`
+    );
     image.parentElement.removeChild(image);
 }
 /**
@@ -1193,6 +1196,24 @@ const getMessageListContainer = (cid) => {
     }
 }
 
+
+const getChatCardBody = (cid) => {
+    const cidElem = document.getElementById(cid);
+    if (cidElem) {
+        return cidElem.getElementsByClassName('card-body')[0];
+    }
+}
+
+const scrollChatToLastMessage = (cid) => {
+    const chatCardBody = getChatCardBody(cid);
+    if (chatCardBody) {
+        chatCardBody.scrollTo({
+            top: chatCardBody.scrollHeight,
+            behavior: "smooth"
+        })
+    }
+}
+
 /**
  * Gets message node from the message container
  * @param messageContainer: DOM Message Container element to consider
@@ -1248,6 +1269,7 @@ async function addNewMessage(cid, userID = null, messageID = null, messageText, 
             messageList.removeChild(blankChat[0]);
         }
         messageList.insertAdjacentHTML('beforeend', messageHTML);
+        scrollChatToLastMessage(cid);
         resolveMessageAttachments(cid, messageID, attachments);
         resolveUserReply(messageID, repliedMessageID);
         addProfileDisplay(userID, cid, messageID, 'plain');
@@ -2134,7 +2156,8 @@ function initSIO() {
         console.info(`setting prompt_id=${promptID} as completed`);
         if (promptElem) {
             const promptWinner = document.getElementById(`${promptID}_winner`);
-            promptWinner.innerHTML = getPromptWinnerText(data['winner']);
+            console.log("data:", data)
+            promptWinner.innerHTML = await buildPromptWinnerHTML(data['winner']);
         } else {
             console.warn(`Failed to get HTML element from prompt_id=${promptID}`);
         }
@@ -2305,9 +2328,26 @@ async function buildUserMessageHTML(userData, cid, messageID, messageText, timeC
  * @return {string} - shortened nickname
  */
 const shrinkNickname = (nick) => {
-    return `${nick[0]}${nick[nick.length - 1]}`;
+    const index = nick.indexOf('_');
+    return (index !== -1 && index < 8) ? nick.substring(0, index) : nick.substring(0, 8);
 }
 
+/**
+ * Generates dark color based on username
+ * @param username
+ * @returns {string} - generated color in hsl format
+ */
+
+function generateDarkColorFromUsername(username) {
+    if (!username) {
+        return 'hsl(270, 70%, 30%)';
+    }
+    let hash = 0;
+    for (let i = 0; i < username.length; i++) {
+        hash = username.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    return `hsl(${hash % 360}, 70%, 30%)`;
+}
 
 /**
  * Builds Prompt Skin HTML for submind responses
@@ -2320,11 +2360,8 @@ const shrinkNickname = (nick) => {
  * @return {Promise<string|void>} - Submind Data HTML populated with provided data
  */
 async function buildSubmindHTML(promptID, submindID, submindUserData, submindResponse, submindOpinion, submindVote) {
-    const userNickname = shrinkNickname(submindUserData['nickname']);
-    let tooltip = submindUserData['nickname'];
-    if (submindUserData['is_bot']) {
-        tooltip = `bot ${tooltip}`;
-    }
+    const userNickname = submindUserData['nickname'];
+    const participantIcon = await buildPromptParticipantIcon(userNickname);
     const phaseDataObjectMapping = {
         'response': submindResponse,
         'opinion': submindOpinion,
@@ -2335,10 +2372,9 @@ async function buildSubmindHTML(promptID, submindID, submindUserData, submindRes
         'user_id': submindID,
         'user_first_name': submindUserData['first_name'],
         'user_last_name': submindUserData['last_name'],
-        'user_nickname': submindUserData['nickname'],
-        'user_nickname_shrunk': userNickname,
+        'user_nickname': userNickname,
+        'participant_icon': participantIcon,
         // 'user_avatar': `${configData["CHAT_SERVER_URL_BASE"]}/files/avatar/${submindID}`,
-        'tooltip': tooltip
     }
     const submindPromptData = {}
     for (const [k, v] of Object.entries(phaseDataObjectMapping)) {
@@ -2353,18 +2389,38 @@ async function buildSubmindHTML(promptID, submindID, submindUserData, submindRes
 
 
 /**
- * Gets winner text based on the provided winner data
- * @param winner: provided winner
- * @return {string} generated winner text
+ * Gets winner field HTML based on provided winner
+ * @return {string} built winner field HTML
+ * @param nickname of the winner
  */
-const getPromptWinnerText = (winner) => {
-    let res;
-    if (winner) {
-        res = `Selected winner "${winner}"`;
-    } else {
-        res = 'Consensus not reached';
+async function buildPromptWinnerHTML(nickname) {
+    return `
+<div class="d-flex flex-column align-items-center justify-content-center">
+<span class="mt-2">Selected winner</span>
+${await buildPromptParticipantIcon(nickname)}
+</div>
+`
+}
+
+/**
+ * Builds prompt participant icon HTML
+ * @param nickname of the participant
+ * @returns prompt participant icon HTML
+ */
+async function buildPromptParticipantIcon(nickname) {
+    const backgroundColor = generateDarkColorFromUsername(nickname);
+    const userNicknameShrunk = shrinkNickname(nickname);
+    let tooltip = nickname;
+    /* if (submindUserData['is_bot'])  assuming only bots participate for now*/
+    tooltip = `bot ${tooltip}`;
+    const template_data = {
+        'user_nickname': nickname,
+        'user_nickname_shrunk': userNicknameShrunk,
+        'background_color': backgroundColor,
+        // 'user_avatar': submindUserData['user_avatar'], not used for now
+        'tooltip': tooltip
     }
-    return res;
+    return await buildHTMLFromTemplate("prompt_participant_icon", template_data)
 }
 
 
@@ -2375,14 +2431,13 @@ const getPromptWinnerText = (winner) => {
  */
 async function buildPromptHTML(prompt) {
     let submindsHTML = "";
+    let winnerFound = false;
     const promptData = prompt['data'];
     if (prompt['is_completed'] === '0') {
         promptData['winner'] = `Prompt in progress
 <div class="spinner-border spinner-border-sm text-dark" role="status">
 <span class="sr-only">Loading...</span>
 </div>`
-    } else {
-        promptData['winner'] = getPromptWinnerText(promptData['winner']);
     }
     const emptyAnswer = `<h4>-</h4>`;
     for (const submindID of Array.from(setDefault(promptData, 'participating_subminds', []))) {
@@ -2423,11 +2478,18 @@ async function buildPromptHTML(prompt) {
                     };
                 }
             });
+            if (promptData['winner'] === submindUserData['nickname']) {
+                winnerFound = true;
+                promptData['winner'] = await buildPromptWinnerHTML(submindUserData['nickname']);
+            }
             submindsHTML += await buildSubmindHTML(prompt['_id'], submindID, submindUserData,
                 data.proposed_responses, data.submind_opinions, data.votes);
         } catch (e) {
             console.log(`Malformed data for ${submindID} (prompt_id=${prompt['_id']}) ex=${e}`);
         }
+    }
+    if (!winnerFound && prompt['is_completed'] === '1') {
+        promptData['winner'] = 'Consensus not reached.'
     }
     return await buildHTMLFromTemplate("prompt_table", {
         'prompt_text': promptData['prompt_text'],
@@ -3330,6 +3392,7 @@ async function buildConversation(conversationData, skin, remember = true, conver
         chatCloseButton.hidden = true;
     }
     document.getElementById('klatchatHeader').scrollIntoView(true);
+    scrollChatToLastMessage(cid);
     return cid;
 }
 
@@ -3709,19 +3772,20 @@ async function createNewConversation(conversationName, isPrivate = false, boundS
     formData.append('bound_service', boundServiceID ? boundServiceID : '');
     formData.append('is_live_conversation', createLiveConversation ? '1' : '0')
 
-    await fetchServer(`chat_api/new`, REQUEST_METHODS.POST, formData).then(async response => {
-        const responseJson = await response.json();
-        let responseOk = false;
-        if (response.ok) {
-            await buildConversation(responseJson, CONVERSATION_SKINS.PROMPTS);
-            responseOk = true;
-        } else {
-            displayAlert('newConversationModalBody',
-                `${responseJson['msg']}`,
-                'danger');
-        }
-        return responseOk;
-    });
+    return await fetchServer(`chat_api/new`, REQUEST_METHODS.POST, formData)
+        .then(async response => {
+            const responseJson = await response.json();
+            let responseOk = false;
+            if (response.ok) {
+                await buildConversation(responseJson, CONVERSATION_SKINS.PROMPTS);
+                responseOk = true;
+            } else {
+                displayAlert('newConversationModalBody',
+                    `${responseJson['msg']}`,
+                    'danger');
+            }
+            return responseOk;
+        });
 }
 
 document.addEventListener('DOMContentLoaded', (_) => {
