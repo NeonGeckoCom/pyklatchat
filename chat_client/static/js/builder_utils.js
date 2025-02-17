@@ -131,9 +131,26 @@ async function buildUserMessageHTML(userData, cid, messageID, messageText, timeC
  * @return {string} - shortened nickname
  */
 const shrinkNickname = (nick) => {
-    return `${nick[0]}${nick[nick.length - 1]}`;
+    const index = nick.indexOf('_');
+    return (index !== -1 && index < 8) ? nick.substring(0, index) : nick.substring(0, 8);
 }
 
+/**
+ * Generates dark color based on username
+ * @param username
+ * @returns {string} - generated color in hsl format
+ */
+
+function generateDarkColorFromUsername(username) {
+    if (!username) {
+        return 'hsl(270, 70%, 30%)';
+    }
+    let hash = 0;
+    for (let i = 0; i < username.length; i++) {
+        hash = username.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    return `hsl(${hash % 360}, 70%, 30%)`;
+}
 
 /**
  * Builds Prompt Skin HTML for submind responses
@@ -146,11 +163,8 @@ const shrinkNickname = (nick) => {
  * @return {Promise<string|void>} - Submind Data HTML populated with provided data
  */
 async function buildSubmindHTML(promptID, submindID, submindUserData, submindResponse, submindOpinion, submindVote) {
-    const userNickname = shrinkNickname(submindUserData['nickname']);
-    let tooltip = submindUserData['nickname'];
-    if (submindUserData['is_bot']){
-        tooltip = `bot ${tooltip}`;
-    }
+    const userNickname = submindUserData['nickname'];
+    const participantIcon = await buildPromptParticipantIcon(userNickname);
     const phaseDataObjectMapping = {
         'response': submindResponse,
         'opinion': submindOpinion,
@@ -161,10 +175,9 @@ async function buildSubmindHTML(promptID, submindID, submindUserData, submindRes
             'user_id': submindID,
             'user_first_name': submindUserData['first_name'],
             'user_last_name': submindUserData['last_name'],
-            'user_nickname': submindUserData['nickname'],
-            'user_nickname_shrunk': userNickname,
+            'user_nickname': userNickname,
+            'participant_icon': participantIcon,
             // 'user_avatar': `${configData["CHAT_SERVER_URL_BASE"]}/files/avatar/${submindID}`,
-            'tooltip': tooltip
     }
     const submindPromptData = {}
     for (const [k,v] of Object.entries(phaseDataObjectMapping)){
@@ -179,18 +192,37 @@ async function buildSubmindHTML(promptID, submindID, submindUserData, submindRes
 
 
 /**
- * Gets winner text based on the provided winner data
- * @param winner: provided winner
- * @return {string} generated winner text
+ * Gets winner field HTML based on provided winner
+ * @return {string} built winner field HTML
+ * @param nickname of the winner
  */
-const getPromptWinnerText = (winner) => {
-    let res;
-    if (winner){
-        res = `Selected winner "${winner}"`;
-    }else{
-        res = 'Consensus not reached';
+async function buildPromptWinnerHTML(nickname) {
+    return `
+    <div class="d-flex flex-column align-items-center justify-content-center">
+        <span class="mt-2">Selected winner</span>
+        ${await buildPromptParticipantIcon(nickname)}
+    </div>
+    `
+}
+
+/**
+ * Builds prompt participant icon HTML
+ * @param nickname of the participant
+ * @returns prompt participant icon HTML
+ */
+async function buildPromptParticipantIcon(nickname) {
+    const backgroundColor = generateDarkColorFromUsername(nickname);
+    const userNicknameShrunk = shrinkNickname(nickname);
+    let tooltip = nickname;
+    /* if (submindUserData['is_bot'])  assuming only bots participate for now*/ tooltip = `bot ${tooltip}`;
+    const template_data = {
+        'user_nickname': nickname,
+        'user_nickname_shrunk': userNicknameShrunk,
+        'background_color': backgroundColor,
+        // 'user_avatar': submindUserData['user_avatar'], not used for now
+        'tooltip': tooltip
     }
-    return res;
+    return await buildHTMLFromTemplate("prompt_participant_icon", template_data)
 }
 
 
@@ -201,14 +233,13 @@ const getPromptWinnerText = (winner) => {
  */
 async function buildPromptHTML(prompt) {
     let submindsHTML = "";
+    let winnerFound = false;
     const promptData = prompt['data'];
     if (prompt['is_completed'] === '0'){
         promptData['winner'] = `Prompt in progress
         <div class="spinner-border spinner-border-sm text-dark" role="status">
             <span class="sr-only">Loading...</span>
         </div>`
-    }else {
-        promptData['winner'] = getPromptWinnerText(promptData['winner']);
     }
     const emptyAnswer = `<h4>-</h4>`;
     for (const submindID of Array.from(setDefault(promptData, 'participating_subminds', []))) {
@@ -245,11 +276,18 @@ async function buildPromptHTML(prompt) {
                     data[key] = {'message_text': emptyAnswer};
                 }
             });
+            if (promptData['winner'] === submindUserData['nickname']) {
+                winnerFound = true;
+                promptData['winner'] = await buildPromptWinnerHTML(submindUserData['nickname']);
+            }
             submindsHTML += await buildSubmindHTML(prompt['_id'], submindID, submindUserData,
                                                    data.proposed_responses, data.submind_opinions, data.votes);
         }catch (e) {
             console.log(`Malformed data for ${submindID} (prompt_id=${prompt['_id']}) ex=${e}`);
         }
+    }
+    if (!winnerFound && prompt['is_completed'] === '1'){
+        promptData['winner'] = 'Consensus not reached.'
     }
     return await buildHTMLFromTemplate("prompt_table",
         {'prompt_text': promptData['prompt_text'],
