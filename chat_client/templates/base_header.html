@@ -7,6 +7,9 @@
                        href="#"
                        target="_parent">
                         <strong style="color: #fff">Chatbots Forum</strong>
+                        <div  style="font-size: 0.8em; font-weight: bold;color: #fff">
+                            <small id="app-version"></small>
+                        </div>
                     </a>
                 </span>
             <button class="navbar-toggler"
@@ -41,7 +44,6 @@
                              data-target="#newConversationModal">Create</a>
                           <a class="dropdown-item" id="importConversationOpener" href="#" data-toggle="modal"
                              data-target="#importConversationModal">Join</a>
-                          <a class="dropdown-item" href="/chats/live">Open Live Conversation</a>
                         </div>
                     </li>
                 {% endif %}
@@ -52,17 +54,10 @@
                         Nano
                     </a>
                 </li>
-                <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle" style="color: #fff" href="#" id="navbarDropdownHelp" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                      Help
-                    </a>
-                    <div class="dropdown-menu" aria-labelledby="navbarDropdownHelp">
-                      <a class="dropdown-item" href="#" data-toggle="modal"
-                         data-target="#userManual">User Manual</a>
-                      <a class="dropdown-item" data-toggle="modal" data-target="#licenseModal">
+                <li class="nav-item">
+                    <a class="nav-link" data-toggle="modal" target="_blank" style="color: #fff;cursor: pointer;" data-target="#licenseModal">
                         Terms
-                      </a>
-                    </div>
+                    </a>
                 </li>
                 <li class="nav-item" id="currentUserNavDisplay">
                     <a class="nav-link" href="#" style="color: #fff">

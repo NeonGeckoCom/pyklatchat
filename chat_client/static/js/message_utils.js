@@ -10,6 +10,21 @@ const getMessageListContainer = (cid) => {
     }
 }
 
+
+const getChatCardBody = (cid) => {
+    const cidElem = document.getElementById(cid);
+    if(cidElem){
+        return cidElem.getElementsByClassName('card-body')[0];
+    }
+}
+
+const scrollChatToLastMessage = (cid) => {
+    const chatCardBody = getChatCardBody(cid);
+    if(chatCardBody){
+        chatCardBody.scrollTo({ top: chatCardBody.scrollHeight, behavior: "smooth" })
+    }
+}
+
 /**
  * Gets message node from the message container
  * @param messageContainer: DOM Message Container element to consider
@@ -65,10 +80,10 @@ async function addNewMessage(cid, userID=null, messageID=null, messageText, time
             messageList.removeChild(blankChat[0]);
         }
         messageList.insertAdjacentHTML('beforeend', messageHTML);
+        scrollChatToLastMessage(cid);
         resolveMessageAttachments(cid, messageID, attachments);
         resolveUserReply(messageID, repliedMessageID);
         addProfileDisplay(userID, cid, messageID, 'plain');
-        scrollOnNewMessage(messageList);
         return messageID;
     }
 }

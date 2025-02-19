@@ -374,8 +374,8 @@ async function buildConversation(conversationData, skin, remember=true,conversat
     if (configData.client === CLIENTS.NANO){
         chatCloseButton.hidden = true;
     }
-    setTimeout(() => getMessageListContainer(conversationData['_id']).lastElementChild?.scrollIntoView(true), 0);
-    // $('#copyrightContainer').css('position', 'inherit');
+    document.getElementById('klatchatHeader').scrollIntoView(true);
+    scrollChatToLastMessage(cid);
     return cid;
 }
 
@@ -536,9 +536,8 @@ const displayLiveChat = async () => {
  */
 const restoreChatAlignmentFromCache = async () => {
     let cachedItems = await retrieveItemsLayout();
-    if (cachedItems.length === 0){
-        cachedItems = [{'cid': '1', 'added_on': getCurrentTimestamp(), 'skin': CONVERSATION_SKINS.PROMPTS}]
-        await addNewCID('1', CONVERSATION_SKINS.PROMPTS);
+    if (cachedItems.length === 0) {
+        await displayLiveChat();
     }
     for (const item of cachedItems) {
         await getConversationDataByInput(item.cid, item.skin).then(async conversationData=>{
@@ -745,19 +744,20 @@ async function createNewConversation(conversationName, isPrivate=false,boundServ
     formData.append('bound_service', boundServiceID?boundServiceID: '');
     formData.append('is_live_conversation', createLiveConversation? '1': '0')
 
-    await fetchServer(`chat_api/new`,  REQUEST_METHODS.POST, formData).then(async response => {
-        const responseJson = await response.json();
-        let responseOk = false;
-        if (response.ok) {
-            await buildConversation(responseJson, CONVERSATION_SKINS.PROMPTS);
-            responseOk = true;
-        } else {
-            displayAlert('newConversationModalBody',
-                `${responseJson['msg']}`,
-                'danger');
-        }
-        return responseOk;
-    });
+    return await fetchServer(`chat_api/new`,  REQUEST_METHODS.POST, formData)
+        .then(async response => {
+            const responseJson = await response.json();
+            let responseOk = false;
+            if (response.ok) {
+                await buildConversation(responseJson, CONVERSATION_SKINS.PROMPTS);
+                responseOk = true;
+            } else {
+                displayAlert('newConversationModalBody',
+                    `${responseJson['msg']}`,
+                    'danger');
+            }
+            return responseOk;
+        });
 }
 
 document.addEventListener('DOMContentLoaded', (_)=>{
