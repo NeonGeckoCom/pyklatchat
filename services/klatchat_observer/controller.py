@@ -547,10 +547,10 @@ class ChatObserver(MQConnector):
             recipient_data = {}
 
             if not self._should_skip_recipient_detection(data=data):
-                recipient_data = self.get_recipient_from_bound_service(
-                    data.get("bound_service", "")
-                ) or self.get_recipient_from_message(
+                recipient_data = self.get_recipient_from_message(
                     message=data.get("messageText") or data.get("message_body")
+                ) or self.get_recipient_from_bound_service(
+                    data.get("bound_service", "")
                 )
                 data["recipient"] = recipient_data.pop("recipient", None)
 
