@@ -200,9 +200,9 @@ async function buildSubmindHTML(promptID, submindID, submindUserData, submindRes
 async function buildPromptWinnerHTML(nickname, winner_response) {
     return `
     <div class="d-flex flex-column align-items-center justify-content-center">
-        <span class="mt-2">Selected winner</span>
+        <span class="mt-2 mb-3 font-weight-bold">Selected winner</span>
         ${await buildPromptParticipantIcon(nickname)}
-        <div style="max-width: 400px;">
+        <div style="max-width: 400px; margin-top: 20px;">
             ${winner_response}
         </div>
     </div>
