@@ -32,6 +32,8 @@ text-align: center;
 line-height: 50px;
 user-select: none;
 font-size: 13px;
+white-space: nowrap;
+overflow: hidden;
 }
 
 
