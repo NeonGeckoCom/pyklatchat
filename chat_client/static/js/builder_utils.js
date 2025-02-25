@@ -132,7 +132,7 @@ async function buildUserMessageHTML(userData, cid, messageID, messageText, timeC
  */
 const shrinkNickname = (nick) => {
     const index = nick.indexOf('_');
-    return (index !== -1 && index < 8) ? nick.substring(0, index) : nick.substring(0, 8);
+    return (index !== -1 && index < 7) ? nick.substring(0, index) : nick.substring(0, 7);
 }
 
 /**
@@ -195,12 +195,16 @@ async function buildSubmindHTML(promptID, submindID, submindUserData, submindRes
  * Gets winner field HTML based on provided winner
  * @return {string} built winner field HTML
  * @param nickname of the winner
+ * @param winner_response
  */
-async function buildPromptWinnerHTML(nickname) {
+async function buildPromptWinnerHTML(nickname, winner_response) {
     return `
     <div class="d-flex flex-column align-items-center justify-content-center">
-        <span class="mt-2">Selected winner</span>
+        <span class="mt-2 mb-3 font-weight-bold">Selected winner</span>
         ${await buildPromptParticipantIcon(nickname)}
+        <div style="max-width: 400px; margin-top: 20px;">
+            ${winner_response}
+        </div>
     </div>
     `
 }
@@ -278,7 +282,10 @@ async function buildPromptHTML(prompt) {
             });
             if (promptData['winner'] === submindUserData['nickname']) {
                 winnerFound = true;
-                promptData['winner'] = await buildPromptWinnerHTML(submindUserData['nickname']);
+                promptData['winner'] = await buildPromptWinnerHTML(
+                    submindUserData['nickname'],
+                    data.proposed_responses['message_text']
+                );
             }
             submindsHTML += await buildSubmindHTML(prompt['_id'], submindID, submindUserData,
                                                    data.proposed_responses, data.submind_opinions, data.votes);
