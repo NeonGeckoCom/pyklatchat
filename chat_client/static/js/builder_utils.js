@@ -132,7 +132,7 @@ async function buildUserMessageHTML(userData, cid, messageID, messageText, timeC
  */
 const shrinkNickname = (nick) => {
     const index = nick.indexOf('_');
-    return (index !== -1 && index < 8) ? nick.substring(0, index) : nick.substring(0, 8);
+    return (index !== -1 && index < 7) ? nick.substring(0, index) : nick.substring(0, 7);
 }
 
 /**
