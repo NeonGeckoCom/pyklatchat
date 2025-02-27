@@ -116,14 +116,15 @@ async function addPromptMessage(cid, userID, messageText, promptId, promptState)
     const tableBody = document.getElementById(`${promptId}_tbody`);
     if (await getCurrentSkin(cid) === CONVERSATION_SKINS.PROMPTS){
         try {
+            const userData = await getUserData(userID);
             promptState = PROMPT_STATES[promptState].toLowerCase();
             if (!getUserPromptTR(promptId, userID)) {
-                const userData = await getUserData(userID);
                 const newUserRow = await buildSubmindHTML(promptId, userID, userData, '', '', '');
                 tableBody.insertAdjacentHTML('beforeend', newUserRow);
             }
             try {
-                const messageElem = document.getElementById(`${promptId}_${userID}_${promptState}`);
+                console.log("userData:", userData)
+                const messageElem = document.getElementById(`${promptId}_${userData['nickname']}_${promptState}`);
                 messageElem.innerText = messageText;
             } catch (e) {
                 console.warn(`Failed to add prompt message (${cid},${userID}, ${messageText}, ${promptId}, ${promptState}) - ${e}`)
