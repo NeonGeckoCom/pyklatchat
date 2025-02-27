@@ -74,7 +74,7 @@ setup(
     author="NeonGecko",
     author_email="developers@neon.ai",
     license="BSD-3",
-    packages=["chat_server", "chat_client", "services.klatchat_observer"],
+    packages=["chat_server", "chat_client"],
     install_requires=get_requirements("requirements.txt"),
     zip_safe=True,
     classifiers=[
@@ -84,8 +84,7 @@ setup(
     entry_points={
         "console_scripts": [
             "chat_server=chat_server.__main__:main",
-            "chat_client=chat_client.__main__:main",
-            "klatchat_observer=services.klatchat_observer.__main__:main",
+            "chat_client=chat_client.__main__:main"
         ]
     },
 )
