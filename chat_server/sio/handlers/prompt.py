@@ -77,7 +77,6 @@ async def prompt_completed(sid, data):
     prompt_id = data["context"]["prompt"]["prompt_id"]
 
     LOG.info(f"setting {prompt_id = } as completed")
-
     MongoDocumentsAPI.PROMPTS.set_completed(
         prompt_id=prompt_id, prompt_context=data["context"]
     )
