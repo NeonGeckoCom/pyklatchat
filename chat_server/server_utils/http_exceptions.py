@@ -26,54 +26,13 @@
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-import http
-
-from utils.http_utils import respond
-
-
-class KlatAPIException(Exception):
-
-    HTTP_CODE = http.HTTPStatus.INTERNAL_SERVER_ERROR
-    MESSAGE = "Internal Server Error"
-
-    def __init__(self, message: str = None):
-        self.MESSAGE = message or self.MESSAGE
-        super().__init__(message)
-
-    def to_http_response(self):
-        return respond(msg=self.MESSAGE, status_code=self.HTTP_CODE.value)
-
-
-class UserUnauthorizedException(KlatAPIException):
-    HTTP_CODE = http.HTTPStatus.UNAUTHORIZED
-    MESSAGE = "Requested user is not authorized to perform this action"
-
-
-class InvalidSessionTokenException(KlatAPIException):
-    HTTP_CODE = http.HTTPStatus.UNAUTHORIZED
-    MESSAGE = "Session token is invalid or expired"
-
-
-class ItemNotFoundException(KlatAPIException):
-    HTTP_CODE = http.HTTPStatus.NOT_FOUND
-    MESSAGE = "Requested item not found"
-
-
-class DuplicatedItemException(KlatAPIException):
-    HTTP_CODE = http.HTTPStatus.CONFLICT
-    MESSAGE = "Requested item already exists"
-
-
-class MissingAttributeException(KlatAPIException):
-    HTTP_CODE = http.HTTPStatus.UNPROCESSABLE_ENTITY
-    MESSAGE = "Missing required attributes"
-
-
-class InvalidInputData(KlatAPIException):
-    HTTP_CODE = http.HTTPStatus.BAD_REQUEST
-    MESSAGE = "Wrong input data provided"
-
-
-class PermissionDenied(KlatAPIException):
-    HTTP_CODE = http.HTTPStatus.FORBIDDEN
-    MESSAGE = "User has no permission to access this resource"
+from klatchat_utils.exceptions import (KlatAPIException,
+                                       UserUnauthorizedException,
+                                       InvalidSessionTokenException,
+                                       ItemNotFoundException,
+                                       DuplicatedItemException,
+                                       MissingAttributeException,
+                                       InvalidInputData,
+                                       PermissionDenied)
+from ovos_utils.log import log_deprecation
+log_deprecation('Import from `pklatchat_utils.exceptions` directly', "1.0.0")

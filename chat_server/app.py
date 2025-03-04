@@ -37,8 +37,8 @@ from starlette.middleware.cors import CORSMiddleware
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from utils.common import get_version
-from utils.logging_utils import LOG
+from klatchat_utils.common import get_version
+from klatchat_utils.logging_utils import LOG
 from chat_server.server_utils.middleware import SUPPORTED_MIDDLEWARE
 
 

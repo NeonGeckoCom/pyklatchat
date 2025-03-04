@@ -39,11 +39,11 @@ from chat_server.server_utils.auth import (
     check_password_strength,
 )
 from chat_server.server_utils.http_utils import save_file
-from utils.common import get_hash
-from utils.database_utils.mongo_utils import MongoFilter
-from utils.database_utils.mongo_utils.queries.wrapper import MongoDocumentsAPI
-from utils.http_utils import respond
-from utils.logging_utils import LOG
+from klatchat_utils.common import get_hash
+from klatchat_utils.database_utils.mongo_utils import MongoFilter
+from klatchat_utils.database_utils.mongo_utils.queries.wrapper import MongoDocumentsAPI
+from klatchat_utils.http_utils import respond
+from klatchat_utils.logging_utils import LOG
 
 router = APIRouter(
     prefix="/users_api",

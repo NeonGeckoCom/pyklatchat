@@ -41,7 +41,7 @@ echo "Build version = $VERSION";
 
 cd ..
 echo "Building Chat Observer"
-cp config.py services/klatchat_observer
+#cp config.py services/klatchat_observer
 cp config.json services/klatchat_observer
 cp version.py services/klatchat_observer
 cp -R utils services/klatchat_observer
@@ -58,7 +58,7 @@ echo "Building Chat Client"
 cp requirements/base.txt chat_client
 cp requirements/services/client.txt chat_client
 cp -R utils chat_client
-cp config.py chat_client
+#cp config.py chat_client
 cp version.py chat_client
 cp uvicorn_logging.yaml chat_client
 cd chat_client
@@ -71,7 +71,7 @@ cd ..
 echo "Building Chat Server"
 cp requirements/base.txt chat_server
 cp requirements/services/server.txt chat_server
-cp config.py chat_server
+#cp config.py chat_server
 cp version.py chat_server
 cp -R utils chat_server
 cp uvicorn_logging.yaml chat_server

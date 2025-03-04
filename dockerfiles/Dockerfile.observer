@@ -1,7 +1,5 @@
 FROM ghcr.io/neongeckocom/pyklatchat_base:dev
 
-COPY /utils /app
-ADD config.py /app/
 ADD . /app/klatchat_observer/
 
 ENV KLAT_ENV PROD

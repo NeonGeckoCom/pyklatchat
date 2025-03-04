@@ -35,8 +35,8 @@ from chat_server.server_utils.api_dependencies import (
 from chat_server.server_utils.api_dependencies.validators.users import (
     get_authorized_user,
 )
-from utils.database_utils.mongo_utils.queries.wrapper import MongoDocumentsAPI
-from utils.http_utils import respond
+from klatchat_utils.database_utils.mongo_utils.queries.wrapper import MongoDocumentsAPI
+from klatchat_utils.http_utils import respond
 
 router = APIRouter(
     prefix="/preferences",

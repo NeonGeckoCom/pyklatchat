@@ -29,7 +29,7 @@ import copy
 from time import time
 
 from chat_server.constants.users import UserPatterns
-from utils.common import get_hash, generate_uuid
+from klatchat_utils.common import get_hash, generate_uuid
 
 
 def create_from_pattern(source: UserPatterns, override_defaults: dict = None) -> dict:

@@ -1,6 +1,5 @@
 FROM ghcr.io/neongeckocom/pyklatchat_base:dev
 
-COPY /utils /app
 COPY version.py /app
 COPY . /app/chat_client/
 

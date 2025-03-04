@@ -29,7 +29,7 @@ from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 
 from version import __version__, __version_ts__
-from utils.logging_utils import LOG
+from klatchat_utils.logging_utils import LOG
 
 from chat_client.client_config import client_config
 

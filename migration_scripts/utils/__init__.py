@@ -26,8 +26,8 @@
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from config import Configuration
-from utils.connection_utils import create_ssh_tunnel
+from klatchat_utils.configuration import Configuration
+from klatchat_utils.connection_utils import create_ssh_tunnel
 
 
 def setup_db_connectors(configuration: Configuration, old_db_key: str, new_db_key: str):

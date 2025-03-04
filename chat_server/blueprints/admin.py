@@ -35,9 +35,9 @@ from chat_server.server_utils.api_dependencies.models.admin import (
     ChatsOverviewRequestModel,
 )
 from chat_server.server_utils.enums import UserRoles, RequestModelType
-from utils.database_utils.mongo_utils.queries.wrapper import MongoDocumentsAPI
-from utils.logging_utils import LOG
-from utils.http_utils import respond
+from klatchat_utils.database_utils.mongo_utils.queries.wrapper import MongoDocumentsAPI
+from klatchat_utils.logging_utils import LOG
+from klatchat_utils.http_utils import respond
 
 from chat_server.server_config import server_config
 from chat_server.server_utils.k8s_utils import restart_deployment

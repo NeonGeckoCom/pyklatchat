@@ -36,8 +36,8 @@ from chat_server.server_utils.db_utils import (
 )
 from migration_scripts.utils.shout_utils import prepare_nicks_for_sql
 from migration_scripts.utils.sql_utils import iterable_to_sql_array, sql_arr_is_null
-from utils.database_utils.mongo_utils.queries.wrapper import MongoDocumentsAPI
-from utils.logging_utils import LOG
+from klatchat_utils.database_utils.mongo_utils.queries.wrapper import MongoDocumentsAPI
+from klatchat_utils.logging_utils import LOG
 
 
 def migrate_shouts(

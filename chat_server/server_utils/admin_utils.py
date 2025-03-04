@@ -26,7 +26,7 @@
 
 
 from chat_server.server_config import server_config
-from utils.logging_utils import LOG
+from klatchat_utils.logging_utils import LOG
 
 
 def run_mq_validation():

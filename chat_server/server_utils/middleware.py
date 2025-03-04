@@ -36,7 +36,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 
 from chat_server.server_utils.http_exceptions import KlatAPIException
 from chat_server.server_utils.http_utils import get_request_path_string, KlatAPIResponse
-from utils.logging_utils import LOG
+from klatchat_utils.logging_utils import LOG
 
 
 class KlatAPIExceptionMiddleware(BaseHTTPMiddleware):

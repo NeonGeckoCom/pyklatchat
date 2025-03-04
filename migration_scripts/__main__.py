@@ -30,13 +30,13 @@ import os
 import json
 import uuid
 
-from config import Configuration
+from klatchat_utils.configuration import Configuration
 from migration_scripts.constants import MigrationFiles
 from migration_scripts.conversations import migrate_conversations
 from migration_scripts.shouts import migrate_shouts
 from migration_scripts.utils import setup_db_connectors
 from migration_scripts import migrate_users
-from utils.logging_utils import LOG
+from klatchat_utils.logging_utils import LOG
 
 
 def main(migration_id: str = None, dump_dir=os.getcwd(), time_since: int = 1677829600):

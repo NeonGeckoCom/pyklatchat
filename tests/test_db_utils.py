@@ -37,9 +37,9 @@ sys.path.append(
     )
 )
 from chat_server.server_config import server_config
-from utils.connection_utils import create_ssh_tunnel
-from utils.database_utils.mongo_utils import *
-from utils.logging_utils import LOG
+from klatchat_utils.connection_utils import create_ssh_tunnel
+from klatchat_utils.database_utils.mongo_utils import *
+from klatchat_utils.logging_utils import LOG
 
 
 class TestDBController(unittest.TestCase):
