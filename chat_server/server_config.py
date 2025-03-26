@@ -93,11 +93,12 @@ class KlatServerConfig(KlatConfigurationBase):
     def k8s_api(self):
         if not self._k8s_api:
             if _k8s_config_path := self.k8s_config.get("K8S_CONFIG_PATH"):
+                # Configured path may be used for local deployments
                 config.load_kube_config(_k8s_config_path)
-                self._k8s_api = client.AppsV1Api()
-            raise MalformedConfigurationException(
-                message="'K8S_CONFIG_PATH' property is missing in 'K8S_CONFIG'"
-            )
+            else:
+                # Deployed instances should discover/authenticate automatically
+                config.load_kube_config()
+            self._k8s_api = client.AppsV1Api()
         return self._k8s_api
 
     @property

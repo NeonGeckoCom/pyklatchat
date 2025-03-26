@@ -41,8 +41,14 @@ def restart_deployment(deployment_name: str, namespace: str = None):
     :param namespace: name of the namespace
     """
     if not namespace:
-        namespace = server_config.k8s_default_namespace
-    now = datetime.datetime.utcnow()
+        try:
+            with open("/var/run/secrets/kubernetes.io/serviceaccount/namespace",
+                      "r") as f:
+                namespace = f.read()
+        except Exception as e:
+            LOG.info(e)
+            namespace = server_config.k8s_default_namespace
+    now = datetime.datetime.now(datetime.timezone.utc)
     now = str(now.isoformat() + "Z")
     body = {
         "spec": {
