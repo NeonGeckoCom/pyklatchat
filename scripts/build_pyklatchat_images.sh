@@ -40,19 +40,19 @@ readonly VERSION=${version:-dev}
 echo "Build version = $VERSION";
 
 cd ..
-echo "Building Chat Observer"
-cp config.py services/klatchat_observer
-cp config.json services/klatchat_observer
-cp version.py services/klatchat_observer
-cp -R utils services/klatchat_observer
-cp requirements/base.txt services/klatchat_observer
-cp requirements/services/observer.txt services/klatchat_observer
-cd services/klatchat_observer
-
-# replacing base image version
-sed -i "1 s|.*|FROM ghcr.io/neongeckocom/pyklatchat_base:${VERSION}|" ../../dockerfiles/Dockerfile.observer
-
-docker build -f ../../dockerfiles/Dockerfile.observer -t ghcr.io/neongeckocom/klatchat_observer:$VERSION .
+#echo "Building Chat Observer"
+#cp config.py services/klatchat_observer
+#cp config.json services/klatchat_observer
+#cp version.py services/klatchat_observer
+#cp -R utils services/klatchat_observer
+#cp requirements/base.txt services/klatchat_observer
+#cp requirements/services/observer.txt services/klatchat_observer
+#cd services/klatchat_observer
+#
+## replacing base image version
+#sed -i "1 s|.*|FROM ghcr.io/neongeckocom/pyklatchat_base:${VERSION}|" ../../dockerfiles/Dockerfile.observer
+#
+#docker build -f ../../dockerfiles/Dockerfile.observer -t ghcr.io/neongeckocom/klatchat_observer:$VERSION .
 cd ../../
 echo "Building Chat Client"
 cp requirements/base.txt chat_client
